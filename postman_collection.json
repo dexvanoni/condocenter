@@ -1,0 +1,437 @@
+{
+  "info": {
+    "name": "CondoManager API",
+    "description": "API REST para gestão de condomínios",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "email",
+                  "value": "sindico@vistaverde.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "password",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          }
+        },
+        {
+          "name": "Get User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "user"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Transações",
+      "item": [
+        {
+          "name": "Listar Transações",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/transactions?type=expense&per_page=15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "transactions"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "expense"
+                },
+                {
+                  "key": "per_page",
+                  "value": "15"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Criar Transação",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"expense\",\n  \"category\": \"Manutenção\",\n  \"subcategory\": \"Limpeza\",\n  \"description\": \"Compra de produtos de limpeza\",\n  \"amount\": 350.00,\n  \"transaction_date\": \"2025-10-07\",\n  \"status\": \"paid\",\n  \"payment_method\": \"pix\",\n  \"store_location\": \"Loja ABC\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/transactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "transactions"]
+            }
+          }
+        },
+        {
+          "name": "Upload Comprovante",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "description",
+                  "value": "Nota fiscal da compra",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/transactions/1/receipts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "transactions", "1", "receipts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cobranças",
+      "item": [
+        {
+          "name": "Listar Cobranças",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/charges?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["api", "charges"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Criar Cobrança",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unit_id\": 1,\n  \"title\": \"Taxa Condominial - Novembro/2025\",\n  \"description\": \"Cobrança mensal de condomínio\",\n  \"amount\": 450.00,\n  \"due_date\": \"2025-11-10\",\n  \"type\": \"regular\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/charges",
+              "host": ["{{base_url}}"],
+              "path": ["api", "charges"]
+            }
+          }
+        },
+        {
+          "name": "Criar Cobranças em Lote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Taxa Condominial - Novembro/2025\",\n  \"amount\": 450.00,\n  \"due_date\": \"2025-11-10\",\n  \"type\": \"regular\",\n  \"apply_to_all_units\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/charges/bulk-create",
+              "host": ["{{base_url}}"],
+              "path": ["api", "charges", "bulk-create"]
+            }
+          }
+        },
+        {
+          "name": "Gerar Pagamento Asaas",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/charges/1/generate-asaas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "charges", "1", "generate-asaas"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reservas",
+      "item": [
+        {
+          "name": "Listar Reservas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reservations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations"]
+            }
+          }
+        },
+        {
+          "name": "Criar Reserva",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"space_id\": 1,\n  \"reservation_date\": \"2025-10-15\",\n  \"start_time\": \"14:00\",\n  \"end_time\": \"18:00\",\n  \"notes\": \"Festa de aniversário\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reservations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations"]
+            }
+          }
+        },
+        {
+          "name": "Aprovar Reserva",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reservations/1/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reservations", "1", "approve"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Marketplace",
+      "item": [
+        {
+          "name": "Listar Anúncios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/marketplace",
+              "host": ["{{base_url}}"],
+              "path": ["api", "marketplace"]
+            }
+          }
+        },
+        {
+          "name": "Criar Anúncio",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Bicicleta seminova",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Bicicleta Mountain Bike em ótimo estado",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "800.00",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "products",
+                  "type": "text"
+                },
+                {
+                  "key": "condition",
+                  "value": "used",
+                  "type": "text"
+                },
+                {
+                  "key": "images[]",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/marketplace",
+              "host": ["{{base_url}}"],
+              "path": ["api", "marketplace"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Portaria",
+      "item": [
+        {
+          "name": "Registrar Entrada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unit_id\": 1,\n  \"type\": \"visitor\",\n  \"visitor_name\": \"João Visitante\",\n  \"visitor_document\": \"123.456.789-00\",\n  \"vehicle_plate\": \"ABC-1234\",\n  \"authorized\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/entries",
+              "host": ["{{base_url}}"],
+              "path": ["api", "entries"]
+            }
+          }
+        },
+        {
+          "name": "Registrar Encomenda",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unit_id\": 1,\n  \"sender\": \"Correios\",\n  \"tracking_code\": \"BR123456789BR\",\n  \"description\": \"Caixa média\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/packages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "packages"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notificações",
+      "item": [
+        {
+          "name": "Listar Notificações",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?is_read=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "is_read",
+                  "value": "false"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Marcar como Lida",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/1/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "1", "read"]
+            }
+          }
+        },
+        {
+          "name": "Contador Não Lidas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/unread-count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "unread-count"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
+
