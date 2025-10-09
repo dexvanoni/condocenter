@@ -94,6 +94,11 @@
                 <div id="spaceInfoCard" style="display: none;">
                     <div class="card bg-light">
                         <div class="card-body p-3">
+                            <!-- Foto do Espaço -->
+                            <div class="text-center mb-3">
+                                <img id="spacePhoto" src="" alt="Foto do Espaço" class="img-fluid rounded shadow-sm" style="max-height: 200px; width: 100%; object-fit: cover;">
+                            </div>
+                            
                             <h6 class="card-title mb-2" id="spaceName"></h6>
                             <p class="card-text small text-muted mb-3" id="spaceDescription"></p>
                             
@@ -121,6 +126,29 @@
                             <div class="mb-3">
                                 <small class="text-muted d-block">📋 Modo de Reserva</small>
                                 <span class="fw-bold" id="spaceReservationMode">-</span>
+                            </div>
+
+                            <!-- Informações de Pré-reserva -->
+                            <div id="prereservationInfo" style="display: none;" class="mb-3">
+                                <small class="text-muted d-block">💳 Sistema de Pré-reserva</small>
+                                <div class="bg-warning bg-opacity-10 p-2 rounded border border-warning">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">⏰ Prazo para Pagamento</small>
+                                            <span class="fw-bold small text-warning" id="spacePaymentDeadline">-</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted d-block">🔄 Cancelamento</small>
+                                            <span class="fw-bold small" id="spaceAutoCancel">-</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <small class="text-muted d-block">📝 Instruções de Pagamento</small>
+                                        <div class="bg-white p-2 rounded border mt-1">
+                                            <small class="text-dark" id="spacePaymentInstructions">-</small>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Configurações de Horário (para espaços hourly) -->
@@ -597,8 +625,134 @@
         margin-right: 4px;
         font-size: 0.8em;
     }
+    
+    /* Estilos para informações de pré-reserva */
+    #prereservationInfo {
+        animation: fadeIn 0.3s ease-in;
+    }
+    
+    #prereservationInfo .bg-warning {
+        background-color: rgba(255, 193, 7, 0.1) !important;
+    }
+    
+    #prereservationInfo .border-warning {
+        border-color: rgba(255, 193, 7, 0.3) !important;
+    }
+    
+    #prereservationInfo .text-warning {
+        color: #ff8c00 !important;
+        font-weight: 600;
+    }
+    
+    #spacePaymentInstructions {
+        line-height: 1.4;
+        max-height: 60px;
+        overflow-y: auto;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Estilos para pré-reservas no calendário */
+    .fc-event-prereservation {
+        cursor: pointer !important;
+        border: 2px solid #ff8c00 !important;
+        box-shadow: 0 2px 4px rgba(255, 140, 0, 0.3) !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .fc-event-prereservation:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 8px rgba(255, 140, 0, 0.4) !important;
+        border-color: #e67e22 !important;
+    }
+    
+    .fc-event-prereservation::after {
+        content: " ℹ️";
+        font-size: 12px;
+    }
 </style>
 @endpush
+
+<!-- Modal Informação de Pré-reserva -->
+<div class="modal fade" id="prereservationInfoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-hourglass-split"></i> Pré-reserva Pendente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <h6 class="alert-heading">
+                        <i class="bi bi-exclamation-triangle"></i> Este horário está temporariamente reservado
+                    </h6>
+                    <p class="mb-0">
+                        Alguém fez uma pré-reserva para este horário, mas ainda não confirmou o pagamento.
+                    </p>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-muted mb-3">
+                                    <i class="bi bi-clock-history"></i> Informações da Pré-reserva
+                                </h6>
+                                
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">📅 Data</small>
+                                        <strong id="prereservationDate">-</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">🕐 Horário</small>
+                                        <strong id="prereservationTime">-</strong>
+                                    </div>
+                                    <div class="col-12 mt-3">
+                                        <hr class="my-2">
+                                        <small class="text-muted d-block">⏱️ Tempo restante para pagamento</small>
+                                        <div class="d-flex align-items-center gap-2 mt-2">
+                                            <div class="spinner-border spinner-border-sm text-warning" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <span class="fw-bold text-warning fs-5" id="prereservationExpiration">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>O que isso significa?</strong>
+                            <p class="mb-2 mt-2">
+                                Se o pagamento não for confirmado dentro do prazo, esta pré-reserva será 
+                                <strong>cancelada automaticamente</strong> e o horário ficará disponível para você.
+                            </p>
+                            <small class="text-muted">
+                                💡 <em>Sugestão: Se você deseja este horário, aguarde a expiração da pré-reserva 
+                                e tente novamente em algumas horas.</em>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- FIM Modal Informação de Pré-reserva -->
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
@@ -709,6 +863,26 @@
         // Atualizar informações do espaço
         document.getElementById('spaceName').textContent = selectedSpace.name;
         document.getElementById('spaceDescription').textContent = selectedSpace.description || '';
+        
+        // Atualizar foto do espaço
+        const photoElement = document.getElementById('spacePhoto');
+        if (selectedSpace.photo_path) {
+            photoElement.src = `/storage/${selectedSpace.photo_path}`;
+            photoElement.style.display = 'block';
+        } else {
+            // Foto padrão baseada no tipo do espaço
+            const defaultPhotos = {
+                'party_hall': '/images/defaults/party_hall.jpg',
+                'bbq': '/images/defaults/bbq.jpg',
+                'pool': '/images/defaults/pool.jpg',
+                'sports_court': '/images/defaults/sports_court.jpg',
+                'gym': '/images/defaults/gym.jpg',
+                'meeting_room': '/images/defaults/meeting_room.jpg',
+                'other': '/images/defaults/space.jpg',
+            };
+            photoElement.src = defaultPhotos[selectedSpace.type] || '/images/defaults/space.jpg';
+            photoElement.style.display = 'block';
+        }
         document.getElementById('spacePrice').textContent = selectedSpace.price_per_hour > 0 
             ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')}` 
             : 'GRATUITO';
@@ -742,6 +916,28 @@
             document.getElementById('spaceMaxHours').textContent = `${selectedSpace.max_hours_per_reservation || 4}h`;
         } else {
             hourlyConfig.style.display = 'none';
+        }
+        
+        // Informações de Pré-reserva
+        const prereservationInfo = document.getElementById('prereservationInfo');
+        if (selectedSpace.approval_type === 'prereservation') {
+            prereservationInfo.style.display = 'block';
+            
+            // Prazo para pagamento
+            const paymentHours = selectedSpace.prereservation_payment_hours || 24;
+            document.getElementById('spacePaymentDeadline').textContent = `${paymentHours} horas`;
+            
+            // Cancelamento automático
+            const autoCancel = selectedSpace.prereservation_auto_cancel 
+                ? 'Automático' 
+                : 'Manual';
+            document.getElementById('spaceAutoCancel').textContent = autoCancel;
+            
+            // Instruções de pagamento
+            const instructions = selectedSpace.prereservation_instructions || 'Consulte o síndico para informações de pagamento.';
+            document.getElementById('spacePaymentInstructions').textContent = instructions;
+        } else {
+            prereservationInfo.style.display = 'none';
         }
         
         // Regras de Uso
@@ -832,6 +1028,26 @@
             dateClick: function(info) {
                 handleDateClick(info.dateStr);
             },
+            eventClick: function(info) {
+                const event = info.event;
+                const extendedProps = event.extendedProps;
+                
+                console.log('Evento clicado:', event.title);
+                console.log('ExtendedProps:', extendedProps);
+                console.log('isPrereservation:', extendedProps.isPrereservation);
+                console.log('reservation:', extendedProps.reservation);
+                
+                // Verificar se é uma pré-reserva clicável
+                if (extendedProps.isPrereservation && extendedProps.reservation) {
+                    console.log('Chamando showPrereservationInfo...');
+                    showPrereservationInfo(extendedProps.reservation);
+                    info.jsEvent.preventDefault();
+                    return false; // Prevenir propagação
+                } else {
+                    console.log('Não é uma pré-reserva clicável');
+                    // Se não for pré-reserva, permitir comportamento padrão (modal de erro)
+                }
+            },
             events: function(fetchInfo, successCallback, failureCallback) {
                 console.log('Carregando eventos para o calendário. Reservas:', reservations);
                 console.log('Modo do espaço:', selectedSpace?.reservation_mode);
@@ -895,18 +1111,31 @@
                             const startTime = reservation.start_time.substring(0, 5);
                             const endTime = reservation.end_time.substring(0, 5);
                             
+                            // Verificar se é pré-reserva
+                            const isPrereservation = reservation.is_prereservation === true || 
+                                                   reservation.is_prereservation === 1 || 
+                                                   reservation.is_prereservation === '1' ||
+                                                   reservation.prereservation_status === 'pending_payment';
+                            
+                            console.log('Modo Por Horário - Reserva:', reservation.id, 'isPrereservation:', isPrereservation);
+                            
+                            const backgroundColor = isPrereservation ? '#ffc107' : '#ffc107';
+                            const borderColor = isPrereservation ? '#ff8c00' : '#ffc107';
+                            const classNames = isPrereservation ? ['fc-event-hourly-occupied', 'fc-event-prereservation', 'fc-event-clickable'] : ['fc-event-hourly-occupied'];
+                            
                             events.push({
-                                title: `${startTime} às ${endTime}`,
+                                title: `${startTime} às ${endTime}${isPrereservation ? ' ℹ️' : ''}`,
                                 start: dateStr,
                                 allDay: true,
-                                backgroundColor: '#ffc107',
-                                borderColor: '#ffc107',
+                                backgroundColor: backgroundColor,
+                                borderColor: borderColor,
                                 textColor: '#000',
-                                classNames: ['fc-event-hourly-occupied'],
+                                classNames: classNames,
                                 extendedProps: {
                                     reservation: reservation,
                                     isReserved: true,
                                     isRecurring: false,
+                                    isPrereservation: isPrereservation,
                                     startTime: startTime,
                                     endTime: endTime
                                 }
@@ -933,20 +1162,52 @@
                                 }
                             });
                         } else if (dateReservations.normal.length > 0) {
-                            events.push({
-                                title: 'Indisponível',
-                                start: dateStr,
-                                allDay: true,
-                                display: 'background',
-                                backgroundColor: '#dc3545',
-                                borderColor: '#dc3545',
-                                classNames: ['fc-event-unavailable'],
-                                extendedProps: {
-                                    reservation: dateReservations.normal[0],
-                                    isReserved: true,
-                                    isRecurring: false
-                                }
-                            });
+                            const normalReservation = dateReservations.normal[0];
+                            
+                            // Verificar se é pré-reserva
+                            const isPrereservation = normalReservation.is_prereservation === true || 
+                                                   normalReservation.is_prereservation === 1 || 
+                                                   normalReservation.is_prereservation === '1' ||
+                                                   normalReservation.prereservation_status === 'pending_payment';
+                            
+                            console.log('Modo Dia Inteiro - Reserva:', normalReservation.id, 'isPrereservation:', isPrereservation);
+                            
+                            if (isPrereservation) {
+                                // Pré-reserva: Badge amarelo clicável
+                                events.push({
+                                    title: 'Pré-reserva',
+                                    start: dateStr,
+                                    allDay: true,
+                                    display: 'background',
+                                    backgroundColor: '#ffc107',
+                                    borderColor: '#ffc107',
+                                    textColor: '#000',
+                                    classNames: ['fc-event-prereservation', 'fc-event-clickable'],
+                                    extendedProps: {
+                                        reservation: normalReservation,
+                                        isReserved: true,
+                                        isRecurring: false,
+                                        isPrereservation: true
+                                    }
+                                });
+                            } else {
+                                // Reserva normal: Badge vermelho
+                                events.push({
+                                    title: 'Indisponível',
+                                    start: dateStr,
+                                    allDay: true,
+                                    display: 'background',
+                                    backgroundColor: '#dc3545',
+                                    borderColor: '#dc3545',
+                                    classNames: ['fc-event-unavailable'],
+                                    extendedProps: {
+                                        reservation: normalReservation,
+                                        isReserved: true,
+                                        isRecurring: false,
+                                        isPrereservation: false
+                                    }
+                                });
+                            }
                         }
                     }
                 });
@@ -1555,10 +1816,27 @@
             let html = '<div class="list-group">';
             
             dayReservations.forEach(r => {
+                // Verificar se é pré-reserva - múltiplas verificações para garantir robustez
+                const isPrereservation = r.is_prereservation === true || 
+                                       r.is_prereservation === 1 || 
+                                       r.is_prereservation === '1' ||
+                                       r.prereservation_status === 'pending_payment';
+                
+                console.log('Reserva ID:', r.id, 'is_prereservation:', r.is_prereservation, 'prereservation_status:', r.prereservation_status, 'Resultado:', isPrereservation);
+                
+                const badgeClass = isPrereservation ? 'bg-warning text-dark' : 'bg-danger';
+                const badgeText = isPrereservation ? 'Pré-reserva' : 'Indisponível';
+                const cursorStyle = isPrereservation ? 'cursor: pointer;' : '';
+                const clickEvent = isPrereservation ? `onclick="showPrereservationInfo(${JSON.stringify(r).replace(/"/g, '&quot;')})"` : '';
+                
                 html += `
                     <div class="list-group-item list-group-item-danger d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-clock"></i> ${r.start_time} - ${r.end_time}</span>
-                        <span class="badge bg-danger">Indisponível</span>
+                        <span class="badge ${badgeClass}" style="${cursorStyle}" ${clickEvent} 
+                              ${isPrereservation ? 'title="Clique para mais informações"' : ''}>
+                            ${badgeText}
+                            ${isPrereservation ? '<i class="bi bi-info-circle ms-1"></i>' : ''}
+                        </span>
                     </div>
                 `;
             });
@@ -1671,6 +1949,86 @@
             alertEl.style.display = 'block';
         } else {
             alertEl.style.display = 'none';
+        }
+    }
+
+    // Mostrar informações de pré-reserva
+    function showPrereservationInfo(reservation) {
+        console.log('=== showPrereservationInfo chamada ===');
+        console.log('Reserva recebida:', reservation);
+        
+        // Formatar data
+        const date = new Date(reservation.reservation_date);
+        const formattedDate = date.toLocaleDateString('pt-BR', { 
+            day: '2-digit', 
+            month: '2-digit', 
+            year: 'numeric' 
+        });
+        
+        // Formatar horário
+        const formattedTime = `${reservation.start_time} - ${reservation.end_time}`;
+        
+        // Calcular tempo restante
+        let expirationText = '';
+        if (reservation.hours_until_expiration !== undefined) {
+            const hours = Math.floor(reservation.hours_until_expiration);
+            const minutes = Math.floor((reservation.hours_until_expiration - hours) * 60);
+            
+            if (hours > 0) {
+                expirationText = `${hours}h ${minutes}min`;
+            } else if (minutes > 0) {
+                expirationText = `${minutes} minutos`;
+            } else {
+                expirationText = 'Expirando em breve';
+            }
+            
+            // Mudar cor se estiver perto de expirar
+            const expirationElement = document.getElementById('prereservationExpiration');
+            if (hours < 1) {
+                expirationElement.classList.remove('text-warning');
+                expirationElement.classList.add('text-danger');
+            } else {
+                expirationElement.classList.remove('text-danger');
+                expirationElement.classList.add('text-warning');
+            }
+        } else {
+            expirationText = 'Aguardando pagamento';
+        }
+        
+        // Preencher modal
+        document.getElementById('prereservationDate').textContent = formattedDate;
+        document.getElementById('prereservationTime').textContent = formattedTime;
+        document.getElementById('prereservationExpiration').textContent = expirationText;
+        
+        console.log('Preenchendo modal com dados:', {
+            date: formattedDate,
+            time: formattedTime,
+            expiration: expirationText
+        });
+        
+        // Mostrar modal
+        const modalEl = document.getElementById('prereservationInfoModal');
+        console.log('Modal element encontrado:', modalEl);
+        console.log('Bootstrap disponível:', typeof window.bootstrap);
+        
+        if (modalEl) {
+            if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
+                let modal = window.bootstrap.Modal.getInstance(modalEl);
+                if (!modal) {
+                    console.log('Criando nova instância do modal...');
+                    modal = new window.bootstrap.Modal(modalEl);
+                }
+                console.log('Mostrando modal...');
+                modal.show();
+            } else {
+                console.error('Bootstrap Modal não está disponível!');
+                // Fallback: mostrar modal manualmente
+                modalEl.style.display = 'block';
+                modalEl.classList.add('show');
+                document.body.classList.add('modal-open');
+            }
+        } else {
+            console.error('Modal element não encontrado!');
         }
     }
 

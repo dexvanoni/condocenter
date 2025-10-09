@@ -17,6 +17,10 @@ Schedule::command('reports:generate-monthly')
     ->monthlyOn(1, '08:00')
     ->description('Gera relatórios mensais para todos os condomínios');
 
+Schedule::command('reservations:cancel-expired-prereservations')
+    ->hourly()
+    ->description('Cancela pré-reservas não pagas automaticamente');
+
 // Limpar notificações antigas (30 dias)
 Schedule::call(function () {
     \App\Models\Notification::where('is_read', true)

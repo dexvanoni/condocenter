@@ -66,6 +66,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('reservations/availability/{spaceId}', [ReservationController::class, 'availability'])->name('api.reservations.availability');
     Route::post('reservations/{reservation}/approve', [ReservationController::class, 'approve'])->name('api.reservations.approve');
     Route::post('reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('api.reservations.reject');
+    Route::post('reservations/{reservation}/confirm-payment', [ReservationController::class, 'confirmPayment'])->name('api.reservations.confirm-payment');
     
     Route::apiResource('reservations', ReservationController::class)->names([
         'index' => 'api.reservations.index',

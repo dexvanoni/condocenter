@@ -10,7 +10,7 @@
                 <h5 class="mb-0">Editar Espaço: {{ $space->name }}</h5>
             </div>
             <div class="card-body p-3">
-                <form action="{{ route('spaces.update', $space) }}" method="POST">
+                <form action="{{ route('spaces.update', $space) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
@@ -46,6 +46,34 @@
                         @error('description')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
+                    </div>
+
+                    <!-- Upload de Foto -->
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold small">Foto do Espaço</label>
+                        <input type="file" class="form-control form-control-sm @error('photo') is-invalid @enderror" 
+                               name="photo" id="photoInput" accept="image/*" onchange="previewPhoto()">
+                        <small class="text-muted">Formatos aceitos: JPG, PNG, GIF. Tamanho máximo: 5MB</small>
+                        @error('photo')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        
+                        <!-- Foto atual (se existir) -->
+                        @if($space->photo_path)
+                        <div class="mt-2">
+                            <small class="text-muted d-block">Foto atual:</small>
+                            <img src="{{ $space->getPhotoUrl() }}" alt="{{ $space->name }}" class="img-fluid rounded shadow-sm" style="max-height: 120px;">
+                        </div>
+                        @endif
+                        
+                        <!-- Preview da nova foto -->
+                        <div id="photoPreview" class="mt-2" style="display: none;">
+                            <small class="text-muted d-block">Nova foto:</small>
+                            <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm" style="max-height: 120px;">
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="removePhoto()">
+                                <i class="bi bi-trash"></i> Remover
+                            </button>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -180,6 +208,80 @@
                         @enderror
                     </div>
 
+                    <!-- Configurações de Aprovação -->
+                    <div class="card bg-light mb-2">
+                        <div class="card-header bg-primary text-white py-2">
+                            <h6 class="mb-0 small"><i class="bi bi-gear"></i> Configurações de Aprovação</h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold small">Tipo de Aprovação *</label>
+                                <select class="form-select form-select-sm @error('approval_type') is-invalid @enderror" 
+                                        name="approval_type" required id="approvalType" onchange="toggleApprovalType()">
+                                    <option value="automatic" {{ old('approval_type', $space->approval_type ?? 'automatic') == 'automatic' ? 'selected' : '' }}>
+                                        ✅ Aprovação Automática
+                                    </option>
+                                    <option value="manual" {{ old('approval_type', $space->approval_type) == 'manual' ? 'selected' : '' }}>
+                                        👤 Aprovação Manual (Síndico)
+                                    </option>
+                                    <option value="prereservation" {{ old('approval_type', $space->approval_type) == 'prereservation' ? 'selected' : '' }}>
+                                        💳 Pré-reserva com Pagamento
+                                    </option>
+                                </select>
+                                @error('approval_type')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <!-- Configurações de Pré-reserva -->
+                            <div id="prereservationSettings" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-2">
+                                            <label class="form-label fw-semibold small">Prazo para Pagamento *</label>
+                                            <select class="form-select form-select-sm @error('prereservation_payment_hours') is-invalid @enderror" 
+                                                    name="prereservation_payment_hours" id="paymentHours">
+                                                <option value="24" {{ old('prereservation_payment_hours', $space->prereservation_payment_hours ?? '24') == '24' ? 'selected' : '' }}>
+                                                    🕐 24 horas
+                                                </option>
+                                                <option value="48" {{ old('prereservation_payment_hours', $space->prereservation_payment_hours) == '48' ? 'selected' : '' }}>
+                                                    🕐 48 horas
+                                                </option>
+                                                <option value="72" {{ old('prereservation_payment_hours', $space->prereservation_payment_hours) == '72' ? 'selected' : '' }}>
+                                                    🕐 72 horas
+                                                </option>
+                                            </select>
+                                            @error('prereservation_payment_hours')
+                                                <div class="invalid-feedback">{{ $message }}</div>
+                                            @enderror
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-2">
+                                            <div class="form-check mt-3">
+                                                <input class="form-check-input" type="checkbox" name="prereservation_auto_cancel" 
+                                                       value="1" id="autoCancel" {{ old('prereservation_auto_cancel', $space->prereservation_auto_cancel ?? true) ? 'checked' : '' }}>
+                                                <label class="form-check-label small" for="autoCancel">
+                                                    <strong>Cancelar automaticamente</strong> se não pagar
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-2">
+                                    <label class="form-label fw-semibold small">Instruções de Pagamento</label>
+                                    <textarea class="form-control form-control-sm @error('prereservation_instructions') is-invalid @enderror" 
+                                              name="prereservation_instructions" rows="2"
+                                              placeholder="Ex: PIX: condominio@email.com, Boleto disponível no app, etc">{{ old('prereservation_instructions', $space->prereservation_instructions) }}</textarea>
+                                    @error('prereservation_instructions')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="alert alert-warning py-2 mb-2 small">
                         <i class="bi bi-exclamation-triangle"></i>
                         <strong>Atenção:</strong> Reservas existentes mantêm os valores originais.
@@ -211,11 +313,49 @@
             hourlySettings.style.display = 'none';
         }
     }
+
+    function toggleApprovalType() {
+        const approvalType = document.getElementById('approvalType').value;
+        const prereservationSettings = document.getElementById('prereservationSettings');
+        
+        if (approvalType === 'prereservation') {
+            prereservationSettings.style.display = 'block';
+        } else {
+            prereservationSettings.style.display = 'none';
+        }
+    }
     
     // Inicializar ao carregar
     document.addEventListener('DOMContentLoaded', () => {
         toggleReservationMode();
+        toggleApprovalType();
     });
+
+    // Funções para upload de foto
+    function previewPhoto() {
+        const input = document.getElementById('photoInput');
+        const preview = document.getElementById('photoPreview');
+        const previewImage = document.getElementById('previewImage');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function removePhoto() {
+        const input = document.getElementById('photoInput');
+        const preview = document.getElementById('photoPreview');
+        
+        input.value = '';
+        preview.style.display = 'none';
+    }
 </script>
 @endpush
 @endsection

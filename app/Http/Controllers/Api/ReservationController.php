@@ -33,6 +33,10 @@ class ReservationController extends Controller
             $query->where('user_id', $user->id);
         }
 
+        // Excluir reservas recorrentes de "Minhas Reservas"
+        // As reservas recorrentes são uma funcionalidade administrativa
+        $query->whereNull('recurring_reservation_id');
+
         // Filtros
         if ($request->has('space_id')) {
             $query->where('space_id', $request->space_id);
@@ -181,8 +185,8 @@ class ReservationController extends Controller
             ], 400);
         }
 
-        // Criar reserva com aprovação AUTOMÁTICA
-        $reservation = Reservation::create([
+        // Determinar status da reserva baseado no tipo de aprovação do espaço
+        $reservationData = [
             'space_id' => $request->space_id,
             'unit_id' => $user->unit_id,
             'user_id' => $user->id,
@@ -190,17 +194,33 @@ class ReservationController extends Controller
             'start_time' => $startTime, // Usa o horário validado acima
             'end_time' => $endTime,     // Usa o horário validado acima
             'notes' => $request->notes,
-            'status' => 'approved', // APROVAÇÃO AUTOMÁTICA
-            'approved_by' => $user->id,
-            'approved_at' => now(),
-        ]);
+        ];
+
+        // Verificar tipo de aprovação do espaço
+        if ($space->approval_type === 'prereservation') {
+            // Pré-reserva: status pending, aguardando pagamento
+            $reservationData['status'] = 'pending';
+            $reservationData['prereservation_status'] = 'pending_payment';
+            $reservationData['payment_deadline'] = $space->getPaymentDeadline();
+            $reservationData['prereservation_amount'] = $space->price_per_hour;
+        } elseif ($space->approval_type === 'manual') {
+            // Aprovação manual: status pending, aguardando síndico
+            $reservationData['status'] = 'pending';
+        } else {
+            // Aprovação automática: status approved imediatamente
+            $reservationData['status'] = 'approved';
+            $reservationData['approved_by'] = $user->id;
+            $reservationData['approved_at'] = now();
+        }
+
+        $reservation = Reservation::create($reservationData);
 
         $paymentData = null;
         $creditUsed = false;
         $remainingAmount = $space->price_per_hour;
         
-        // Se o espaço tem taxa, verificar se há créditos disponíveis
-        if ($space->price_per_hour > 0) {
+        // Lógica de pagamento apenas para pré-reservas
+        if ($space->approval_type === 'prereservation' && $space->price_per_hour > 0) {
             // Buscar créditos disponíveis do usuário
             $availableCredits = \App\Models\UserCredit::where('user_id', $user->id)
                 ->where('condominium_id', $user->condominium_id)
@@ -243,12 +263,19 @@ class ReservationController extends Controller
             }
         }
 
-        // Enviar notificação de confirmação
-        SendReservationNotification::dispatch($reservation, 'approved');
-
-        $message = 'Reserva confirmada automaticamente!';
+        // Enviar notificação apropriada
+        if ($space->approval_type === 'prereservation') {
+            SendReservationNotification::dispatch($reservation, 'pending_payment');
+            $message = 'Pré-reserva criada! Realize o pagamento para confirmar.';
+        } elseif ($space->approval_type === 'manual') {
+            SendReservationNotification::dispatch($reservation, 'pending');
+            $message = 'Reserva enviada para aprovação do síndico.';
+        } else {
+            SendReservationNotification::dispatch($reservation, 'approved');
+            $message = 'Reserva confirmada automaticamente!';
+        }
         
-        if ($space->price_per_hour > 0) {
+        if ($space->approval_type === 'prereservation' && $space->price_per_hour > 0) {
             if ($creditUsed) {
                 $creditsApplied = $space->price_per_hour - $remainingAmount;
                 $message .= " Créditos aplicados: R$ " . number_format($creditsApplied, 2, ',', '.');
@@ -263,16 +290,27 @@ class ReservationController extends Controller
             }
         }
 
-        return response()->json([
+        $response = [
             'message' => $message,
             'reservation' => $reservation->load('space'),
             'has_charge' => $remainingAmount > 0,
             'amount' => $remainingAmount,
-            'payment_data' => $paymentData,
             'credit_used' => $creditUsed,
             'credit_amount' => $creditUsed ? ($space->price_per_hour - $remainingAmount) : 0,
             'total_user_credits' => $user->getTotalCredits()
-        ], 201);
+        ];
+
+        // Adicionar dados específicos para pré-reservas
+        if ($space->approval_type === 'prereservation') {
+            $response['is_prereservation'] = true;
+            $response['payment_deadline'] = $reservation->payment_deadline;
+            $response['payment_instructions'] = $space->prereservation_instructions;
+            if ($paymentData) {
+                $response['payment_data'] = $paymentData;
+            }
+        }
+
+        return response()->json($response, 201);
     }
 
     /**
@@ -295,10 +333,32 @@ class ReservationController extends Controller
         $reservations = Reservation::where('space_id', $spaceId)
             ->whereIn('status', ['approved', 'pending'])
             ->whereNull('recurring_reservation_id') // Excluir reservas geradas a partir de recorrentes
-            ->select('id', 'space_id', 'reservation_date', 'start_time', 'end_time', 'status')
+            ->select('id', 'space_id', 'reservation_date', 'start_time', 'end_time', 'status', 
+                     'prereservation_status', 'payment_deadline')
             ->orderBy('reservation_date')
             ->orderBy('start_time')
-            ->get();
+            ->get()
+            ->map(function($reservation) {
+                // Adicionar informações de pré-reserva se existir
+                $data = $reservation->toArray();
+                
+                // Verificar se é pré-reserva pendente de pagamento
+                if ($reservation->prereservation_status === 'pending_payment') {
+                    $data['is_prereservation'] = true;
+                    
+                    if ($reservation->payment_deadline) {
+                        $data['payment_deadline'] = $reservation->payment_deadline->toIso8601String();
+                        $data['hours_until_expiration'] = now()->diffInHours($reservation->payment_deadline, false);
+                    } else {
+                        // Fallback se não houver deadline definido
+                        $data['hours_until_expiration'] = 24; // Padrão de 24h
+                    }
+                } else {
+                    $data['is_prereservation'] = false;
+                }
+                
+                return $data;
+            });
 
         // Buscar reservas recorrentes ativas deste espaço
         $recurringReservations = \App\Models\RecurringReservation::where('space_id', $spaceId)
@@ -466,6 +526,43 @@ class ReservationController extends Controller
         return response()->json([
             'message' => 'Reserva atualizada com sucesso',
             'reservation' => $reservation
+        ]);
+    }
+
+    /**
+     * Confirma pagamento de pré-reserva
+     */
+    public function confirmPayment(Request $request, $id)
+    {
+        $reservation = Reservation::findOrFail($id);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Verificar se é o dono da reserva
+        if ($reservation->user_id !== $user->id) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        // Verificar se é uma pré-reserva pendente de pagamento
+        if (!$reservation->isPrereservation() || !$reservation->isPendingPayment()) {
+            return response()->json(['error' => 'Esta não é uma pré-reserva pendente de pagamento'], 400);
+        }
+
+        // Verificar se ainda está dentro do prazo
+        if ($reservation->isPaymentExpired()) {
+            return response()->json(['error' => 'Prazo de pagamento expirado'], 400);
+        }
+
+        // Marcar como paga e aprovada
+        $reservation->markAsPaid($request->payment_reference ?? 'confirmed');
+
+        // Enviar notificação de confirmação
+        SendReservationNotification::dispatch($reservation, 'approved');
+
+        return response()->json([
+            'message' => 'Pré-reserva confirmada com sucesso!',
+            'reservation' => $reservation->load('space')
         ]);
     }
 
