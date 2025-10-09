@@ -17,14 +17,28 @@ class User extends Authenticatable implements Auditable
     protected $fillable = [
         'condominium_id',
         'unit_id',
+        'morador_vinculado_id',
         'name',
         'email',
         'password',
         'phone',
+        'telefone_residencial',
+        'telefone_celular',
+        'telefone_comercial',
         'cpf',
+        'cnh',
+        'data_nascimento',
+        'data_entrada',
+        'data_saida',
+        'necessita_cuidados_especiais',
+        'descricao_cuidados_especiais',
+        'local_trabalho',
+        'contato_comercial',
         'photo',
         'qr_code',
+        'senha_temporaria',
         'is_active',
+        'possui_dividas',
     ];
 
     protected $hidden = [
@@ -38,6 +52,12 @@ class User extends Authenticatable implements Auditable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'data_nascimento' => 'date',
+            'data_entrada' => 'date',
+            'data_saida' => 'date',
+            'necessita_cuidados_especiais' => 'boolean',
+            'senha_temporaria' => 'boolean',
+            'possui_dividas' => 'boolean',
         ];
     }
 
@@ -132,6 +152,27 @@ class User extends Authenticatable implements Auditable
         return $this->hasMany(UserCredit::class)->available();
     }
 
+    public function activityLogs()
+    {
+        return $this->hasMany(UserActivityLog::class);
+    }
+
+    public function profileSelections()
+    {
+        return $this->hasMany(ProfileSelection::class);
+    }
+
+    // Relacionamento agregado-morador
+    public function moradorVinculado()
+    {
+        return $this->belongsTo(User::class, 'morador_vinculado_id');
+    }
+
+    public function agregados()
+    {
+        return $this->hasMany(User::class, 'morador_vinculado_id');
+    }
+
     // Métodos auxiliares
     public function getTotalCredits()
     {
@@ -167,6 +208,11 @@ class User extends Authenticatable implements Auditable
         return $this->hasRole('Secretaria');
     }
 
+    public function isAgregado(): bool
+    {
+        return $this->hasRole('Agregado');
+    }
+
     public function generateQRCode(): string
     {
         if (!$this->qr_code) {
@@ -185,5 +231,66 @@ class User extends Authenticatable implements Auditable
     public function scopeByCondominium($query, $condominiumId)
     {
         return $query->where('condominium_id', $condominiumId);
+    }
+
+    public function scopeWithDebts($query)
+    {
+        return $query->where('possui_dividas', true);
+    }
+
+    public function scopeAgregados($query)
+    {
+        return $query->whereHas('roles', function($q) {
+            $q->where('name', 'Agregado');
+        });
+    }
+
+    public function scopeMoradores($query)
+    {
+        return $query->whereHas('roles', function($q) {
+            $q->where('name', 'Morador');
+        });
+    }
+
+    public function scopeSearch($query, $term)
+    {
+        return $query->where(function($q) use ($term) {
+            $q->where('name', 'like', "%{$term}%")
+              ->orWhere('email', 'like', "%{$term}%")
+              ->orWhere('cpf', 'like', "%{$term}%")
+              ->orWhere('phone', 'like', "%{$term}%");
+        });
+    }
+
+    // Métodos auxiliares
+    public function getIdadeAttribute()
+    {
+        if (!$this->data_nascimento) {
+            return null;
+        }
+        return $this->data_nascimento->age;
+    }
+
+    public function hasMultipleRoles(): bool
+    {
+        return $this->roles()->count() > 1;
+    }
+
+    public function needsPasswordChange(): bool
+    {
+        return $this->senha_temporaria === true;
+    }
+
+    public function logActivity(string $action, string $module, string $description, array $metadata = []): void
+    {
+        $this->activityLogs()->create([
+            'condominium_id' => $this->condominium_id,
+            'action' => $action,
+            'module' => $module,
+            'description' => $description,
+            'metadata' => $metadata,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 }

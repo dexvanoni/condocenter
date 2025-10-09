@@ -22,10 +22,17 @@ class RolesAndPermissionsSeeder extends Seeder
             // Usuários
             'manage_users',
             'view_users',
+            'manage_sindico_users',
+            'manage_conselho_users',
+            'view_user_history',
+            'export_user_history',
             
             // Unidades
             'manage_units',
             'view_units',
+            'create_units',
+            'edit_units',
+            'delete_units',
             
             // Financeiro
             'manage_transactions',
@@ -35,6 +42,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'approve_expenses',
             'view_financial_reports',
             'manage_bank_statements',
+            'view_own_financial',
             
             // Reservas
             'manage_spaces',
@@ -76,23 +84,28 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission], ['guard_name' => 'web']);
         }
 
         // Criar Roles e atribuir permissions
 
         // Administrador da Plataforma
-        $adminRole = Role::create(['name' => 'Administrador']);
-        $adminRole->givePermissionTo(Permission::all());
+        $adminRole = Role::firstOrCreate(['name' => 'Administrador'], ['guard_name' => 'web']);
+        $adminRole->syncPermissions(Permission::all());
 
         // Síndico
-        $sindicoRole = Role::create(['name' => 'Síndico']);
-        $sindicoRole->givePermissionTo([
+        $sindicoRole = Role::firstOrCreate(['name' => 'Síndico'], ['guard_name' => 'web']);
+        $sindicoRole->syncPermissions([
             'view_condominiums',
             'manage_users',
             'view_users',
+            'view_user_history',
+            'export_user_history',
             'manage_units',
             'view_units',
+            'create_units',
+            'edit_units',
+            'delete_units',
             'manage_transactions',
             'view_transactions',
             'manage_charges',
@@ -119,8 +132,9 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Morador
-        $moradorRole = Role::create(['name' => 'Morador']);
-        $moradorRole->givePermissionTo([
+        $moradorRole = Role::firstOrCreate(['name' => 'Morador'], ['guard_name' => 'web']);
+        $moradorRole->syncPermissions([
+            'view_own_financial',
             'view_transactions',
             'view_charges',
             'view_financial_reports',
@@ -140,8 +154,8 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Porteiro
-        $porteiroRole = Role::create(['name' => 'Porteiro']);
-        $porteiroRole->givePermissionTo([
+        $porteiroRole = Role::firstOrCreate(['name' => 'Porteiro'], ['guard_name' => 'web']);
+        $porteiroRole->syncPermissions([
             'register_entries',
             'register_packages',
             'view_entries',
@@ -151,19 +165,21 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Conselho Fiscal
-        $conselhoRole = Role::create(['name' => 'Conselho Fiscal']);
-        $conselhoRole->givePermissionTo([
+        $conselhoRole = Role::firstOrCreate(['name' => 'Conselho Fiscal'], ['guard_name' => 'web']);
+        $conselhoRole->syncPermissions([
             'view_transactions',
             'view_charges',
             'view_financial_reports',
             'manage_bank_statements',
             'view_assemblies',
             'view_messages',
+            'view_users',
+            'view_units',
         ]);
 
         // Secretaria
-        $secretariaRole = Role::create(['name' => 'Secretaria']);
-        $secretariaRole->givePermissionTo([
+        $secretariaRole = Role::firstOrCreate(['name' => 'Secretaria'], ['guard_name' => 'web']);
+        $secretariaRole->syncPermissions([
             'view_users',
             'view_units',
             'view_transactions',
@@ -175,6 +191,16 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_assemblies',
             'send_announcements',
             'view_messages',
+            'view_notifications',
+        ]);
+
+        // Agregado
+        $agregadoRole = Role::firstOrCreate(['name' => 'Agregado'], ['guard_name' => 'web']);
+        $agregadoRole->syncPermissions([
+            'view_spaces',
+            'view_marketplace',
+            'view_pets',
+            'view_assemblies',
             'view_notifications',
         ]);
     }

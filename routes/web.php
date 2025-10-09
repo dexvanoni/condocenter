@@ -12,7 +12,7 @@ Route::get('/', function () {
 Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webhooks.asaas');
 
 // Rotas autenticadas
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     // Financeiro
@@ -95,6 +95,42 @@ Route::middleware(['auth', 'verified'])->group(function () {
     
     // Alerta de Pânico
     Route::post('/panic-alert', [\App\Http\Controllers\PanicAlertController::class, 'send'])->name('panic.send');
+    
+    // === NOVAS ROTAS ===
+    
+    // Unidades
+    Route::resource('units', \App\Http\Controllers\UnitController::class);
+    Route::get('/units/search/users', [\App\Http\Controllers\UnitController::class, 'searchUsers'])->name('units.search-users');
+    
+    // Usuários
+    Route::resource('users', \App\Http\Controllers\UserController::class);
+    Route::get('/users/search/ajax', [\App\Http\Controllers\UserController::class, 'search'])->name('users.search');
+    Route::post('/users/{user}/reset-password', [\App\Http\Controllers\UserController::class, 'resetPassword'])->name('users.reset-password');
+    
+    // Histórico de Usuário
+    Route::get('/users/{user}/history', [\App\Http\Controllers\UserHistoryController::class, 'show'])->name('users.history');
+    Route::get('/users/{user}/history/pdf', [\App\Http\Controllers\UserHistoryController::class, 'exportPdf'])->name('users.history.pdf');
+    Route::get('/users/{user}/history/excel', [\App\Http\Controllers\UserHistoryController::class, 'exportExcel'])->name('users.history.excel');
+    Route::get('/users/{user}/history/print', [\App\Http\Controllers\UserHistoryController::class, 'print'])->name('users.history.print');
+    
+    // Busca de CEP (AJAX)
+    Route::get('/cep/search', [\App\Http\Controllers\CepController::class, 'search'])->name('cep.search');
+    
+    // Perfil Ativo
+    Route::get('/profile/current', [\App\Http\Controllers\ProfileSelectorController::class, 'current'])->name('profile.current');
+    Route::post('/profile/switch', [\App\Http\Controllers\ProfileSelectorController::class, 'switch'])->name('profile.switch');
+});
+
+// Rotas de seleção de perfil (sem middleware de verificação de perfil)
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/profile/select', [\App\Http\Controllers\ProfileSelectorController::class, 'select'])->name('profile.select');
+    Route::post('/profile/set', [\App\Http\Controllers\ProfileSelectorController::class, 'set'])->name('profile.set');
+});
+
+// Rotas de troca de senha (sem middleware de verificação de senha)
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/password/change', [\App\Http\Controllers\PasswordChangeController::class, 'show'])->name('password.change');
+    Route::post('/password/change', [\App\Http\Controllers\PasswordChangeController::class, 'update'])->name('password.update');
 });
 
 require __DIR__.'/auth.php';

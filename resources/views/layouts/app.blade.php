@@ -33,16 +33,46 @@
             <hr class="bg-white opacity-25">
 
             <ul class="nav flex-column">
+                <!-- Dashboard -->
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                         <i class="bi bi-speedometer2"></i> Dashboard
                     </a>
                 </li>
 
+                <!-- GESTÃO (Admin/Síndico/Conselho) -->
+                @canany(['view_units', 'view_users'])
+                <li class="nav-item mt-3">
+                    <small class="text-white-50 ms-3 text-uppercase" style="font-size: 0.75rem;">Gestão</small>
+                </li>
+
+                @can('view_units')
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('units.*') ? 'active' : '' }}" href="{{ route('units.index') }}">
+                        <i class="bi bi-houses"></i> Unidades
+                    </a>
+                </li>
+                @endcan
+
+                @can('view_users')
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
+                        <i class="bi bi-people-fill"></i> Usuários
+                    </a>
+                </li>
+                @endcan
+                @endcanany
+
+                <!-- FINANCEIRO (Admin/Síndico/Conselho/Morador) -->
+                @canany(['view_transactions', 'view_charges', 'view_own_financial'])
+                <li class="nav-item mt-3">
+                    <small class="text-white-50 ms-3 text-uppercase" style="font-size: 0.75rem;">Financeiro</small>
+                </li>
+
                 @can('view_transactions')
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
-                        <i class="bi bi-cash-stack"></i> Financeiro
+                        <i class="bi bi-cash-stack"></i> Transações
                     </a>
                 </li>
                 @endcan
@@ -54,24 +84,31 @@
                     </a>
                 </li>
                 @endcan
+                @endcanany
+
+                <!-- RESERVAS (Todos exceto Agregado) -->
+                @canany(['manage_spaces', 'view_reservations', 'make_reservations'])
+                <li class="nav-item mt-3">
+                    <small class="text-white-50 ms-3 text-uppercase" style="font-size: 0.75rem;">Reservas</small>
+                </li>
+
+                @can('view_spaces')
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
+                        <i class="bi bi-calendar-check"></i> Agendar
+                    </a>
+                </li>
+                @endcan
 
                 @can('manage_spaces')
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('spaces.*') ? 'active' : '' }}" href="{{ route('spaces.index') }}">
-                        <i class="bi bi-building"></i> Espaços
-                    </a>
-                </li>
-                @endcan
-
-                @can('view_reservations')
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                        <i class="bi bi-calendar-check"></i> Reservas
+                        <i class="bi bi-building"></i> Gerenciar Espaços
                     </a>
                 </li>
                 @endcan
                 
-                @can('manage_reservations')
+                @can('approve_reservations')
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
                         <i class="bi bi-list-check"></i> Gerenciar Reservas
@@ -79,26 +116,25 @@
                 </li>
                 @endcan
 
+                @can('approve_reservations')
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('recurring-reservations.*') ? 'active' : '' }}" href="{{ route('recurring-reservations.index') }}">
+                        <i class="bi bi-arrow-repeat"></i> Reservas Recorrentes
+                    </a>
+                </li>
+                @endcan
+                @endcanany
+
+                <!-- COMUNIDADE (Morador, alguns Agregado) -->
+                @canany(['view_marketplace', 'view_pets', 'view_assemblies'])
+                <li class="nav-item mt-3">
+                    <small class="text-white-50 ms-3 text-uppercase" style="font-size: 0.75rem;">Comunidade</small>
+                </li>
+
                 @can('view_marketplace')
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('marketplace.*') ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
                         <i class="bi bi-shop"></i> Marketplace
-                    </a>
-                </li>
-                @endcan
-
-                @can('register_entries')
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
-                        <i class="bi bi-door-open"></i> Portaria
-                    </a>
-                </li>
-                @endcan
-
-                @can('register_packages')
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('packages.*') ? 'active' : '' }}" href="{{ route('packages.index') }}">
-                        <i class="bi bi-box-seam"></i> Encomendas
                     </a>
                 </li>
                 @endcan
@@ -118,17 +154,52 @@
                     </a>
                 </li>
                 @endcan
+                @endcanany
+
+                <!-- PORTARIA (Porteiro) -->
+                @canany(['register_entries', 'register_packages'])
+                <li class="nav-item mt-3">
+                    <small class="text-white-50 ms-3 text-uppercase" style="font-size: 0.75rem;">Portaria</small>
+                </li>
+
+                @can('register_entries')
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
+                        <i class="bi bi-door-open"></i> Controle de Acesso
+                    </a>
+                </li>
+                @endcan
+
+                @can('register_packages')
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('packages.*') ? 'active' : '' }}" href="{{ route('packages.index') }}">
+                        <i class="bi bi-box-seam"></i> Encomendas
+                    </a>
+                </li>
+                @endcan
+                @endcanany
+
+                <!-- COMUNICAÇÃO -->
+                <li class="nav-item mt-3">
+                    <small class="text-white-50 ms-3 text-uppercase" style="font-size: 0.75rem;">Comunicação</small>
+                </li>
 
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('messages.*') ? 'active' : '' }}" href="{{ route('messages.index') }}">
                         <i class="bi bi-chat-dots"></i> Mensagens
+                        @if(Auth::user()->receivedMessages()->where('is_read', false)->count() > 0)
+                        <span class="badge bg-danger rounded-pill ms-auto">
+                            {{ Auth::user()->receivedMessages()->where('is_read', false)->count() }}
+                        </span>
+                        @endif
                     </a>
                 </li>
 
+                <!-- EMERGÊNCIA -->
                 @can('send_panic_alert')
-                <li class="nav-item mt-3">
+                <li class="nav-item mt-4">
                     <button class="btn btn-panic w-100" data-bs-toggle="modal" data-bs-target="#panicModal">
-                        <i class="bi bi-exclamation-triangle-fill"></i> PÂNICO
+                        <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
                     </button>
                 </li>
                 @endcan
@@ -181,10 +252,29 @@
                             </ul>
                         </div>
 
-                        <span class="text-muted">
+                        @if(Auth::user()->hasMultipleRoles())
+                        <div class="dropdown me-3">
+                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="profileDropdown" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-badge"></i> {{ session('active_role', Auth::user()->roles->first()->name) }}
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                                @foreach(Auth::user()->roles as $role)
+                                <li>
+                                    <a class="dropdown-item {{ session('active_role') === $role->name ? 'active' : '' }}" 
+                                       href="#" 
+                                       onclick="switchProfile('{{ $role->name }}'); return false;">
+                                        {{ $role->name }}
+                                    </a>
+                                </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                        @else
+                        <span class="text-muted me-3">
                             <i class="bi bi-person-circle"></i>
                             {{ Auth::user()->roles->pluck('name')->join(', ') }}
                         </span>
+                        @endif
                     </div>
                 </div>
             </nav>
@@ -581,6 +671,32 @@
     </script>
     
     @stack('scripts')
+
+    <script>
+    // Função para trocar perfil
+    function switchProfile(roleName) {
+        fetch('{{ route('profile.switch') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ role: roleName })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Erro ao trocar perfil');
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao trocar perfil');
+        });
+    }
+    </script>
 </body>
 </html>
 

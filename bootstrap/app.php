@@ -13,6 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
+        
+        // Registrar aliases de middlewares personalizados
+        $middleware->alias([
+            'check.password' => \App\Http\Middleware\CheckPasswordChange::class,
+            'check.profile' => \App\Http\Middleware\CheckActiveProfile::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
