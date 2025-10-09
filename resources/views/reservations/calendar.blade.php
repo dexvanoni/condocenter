@@ -3,31 +3,51 @@
 @section('title', 'Reservas - Calendário')
 
 @section('content')
-<div class="row mb-4">
+<!-- Header Compacto -->
+<div class="row mb-3">
     <div class="col-12">
-        <h2><i class="bi bi-calendar-event"></i> Reservar Espaço</h2>
-        <p class="text-muted">Selecione uma data no calendário e escolha o espaço desejado</p>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="mb-1"><i class="bi bi-calendar-event"></i> Sistema de Reservas</h3>
+                <p class="text-muted mb-0 small">Selecione o espaço e a data desejada</p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <!-- Saldo de Créditos Compacto -->
+                <div class="alert alert-success py-2 mb-0" id="creditsAlert" style="display: none;">
+                    <i class="bi bi-wallet2"></i>
+                    <strong>Créditos:</strong>
+                    <span id="totalCredits" class="fw-bold">R$ 0,00</span>
+                </div>
+                
+                <!-- Badge de Reservas -->
+                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReservations">
+                    <i class="bi bi-bookmark-check"></i> Minhas Reservas
+                    <span class="badge bg-warning text-dark ms-1" id="reservationsCount">0</span>
+                </button>
+                
+                @if(auth()->user()->isAdmin() || auth()->user()->isSindico())
+                <a href="{{ route('recurring-reservations.index') }}" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-calendar-week"></i> Reservas Recorrentes
+                </a>
+                <a href="{{ route('admin.reservations.index') }}" class="btn btn-outline-danger btn-sm">
+                    <i class="bi bi-gear"></i> Administrar Reservas
+                </a>
+                @endif
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Acordeão: Minhas Reservas -->
-<div class="row mb-4">
+<!-- Minhas Reservas (Colapsável) -->
+<div class="row mb-3">
     <div class="col-12">
-        <div class="accordion" id="accordionReservations">
-            <div class="accordion-item border-primary">
-                <h2 class="accordion-header">
-                    <button class="accordion-button collapsed bg-primary text-white" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReservations" aria-expanded="false" aria-controls="collapseReservations">
-                        <i class="bi bi-bookmark-check me-2"></i> <strong>Minhas Reservas</strong>
-                        <span class="badge bg-warning text-dark ms-2" id="reservationsCount">0</span>
-                    </button>
-                </h2>
-                <div id="collapseReservations" class="accordion-collapse collapse" data-bs-parent="#accordionReservations">
-                    <div class="accordion-body">
-                        <div id="myReservationsList">
-                            <div class="text-center py-3">
-                                <div class="spinner-border text-primary" role="status"></div>
-                                <p class="text-muted mt-2">Carregando reservas...</p>
-                            </div>
+        <div class="collapse" id="collapseReservations">
+            <div class="card border-primary">
+                <div class="card-body p-3">
+                    <div id="myReservationsList">
+                        <div class="text-center py-2">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                            <p class="text-muted mt-2 small">Carregando reservas...</p>
                         </div>
                     </div>
                 </div>
@@ -36,68 +56,114 @@
     </div>
 </div>
 
-<!-- Tabs de Espaços -->
-<div class="row mb-4">
-    <div class="col-12">
-        <ul class="nav nav-pills justify-content-center" id="spaceTabs" role="tablist">
-            <!-- Tabs serão carregadas via JavaScript -->
-        </ul>
-    </div>
-</div>
-
-<!-- Saldo de Créditos -->
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="alert alert-success" id="creditsAlert" style="display: none;">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <i class="bi bi-wallet2"></i>
-                    <strong>Sua Carteira de Créditos:</strong>
-                    <span id="totalCredits" class="fs-5 fw-bold ms-2">R$ 0,00</span>
-                </div>
-                <small class="text-muted">Créditos serão aplicados automaticamente</small>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Informações do Espaço Selecionado -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card" id="spaceInfoCard" style="display: none;">
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-8">
-                        <h4 id="spaceName"></h4>
-                        <p id="spaceDescription" class="text-muted"></p>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <h3 class="text-primary mb-0" id="spacePrice"></h3>
-                        <small class="text-muted">por reserva</small>
-                    </div>
-                </div>
-                <hr>
-                <div class="row">
-                    <div class="col-md-4">
-                        <i class="bi bi-people"></i> <strong>Capacidade:</strong> <span id="spaceCapacity">-</span>
-                    </div>
-                    <div class="col-md-4">
-                        <i class="bi bi-clock"></i> <strong>Horário:</strong> <span id="spaceHours">-</span>
-                    </div>
-                    <div class="col-md-4">
-                        <i class="bi bi-calendar-check"></i> <strong>Limite:</strong> <span id="spaceLimit">-</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Calendário -->
+<!-- Layout Principal: Espaços + Calendário -->
 <div class="row">
-    <div class="col-12">
+    <!-- Coluna Esquerda: Seleção de Espaços -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white py-2">
+                <h6 class="mb-0"><i class="bi bi-building"></i> Escolha o Espaço</h6>
+            </div>
+            <div class="card-body p-3">
+                <!-- Barra de Progresso -->
+                <div id="loadingProgress" class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Carregando informações...</small>
+                        <small class="text-muted" id="progressText">0%</small>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                             role="progressbar" 
+                             id="progressBar" 
+                             style="width: 0%" 
+                             aria-valuenow="0" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs de Espaços Compactas -->
+                <div class="mb-3" id="spaceTabsContainer" style="display: none;">
+                    <ul class="nav nav-pills nav-fill" id="spaceTabs" role="tablist">
+                        <!-- Tabs serão carregadas via JavaScript -->
+                    </ul>
+                </div>
+
+                <!-- Informações do Espaço Selecionado -->
+                <div id="spaceInfoCard" style="display: none;">
+                    <div class="card bg-light">
+                        <div class="card-body p-3">
+                            <h6 class="card-title mb-2" id="spaceName"></h6>
+                            <p class="card-text small text-muted mb-3" id="spaceDescription"></p>
+                            
+                            <!-- Informações Básicas -->
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">💰 Taxa</small>
+                                    <span class="fw-bold text-success" id="spacePrice">-</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">👥 Capacidade</small>
+                                    <span class="fw-bold" id="spaceCapacity">-</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">🕐 Horário</small>
+                                    <span class="fw-bold small" id="spaceHours">-</span>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">📅 Limite/Mês</small>
+                                    <span class="fw-bold" id="spaceLimit">-</span>
+                                </div>
+                            </div>
+
+                            <!-- Modo de Reserva -->
+                            <div class="mb-3">
+                                <small class="text-muted d-block">📋 Modo de Reserva</small>
+                                <span class="fw-bold" id="spaceReservationMode">-</span>
+                            </div>
+
+                            <!-- Configurações de Horário (para espaços hourly) -->
+                            <div id="hourlyConfig" style="display: none;" class="mb-3">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">⏱️ Duração Mín.</small>
+                                        <span class="fw-bold small" id="spaceMinHours">-</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">⏰ Duração Máx.</small>
+                                        <span class="fw-bold small" id="spaceMaxHours">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Regras de Uso -->
+                            <div id="spaceRulesContainer" style="display: none;" class="mb-3">
+                                <small class="text-muted d-block mb-1">📜 Regras de Uso</small>
+                                <div class="bg-white p-2 rounded border">
+                                    <small class="text-muted" id="spaceRules">-</small>
+                                </div>
+                            </div>
+
+                            <!-- Status do Espaço -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Status:</small>
+                                <span id="spaceStatus" class="badge">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coluna Direita: Calendário -->
+    <div class="col-lg-8">
         <div class="card">
-            <div class="card-body">
+            <div class="card-header bg-light py-2">
+                <h6 class="mb-0"><i class="bi bi-calendar3"></i> Selecione a Data</h6>
+            </div>
+            <div class="card-body p-3">
                 <div id="calendar"></div>
             </div>
         </div>
@@ -316,13 +382,48 @@
 @push('styles')
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
 <style>
+    /* Calendário Compacto */
+    .fc {
+        font-size: 0.85rem;
+    }
+    .fc-toolbar {
+        margin-bottom: 0.5rem !important;
+    }
+    .fc-toolbar-title {
+        font-size: 1.1rem !important;
+        font-weight: 600;
+    }
+    .fc-button {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.8rem !important;
+    }
+    .fc-daygrid-day-number {
+        padding: 0.25rem !important;
+        font-size: 0.8rem;
+    }
+    .fc-daygrid-day-events {
+        margin-top: 0.25rem !important;
+    }
     .fc-event {
         cursor: pointer;
+        font-size: 0.7rem !important;
+        padding: 1px 3px !important;
+        margin: 1px 0 !important;
+        border-radius: 2px !important;
     }
+    .fc-event-title {
+        font-size: 0.7rem !important;
+        line-height: 1.2;
+    }
+    .fc-daygrid-event-harness {
+        margin-bottom: 1px !important;
+    }
+    
+    /* Eventos do Calendário */
     .fc-event-unavailable {
         background-color: #dc3545 !important;
         border-color: #dc3545 !important;
-        opacity: 0.7;
+        opacity: 0.8;
         cursor: not-allowed;
     }
     .fc-event-available {
@@ -334,45 +435,167 @@
         border-color: #ffc107 !important;
         color: #000 !important;
         font-weight: bold;
-        padding: 2px 4px;
-        border-radius: 3px;
         cursor: help;
     }
     .fc-event-hourly-occupied .fc-event-title {
         color: #000 !important;
-        font-size: 0.85em;
+        font-size: 0.65rem !important;
     }
+    
+    /* Navegação de Espaços */
     .nav-pills .nav-link {
-        margin: 0 5px;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        border-radius: 0.375rem;
     }
     .nav-pills .nav-link.active {
         background-color: #0d6efd;
+        font-weight: 600;
     }
-    #pixQRCode img {
-        max-width: 300px;
-        border: 2px solid #ddd;
-        padding: 10px;
-        border-radius: 8px;
+    .nav-pills .nav-link:hover {
+        background-color: rgba(13, 110, 253, 0.1);
     }
     
-    /* Acordeão de Reservas */
-    .accordion-button.bg-primary:not(.collapsed) {
-        background-color: #0d6efd !important;
-        color: white !important;
+    /* Cards Compactos */
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
     }
-    .accordion-button.bg-primary {
-        background-color: #0d6efd !important;
-        color: white !important;
+    .card-header {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
     }
-    .accordion-button.bg-primary:focus {
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    
+    /* Informações do Espaço */
+    .card.bg-light {
+        background-color: #f8f9fa !important;
+        border: 1px solid #dee2e6;
     }
-    .accordion-button.bg-primary::after {
-        filter: brightness(0) invert(1);
+    
+    /* QR Code */
+    #pixQRCode img {
+        max-width: 250px;
+        border: 2px solid #ddd;
+        padding: 8px;
+        border-radius: 6px;
     }
+    
+    /* Responsividade */
+    @media (max-width: 991.98px) {
+        .col-lg-4 {
+            margin-bottom: 1rem;
+        }
+        .fc-toolbar {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .fc-toolbar-chunk {
+            display: flex;
+            justify-content: center;
+        }
+    }
+    
+    /* Badge de Reservas */
     #reservationsCount {
-        font-size: 0.85rem;
-        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    /* Alertas Compactos */
+    .alert {
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Minhas Reservas */
+    .collapse.show .card-body {
+        padding: 0.75rem;
+    }
+    
+    /* Barra de Progresso */
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 0.375rem;
+        overflow: hidden;
+    }
+    .progress-bar {
+        background: linear-gradient(90deg, #0d6efd, #0b5ed7);
+        transition: width 0.3s ease;
+    }
+    .progress-bar-animated {
+        background-image: linear-gradient(
+            45deg,
+            rgba(255, 255, 255, 0.15) 25%,
+            transparent 25%,
+            transparent 50%,
+            rgba(255, 255, 255, 0.15) 50%,
+            rgba(255, 255, 255, 0.15) 75%,
+            transparent 75%,
+            transparent
+        );
+        background-size: 1rem 1rem;
+        animation: progress-bar-stripes 1s linear infinite;
+    }
+    
+    @keyframes progress-bar-stripes {
+        0% {
+            background-position: 1rem 0;
+        }
+        100% {
+            background-position: 0 0;
+        }
+    }
+    
+    /* Container das tabs */
+    #spaceTabsContainer {
+        transition: opacity 0.3s ease;
+    }
+    
+    /* Regras de Uso */
+    #spaceRulesContainer .bg-white {
+        background-color: #ffffff !important;
+        border: 1px solid #dee2e6 !important;
+        max-height: 120px;
+        overflow-y: auto;
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+    
+    /* Status Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35em 0.65em;
+    }
+    
+    /* Informações do Espaço */
+    .card.bg-light {
+        border-left: 4px solid #0d6efd;
+    }
+    
+    /* Emojis nos labels */
+    small.text-muted {
+        font-weight: 500;
+    }
+    
+    /* Reservas Recorrentes */
+    .fc-event-recurring {
+        background: linear-gradient(45deg, #28a745, #20c997) !important;
+        border: 2px solid #1e7e34 !important;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    }
+    
+    .fc-event-recurring:hover {
+        background: linear-gradient(45deg, #1e7e34, #17a2b8) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
+    }
+    
+    /* Indicador visual para reservas recorrentes */
+    .fc-event-recurring::before {
+        content: "🔄";
+        margin-right: 4px;
+        font-size: 0.8em;
     }
 </style>
 @endpush
@@ -388,10 +611,37 @@
     let reservations = [];
     let currentReservation = null;
     let userCredits = 0;
+    let loadingSteps = 0;
+    let totalSteps = 4; // espaços, reservas, créditos, calendário
+
+    // Função para atualizar progresso
+    function updateProgress(step, message) {
+        loadingSteps = step;
+        const percentage = Math.round((loadingSteps / totalSteps) * 100);
+        
+        document.getElementById('progressBar').style.width = percentage + '%';
+        document.getElementById('progressBar').setAttribute('aria-valuenow', percentage);
+        document.getElementById('progressText').textContent = percentage + '%';
+        
+        // Atualizar mensagem se fornecida
+        if (message) {
+            document.querySelector('#loadingProgress small:first-child').textContent = message;
+        }
+        
+        // Esconder barra quando completa
+        if (percentage >= 100) {
+            setTimeout(() => {
+                document.getElementById('loadingProgress').style.display = 'none';
+                document.getElementById('spaceTabsContainer').style.display = 'block';
+            }, 500);
+        }
+    }
 
     // Carregar espaços ao iniciar
     async function loadSpaces() {
         try {
+            updateProgress(1, 'Carregando espaços disponíveis...');
+            
             const response = await fetch('/api/spaces', {
                 credentials: 'same-origin',
                 headers: {
@@ -406,7 +656,7 @@
             renderSpaceTabs();
             
             if (spaces.length > 0) {
-                selectSpace(spaces[0].id);
+                await selectSpace(spaces[0].id);
             }
         } catch (error) {
             console.error('Erro ao carregar espaços:', error);
@@ -427,7 +677,20 @@
             const button = document.createElement('button');
             button.className = `nav-link ${index === 0 ? 'active' : ''}`;
             button.type = 'button';
-            button.innerHTML = `<i class="bi bi-building"></i> ${space.name}`;
+            
+            // Ícones por tipo de espaço
+            const typeIcons = {
+                'party_hall': '🎉',
+                'bbq': '🍖',
+                'pool': '🏊',
+                'sports_court': '⚽',
+                'gym': '💪',
+                'meeting_room': '🏢',
+                'other': '📍'
+            };
+            
+            const icon = typeIcons[space.type] || '📍';
+            button.innerHTML = `${icon} ${space.name}`;
             button.onclick = () => selectSpace(space.id);
             
             li.appendChild(button);
@@ -441,6 +704,8 @@
         
         if (!selectedSpace) return;
         
+        updateProgress(2, 'Carregando informações do espaço...');
+        
         // Atualizar informações do espaço
         document.getElementById('spaceName').textContent = selectedSpace.name;
         document.getElementById('spaceDescription').textContent = selectedSpace.description || '';
@@ -448,8 +713,55 @@
             ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')}` 
             : 'GRATUITO';
         document.getElementById('spaceCapacity').textContent = selectedSpace.capacity ? `${selectedSpace.capacity} pessoas` : 'Não informado';
-        document.getElementById('spaceHours').textContent = `${selectedSpace.available_from} às ${selectedSpace.available_until}`;
+        
+        // Formatar horários para pt-BR
+        const formatTime = (timeStr) => {
+            if (!timeStr) return 'Não informado';
+            // Se for datetime, extrair apenas a parte do tempo
+            if (timeStr.includes('T')) {
+                return timeStr.split('T')[1].substring(0, 5);
+            }
+            // Se já for apenas hora:minuto, usar como está
+            return timeStr.substring(0, 5);
+        };
+        
+        document.getElementById('spaceHours').textContent = `${formatTime(selectedSpace.available_from)} às ${formatTime(selectedSpace.available_until)}`;
         document.getElementById('spaceLimit').textContent = `${selectedSpace.max_reservations_per_month_per_unit}x por mês`;
+        
+        // Modo de Reserva
+        const reservationModeText = selectedSpace.reservation_mode === 'full_day' 
+            ? '📅 Dia Inteiro (1 reserva por dia)'
+            : '⏰ Por Horários (múltiplas por dia)';
+        document.getElementById('spaceReservationMode').textContent = reservationModeText;
+        
+        // Configurações de horário (para espaços hourly)
+        const hourlyConfig = document.getElementById('hourlyConfig');
+        if (selectedSpace.reservation_mode === 'hourly') {
+            hourlyConfig.style.display = 'block';
+            document.getElementById('spaceMinHours').textContent = `${selectedSpace.min_hours_per_reservation || 1}h`;
+            document.getElementById('spaceMaxHours').textContent = `${selectedSpace.max_hours_per_reservation || 4}h`;
+        } else {
+            hourlyConfig.style.display = 'none';
+        }
+        
+        // Regras de Uso
+        const rulesContainer = document.getElementById('spaceRulesContainer');
+        if (selectedSpace.rules && selectedSpace.rules.trim()) {
+            rulesContainer.style.display = 'block';
+            document.getElementById('spaceRules').textContent = selectedSpace.rules;
+        } else {
+            rulesContainer.style.display = 'none';
+        }
+        
+        // Status do Espaço
+        const statusBadge = document.getElementById('spaceStatus');
+        if (selectedSpace.is_active) {
+            statusBadge.className = 'badge bg-success';
+            statusBadge.textContent = '✅ Ativo';
+        } else {
+            statusBadge.className = 'badge bg-secondary';
+            statusBadge.textContent = '❌ Inativo';
+        }
         
         document.getElementById('spaceInfoCard').style.display = 'block';
         
@@ -469,6 +781,8 @@
     // Carregar reservas (disponibilidade geral - TODAS as reservas do espaço)
     async function loadReservations(spaceId) {
         try {
+            updateProgress(3, 'Carregando disponibilidade...');
+            
             // Usar endpoint de disponibilidade que retorna TODAS as reservas (sem dados pessoais)
             const response = await fetch(`/api/reservations/availability/${spaceId}`, {
                 credentials: 'same-origin',
@@ -492,6 +806,8 @@
 
     // Inicializar calendário
     function initCalendar() {
+        updateProgress(4, 'Preparando calendário...');
+        
         const calendarEl = document.getElementById('calendar');
         
         calendar = new FullCalendar.Calendar(calendarEl, {
@@ -509,7 +825,7 @@
             },
             selectable: true,
             selectMirror: true,
-            dayMaxEvents: true,
+            dayMaxEvents: 3, // Mostrar até 3 eventos por dia
             validRange: {
                 start: new Date().toISOString().split('T')[0]
             },
@@ -522,49 +838,118 @@
                 
                 const events = [];
                 
-                if (selectedSpace?.reservation_mode === 'hourly') {
-                    // MODO HORÁRIO: Mostrar horários específicos em AMARELO
-                    reservations.forEach(reservation => {
-                        const eventDate = reservation.reservation_date.split('T')[0];
-                        const startTime = reservation.start_time.substring(0, 5); // "HH:MM"
-                        const endTime = reservation.end_time.substring(0, 5);     // "HH:MM"
+                // Agrupar reservas por data para evitar duplicação
+                const reservationsByDate = {};
+                
+                reservations.forEach(reservation => {
+                    const eventDate = reservation.reservation_date.split('T')[0];
+                    const isRecurring = reservation.is_recurring === true || reservation.is_recurring === 1 || reservation.is_recurring === '1';
+                    
+                    if (!reservationsByDate[eventDate]) {
+                        reservationsByDate[eventDate] = {
+                            recurring: [],
+                            normal: []
+                        };
+                    }
+                    
+                    if (isRecurring) {
+                        reservationsByDate[eventDate].recurring.push(reservation);
+                    } else {
+                        reservationsByDate[eventDate].normal.push(reservation);
+                    }
+                });
+                
+                // Processar cada data
+                Object.keys(reservationsByDate).forEach(dateStr => {
+                    const dateReservations = reservationsByDate[dateStr];
+                    
+                    if (selectedSpace?.reservation_mode === 'hourly') {
+                        // MODO HORÁRIO: Priorizar reservas recorrentes
                         
-                        events.push({
-                            title: `${startTime} às ${endTime}`,
-                            start: eventDate,
-                            allDay: true,
-                            backgroundColor: '#ffc107', // Amarelo
-                            borderColor: '#ffc107',
-                            textColor: '#000',
-                            classNames: ['fc-event-hourly-occupied'],
-                            extendedProps: {
-                                reservation: reservation,
-                                isReserved: true,
-                                startTime: startTime,
-                                endTime: endTime
-                            }
-                        });
-                    });
-                } else {
-                    // MODO DIA INTEIRO: Mostrar "Indisponível" em VERMELHO
-                    reservations.forEach(reservation => {
-                        const eventDate = reservation.reservation_date.split('T')[0];
+                        // Primeiro: adicionar reservas recorrentes (máximo 1 por data)
+                        if (dateReservations.recurring.length > 0) {
+                            const recurringReservation = dateReservations.recurring[0]; // Pegar apenas a primeira
+                            const startTime = recurringReservation.start_time.substring(0, 5);
+                            const endTime = recurringReservation.end_time.substring(0, 5);
+                            
+                            events.push({
+                                title: `${recurringReservation.title || 'Recorrente'} (${startTime}-${endTime})`,
+                                start: dateStr,
+                                allDay: true,
+                                backgroundColor: '#28a745',
+                                borderColor: '#28a745',
+                                textColor: '#fff',
+                                classNames: ['fc-event-recurring'],
+                                extendedProps: {
+                                    reservation: recurringReservation,
+                                    isReserved: true,
+                                    isRecurring: true,
+                                    startTime: startTime,
+                                    endTime: endTime
+                                }
+                            });
+                        }
                         
-                        events.push({
-                            title: 'Indisponível',
-                            start: eventDate,
-                            allDay: true,
-                            display: 'background',
-                            backgroundColor: '#dc3545', // Vermelho
-                            borderColor: '#dc3545',
-                            classNames: ['fc-event-unavailable'],
-                            extendedProps: {
-                                reservation: reservation,
-                                isReserved: true
-                            }
+                        // Segundo: adicionar reservas normais (máximo 2 por data)
+                        dateReservations.normal.slice(0, 2).forEach(reservation => {
+                            const startTime = reservation.start_time.substring(0, 5);
+                            const endTime = reservation.end_time.substring(0, 5);
+                            
+                            events.push({
+                                title: `${startTime} às ${endTime}`,
+                                start: dateStr,
+                                allDay: true,
+                                backgroundColor: '#ffc107',
+                                borderColor: '#ffc107',
+                                textColor: '#000',
+                                classNames: ['fc-event-hourly-occupied'],
+                                extendedProps: {
+                                    reservation: reservation,
+                                    isReserved: true,
+                                    isRecurring: false,
+                                    startTime: startTime,
+                                    endTime: endTime
+                                }
+                            });
                         });
-                    });
-                }
+                        
+                    } else {
+                        // MODO DIA INTEIRO: Mostrar apenas reserva recorrente se existir, senão "Indisponível"
+                        if (dateReservations.recurring.length > 0) {
+                            const recurringReservation = dateReservations.recurring[0];
+                            events.push({
+                                title: recurringReservation.title || 'Reserva Recorrente',
+                                start: dateStr,
+                                allDay: true,
+                                display: 'background',
+                                backgroundColor: '#28a745',
+                                borderColor: '#28a745',
+                                textColor: '#fff',
+                                classNames: ['fc-event-recurring'],
+                                extendedProps: {
+                                    reservation: recurringReservation,
+                                    isReserved: true,
+                                    isRecurring: true
+                                }
+                            });
+                        } else if (dateReservations.normal.length > 0) {
+                            events.push({
+                                title: 'Indisponível',
+                                start: dateStr,
+                                allDay: true,
+                                display: 'background',
+                                backgroundColor: '#dc3545',
+                                borderColor: '#dc3545',
+                                classNames: ['fc-event-unavailable'],
+                                extendedProps: {
+                                    reservation: dateReservations.normal[0],
+                                    isReserved: true,
+                                    isRecurring: false
+                                }
+                            });
+                        }
+                    }
+                });
                 
                 console.log('Total de eventos para calendário:', events.length, events);
                 successCallback(events);
@@ -613,9 +998,18 @@
         const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
         const formattedDate = date.toLocaleDateString('pt-BR');
         
+        // Formatar horários para pt-BR
+        const formatTime = (timeStr) => {
+            if (!timeStr) return 'Não informado';
+            if (timeStr.includes('T')) {
+                return timeStr.split('T')[1].substring(0, 5);
+            }
+            return timeStr.substring(0, 5);
+        };
+        
         document.getElementById('confirmSpaceName').textContent = selectedSpace.name;
         document.getElementById('confirmDate').textContent = formattedDate;
-        document.getElementById('confirmHours').textContent = `${selectedSpace.available_from} às ${selectedSpace.available_until}`;
+        document.getElementById('confirmHours').textContent = `${formatTime(selectedSpace.available_from)} às ${formatTime(selectedSpace.available_until)}`;
         document.getElementById('confirmPrice').textContent = selectedSpace.price_per_hour > 0 
             ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')}` 
             : 'GRATUITO';
@@ -814,9 +1208,9 @@
             countBadge.classList.add('bg-secondary');
             
             container.innerHTML = `
-                <div class="text-center py-4">
-                    <i class="bi bi-calendar-x display-4 text-muted"></i>
-                    <p class="text-muted mt-2">Você não tem reservas futuras</p>
+                <div class="text-center py-3">
+                    <i class="bi bi-calendar-x text-muted"></i>
+                    <p class="text-muted mt-2 small">Você não tem reservas futuras</p>
                 </div>
             `;
             return;
@@ -825,7 +1219,7 @@
         countBadge.classList.remove('bg-secondary');
         countBadge.classList.add('bg-warning');
         
-        let html = '<div class="row g-3">';
+        let html = '<div class="row g-2">';
         
         reservations.forEach(reservation => {
             // Evitar problema de timezone: usar a data como string YYYY-MM-DD
@@ -835,39 +1229,50 @@
             // Criar data local sem conversão de timezone
             const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
             const formattedDate = date.toLocaleDateString('pt-BR', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
             });
             
             const statusBadge = reservation.status === 'approved' 
-                ? '<span class="badge bg-success">✓ Confirmada</span>' 
-                : '<span class="badge bg-warning">⏳ Pendente</span>';
+                ? '<span class="badge bg-success small">✓</span>' 
+                : '<span class="badge bg-warning small">⏳</span>';
             
             const escapedSpaceName = reservation.space.name.replace(/'/g, "\\'");
             const escapedDate = formattedDate.replace(/'/g, "\\'");
             
+            // Ícones por tipo de espaço
+            const typeIcons = {
+                'party_hall': '🎉',
+                'bbq': '🍖',
+                'pool': '🏊',
+                'sports_court': '⚽',
+                'gym': '💪',
+                'meeting_room': '🏢',
+                'other': '📍'
+            };
+            
+            const icon = typeIcons[reservation.space.type] || '📍';
+            
             html += `
                 <div class="col-md-6">
-                    <div class="card h-100 border-start border-primary border-3">
-                        <div class="card-body">
+                    <div class="card border-primary border-2">
+                        <div class="card-body p-3">
                             <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title mb-0">
-                                    <i class="bi bi-building"></i> ${reservation.space.name}
-                                </h5>
+                                <div class="d-flex align-items-center">
+                                    <span class="me-2">${icon}</span>
+                                    <h6 class="card-title mb-0">${reservation.space.name}</h6>
+                                </div>
                                 ${statusBadge}
                             </div>
-                            <p class="card-text">
+                            <div class="small text-muted mb-2">
                                 <i class="bi bi-calendar-event"></i> ${formattedDate}<br>
                                 <i class="bi bi-clock"></i> ${reservation.start_time} às ${reservation.end_time}
-                            </p>
-                            ${reservation.notes ? `<p class="text-muted small"><i class="bi bi-chat-left-text"></i> ${reservation.notes}</p>` : ''}
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-danger btn-sm" onclick="deleteReservation(${reservation.id}, '${escapedSpaceName}', '${escapedDate}')">
-                                    <i class="bi bi-trash"></i> Cancelar Reserva
-                                </button>
                             </div>
+                            ${reservation.notes ? `<p class="text-muted small mb-2"><i class="bi bi-chat-left-text"></i> ${reservation.notes}</p>` : ''}
+                            <button class="btn btn-danger btn-sm w-100" onclick="deleteReservation(${reservation.id}, '${escapedSpaceName}', '${escapedDate}')">
+                                <i class="bi bi-trash"></i> Cancelar
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -962,8 +1367,20 @@
         startSelect.innerHTML = '<option value="">Selecione...</option>';
         endSelect.innerHTML = '<option value="">Selecione...</option>';
         
-        const [startHour, startMin] = selectedSpace.available_from.split(':').map(Number);
-        const [endHour, endMin] = selectedSpace.available_until.split(':').map(Number);
+        // Formatar horários para extrair apenas HH:MM
+        const formatTime = (timeStr) => {
+            if (!timeStr) return '08:00';
+            if (timeStr.includes('T')) {
+                return timeStr.split('T')[1].substring(0, 5);
+            }
+            return timeStr.substring(0, 5);
+        };
+        
+        const availableFrom = formatTime(selectedSpace.available_from);
+        const availableUntil = formatTime(selectedSpace.available_until);
+        
+        const [startHour, startMin] = availableFrom.split(':').map(Number);
+        const [endHour, endMin] = availableUntil.split(':').map(Number);
         
         // Gerar opções de 30 em 30 minutos
         for (let h = startHour; h <= endHour; h++) {
@@ -980,7 +1397,7 @@
         }
         
         // Adicionar horário de fim também
-        const endTimeStr = selectedSpace.available_until;
+        const endTimeStr = availableUntil;
         endSelect.innerHTML += `<option value="${endTimeStr}">${endTimeStr}</option>`;
     }
 
@@ -1093,28 +1510,62 @@
         const timeline = document.getElementById('hourlyTimeline');
         const dateOnly = dateStr.split('T')[0];
         
-        // Filtrar reservas deste dia
-        const dayReservations = reservations.filter(r => r.reservation_date.split('T')[0] === dateOnly);
+        // Filtrar apenas reservas normais (não recorrentes) deste dia
+        const dayReservations = reservations.filter(r => {
+            const isSameDate = r.reservation_date.split('T')[0] === dateOnly;
+            const isNotRecurring = !r.is_recurring; // Excluir reservas recorrentes
+            return isSameDate && isNotRecurring;
+        });
         
-        if (dayReservations.length === 0) {
+        // Filtrar reservas recorrentes deste dia para mostrar separadamente
+        const recurringReservations = reservations.filter(r => {
+            const isSameDate = r.reservation_date.split('T')[0] === dateOnly;
+            const isRecurring = r.is_recurring === true || r.is_recurring === 1 || r.is_recurring === '1';
+            return isSameDate && isRecurring;
+        });
+        
+        if (dayReservations.length === 0 && recurringReservations.length === 0) {
             timeline.innerHTML = '<p class="text-muted"><i class="bi bi-check-circle"></i> Nenhuma reserva neste dia - Todos os horários disponíveis!</p>';
             return;
         }
         
-        timeline.innerHTML = '<p class="mb-2"><strong>Horários já reservados hoje:</strong></p>';
-        let html = '<div class="list-group">';
+        timeline.innerHTML = '';
         
-        dayReservations.forEach(r => {
-            html += `
-                <div class="list-group-item list-group-item-danger d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-clock"></i> ${r.start_time} - ${r.end_time}</span>
-                    <span class="badge bg-danger">Indisponível</span>
-                </div>
-            `;
-        });
+        // Mostrar reservas recorrentes primeiro (se houver)
+        if (recurringReservations.length > 0) {
+            timeline.innerHTML += '<p class="mb-2"><strong>Reservas Recorrentes:</strong></p>';
+            let html = '<div class="list-group mb-3">';
+            
+            recurringReservations.forEach(r => {
+                html += `
+                    <div class="list-group-item list-group-item-success d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-arrow-repeat"></i> ${r.title || 'Reserva Recorrente'} (${r.start_time} - ${r.end_time})</span>
+                        <span class="badge bg-success">Recorrente</span>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            timeline.innerHTML += html;
+        }
         
-        html += '</div>';
-        timeline.innerHTML += html;
+        // Mostrar reservas normais (se houver)
+        if (dayReservations.length > 0) {
+            timeline.innerHTML += '<p class="mb-2"><strong>Reservas Individuais:</strong></p>';
+            let html = '<div class="list-group">';
+            
+            dayReservations.forEach(r => {
+                html += `
+                    <div class="list-group-item list-group-item-danger d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-clock"></i> ${r.start_time} - ${r.end_time}</span>
+                        <span class="badge bg-danger">Indisponível</span>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            timeline.innerHTML += html;
+        }
     }
 
     // Criar reserva por horário
@@ -1225,10 +1676,17 @@
 
     // Inicializar ao carregar página
     document.addEventListener('DOMContentLoaded', async () => {
-        await loadSpaces();
-        await loadUserCredits();
-        await loadMyReservations();
-        initCalendar();
+        try {
+            await loadSpaces();
+            await loadUserCredits();
+            await loadMyReservations();
+            initCalendar();
+        } catch (error) {
+            console.error('Erro na inicialização:', error);
+            // Em caso de erro, esconder a barra de progresso
+            document.getElementById('loadingProgress').style.display = 'none';
+            document.getElementById('spaceTabsContainer').style.display = 'block';
+        }
     });
 </script>
 @endpush

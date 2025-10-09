@@ -22,8 +22,8 @@ class Space extends Model
         'price_per_hour' => 'decimal:2',
         'requires_approval' => 'boolean',
         'is_active' => 'boolean',
-        'available_from' => 'datetime:H:i',
-        'available_until' => 'datetime:H:i',
+        'available_from' => 'datetime',
+        'available_until' => 'datetime',
     ];
 
     public function condominium()

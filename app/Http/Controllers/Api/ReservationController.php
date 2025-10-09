@@ -294,16 +294,52 @@ class ReservationController extends Controller
         // SEM dados pessoais (apenas data e horários)
         $reservations = Reservation::where('space_id', $spaceId)
             ->whereIn('status', ['approved', 'pending'])
+            ->whereNull('recurring_reservation_id') // Excluir reservas geradas a partir de recorrentes
             ->select('id', 'space_id', 'reservation_date', 'start_time', 'end_time', 'status')
             ->orderBy('reservation_date')
             ->orderBy('start_time')
             ->get();
+
+        // Buscar reservas recorrentes ativas deste espaço
+        $recurringReservations = \App\Models\RecurringReservation::where('space_id', $spaceId)
+            ->where('status', 'active')
+            ->where('start_date', '<=', now()->addDays(30)->toDateString()) // Incluir reservas que começam nos próximos 30 dias
+            ->where('end_date', '>=', now()->toDateString())
+            ->get();
+
+        // Converter reservas recorrentes em slots ocupados
+        $recurringSlots = collect();
+        foreach ($recurringReservations as $recurring) {
+            $current = \Carbon\Carbon::parse($recurring->start_date);
+            $end = \Carbon\Carbon::parse($recurring->end_date);
+            
+            while ($current->lte($end)) {
+                if (in_array($current->dayOfWeek, array_map('intval', $recurring->days_of_week))) {
+                    $recurringSlots->push([
+                        'id' => 'recurring_' . $recurring->id . '_' . $current->toDateString(),
+                        'space_id' => $spaceId,
+                        'reservation_date' => $current->toDateString(),
+                        'start_time' => $recurring->start_time,
+                        'end_time' => $recurring->end_time,
+                        'status' => 'approved',
+                        'title' => $recurring->title,
+                        'is_recurring' => true,
+                    ]);
+                }
+                $current->addDay();
+            }
+        }
+
+        // Combinar reservas normais e recorrentes
+        $allSlots = $reservations->concat($recurringSlots)
+            ->sortBy(['reservation_date', 'start_time'])
+            ->values();
         
         return response()->json([
             'space_id' => $space->id,
             'space_name' => $space->name,
             'reservation_mode' => $space->reservation_mode,
-            'occupied_slots' => $reservations
+            'occupied_slots' => $allSlots
         ]);
     }
     

@@ -43,6 +43,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return view('reservations.manage'); 
         })->name('reservations.manage');
     });
+
+    // Reservas Recorrentes (Síndico/Admin)
+    Route::middleware(['can:approve_reservations'])->group(function () {
+        Route::resource('recurring-reservations', \App\Http\Controllers\RecurringReservationController::class);
+    });
+    
+    // Administração de Reservas (Síndico/Admin)
+    Route::middleware(['can:approve_reservations'])->group(function () {
+        Route::prefix('admin')->name('admin.')->group(function () {
+            Route::get('/reservations', [\App\Http\Controllers\AdminReservationController::class, 'index'])->name('reservations.index');
+            Route::get('/reservations/{id}', [\App\Http\Controllers\AdminReservationController::class, 'show'])->name('reservations.show');
+            Route::get('/reservations/{id}/edit', [\App\Http\Controllers\AdminReservationController::class, 'edit'])->name('reservations.edit');
+            Route::put('/reservations/{id}', [\App\Http\Controllers\AdminReservationController::class, 'update'])->name('reservations.update');
+            Route::delete('/reservations/{id}', [\App\Http\Controllers\AdminReservationController::class, 'destroy'])->name('reservations.destroy');
+            Route::post('/reservations/bulk-action', [\App\Http\Controllers\AdminReservationController::class, 'bulkAction'])->name('reservations.bulk-action');
+            Route::get('/reservations/spaces/list', [\App\Http\Controllers\AdminReservationController::class, 'getSpaces'])->name('reservations.spaces');
+        });
+    });
     
     // Marketplace
     Route::middleware(['can:view_marketplace'])->group(function () {

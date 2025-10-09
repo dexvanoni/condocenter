@@ -15,12 +15,15 @@ class Reservation extends Model
         'start_time', 'end_time', 'status', 'approved_by',
         'approved_at', 'notes', 'rejection_reason',
         'cancelled_by', 'cancelled_at', 'cancellation_reason',
+        'recurring_reservation_id', 'admin_action', 'admin_reason',
+        'admin_action_by', 'admin_action_at',
     ];
 
     protected $casts = [
         'reservation_date' => 'date',
         'approved_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'admin_action_at' => 'datetime',
     ];
 
     public function space()
@@ -46,6 +49,16 @@ class Reservation extends Model
     public function cancelledBy()
     {
         return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function recurringReservation()
+    {
+        return $this->belongsTo(RecurringReservation::class);
+    }
+
+    public function adminActionBy()
+    {
+        return $this->belongsTo(User::class, 'admin_action_by');
     }
 
     public function scopePending($query)

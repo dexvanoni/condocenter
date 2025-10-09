@@ -93,14 +93,32 @@ class SpaceController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'type' => 'required|in:party_hall,bbq,pool,sports_court,gym,meeting_room,other',
+            'capacity' => 'nullable|integer|min:1',
             'price_per_reservation' => 'required|numeric|min:0',
+            'reservation_mode' => 'required|in:full_day,hourly',
+            'min_hours_per_reservation' => 'nullable|integer|min:1',
+            'max_hours_per_reservation' => 'nullable|integer|min:1',
+            'max_reservations_per_month_per_unit' => 'required|integer|min:1',
+            'available_from' => 'required',
+            'available_until' => 'required',
+            'rules' => 'nullable|string',
             'is_active' => 'boolean',
         ]);
 
         $space->update([
             'name' => $validated['name'],
             'description' => $validated['description'],
+            'type' => $validated['type'],
+            'capacity' => $validated['capacity'],
             'price_per_hour' => $validated['price_per_reservation'],
+            'reservation_mode' => $validated['reservation_mode'],
+            'min_hours_per_reservation' => $validated['min_hours_per_reservation'] ?? 1,
+            'max_hours_per_reservation' => $validated['max_hours_per_reservation'] ?? 24,
+            'max_reservations_per_month_per_unit' => $validated['max_reservations_per_month_per_unit'],
+            'available_from' => $validated['available_from'],
+            'available_until' => $validated['available_until'],
+            'rules' => $validated['rules'],
             'is_active' => $request->boolean('is_active', true),
         ]);
 
