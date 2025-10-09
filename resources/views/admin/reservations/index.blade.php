@@ -369,6 +369,25 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Inicializar modais do Bootstrap
+    if (typeof bootstrap !== 'undefined') {
+        console.log('Bootstrap disponível, inicializando modais...');
+        
+        // Inicializar todos os modais
+        var modalElements = document.querySelectorAll('.modal');
+        modalElements.forEach(function(modalElement) {
+            new bootstrap.Modal(modalElement);
+        });
+        
+        // Inicializar dropdowns
+        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+            return new bootstrap.Dropdown(dropdownToggleEl);
+        });
+    } else {
+        console.error('Bootstrap não está disponível!');
+    }
+    
     loadSpaces();
     loadReservations();
 
@@ -776,5 +795,39 @@ $(document).ready(function() {
     window.bulkAction = bulkAction;
     window.loadReservations = loadReservations;
 });
+
+// Debug: Testar Bootstrap
+window.testBootstrap = function() {
+    console.log('=== DEBUG BOOTSTRAP ===');
+    console.log('Bootstrap disponível:', typeof bootstrap !== 'undefined');
+    console.log('jQuery disponível:', typeof $ !== 'undefined');
+    
+    if (typeof bootstrap !== 'undefined') {
+        console.log('Versão Bootstrap:', bootstrap.Tooltip.VERSION);
+        
+        // Testar modal
+        var testModal = document.getElementById('viewModal');
+        if (testModal) {
+            console.log('Modal encontrado:', testModal);
+            var modal = new bootstrap.Modal(testModal);
+            console.log('Modal instanciado:', modal);
+        }
+        
+        // Testar dropdown
+        var testDropdown = document.querySelector('[data-bs-toggle="dropdown"]');
+        if (testDropdown) {
+            console.log('Dropdown encontrado:', testDropdown);
+            var dropdown = new bootstrap.Dropdown(testDropdown);
+            console.log('Dropdown instanciado:', dropdown);
+        }
+    }
+    
+    console.log('=== FIM DEBUG ===');
+};
+
+// Executar teste automaticamente
+setTimeout(function() {
+    window.testBootstrap();
+}, 1000);
 </script>
 @endpush

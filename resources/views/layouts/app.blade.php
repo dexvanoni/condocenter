@@ -556,8 +556,29 @@
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Verificar se Bootstrap está funcionando -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar se Bootstrap está disponível
+            if (typeof bootstrap === 'undefined') {
+                console.error('Bootstrap não está carregado!');
+            } else {
+                console.log('Bootstrap carregado com sucesso!');
+            }
+            
+            // Inicializar todos os tooltips e popovers
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl);
+            });
+        });
+    </script>
     
     @stack('scripts')
 </body>
