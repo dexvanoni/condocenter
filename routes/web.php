@@ -31,11 +31,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     // Reservas
-    Route::middleware(['can:view_reservations'])->group(function () {
+    Route::middleware(['check.reservation.access:view'])->group(function () {
         Route::get('/reservations', function() { 
             return view('reservations.calendar'); 
         })->name('reservations.index');
     });
+    
     
     // Gerenciar Reservas (Síndico)
     Route::middleware(['can:manage_reservations'])->group(function () {
@@ -63,8 +64,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     // Marketplace
-    Route::middleware(['can:view_marketplace'])->group(function () {
-        Route::get('/marketplace', [\App\Http\Controllers\MarketplaceController::class, 'index'])->name('marketplace.index');
+    Route::middleware(['check.module.access:marketplace'])->group(function () {
+        Route::get('/marketplace', function() { return view('marketplace.index'); })->name('marketplace.index');
     });
     
     // Portaria
@@ -73,12 +74,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     // Encomendas  
-    Route::middleware(['can:register_packages'])->group(function () {
+    Route::middleware(['check.module.access:packages'])->group(function () {
         Route::get('/packages', function() { return view('packages.index'); })->name('packages.index');
     });
     
     // Pets
-    Route::middleware(['can:view_pets'])->group(function () {
+    Route::middleware(['check.module.access:pets'])->group(function () {
         Route::get('/pets', function() { return view('pets.index'); })->name('pets.index');
     });
     

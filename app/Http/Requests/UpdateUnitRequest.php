@@ -19,9 +19,28 @@ class UpdateUnitRequest extends FormRequest
      */
     public function rules(): array
     {
+        $unitId = $this->route('unit')->id;
+        
         return [
             'condominium_id' => ['sometimes', 'required', 'exists:condominiums,id'],
-            'number' => ['sometimes', 'required', 'string', 'max:50'],
+            'number' => [
+                'sometimes',
+                'required', 
+                'string', 
+                'max:50',
+                function ($attribute, $value, $fail) use ($unitId) {
+                    $exists = \App\Models\Unit::where('condominium_id', $this->condominium_id)
+                        ->where('number', $value)
+                        ->where('block', $this->block)
+                        ->where('id', '!=', $unitId)
+                        ->exists();
+                    
+                    if ($exists) {
+                        $blockText = $this->block ? " e bloco '{$this->block}'" : '';
+                        $fail("Já existe uma unidade com o número '{$value}'{$blockText} neste condomínio.");
+                    }
+                },
+            ],
             'block' => ['nullable', 'string', 'max:50'],
             'type' => ['sometimes', 'required', 'in:residential,commercial'],
             'situacao' => ['sometimes', 'required', 'in:habitado,fechado,indisponivel,em_obra'],

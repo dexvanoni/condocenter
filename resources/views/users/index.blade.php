@@ -16,10 +16,11 @@
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" action="{{ route('users.index') }}" class="row g-3">
-            <div class="col-md-3">
+            <!-- Primeira linha -->
+            <div class="col-md-4">
                 <input type="text" name="search" class="form-control" placeholder="Buscar (nome, email, CPF)..." value="{{ request('search') }}">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <select name="role" class="form-select">
                     <option value="">Todos os perfis</option>
                     @foreach($roles as $role)
@@ -27,7 +28,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <select name="unit_id" class="form-select">
                     <option value="">Todas unidades</option>
                     @foreach($units as $unit)
@@ -36,6 +37,13 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+            
+            <!-- Segunda linha -->
+            <div class="col-md-3">
                 <select name="is_active" class="form-select">
                     <option value="">Todos status</option>
                     <option value="1" {{ request('is_active') === '1' ? 'selected' : '' }}>Ativos</option>
@@ -43,12 +51,22 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-search"></i> Filtrar
-                </button>
-                <a href="{{ route('users.index') }}" class="btn btn-secondary">
-                    <i class="bi bi-x-circle"></i> Limpar
+                <select name="possui_dividas" class="form-select">
+                    <option value="">Todas dívidas</option>
+                    <option value="1" {{ request('possui_dividas') === '1' ? 'selected' : '' }}>Com dívidas</option>
+                    <option value="0" {{ request('possui_dividas') === '0' ? 'selected' : '' }}>Sem dívidas</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ route('users.index') }}" class="btn btn-secondary w-100">
+                    <i class="bi bi-x-circle"></i> Limpar Filtros
                 </a>
+            </div>
+            <div class="col-md-3">
+                <small class="text-muted d-flex align-items-center h-100">
+                    <i class="bi bi-info-circle me-1"></i>
+                    {{ $users->total() }} usuário(s) encontrado(s)
+                </small>
             </div>
         </form>
     </div>

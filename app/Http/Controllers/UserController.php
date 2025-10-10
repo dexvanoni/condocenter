@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Unit;
 use App\Models\Condominium;
+use App\Models\AgregadoPermission;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
@@ -63,11 +65,11 @@ class UserController extends Controller
             $query->where('unit_id', $request->unit_id);
         }
 
-        if ($request->has('is_active')) {
+        if ($request->filled('is_active')) {
             $query->where('is_active', $request->boolean('is_active'));
         }
 
-        if ($request->has('possui_dividas')) {
+        if ($request->filled('possui_dividas')) {
             $query->where('possui_dividas', $request->boolean('possui_dividas'));
         }
 
@@ -78,7 +80,7 @@ class UserController extends Controller
             $query->orderBy('name');
         }
 
-        $users = $query->paginate(20);
+        $users = $query->paginate(20)->withQueryString();
 
         // Para filtros
         $roles = Role::all();
@@ -86,6 +88,12 @@ class UserController extends Controller
             ->byCondominium($authUser->condominium_id)
             ->orderBy('number')
             ->get();
+
+        // Debug: Log da query SQL (remover em produção)
+        if (config('app.debug')) {
+            Log::info('Users Query SQL: ' . $query->toSql());
+            Log::info('Users Query Bindings: ' . json_encode($query->getBindings()));
+        }
 
         return view('users.index', compact('users', 'roles', 'units'));
     }
@@ -112,7 +120,10 @@ class UserController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('users.create', compact('condominiums', 'units', 'roles', 'moradores'));
+        // Permissões disponíveis para agregados
+        $agregadoPermissions = AgregadoPermission::getAvailablePermissions();
+
+        return view('users.create', compact('condominiums', 'units', 'roles', 'moradores', 'agregadoPermissions'));
     }
 
     /**
@@ -144,6 +155,11 @@ class UserController extends Controller
             $user->syncRoles($roles);
         }
 
+        // Processa permissões de agregado se aplicável
+        if (in_array('Agregado', $roles) && $request->has('agregado_permissions')) {
+            $this->processAgregadoPermissions($user, $request->input('agregado_permissions', []));
+        }
+
         // Gera QR Code
         $user->generateQRCode();
 
@@ -167,14 +183,14 @@ class UserController extends Controller
         $this->authorize('view', $user);
         
         $user->load([
-            'unit',
+            'unit.charges',
             'condominium',
             'roles',
             'moradorVinculado',
             'agregados',
-            'charges',
             'reservations',
-            'pets'
+            'pets',
+            'agregadoPermissions.grantedBy'
         ]);
 
         return view('users.show', compact('user'));
@@ -202,7 +218,10 @@ class UserController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('users.edit', compact('user', 'condominiums', 'units', 'roles', 'moradores'));
+        // Permissões disponíveis para agregados
+        $agregadoPermissions = AgregadoPermission::getAvailablePermissions();
+
+        return view('users.edit', compact('user', 'condominiums', 'units', 'roles', 'moradores', 'agregadoPermissions'));
     }
 
     /**
@@ -231,6 +250,9 @@ class UserController extends Controller
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
             $data['senha_temporaria'] = false;
+        } else {
+            // Remove senha do array se não foi fornecida
+            unset($data['password']);
         }
 
         // Extrai roles antes de atualizar
@@ -242,6 +264,14 @@ class UserController extends Controller
         // Atualiza roles se fornecidas
         if ($roles !== null) {
             $user->syncRoles($roles);
+            
+            // Processa permissões de agregado se aplicável
+            if (in_array('Agregado', $roles) && $request->has('agregado_permissions')) {
+                $this->processAgregadoPermissions($user, $request->input('agregado_permissions', []));
+            } elseif (!in_array('Agregado', $roles)) {
+                // Remove todas as permissões de agregado se não for mais agregado
+                $user->agregadoPermissions()->delete();
+            }
         }
 
         // Log da atividade
@@ -343,6 +373,34 @@ class UserController extends Controller
         );
 
         return back()->with('success', 'Senha resetada para: 12345678');
+    }
+
+    /**
+     * Processa as permissões personalizadas de agregado
+     */
+    private function processAgregadoPermissions(User $user, array $permissions): void
+    {
+        $grantedById = $this->authUser()->id;
+        $availablePermissions = AgregadoPermission::getAvailablePermissions();
+        
+        // Remove todas as permissões atuais
+        $user->agregadoPermissions()->delete();
+        
+        // Adiciona as novas permissões selecionadas
+        foreach ($permissions as $permission) {
+            $module = $permission['module'] ?? null;
+            $level = $permission['level'] ?? 'view';
+            
+            if ($module && array_key_exists($module, $availablePermissions)) {
+                AgregadoPermission::grantPermission(
+                    $user->id,
+                    $module,
+                    $level,
+                    $grantedById,
+                    "Permissão concedida por {$this->authUser()->name}"
+                );
+            }
+        }
     }
 }
 

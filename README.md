@@ -340,9 +340,17 @@ C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan test
 C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan test --coverage
 ```
 
-## 📖 API Documentation
+## 📖 Documentação Completa
 
-A documentação da API estará disponível em breve.
+Para mais informações detalhadas sobre o projeto, consulte nossa **[documentação completa](docs/README.md)** que inclui:
+
+- 📘 **[Guia de Início Rápido](docs/QUICKSTART.md)** - Comece a usar rapidamente
+- 📗 **[Setup Detalhado](docs/SETUP.md)** - Configuração completa do ambiente
+- 📙 **[Funcionalidades](docs/FUNCIONALIDADES.md)** - Lista completa de recursos
+- 📕 **[API Documentation](docs/API_DOCUMENTATION.md)** - Documentação da API REST
+- 🔐 **[Sistema de Permissões](docs/SIDEBAR_PERMISSIONS.md)** - Como funcionam as permissões
+- 💰 **[Transparência Financeira](docs/PERMISSOES_FINANCEIRAS.md)** - Sistema financeiro
+- 🚀 **[Deploy](docs/DEPLOY.md)** - Guia de deploy em produção
 
 ## 🤝 Contribuindo
 

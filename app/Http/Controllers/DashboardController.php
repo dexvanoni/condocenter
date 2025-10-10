@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\Reservation;
 use App\Models\Package;
 use App\Models\Entry;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,6 +15,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        /** @var User $user */
         $user = Auth::user();
         $condominium = $user->condominium;
 
@@ -32,16 +34,19 @@ class DashboardController extends Controller
             return $this->sindicoDashboard($user, $condominium);
         } elseif ($user->isMorador()) {
             return $this->moradorDashboard($user, $condominium);
+        } elseif ($user->isAgregado()) {
+            return $this->agregadoDashboard($user, $condominium);
         } elseif ($user->isPorteiro()) {
             return $this->porteiroDashboard($user, $condominium);
         } elseif ($user->isConselhoFiscal()) {
             return $this->conselhoFiscalDashboard($user, $condominium);
         }
 
-        return view('dashboard.index');
+        // Fallback para perfis não tratados
+        return $this->defaultDashboard($user, $condominium);
     }
 
-    protected function sindicoDashboard($user, $condominium)
+    protected function sindicoDashboard(User $user, $condominium)
     {
         $currentMonth = now()->format('Y-m');
 
@@ -107,7 +112,7 @@ class DashboardController extends Controller
         ));
     }
 
-    protected function moradorDashboard($user, $condominium)
+    protected function moradorDashboard(User $user, $condominium)
     {
         // Extrato da Unidade
         $chargesPendentes = Charge::where('unit_id', $user->unit_id)
@@ -150,7 +155,7 @@ class DashboardController extends Controller
         ));
     }
 
-    protected function porteiroDashboard($user, $condominium)
+    protected function porteiroDashboard(User $user, $condominium)
     {
         // Entradas de hoje
         $entradasHoje = Entry::where('condominium_id', $condominium->id)
@@ -174,7 +179,7 @@ class DashboardController extends Controller
         ));
     }
 
-    protected function conselhoFiscalDashboard($user, $condominium)
+    protected function conselhoFiscalDashboard(User $user, $condominium)
     {
         // Visão financeira para fiscalização
         $transacoesMes = Transaction::where('condominium_id', $condominium->id)
@@ -199,7 +204,50 @@ class DashboardController extends Controller
         ));
     }
 
-    protected function adminPlatformDashboard($user)
+    protected function agregadoDashboard(User $user, $condominium)
+    {
+        // Dashboard limitado para agregados
+        $moradorResponsavel = $user->moradorVinculado;
+        
+        // Encomendas da unidade (via morador responsável)
+        $encomendas = [];
+        if ($moradorResponsavel && $moradorResponsavel->unit_id) {
+            $encomendas = Package::where('unit_id', $moradorResponsavel->unit_id)
+                ->where('status', 'pending')
+                ->orderBy('received_at', 'desc')
+                ->limit(5)
+                ->get();
+        }
+
+        // Notificações limitadas
+        $notificacoes = $user->notifications()
+            ->where('is_read', false)
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get();
+
+        return view('dashboard.agregado', compact(
+            'moradorResponsavel',
+            'encomendas',
+            'notificacoes'
+        ));
+    }
+
+    protected function defaultDashboard(User $user, $condominium)
+    {
+        // Dashboard genérico para perfis não tratados
+        $notificacoes = $user->notifications()
+            ->where('is_read', false)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        return view('dashboard.default', compact(
+            'notificacoes'
+        ));
+    }
+
+    protected function adminPlatformDashboard(User $user)
     {
         // Dashboard do administrador da plataforma
         $totalCondominios = \App\Models\Condominium::count();

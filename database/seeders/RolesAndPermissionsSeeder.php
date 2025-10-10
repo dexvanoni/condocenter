@@ -37,11 +37,22 @@ class RolesAndPermissionsSeeder extends Seeder
             // Financeiro
             'manage_transactions',
             'view_transactions',
+            'create_transactions',
+            'edit_transactions',
+            'delete_transactions',
             'manage_charges',
             'view_charges',
             'approve_expenses',
             'view_financial_reports',
+            'export_financial_reports',
             'manage_bank_statements',
+            'view_bank_statements',
+            'view_bank_reconciliation',
+            'view_accountability_reports',
+            'export_accountability_reports',
+            'view_revenue',
+            'view_expenses',
+            'view_balance',
             'view_own_financial',
             
             // Reservas
@@ -134,10 +145,20 @@ class RolesAndPermissionsSeeder extends Seeder
         // Morador
         $moradorRole = Role::firstOrCreate(['name' => 'Morador'], ['guard_name' => 'web']);
         $moradorRole->syncPermissions([
+            // Financeiro - Visualização Total (Transparência)
             'view_own_financial',
             'view_transactions',
             'view_charges',
             'view_financial_reports',
+            'export_financial_reports',
+            'view_bank_statements',
+            'view_bank_reconciliation',
+            'view_accountability_reports',
+            'export_accountability_reports',
+            'view_revenue',
+            'view_expenses',
+            'view_balance',
+            // Demais permissões
             'view_spaces',
             'make_reservations',
             'view_reservations',
@@ -167,10 +188,21 @@ class RolesAndPermissionsSeeder extends Seeder
         // Conselho Fiscal
         $conselhoRole = Role::firstOrCreate(['name' => 'Conselho Fiscal'], ['guard_name' => 'web']);
         $conselhoRole->syncPermissions([
+            // Financeiro - Visualização e Fiscalização Total
             'view_transactions',
             'view_charges',
             'view_financial_reports',
+            'export_financial_reports',
             'manage_bank_statements',
+            'view_bank_statements',
+            'view_bank_reconciliation',
+            'view_accountability_reports',
+            'export_accountability_reports',
+            'view_revenue',
+            'view_expenses',
+            'view_balance',
+            'approve_expenses',
+            // Outras
             'view_assemblies',
             'view_messages',
             'view_users',
@@ -200,7 +232,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_spaces',
             'view_marketplace',
             'view_pets',
-            'view_assemblies',
             'view_notifications',
         ]);
     }

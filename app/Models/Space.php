@@ -14,7 +14,7 @@ class Space extends Model
         'condominium_id', 'name', 'description', 'photo_path', 'type', 'capacity',
         'price_per_hour', 'requires_approval', 'max_hours_per_reservation',
         'min_hours_per_reservation', 'interval_between_reservations',
-        'max_reservations_per_month_per_unit', 'available_from',
+        'max_reservations_per_month_per_user', 'available_from',
         'available_until', 'is_active', 'rules', 'reservation_mode',
         'approval_type', 'prereservation_payment_hours', 'prereservation_auto_cancel',
         'prereservation_instructions'

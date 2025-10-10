@@ -42,6 +42,9 @@ class StoreUserRequest extends FormRequest
             'photo' => ['nullable', 'image', 'max:2048'],
             'roles' => ['required', 'array', 'min:1'],
             'roles.*' => ['exists:roles,name'],
+            'agregado_permissions' => ['array', 'nullable'],
+            'agregado_permissions.*.module' => ['string', 'in:' . implode(',', array_keys(\App\Models\AgregadoPermission::getAvailablePermissions()))],
+            'agregado_permissions.*.level' => ['string', 'in:view,crud'],
             'possui_dividas' => ['boolean'],
             'is_active' => ['boolean'],
         ];

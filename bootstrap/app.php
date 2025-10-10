@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'check.password' => \App\Http\Middleware\CheckPasswordChange::class,
             'check.profile' => \App\Http\Middleware\CheckActiveProfile::class,
+            'check.agregado.permission' => \App\Http\Middleware\CheckAgregadoPermission::class,
+            'check.reservation.access' => \App\Http\Middleware\CheckReservationAccess::class,
+            'check.module.access' => \App\Http\Middleware\CheckModuleAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

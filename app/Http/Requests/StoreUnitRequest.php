@@ -21,7 +21,22 @@ class StoreUnitRequest extends FormRequest
     {
         return [
             'condominium_id' => ['required', 'exists:condominiums,id'],
-            'number' => ['required', 'string', 'max:50'],
+            'number' => [
+                'required', 
+                'string', 
+                'max:50',
+                function ($attribute, $value, $fail) {
+                    $exists = \App\Models\Unit::where('condominium_id', $this->condominium_id)
+                        ->where('number', $value)
+                        ->where('block', $this->block)
+                        ->exists();
+                    
+                    if ($exists) {
+                        $blockText = $this->block ? " e bloco '{$this->block}'" : '';
+                        $fail("Já existe uma unidade com o número '{$value}'{$blockText} neste condomínio.");
+                    }
+                },
+            ],
             'block' => ['nullable', 'string', 'max:50'],
             'type' => ['required', 'in:residential,commercial'],
             'situacao' => ['required', 'in:habitado,fechado,indisponivel,em_obra'],

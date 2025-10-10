@@ -28,8 +28,9 @@ class ReservationController extends Controller
             $q->where('condominium_id', $user->condominium_id);
         });
 
-        // Se for morador, mostrar apenas suas reservas
-        if ($user->isMorador()) {
+        // Mostrar apenas as reservas do usuário logado (não por unidade)
+        // Exceto para administradores e síndicos que podem ver todas as reservas
+        if (!$user->isAdmin() && !$user->isSindico()) {
             $query->where('user_id', $user->id);
         }
 
@@ -80,6 +81,21 @@ class ReservationController extends Controller
         // Verificar se o usuário tem unidade associada
         if (!$user->unit_id) {
             return response()->json(['error' => 'Você precisa estar associado a uma unidade para fazer reservas'], 400);
+        }
+
+        // Verificar permissões para fazer reservas
+        $canMakeReservations = false;
+        
+        if ($user->isAgregado()) {
+            // Para agregados, verificar permissão específica
+            $canMakeReservations = \App\Models\AgregadoPermission::hasPermission($user->id, 'spaces', 'crud');
+        } else {
+            // Para outros perfis, verificar permissão Spatie
+            $canMakeReservations = $user->can('make_reservations');
+        }
+        
+        if (!$canMakeReservations) {
+            return response()->json(['error' => 'Você não tem permissão para fazer reservas. Apenas visualização permitida.'], 403);
         }
         
         $space = Space::findOrFail($request->space_id);
@@ -171,17 +187,17 @@ class ReservationController extends Controller
             }
         }
 
-        // Verificar limite mensal de reservas por unidade
+        // Verificar limite mensal de reservas por usuário (não por unidade)
         $reservationsThisMonth = Reservation::where('space_id', $request->space_id)
-            ->where('unit_id', $user->unit_id)
+            ->where('user_id', $user->id) // Limitar por usuário individual
             ->whereMonth('reservation_date', now()->month)
             ->whereYear('reservation_date', now()->year)
             ->whereIn('status', ['pending', 'approved'])
             ->count();
 
-        if ($reservationsThisMonth >= $space->max_reservations_per_month_per_unit) {
+        if ($reservationsThisMonth >= $space->max_reservations_per_month_per_user) {
             return response()->json([
-                'error' => "Limite de {$space->max_reservations_per_month_per_unit} reserva(s) por mês atingido para este espaço"
+                'error' => "Limite de {$space->max_reservations_per_month_per_user} reserva(s) por mês atingido para este usuário neste espaço"
             ], 400);
         }
 
@@ -263,16 +279,28 @@ class ReservationController extends Controller
             }
         }
 
-        // Enviar notificação apropriada
-        if ($space->approval_type === 'prereservation') {
-            SendReservationNotification::dispatch($reservation, 'pending_payment');
-            $message = 'Pré-reserva criada! Realize o pagamento para confirmar.';
-        } elseif ($space->approval_type === 'manual') {
-            SendReservationNotification::dispatch($reservation, 'pending');
-            $message = 'Reserva enviada para aprovação do síndico.';
-        } else {
-            SendReservationNotification::dispatch($reservation, 'approved');
-            $message = 'Reserva confirmada automaticamente!';
+        // Enviar notificação apropriada (em modo síncrono para evitar erros)
+        try {
+            if ($space->approval_type === 'prereservation') {
+                SendReservationNotification::dispatchSync($reservation, 'pending_payment');
+                $message = 'Pré-reserva criada! Realize o pagamento para confirmar.';
+            } elseif ($space->approval_type === 'manual') {
+                SendReservationNotification::dispatchSync($reservation, 'pending');
+                $message = 'Reserva enviada para aprovação do síndico.';
+            } else {
+                SendReservationNotification::dispatchSync($reservation, 'approved');
+                $message = 'Reserva confirmada automaticamente!';
+            }
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar notificação: ' . $e->getMessage());
+            // Continua mesmo com erro na notificação
+            if ($space->approval_type === 'prereservation') {
+                $message = 'Pré-reserva criada! Realize o pagamento para confirmar.';
+            } elseif ($space->approval_type === 'manual') {
+                $message = 'Reserva enviada para aprovação do síndico.';
+            } else {
+                $message = 'Reserva confirmada automaticamente!';
+            }
         }
         
         if ($space->approval_type === 'prereservation' && $space->price_per_hour > 0) {
@@ -290,14 +318,30 @@ class ReservationController extends Controller
             }
         }
 
+        // Calcular créditos totais do usuário com tratamento de erro
+        try {
+            $totalCredits = $user->getTotalCredits();
+        } catch (\Exception $e) {
+            Log::error('Erro ao calcular créditos totais: ' . $e->getMessage());
+            $totalCredits = 0;
+        }
+
+        // Carregar relacionamentos da reserva com tratamento de erro
+        try {
+            $reservationWithRelations = $reservation->load('space');
+        } catch (\Exception $e) {
+            Log::error('Erro ao carregar relacionamentos da reserva: ' . $e->getMessage());
+            $reservationWithRelations = $reservation;
+        }
+
         $response = [
             'message' => $message,
-            'reservation' => $reservation->load('space'),
+            'reservation' => $reservationWithRelations,
             'has_charge' => $remainingAmount > 0,
             'amount' => $remainingAmount,
             'credit_used' => $creditUsed,
             'credit_amount' => $creditUsed ? ($space->price_per_hour - $remainingAmount) : 0,
-            'total_user_credits' => $user->getTotalCredits()
+            'total_user_credits' => $totalCredits
         ];
 
         // Adicionar dados específicos para pré-reservas
@@ -311,6 +355,21 @@ class ReservationController extends Controller
         }
 
         return response()->json($response, 201);
+        
+    } catch (\Exception $e) {
+        Log::error('Erro ao criar reserva: ' . $e->getMessage(), [
+            'user_id' => $user->id,
+            'space_id' => $request->space_id,
+            'reservation_date' => $request->reservation_date,
+            'start_time' => $request->start_time,
+            'end_time' => $request->end_time,
+            'stack_trace' => $e->getTraceAsString()
+        ]);
+        
+        return response()->json([
+            'error' => 'Erro interno do servidor ao criar reserva. Tente novamente.'
+        ], 500);
+    }
     }
 
     /**

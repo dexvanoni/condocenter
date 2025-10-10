@@ -68,16 +68,16 @@ class UserHistoryService
     {
         return $user->reservations()
             ->with('space')
-            ->orderBy('date', 'desc')
+            ->orderBy('reservation_date', 'desc')
             ->get()
             ->map(fn($r) => [
                 'id' => $r->id,
                 'space' => $r->space->name ?? 'N/A',
-                'date' => $r->date->format('d/m/Y'),
+                'date' => $r->reservation_date->format('d/m/Y'),
                 'start_time' => $r->start_time,
                 'end_time' => $r->end_time,
                 'status' => $r->status,
-                'amount' => $r->amount,
+                'amount' => $r->prereservation_amount ?? $r->space->price_per_hour ?? 0,
                 'created_at' => $r->created_at->format('d/m/Y H:i'),
             ]);
     }
@@ -88,15 +88,15 @@ class UserHistoryService
     protected function getTransactionsHistory(User $user): Collection
     {
         return $user->transactions()
-            ->orderBy('date', 'desc')
+            ->orderBy('transaction_date', 'desc')
             ->get()
             ->map(fn($t) => [
                 'id' => $t->id,
                 'type' => $t->type,
                 'description' => $t->description,
                 'amount' => $t->amount,
-                'date' => $t->date->format('d/m/Y'),
-                'category' => $t->category,
+                'date' => $t->transaction_date->format('d/m/Y'),
+                'category' => $t->category ?? 'N/A',
                 'created_at' => $t->created_at->format('d/m/Y H:i'),
             ]);
     }
@@ -115,10 +115,10 @@ class UserHistoryService
             ->get()
             ->map(fn($c) => [
                 'id' => $c->id,
-                'type' => $c->type,
-                'description' => $c->description,
+                'type' => $c->type ?? 'regular',
+                'description' => $c->title ?? $c->description ?? 'N/A',
                 'amount' => $c->amount,
-                'due_date' => $c->due_date->format('d/m/Y'),
+                'due_date' => $c->due_date ? $c->due_date->format('d/m/Y') : 'N/A',
                 'status' => $c->status,
                 'created_at' => $c->created_at->format('d/m/Y H:i'),
             ]);
@@ -134,17 +134,22 @@ class UserHistoryService
         }
 
         return $user->unit->charges()
-            ->whereNotNull('paid_at')
-            ->with('payment')
-            ->orderBy('paid_at', 'desc')
+            ->where('status', 'paid')
+            ->with('payments')
+            ->orderBy('due_date', 'desc')
             ->get()
-            ->map(fn($c) => [
-                'charge_id' => $c->id,
-                'description' => $c->description,
-                'amount' => $c->amount,
-                'paid_at' => $c->paid_at->format('d/m/Y'),
-                'payment_method' => $c->payment?->payment_method ?? 'N/A',
-            ]);
+            ->flatMap(function($c) {
+                if ($c->payments->isEmpty()) {
+                    return [];
+                }
+                return $c->payments->map(fn($p) => [
+                    'charge_id' => $c->id,
+                    'description' => $c->title ?? $c->description ?? 'N/A',
+                    'amount' => $p->amount_paid,
+                    'paid_at' => $p->payment_date ? $p->payment_date->format('d/m/Y') : 'N/A',
+                    'payment_method' => $p->payment_method ?? 'N/A',
+                ]);
+            });
     }
 
     /**
@@ -156,13 +161,15 @@ class UserHistoryService
             ->with('assembly')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(fn($v) => [
-                'assembly_id' => $v->assembly->id,
-                'title' => $v->assembly->title,
-                'date' => $v->assembly->date->format('d/m/Y'),
-                'vote' => $v->vote,
-                'voted_at' => $v->created_at->format('d/m/Y H:i'),
-            ]);
+            ->map(function($v) {
+                return [
+                    'assembly_id' => $v->assembly->id ?? 'N/A',
+                    'title' => $v->assembly->title ?? 'N/A',
+                    'date' => $v->assembly && $v->assembly->scheduled_at ? $v->assembly->scheduled_at->format('d/m/Y') : 'N/A',
+                    'vote' => $v->vote ?? 'N/A',
+                    'voted_at' => $v->created_at->format('d/m/Y H:i'),
+                ];
+            });
     }
 
     /**
@@ -177,7 +184,7 @@ class UserHistoryService
             ->map(fn($m) => [
                 'id' => $m->id,
                 'to' => $m->toUser->name ?? 'N/A',
-                'subject' => $m->subject,
+                'subject' => $m->subject ?? 'Sem assunto',
                 'sent_at' => $m->created_at->format('d/m/Y H:i'),
             ]);
     }
@@ -196,10 +203,10 @@ class UserHistoryService
             ->get()
             ->map(fn($p) => [
                 'id' => $p->id,
-                'description' => $p->description,
-                'sender' => $p->sender,
-                'received_at' => $p->received_at->format('d/m/Y H:i'),
-                'collected_at' => $p->collected_at?->format('d/m/Y H:i'),
+                'description' => $p->description ?? 'Encomenda',
+                'sender' => $p->sender ?? 'N/A',
+                'received_at' => $p->received_at ? $p->received_at->format('d/m/Y H:i') : 'N/A',
+                'collected_at' => $p->collected_at ? $p->collected_at->format('d/m/Y H:i') : null,
                 'status' => $p->status,
             ]);
     }
@@ -213,9 +220,9 @@ class UserHistoryService
             ->get()
             ->map(fn($p) => [
                 'id' => $p->id,
-                'name' => $p->name,
-                'type' => $p->type,
-                'breed' => $p->breed,
+                'name' => $p->name ?? 'N/A',
+                'type' => $p->type ?? 'N/A',
+                'breed' => $p->breed ?? 'N/A',
                 'registered_at' => $p->created_at->format('d/m/Y'),
             ]);
     }
@@ -230,9 +237,9 @@ class UserHistoryService
             ->get()
             ->map(fn($i) => [
                 'id' => $i->id,
-                'title' => $i->title,
-                'price' => $i->price,
-                'status' => $i->status,
+                'title' => $i->title ?? 'N/A',
+                'price' => $i->price ?? 0,
+                'status' => $i->status ?? 'N/A',
                 'created_at' => $i->created_at->format('d/m/Y'),
             ]);
     }
@@ -251,10 +258,10 @@ class UserHistoryService
             ->get()
             ->map(fn($e) => [
                 'id' => $e->id,
-                'visitor_name' => $e->visitor_name,
-                'visitor_document' => $e->visitor_document,
-                'entry_time' => $e->entry_time->format('d/m/Y H:i'),
-                'exit_time' => $e->exit_time?->format('d/m/Y H:i'),
+                'visitor_name' => $e->visitor_name ?? 'N/A',
+                'visitor_document' => $e->visitor_document ?? 'N/A',
+                'entry_time' => $e->entry_time ? $e->entry_time->format('d/m/Y H:i') : 'N/A',
+                'exit_time' => $e->exit_time ? $e->exit_time->format('d/m/Y H:i') : null,
             ]);
     }
 

@@ -10,11 +10,11 @@
                 <h2>Marketplace</h2>
                 <p class="text-muted mb-0">Produtos e serviços entre moradores</p>
             </div>
-            @can('create_marketplace_items')
+            @if(\App\Helpers\SidebarHelper::canCrudModule(Auth::user(), 'marketplace'))
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoAnuncioModal">
                 <i class="bi bi-plus-circle"></i> Novo Anúncio
             </button>
-            @endcan
+            @endif
         </div>
     </div>
 </div>

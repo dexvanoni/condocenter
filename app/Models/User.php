@@ -77,11 +77,6 @@ class User extends Authenticatable implements Auditable
         return $this->hasMany(Transaction::class);
     }
 
-    public function charges()
-    {
-        return $this->hasManyThrough(Charge::class, Unit::class);
-    }
-
     public function reservations()
     {
         return $this->hasMany(Reservation::class);
@@ -173,6 +168,16 @@ class User extends Authenticatable implements Auditable
         return $this->hasMany(User::class, 'morador_vinculado_id');
     }
 
+    public function agregadoPermissions()
+    {
+        return $this->hasMany(AgregadoPermission::class);
+    }
+
+    public function grantedAgregadoPermissions()
+    {
+        return $this->hasMany(AgregadoPermission::class, 'granted_by');
+    }
+
     // Métodos auxiliares
     public function getTotalCredits()
     {
@@ -211,6 +216,27 @@ class User extends Authenticatable implements Auditable
     public function isAgregado(): bool
     {
         return $this->hasRole('Agregado');
+    }
+
+    public function hasAgregadoPermission(string $permissionKey, string $permissionLevel = null): bool
+    {
+        if (!$this->isAgregado()) {
+            return false;
+        }
+
+        return AgregadoPermission::hasPermission($this->id, $permissionKey, $permissionLevel);
+    }
+
+    public function getAgregadoPermissions(): array
+    {
+        if (!$this->isAgregado()) {
+            return [];
+        }
+
+        return $this->agregadoPermissions()
+            ->granted()
+            ->pluck('permission_key')
+            ->toArray();
     }
 
     public function generateQRCode(): string

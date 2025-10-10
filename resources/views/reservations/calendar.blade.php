@@ -3,6 +3,23 @@
 @section('title', 'Reservas - Calendário')
 
 @section('content')
+@php
+    use App\Helpers\SidebarHelper;
+    $user = Auth::user();
+    $canMakeReservations = SidebarHelper::canMakeReservations($user);
+    $canViewReservations = SidebarHelper::canViewReservations($user);
+@endphp
+
+<!-- Variáveis JavaScript para permissões -->
+<script>
+    window.userPermissions = {
+        canMakeReservations: @json($canMakeReservations),
+        canViewReservations: @json($canViewReservations),
+        isAgregado: @json($user->isAgregado()),
+        userName: @json($user->name)
+    };
+</script>
+
 <!-- Header Compacto -->
 <div class="row mb-3">
     <div class="col-12">
@@ -860,9 +877,12 @@
         
         updateProgress(2, 'Carregando informações do espaço...');
         
-        // Atualizar informações do espaço
-        document.getElementById('spaceName').textContent = selectedSpace.name;
-        document.getElementById('spaceDescription').textContent = selectedSpace.description || '';
+        // Atualizar informações do espaço com verificações de segurança
+        const spaceName = document.getElementById('spaceName');
+        const spaceDescription = document.getElementById('spaceDescription');
+        
+        if (spaceName) spaceName.textContent = selectedSpace.name;
+        if (spaceDescription) spaceDescription.textContent = selectedSpace.description || '';
         
         // Atualizar foto do espaço
         const photoElement = document.getElementById('spacePhoto');
@@ -883,10 +903,17 @@
             photoElement.src = defaultPhotos[selectedSpace.type] || '/images/defaults/space.jpg';
             photoElement.style.display = 'block';
         }
-        document.getElementById('spacePrice').textContent = selectedSpace.price_per_hour > 0 
-            ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')}` 
-            : 'GRATUITO';
-        document.getElementById('spaceCapacity').textContent = selectedSpace.capacity ? `${selectedSpace.capacity} pessoas` : 'Não informado';
+        const spacePrice = document.getElementById('spacePrice');
+        const spaceCapacity = document.getElementById('spaceCapacity');
+        
+        if (spacePrice) {
+            spacePrice.textContent = selectedSpace.price_per_hour > 0 
+                ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')}` 
+                : 'GRATUITO';
+        }
+        if (spaceCapacity) {
+            spaceCapacity.textContent = selectedSpace.capacity ? `${selectedSpace.capacity} pessoas` : 'Não informado';
+        }
         
         // Formatar horários para pt-BR
         const formatTime = (timeStr) => {
@@ -899,21 +926,28 @@
             return timeStr.substring(0, 5);
         };
         
-        document.getElementById('spaceHours').textContent = `${formatTime(selectedSpace.available_from)} às ${formatTime(selectedSpace.available_until)}`;
-        document.getElementById('spaceLimit').textContent = `${selectedSpace.max_reservations_per_month_per_unit}x por mês`;
+        const spaceHours = document.getElementById('spaceHours');
+        const spaceLimit = document.getElementById('spaceLimit');
+        
+        if (spaceHours) spaceHours.textContent = `${formatTime(selectedSpace.available_from)} às ${formatTime(selectedSpace.available_until)}`;
+        if (spaceLimit) spaceLimit.textContent = `${selectedSpace.max_reservations_per_month_per_unit}x por mês`;
         
         // Modo de Reserva
         const reservationModeText = selectedSpace.reservation_mode === 'full_day' 
             ? '📅 Dia Inteiro (1 reserva por dia)'
             : '⏰ Por Horários (múltiplas por dia)';
-        document.getElementById('spaceReservationMode').textContent = reservationModeText;
+        const spaceReservationMode = document.getElementById('spaceReservationMode');
+        if (spaceReservationMode) spaceReservationMode.textContent = reservationModeText;
         
         // Configurações de horário (para espaços hourly)
         const hourlyConfig = document.getElementById('hourlyConfig');
         if (selectedSpace.reservation_mode === 'hourly') {
             hourlyConfig.style.display = 'block';
-            document.getElementById('spaceMinHours').textContent = `${selectedSpace.min_hours_per_reservation || 1}h`;
-            document.getElementById('spaceMaxHours').textContent = `${selectedSpace.max_hours_per_reservation || 4}h`;
+            const spaceMinHours = document.getElementById('spaceMinHours');
+            const spaceMaxHours = document.getElementById('spaceMaxHours');
+            
+            if (spaceMinHours) spaceMinHours.textContent = `${selectedSpace.min_hours_per_reservation || 1}h`;
+            if (spaceMaxHours) spaceMaxHours.textContent = `${selectedSpace.max_hours_per_reservation || 4}h`;
         } else {
             hourlyConfig.style.display = 'none';
         }
@@ -925,17 +959,20 @@
             
             // Prazo para pagamento
             const paymentHours = selectedSpace.prereservation_payment_hours || 24;
-            document.getElementById('spacePaymentDeadline').textContent = `${paymentHours} horas`;
+            const spacePaymentDeadline = document.getElementById('spacePaymentDeadline');
+            if (spacePaymentDeadline) spacePaymentDeadline.textContent = `${paymentHours} horas`;
             
             // Cancelamento automático
             const autoCancel = selectedSpace.prereservation_auto_cancel 
                 ? 'Automático' 
                 : 'Manual';
-            document.getElementById('spaceAutoCancel').textContent = autoCancel;
+            const spaceAutoCancel = document.getElementById('spaceAutoCancel');
+            if (spaceAutoCancel) spaceAutoCancel.textContent = autoCancel;
             
             // Instruções de pagamento
             const instructions = selectedSpace.prereservation_instructions || 'Consulte o síndico para informações de pagamento.';
-            document.getElementById('spacePaymentInstructions').textContent = instructions;
+            const spacePaymentInstructions = document.getElementById('spacePaymentInstructions');
+            if (spacePaymentInstructions) spacePaymentInstructions.textContent = instructions;
         } else {
             prereservationInfo.style.display = 'none';
         }
@@ -944,7 +981,8 @@
         const rulesContainer = document.getElementById('spaceRulesContainer');
         if (selectedSpace.rules && selectedSpace.rules.trim()) {
             rulesContainer.style.display = 'block';
-            document.getElementById('spaceRules').textContent = selectedSpace.rules;
+            const spaceRules = document.getElementById('spaceRules');
+            if (spaceRules) spaceRules.textContent = selectedSpace.rules;
         } else {
             rulesContainer.style.display = 'none';
         }
@@ -1222,6 +1260,12 @@
 
     // Manipular clique em data
     function handleDateClick(dateStr) {
+        // Verificar se o usuário tem permissão para fazer reservas
+        if (!window.userPermissions.canMakeReservations) {
+            alert('❌ Você não tem permissão para fazer reservas.\n\nApenas visualização permitida.');
+            return;
+        }
+
         if (!selectedSpace) {
             alert('Selecione um espaço primeiro');
             return;
@@ -1338,11 +1382,12 @@
                     location.reload();
                 }
             } else {
-                alert(result.error || 'Erro ao criar reserva');
+                console.error('Erro na resposta:', result);
+                alert(result.error || 'Erro ao criar reserva. Verifique o console para mais detalhes.');
             }
         } catch (error) {
-            console.error('Erro:', error);
-            alert('Erro ao criar reserva. Tente novamente.');
+            console.error('Erro na requisição:', error);
+            alert('Erro ao criar reserva. Tente novamente. Verifique o console para mais detalhes.');
         }
     }
 
@@ -1599,12 +1644,20 @@
         const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
         const formattedDate = date.toLocaleDateString('pt-BR');
         
-        document.getElementById('hourlySpaceName').textContent = selectedSpace.name;
-        document.getElementById('hourlyDate').textContent = formattedDate;
-        document.getElementById('maxHoursAllowed').textContent = selectedSpace.max_hours_per_reservation;
-        document.getElementById('hourlyPrice').textContent = selectedSpace.price_per_hour > 0 
-            ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')} por hora` 
-            : 'GRATUITO';
+        // Preencher modal com verificações de segurança
+        const hourlySpaceName = document.getElementById('hourlySpaceName');
+        const hourlyDate = document.getElementById('hourlyDate');
+        const maxHoursAllowed = document.getElementById('maxHoursAllowed');
+        const hourlyPrice = document.getElementById('hourlyPrice');
+        
+        if (hourlySpaceName) hourlySpaceName.textContent = selectedSpace.name;
+        if (hourlyDate) hourlyDate.textContent = formattedDate;
+        if (maxHoursAllowed) maxHoursAllowed.textContent = selectedSpace.max_hours_per_reservation;
+        if (hourlyPrice) {
+            hourlyPrice.textContent = selectedSpace.price_per_hour > 0 
+                ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')} por hora` 
+                : 'GRATUITO';
+        }
         
         // Gerar opções de horário
         generateTimeOptions();
@@ -1878,7 +1931,13 @@
             
             const result = await response.json();
             
-            if (response.ok) {
+            console.log('Resposta da API:', {
+                status: response.status,
+                ok: response.ok,
+                result: result
+            });
+            
+            if (response.ok && result.message) {
                 // Fechar modal de horários
                 const hourlyModalEl = document.getElementById('hourlyModal');
                 const hourlyModal = window.bootstrap?.Modal.getInstance(hourlyModalEl);
@@ -1909,11 +1968,12 @@
                     location.reload();
                 }
             } else {
-                alert(result.error || 'Erro ao criar reserva');
+                console.error('Erro na resposta:', result);
+                alert(result.error || 'Erro ao criar reserva. Verifique o console para mais detalhes.');
             }
         } catch (error) {
-            console.error('Erro:', error);
-            alert('Erro ao criar reserva. Tente novamente.');
+            console.error('Erro na requisição:', error);
+            alert('Erro ao criar reserva. Tente novamente. Verifique o console para mais detalhes.');
         }
     }
 
@@ -1982,8 +2042,9 @@
                 expirationText = 'Expirando em breve';
             }
             
-            // Mudar cor se estiver perto de expirar
-            const expirationElement = document.getElementById('prereservationExpiration');
+        // Mudar cor se estiver perto de expirar
+        const expirationElement = document.getElementById('prereservationExpiration');
+        if (expirationElement) {
             if (hours < 1) {
                 expirationElement.classList.remove('text-warning');
                 expirationElement.classList.add('text-danger');
@@ -1991,14 +2052,19 @@
                 expirationElement.classList.remove('text-danger');
                 expirationElement.classList.add('text-warning');
             }
+        }
         } else {
             expirationText = 'Aguardando pagamento';
         }
         
-        // Preencher modal
-        document.getElementById('prereservationDate').textContent = formattedDate;
-        document.getElementById('prereservationTime').textContent = formattedTime;
-        document.getElementById('prereservationExpiration').textContent = expirationText;
+        // Preencher modal com verificações de segurança
+        const dateElement = document.getElementById('prereservationDate');
+        const timeElement = document.getElementById('prereservationTime');
+        const expirationElement = document.getElementById('prereservationExpiration');
+        
+        if (dateElement) dateElement.textContent = formattedDate;
+        if (timeElement) timeElement.textContent = formattedTime;
+        if (expirationElement) expirationElement.textContent = expirationText;
         
         console.log('Preenchendo modal com dados:', {
             date: formattedDate,

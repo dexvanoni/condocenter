@@ -7,11 +7,11 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>Cadastro de Pets</h2>
-            @can('register_pets')
+            @if(\App\Helpers\SidebarHelper::canCrudModule(Auth::user(), 'pets'))
             <button class="btn btn-primary">
                 <i class="bi bi-plus-circle"></i> Cadastrar Pet
             </button>
-            @endcan
+            @endif
         </div>
     </div>
 </div>
