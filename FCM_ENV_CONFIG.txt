@@ -1,0 +1,39 @@
+# ===========================================
+# FIREBASE CLOUD MESSAGING (FCM) - CONFIGURAÇÃO
+# ===========================================
+# Copie estas linhas para o seu arquivo .env
+
+# Habilitar/Desabilitar FCM (true/false)
+FCM_ENABLED=false
+
+# Configurações específicas do Firebase
+FCM_SERVER_KEY=your_firebase_server_key_here
+FCM_SENDER_ID=your_firebase_sender_id_here
+FCM_PROJECT_ID=your_firebase_project_id_here
+
+# Configurações do cliente Firebase (para JavaScript)
+FCM_API_KEY=your_firebase_api_key_here
+FCM_AUTH_DOMAIN=your_project_id.firebaseapp.com
+FCM_STORAGE_BUCKET=your_project_id.appspot.com
+FCM_APP_ID=your_firebase_app_id_here
+FCM_VAPID_KEY=your_firebase_vapid_key_here
+
+# Configurações específicas de notificações
+FCM_PANIC_NOTIFICATIONS=true
+FCM_GENERAL_NOTIFICATIONS=true
+
+# ===========================================
+# COMO CONFIGURAR:
+# ===========================================
+# 1. Acesse https://console.firebase.google.com/
+# 2. Crie um novo projeto ou selecione um existente
+# 3. Vá em "Project Settings" > "Cloud Messaging"
+# 4. Copie o "Server Key" para FCM_SERVER_KEY
+# 5. Copie o "Sender ID" para FCM_SENDER_ID
+# 6. Copie o "Project ID" para FCM_PROJECT_ID
+# 7. Vá em "Project Settings" > "General"
+# 8. Copie os valores para as configurações do cliente
+# 9. Para VAPID Key, vá em "Project Settings" > "Cloud Messaging" > "Web Push certificates"
+# 10. Gere um novo par de chaves e copie a chave pública para FCM_VAPID_KEY
+# 11. Defina FCM_ENABLED=true para ativar
+# ===========================================

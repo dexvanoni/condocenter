@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Message;
 use App\Models\PanicAlert;
 use App\Jobs\SendPanicAlert;
+use App\Services\FirebaseNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -94,6 +95,9 @@ class PanicAlertController extends Controller
         // Despachar job para enviar alerta para TODOS
         SendPanicAlert::dispatch($alertData, $message);
 
+        // Enviar notificação FCM (se habilitada)
+        $this->sendFCMNotification($panicAlert, $alertData);
+
         return response()->json([
             'message' => 'Alerta de pânico enviado! Todos os moradores e a administração foram notificados.',
             'alert_id' => $panicAlert->id,
@@ -143,6 +147,9 @@ class PanicAlertController extends Controller
         // Resolver o alerta
         $alert->resolve($user);
 
+        // Enviar notificação FCM de resolução (se habilitada)
+        $this->sendFCMResolutionNotification($alert);
+
         return response()->json([
             'message' => 'Alerta de pânico resolvido com sucesso',
             'resolved_by' => $user->name,
@@ -169,5 +176,118 @@ class PanicAlertController extends Controller
         $message .= "ATENÇÃO: Esta é uma situação de emergência. Tome as medidas necessárias imediatamente!";
         
         return $message;
+    }
+
+    /**
+     * Envia notificação FCM para alerta de pânico
+     */
+    protected function sendFCMNotification(PanicAlert $panicAlert, array $alertData): void
+    {
+        try {
+            $firebaseService = new FirebaseNotificationService();
+            
+            $fcmData = [
+                'alert_id' => $panicAlert->id,
+                'alert_type' => $panicAlert->alert_type,
+                'user_name' => $alertData['user_name'],
+                'location' => $alertData['user_unit'],
+                'severity' => $panicAlert->severity
+            ];
+
+            $sentCount = $firebaseService->sendPanicAlert($fcmData);
+            
+            Log::info('Notificação FCM de pânico enviada', [
+                'alert_id' => $panicAlert->id,
+                'sent_count' => $sentCount
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar notificação FCM de pânico', [
+                'alert_id' => $panicAlert->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Envia notificação FCM para resolução de alerta de pânico
+     */
+    protected function sendFCMResolutionNotification(PanicAlert $panicAlert): void
+    {
+        try {
+            $firebaseService = new FirebaseNotificationService();
+            
+            $fcmData = [
+                'alert_id' => $panicAlert->id,
+                'alert_type' => $panicAlert->alert_type,
+                'resolved_by' => $panicAlert->resolvedBy->name ?? 'Usuário'
+            ];
+
+            $sentCount = $firebaseService->sendPanicAlertResolved($fcmData);
+            
+            Log::info('Notificação FCM de resolução enviada', [
+                'alert_id' => $panicAlert->id,
+                'sent_count' => $sentCount
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar notificação FCM de resolução', [
+                'alert_id' => $panicAlert->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Exibe todos os alertas de pânico para administradores e síndicos
+     */
+    public function index(Request $request)
+    {
+        $query = PanicAlert::with(['user', 'resolvedBy', 'condominium']);
+
+        // Filtro por status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filtro por tipo de emergência
+        if ($request->filled('type')) {
+            $query->where('alert_type', $request->type);
+        }
+
+        // Filtro por período
+        if ($request->filled('period')) {
+            $now = now();
+            switch ($request->period) {
+                case 'today':
+                    $query->whereDate('created_at', $now->toDateString());
+                    break;
+                case 'week':
+                    $query->where('created_at', '>=', $now->startOfWeek());
+                    break;
+                case 'month':
+                    $query->where('created_at', '>=', $now->startOfMonth());
+                    break;
+                case 'year':
+                    $query->where('created_at', '>=', $now->startOfYear());
+                    break;
+            }
+        }
+
+        $alerts = $query->orderBy('created_at', 'desc')->paginate(20);
+
+        return view('panic-alerts.index', compact('alerts'));
+    }
+
+    /**
+     * Exibe detalhes de um alerta específico
+     */
+    public function show($id)
+    {
+        $alert = PanicAlert::with(['user', 'resolvedBy', 'condominium'])->findOrFail($id);
+        
+        $html = view('panic-alerts.details', compact('alert'))->render();
+        
+        return response()->json(['html' => $html]);
     }
 }

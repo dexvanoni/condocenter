@@ -141,4 +141,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/password/change', [\App\Http\Controllers\PasswordChangeController::class, 'update'])->name('password.update');
 });
 
+// Rotas de Alertas de Pânico (apenas para Admin/Síndico)
+Route::middleware(['auth', 'verified', 'can:manage_panic_alerts'])->group(function () {
+    Route::get('/panic-alerts', [\App\Http\Controllers\PanicAlertController::class, 'index'])->name('panic-alerts.index');
+    Route::get('/panic-alerts/{id}', [\App\Http\Controllers\PanicAlertController::class, 'show'])->name('panic-alerts.show');
+});
+
 require __DIR__.'/auth.php';

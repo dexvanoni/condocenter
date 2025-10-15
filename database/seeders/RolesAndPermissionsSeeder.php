@@ -87,6 +87,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'send_announcements',
             'contact_sindico',
             'send_panic_alert',
+            'manage_panic_alerts',
             'view_messages',
             
             // Notificações
@@ -137,6 +138,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage_assemblies',
             'view_assemblies',
             'send_announcements',
+            'manage_panic_alerts',
             'view_messages',
             'manage_notifications',
             'view_notifications',

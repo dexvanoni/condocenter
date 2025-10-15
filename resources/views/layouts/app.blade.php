@@ -467,6 +467,15 @@
                 @endif
                 @endif
 
+                <!-- ==================== ALERTAS DE PÂNICO (APENAS ADMIN/SÍNDICO) ==================== -->
+                @if(SidebarHelper::isAdminOrSindico($user))
+                <li class="nav-item mt-3">
+                    <a class="nav-link {{ request()->routeIs('panic-alerts.index') ? 'active' : '' }}" href="{{ route('panic-alerts.index') }}">
+                        <i class="bi bi-shield-exclamation"></i> Alertas de Pânico
+                    </a>
+                </li>
+                @endif
+
                 <!-- ==================== ALERTA DE PÂNICO ==================== -->
                 <li class="nav-item mt-4">
                     <button class="btn btn-panic w-100" onclick="openPanicModal()">
@@ -1691,5 +1700,57 @@
             font-size: 2rem;
         }
     </style>
+
+    <!-- Firebase Cloud Messaging Scripts -->
+    @if(config('firebase.enabled', false))
+    <script src="/js/fcm.js"></script>
+    
+    <script>
+        // Configurações FCM específicas da página
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar se FCM está disponível
+            if (window.fcmClient && window.fcmClient.isSupported) {
+                console.log('[FCM] Firebase Cloud Messaging disponível');
+                
+                // Opcional: Setup automático (descomente se quiser ativar automaticamente)
+                // window.fcmClient.setup().then(success => {
+                //     if (success) {
+                //         console.log('[FCM] Setup automático concluído');
+                //     }
+                // });
+            } else {
+                console.log('[FCM] Firebase Cloud Messaging não disponível');
+            }
+        });
+
+        // Função global para testar FCM (para uso em botões de teste)
+        window.testFCM = async function() {
+            if (window.fcmClient && window.fcmClient.isSupported) {
+                const result = await window.fcmClient.test();
+                if (result.success) {
+                    alert('Notificação de teste enviada com sucesso!');
+                } else {
+                    alert('Erro ao enviar notificação: ' + result.message);
+                }
+            } else {
+                alert('FCM não está disponível neste navegador');
+            }
+        };
+
+        // Função global para configurar FCM
+        window.setupFCM = async function() {
+            if (window.fcmClient && window.fcmClient.isSupported) {
+                const success = await window.fcmClient.setup();
+                if (success) {
+                    alert('Notificações push configuradas com sucesso!');
+                } else {
+                    alert('Erro ao configurar notificações push');
+                }
+            } else {
+                alert('FCM não está disponível neste navegador');
+            }
+        };
+    </script>
+    @endif
 </body>
 </html>

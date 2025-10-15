@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SpaceController;
 use App\Http\Controllers\Api\PetController;
+use App\Http\Controllers\Api\FcmTokenController;
+use App\Http\Controllers\Api\FcmConfigController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -156,5 +158,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('reports/defaulters', [ReportController::class, 'defaulters'])->name('api.reports.defaulters');
     Route::get('reports/balance', [ReportController::class, 'balance'])->name('api.reports.balance');
     Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('api.reports.cash-flow');
+    
+    // FCM - Firebase Cloud Messaging (Notificações Push)
+    Route::prefix('fcm')->group(function () {
+        Route::get('config', [FcmConfigController::class, 'index'])->name('api.fcm.config');
+        Route::post('token', [FcmTokenController::class, 'store'])->name('api.fcm.token.store');
+        Route::post('disable', [FcmTokenController::class, 'disable'])->name('api.fcm.disable');
+        Route::post('enable', [FcmTokenController::class, 'enable'])->name('api.fcm.enable');
+        Route::get('status', [FcmTokenController::class, 'status'])->name('api.fcm.status');
+        Route::put('topics', [FcmTokenController::class, 'updateTopics'])->name('api.fcm.topics.update');
+        Route::post('test', [FcmTokenController::class, 'test'])->name('api.fcm.test');
+    });
 });
 
