@@ -15,6 +15,13 @@ Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webho
 Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+    // Sistema de Pânico (para todos os usuários)
+    Route::prefix('panic')->name('panic.')->group(function () {
+        Route::post('/send', [\App\Http\Controllers\PanicAlertController::class, 'send'])->name('send');
+        Route::get('/check', [\App\Http\Controllers\PanicAlertController::class, 'checkActiveAlerts'])->name('check');
+        Route::post('/resolve/{id}', [\App\Http\Controllers\PanicAlertController::class, 'resolve'])->name('resolve');
+    });
+    
     // Financeiro
     Route::middleware(['can:view_transactions'])->group(function () {
         Route::get('/transactions', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');

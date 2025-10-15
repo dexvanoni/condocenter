@@ -168,64 +168,64 @@
                     <div class="row g-3">
                         <!-- Espaços/Reservas -->
                         <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
+                            <div class="text-center p-3 border rounded {{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'spaces') === 'Sem acesso' ? 'opacity-50' : '' }}">
                                 <i class="bi bi-calendar-event text-primary fs-2 mb-2 d-block"></i>
                                 <h6>Espaços</h6>
-                                <small class="text-muted">Acesso completo</small>
+                                <small class="text-muted">{{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'spaces') }}</small>
                             </div>
                         </div>
                         
                         <!-- Marketplace -->
                         <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
+                            <div class="text-center p-3 border rounded {{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'marketplace') === 'Sem acesso' ? 'opacity-50' : '' }}">
                                 <i class="bi bi-shop text-success fs-2 mb-2 d-block"></i>
                                 <h6>Marketplace</h6>
-                                <small class="text-muted">Acesso completo</small>
+                                <small class="text-muted">{{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'marketplace') }}</small>
                             </div>
                         </div>
                         
                         <!-- Pets -->
                         <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
+                            <div class="text-center p-3 border rounded {{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'pets') === 'Sem acesso' ? 'opacity-50' : '' }}">
                                 <i class="bi bi-heart-pulse text-danger fs-2 mb-2 d-block"></i>
                                 <h6>Pets</h6>
-                                <small class="text-muted">Acesso completo</small>
+                                <small class="text-muted">{{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'pets') }}</small>
                             </div>
                         </div>
                         
                         <!-- Encomendas -->
                         <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
+                            <div class="text-center p-3 border rounded {{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'packages') === 'Sem acesso' ? 'opacity-50' : '' }}">
                                 <i class="bi bi-box-seam text-warning fs-2 mb-2 d-block"></i>
                                 <h6>Encomendas</h6>
-                                <small class="text-muted">Apenas visualização</small>
+                                <small class="text-muted">{{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'packages') }}</small>
                             </div>
                         </div>
                         
                         <!-- Mensagens -->
                         <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
+                            <div class="text-center p-3 border rounded {{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'messages') === 'Sem acesso' ? 'opacity-50' : '' }}">
                                 <i class="bi bi-chat-dots text-info fs-2 mb-2 d-block"></i>
                                 <h6>Mensagens</h6>
-                                <small class="text-muted">Apenas visualização</small>
+                                <small class="text-muted">{{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'messages') }}</small>
                             </div>
                         </div>
                         
                         <!-- Financeiro -->
                         <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
+                            <div class="text-center p-3 border rounded {{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'financial') === 'Sem acesso' ? 'opacity-50' : '' }}">
                                 <i class="bi bi-cash-coin text-success fs-2 mb-2 d-block"></i>
                                 <h6>Financeiro</h6>
-                                <small class="text-muted">Apenas visualização</small>
+                                <small class="text-muted">{{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'financial') }}</small>
                             </div>
                         </div>
                         
                         <!-- Notificações -->
                         <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
+                            <div class="text-center p-3 border rounded {{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'notifications') === 'Sem acesso' ? 'opacity-50' : '' }}">
                                 <i class="bi bi-bell text-warning fs-2 mb-2 d-block"></i>
                                 <h6>Notificações</h6>
-                                <small class="text-muted">Apenas visualização</small>
+                                <small class="text-muted">{{ \App\Helpers\SidebarHelper::getAccessLevel(Auth::user(), 'notifications') }}</small>
                             </div>
                         </div>
                         
@@ -252,10 +252,9 @@
                     <div>
                         <h6 class="alert-heading mb-1">Acesso Limitado</h6>
                         <p class="mb-0">
-                            Como agregado, você tem acesso limitado ao sistema. Você pode fazer reservas, 
-                            criar anúncios no marketplace e gerenciar pets com acesso completo. 
-                            Você pode visualizar mensagens, financeiro, notificações e encomendas, 
-                            mas não pode participar de assembleias.
+                            Como agregado, você tem acesso limitado ao sistema baseado nas permissões 
+                            concedidas pelo morador responsável. Consulte as funcionalidades disponíveis 
+                            abaixo para ver seu nível de acesso em cada módulo.
                         </p>
                     </div>
                 </div>

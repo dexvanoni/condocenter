@@ -79,7 +79,7 @@
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Limite/Mês</small>
-                        <span class="fw-semibold">📅 {{ $space->max_reservations_per_month_per_unit }}</span>
+                        <span class="fw-semibold">📅 {{ $space->max_reservations_per_month_per_user }}</span>
                     </div>
                 </div>
 

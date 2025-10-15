@@ -126,7 +126,7 @@ class SidebarHelper
             return self::canCrudModule($user, 'marketplace');
         }
 
-        return $user->can('view_marketplace');
+        return $user->can('create_marketplace') || $user->can('manage_marketplace');
     }
 
     /**
@@ -138,7 +138,7 @@ class SidebarHelper
             return self::canCrudModule($user, 'pets');
         }
 
-        return $user->can('view_pets');
+        return $user->can('manage_pets') || $user->can('view_pets');
     }
 
     /**
@@ -150,7 +150,7 @@ class SidebarHelper
             return self::canCrudModule($user, 'messages');
         }
 
-        return $user->can('send_messages');
+        return $user->can('send_messages') || $user->can('view_messages');
     }
 
     /**
@@ -162,7 +162,7 @@ class SidebarHelper
             return self::canAccessModule($user, 'packages');
         }
 
-        return $user->can('view_packages') || $user->can('register_packages');
+        return $user->can('view_packages') || $user->can('register_packages') || $user->can('manage_packages');
     }
 
     /**
@@ -202,5 +202,24 @@ class SidebarHelper
         }
 
         return 'Visualizar';
+    }
+
+    /**
+     * Obtém o nível de acesso para exibição no dashboard
+     */
+    public static function getAccessLevel(User $user, string $module): string
+    {
+        // Verificar se tem acesso ao módulo
+        if (!self::canAccessModule($user, $module)) {
+            return 'Sem acesso';
+        }
+
+        // Verificar se tem permissões CRUD
+        if (self::canCrudModule($user, $module)) {
+            return 'Acesso completo';
+        }
+
+        // Apenas visualização
+        return 'Apenas visualização';
     }
 }

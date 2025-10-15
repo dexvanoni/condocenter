@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Message;
+use App\Models\PanicAlert;
 use App\Jobs\SendPanicAlert;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,6 +44,23 @@ class PanicAlertController extends Controller
         $ipAddress = $request->ip();
         $userAgent = $request->userAgent();
 
+        // Criar alerta de pânico
+        $panicAlert = PanicAlert::create([
+            'condominium_id' => $user->condominium_id,
+            'user_id' => $user->id,
+            'alert_type' => $request->alert_type,
+            'title' => $alertTitle,
+            'description' => $request->additional_info ?? 'Alerta de emergência ativado',
+            'location' => $user->unit?->full_identifier,
+            'severity' => 'high',
+            'status' => 'active',
+            'metadata' => [
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
+                'user_phone' => $user->phone,
+            ]
+        ]);
+
         // Criar mensagem de pânico
         $message = Message::create([
             'condominium_id' => $user->condominium_id,
@@ -53,10 +71,12 @@ class PanicAlertController extends Controller
             'message' => $this->buildAlertMessage($user, $alertTitle, $request->additional_info),
             'priority' => 'urgent',
             'related_item_type' => 'panic_alert',
+            'related_item_id' => $panicAlert->id,
         ]);
 
         // Dados completos do alerta
         $alertData = [
+            'alert_id' => $panicAlert->id,
             'alert_type' => $request->alert_type,
             'alert_title' => $alertTitle,
             'user_id' => $user->id,
@@ -76,9 +96,58 @@ class PanicAlertController extends Controller
 
         return response()->json([
             'message' => 'Alerta de pânico enviado! Todos os moradores e a administração foram notificados.',
-            'alert_id' => $message->id,
+            'alert_id' => $panicAlert->id,
             'timestamp' => now()->toISOString(),
         ], 201);
+    }
+
+    /**
+     * Verifica se há alertas de pânico ativos
+     */
+    public function checkActiveAlerts()
+    {
+        $user = Auth::user();
+        
+        $activeAlerts = PanicAlert::active()
+            ->forCondominium($user->condominium_id)
+            ->with(['user', 'condominium'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'has_active_alerts' => $activeAlerts->count() > 0,
+            'alerts' => $activeAlerts,
+            'alert_count' => $activeAlerts->count()
+        ]);
+    }
+
+    /**
+     * Resolve um alerta de pânico
+     */
+    public function resolve(Request $request, $id)
+    {
+        $user = Auth::user();
+        
+        $alert = PanicAlert::findOrFail($id);
+        
+        // Verificar se o alerta pertence ao condomínio do usuário
+        if ($alert->condominium_id !== $user->condominium_id) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        // Verificar se o alerta ainda está ativo
+        if (!$alert->isActive()) {
+            return response()->json(['error' => 'Este alerta já foi resolvido'], 400);
+        }
+
+        // Resolver o alerta
+        $alert->resolve($user);
+
+        return response()->json([
+            'message' => 'Alerta de pânico resolvido com sucesso',
+            'resolved_by' => $user->name,
+            'resolved_at' => $alert->resolved_at->toISOString()
+        ]);
     }
 
     /**

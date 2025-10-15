@@ -930,7 +930,7 @@
         const spaceLimit = document.getElementById('spaceLimit');
         
         if (spaceHours) spaceHours.textContent = `${formatTime(selectedSpace.available_from)} às ${formatTime(selectedSpace.available_until)}`;
-        if (spaceLimit) spaceLimit.textContent = `${selectedSpace.max_reservations_per_month_per_unit}x por mês`;
+        if (spaceLimit) spaceLimit.textContent = `${selectedSpace.max_reservations_per_month_per_user}x por mês`;
         
         // Modo de Reserva
         const reservationModeText = selectedSpace.reservation_mode === 'full_day' 
@@ -1028,10 +1028,15 @@
             
             const data = await response.json();
             
+            // console.log('=== RESPOSTA DA API ===');
+            // console.log('Status da resposta:', response.status);
+            // console.log('Data recebida:', data);
+            
             // Armazenar slots ocupados (TODAS as reservas, não apenas as minhas)
             reservations = data.occupied_slots || [];
             
-            console.log('Disponibilidade do espaço carregada:', spaceId, 'Slots ocupados:', reservations.length);
+            // console.log('Disponibilidade do espaço carregada:', spaceId, 'Slots ocupados:', reservations.length);
+            // console.log('Reservas detalhadas:', reservations);
         } catch (error) {
             console.error('Erro ao carregar disponibilidade:', error);
             reservations = [];
@@ -1070,25 +1075,28 @@
                 const event = info.event;
                 const extendedProps = event.extendedProps;
                 
-                console.log('Evento clicado:', event.title);
-                console.log('ExtendedProps:', extendedProps);
-                console.log('isPrereservation:', extendedProps.isPrereservation);
-                console.log('reservation:', extendedProps.reservation);
+                // console.log('Evento clicado:', event.title);
+                // console.log('ExtendedProps:', extendedProps);
+                // console.log('isPrereservation:', extendedProps.isPrereservation);
+                // console.log('reservation:', extendedProps.reservation);
                 
                 // Verificar se é uma pré-reserva clicável
                 if (extendedProps.isPrereservation && extendedProps.reservation) {
-                    console.log('Chamando showPrereservationInfo...');
+                    // console.log('Chamando showPrereservationInfo...');
                     showPrereservationInfo(extendedProps.reservation);
                     info.jsEvent.preventDefault();
                     return false; // Prevenir propagação
                 } else {
-                    console.log('Não é uma pré-reserva clicável');
+                    // console.log('Não é uma pré-reserva clicável');
                     // Se não for pré-reserva, permitir comportamento padrão (modal de erro)
                 }
             },
             events: function(fetchInfo, successCallback, failureCallback) {
-                console.log('Carregando eventos para o calendário. Reservas:', reservations);
-                console.log('Modo do espaço:', selectedSpace?.reservation_mode);
+                // console.log('=== CARREGANDO EVENTOS ===');
+                // console.log('fetchInfo:', fetchInfo);
+                // console.log('selectedSpace:', selectedSpace);
+                // console.log('Reservas carregadas:', reservations);
+                // console.log('Modo do espaço:', selectedSpace?.reservation_mode);
                 
                 const events = [];
                 
@@ -2004,18 +2012,25 @@
         const alertEl = document.getElementById('creditsAlert');
         const totalEl = document.getElementById('totalCredits');
         
+        // Verificar se os elementos existem antes de usar
         if (total > 0) {
-            totalEl.textContent = `R$ ${parseFloat(total).toFixed(2).replace('.', ',')}`;
-            alertEl.style.display = 'block';
+            if (totalEl) {
+                totalEl.textContent = `R$ ${parseFloat(total).toFixed(2).replace('.', ',')}`;
+            }
+            if (alertEl) {
+                alertEl.style.display = 'block';
+            }
         } else {
-            alertEl.style.display = 'none';
+            if (alertEl) {
+                alertEl.style.display = 'none';
+            }
         }
     }
 
     // Mostrar informações de pré-reserva
     function showPrereservationInfo(reservation) {
-        console.log('=== showPrereservationInfo chamada ===');
-        console.log('Reserva recebida:', reservation);
+        // console.log('=== showPrereservationInfo chamada ===');
+        // console.log('Reserva recebida:', reservation);
         
         // Formatar data
         const date = new Date(reservation.reservation_date);
@@ -2066,25 +2081,25 @@
         if (timeElement) timeElement.textContent = formattedTime;
         if (expirationElement) expirationElement.textContent = expirationText;
         
-        console.log('Preenchendo modal com dados:', {
-            date: formattedDate,
-            time: formattedTime,
-            expiration: expirationText
-        });
+        // console.log('Preenchendo modal com dados:', {
+        //     date: formattedDate,
+        //     time: formattedTime,
+        //     expiration: expirationText
+        // });
         
         // Mostrar modal
         const modalEl = document.getElementById('prereservationInfoModal');
-        console.log('Modal element encontrado:', modalEl);
-        console.log('Bootstrap disponível:', typeof window.bootstrap);
+        // console.log('Modal element encontrado:', modalEl);
+        // console.log('Bootstrap disponível:', typeof window.bootstrap);
         
         if (modalEl) {
             if (typeof window.bootstrap !== 'undefined' && window.bootstrap.Modal) {
                 let modal = window.bootstrap.Modal.getInstance(modalEl);
                 if (!modal) {
-                    console.log('Criando nova instância do modal...');
+                    // console.log('Criando nova instância do modal...');
                     modal = new window.bootstrap.Modal(modalEl);
                 }
-                console.log('Mostrando modal...');
+                // console.log('Mostrando modal...');
                 modal.show();
             } else {
                 console.error('Bootstrap Modal não está disponível!');

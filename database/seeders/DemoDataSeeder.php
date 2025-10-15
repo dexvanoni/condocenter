@@ -125,7 +125,7 @@ class DemoDataSeeder extends Seeder
             'reservation_mode' => 'full_day', // DIA INTEIRO
             'min_hours_per_reservation' => 1,
             'max_hours_per_reservation' => 24,
-            'max_reservations_per_month_per_unit' => 1,
+            'max_reservations_per_month_per_user' => 1,
             'available_from' => '08:00:00',
             'available_until' => '22:00:00',
             'is_active' => true,
@@ -143,7 +143,7 @@ class DemoDataSeeder extends Seeder
             'reservation_mode' => 'full_day', // DIA INTEIRO
             'min_hours_per_reservation' => 1,
             'max_hours_per_reservation' => 24,
-            'max_reservations_per_month_per_unit' => 1,
+            'max_reservations_per_month_per_user' => 1,
             'available_from' => '10:00:00',
             'available_until' => '23:00:00',
             'is_active' => true,
@@ -162,7 +162,7 @@ class DemoDataSeeder extends Seeder
             'min_hours_per_reservation' => 1,
             'max_hours_per_reservation' => 2,
             'interval_between_reservations' => 0,
-            'max_reservations_per_month_per_unit' => 8,
+            'max_reservations_per_month_per_user' => 8,
             'available_from' => '07:00:00',
             'available_until' => '22:00:00',
             'is_active' => true,

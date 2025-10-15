@@ -63,7 +63,8 @@ class ReservationController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        try {
+            $validator = Validator::make($request->all(), [
             'space_id' => 'required|exists:spaces,id',
             'reservation_date' => 'required|date|after_or_equal:today',
             'start_time' => 'nullable|date_format:H:i',
@@ -396,8 +397,15 @@ class ReservationController extends Controller
                      'prereservation_status', 'payment_deadline')
             ->orderBy('reservation_date')
             ->orderBy('start_time')
-            ->get()
-            ->map(function($reservation) {
+            ->get();
+            
+        // Debug: Log das reservas encontradas (desabilitado)
+        // Log::info('Reservas encontradas para espaço ' . $spaceId . ':', [
+        //     'total' => $reservations->count(),
+        //     'reservations' => $reservations->toArray()
+        // ]);
+        
+        $reservations = $reservations->map(function($reservation) {
                 // Adicionar informações de pré-reserva se existir
                 $data = $reservation->toArray();
                 

@@ -201,7 +201,7 @@
                             ` : ''}
                             
                             <div class="mb-2">
-                                <i class="bi bi-calendar-check"></i> <strong>Limite:</strong> ${space.max_reservations_per_month_per_unit}x/mês
+                                <i class="bi bi-calendar-check"></i> <strong>Limite:</strong> ${space.max_reservations_per_month_per_user}x/mês
                             </div>
                         </div>
                         <div class="card-footer bg-white">
@@ -257,7 +257,7 @@
                 <p class="mb-1"><strong>Taxa:</strong> ${price}</p>
                 ${selectedSpace.capacity ? `<p class="mb-1"><strong>Capacidade:</strong> ${selectedSpace.capacity} pessoas</p>` : ''}
                 <p class="mb-1"><strong>Horário:</strong> ${selectedSpace.available_from} às ${selectedSpace.available_until}</p>
-                <p class="mb-0"><strong>Limite:</strong> ${selectedSpace.max_reservations_per_month_per_unit} reserva(s) por mês</p>
+                <p class="mb-0"><strong>Limite:</strong> ${selectedSpace.max_reservations_per_month_per_user} reserva(s) por mês</p>
             `;
             
             document.getElementById('spaceInfo').style.display = 'block';

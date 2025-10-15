@@ -111,11 +111,11 @@
                         <div class="col-md-4">
                             <div class="mb-2">
                                 <label class="form-label fw-semibold small">Limite/Mês *</label>
-                                <input type="number" class="form-control form-control-sm @error('max_reservations_per_month_per_unit') is-invalid @enderror" 
-                                       name="max_reservations_per_month_per_unit" 
-                                       value="{{ old('max_reservations_per_month_per_unit', $space->max_reservations_per_month_per_unit ?? 1) }}" 
+                                <input type="number" class="form-control form-control-sm @error('max_reservations_per_month_per_user') is-invalid @enderror" 
+                                       name="max_reservations_per_month_per_user" 
+                                       value="{{ old('max_reservations_per_month_per_user', $space->max_reservations_per_month_per_user ?? 1) }}" 
                                        min="1" required>
-                                @error('max_reservations_per_month_per_unit')
+                                @error('max_reservations_per_month_per_user')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>

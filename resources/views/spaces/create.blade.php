@@ -147,12 +147,12 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Limite de Reservas por Mês *</label>
-                                <input type="number" class="form-control @error('max_reservations_per_month_per_unit') is-invalid @enderror" 
-                                       name="max_reservations_per_month_per_unit" 
-                                       value="{{ old('max_reservations_per_month_per_unit', 1) }}" 
+                                <input type="number" class="form-control @error('max_reservations_per_month_per_user') is-invalid @enderror" 
+                                       name="max_reservations_per_month_per_user" 
+                                       value="{{ old('max_reservations_per_month_per_user', 1) }}" 
                                        min="1" required>
-                                <small class="text-muted">Por unidade</small>
-                                @error('max_reservations_per_month_per_unit')
+                                <small class="text-muted">Por usuário</small>
+                                @error('max_reservations_per_month_per_user')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
