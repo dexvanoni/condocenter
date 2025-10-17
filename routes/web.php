@@ -101,7 +101,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     // Notificações
     Route::get('/notifications', function() { return view('notifications.index'); })->name('notifications.index');
     
-    // Alerta de Pânico
+    // Alerta de Pânico (rota alternativa - removida duplicação)
     Route::post('/panic-alert', [\App\Http\Controllers\PanicAlertController::class, 'send'])->name('panic.send');
     
     // === NOVAS ROTAS ===

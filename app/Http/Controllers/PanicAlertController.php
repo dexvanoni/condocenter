@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Message;
 use App\Models\PanicAlert;
+use App\Models\User;
 use App\Jobs\SendPanicAlert;
 use App\Services\FirebaseNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class PanicAlertController extends Controller
@@ -17,16 +20,32 @@ class PanicAlertController extends Controller
      */
     public function send(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'alert_type' => 'required|in:fire,lost_child,flood,robbery,police,domestic_violence,ambulance',
-            'additional_info' => 'nullable|string|max:500',
-        ]);
+        try {
+            Log::info('Iniciando envio de alerta de pânico', [
+                'user_id' => Auth::id(),
+                'request_data' => $request->all(),
+                'headers' => $request->headers->all()
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+            // Verificar se o usuário está autenticado
+            if (!Auth::check()) {
+                Log::error('Usuário não autenticado');
+                return response()->json(['error' => 'Usuário não autenticado'], 401);
+            }
 
-        $user = Auth::user();
+            $validator = Validator::make($request->all(), [
+                'alert_type' => 'required|in:fire,lost_child,flood,robbery,police,domestic_violence,ambulance',
+                'additional_info' => 'nullable|string|max:500',
+            ]);
+
+            if ($validator->fails()) {
+                Log::error('Validação falhou', ['errors' => $validator->errors()]);
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $user = Auth::user();
+            
+            Log::info('Usuário autenticado', ['user_id' => $user->id, 'condominium_id' => $user->condominium_id]);
         
         // Mapear tipos de alerta
         $alertTypes = [
@@ -95,14 +114,36 @@ class PanicAlertController extends Controller
         // Despachar job para enviar alerta para TODOS
         SendPanicAlert::dispatch($alertData, $message);
 
+        // Enviar emails para perfis específicos (síndico, administrador, porteiro, secretaria)
+        $this->sendPanicEmails($alertData);
+
         // Enviar notificação FCM (se habilitada)
         $this->sendFCMNotification($panicAlert, $alertData);
 
-        return response()->json([
-            'message' => 'Alerta de pânico enviado! Todos os moradores e a administração foram notificados.',
-            'alert_id' => $panicAlert->id,
-            'timestamp' => now()->toISOString(),
-        ], 201);
+            Log::info('Alerta de pânico enviado com sucesso', [
+                'alert_id' => $panicAlert->id,
+                'user_id' => $user->id
+            ]);
+
+            return response()->json([
+                'message' => 'Alerta de pânico enviado! Todos os moradores e a administração foram notificados.',
+                'alert_id' => $panicAlert->id,
+                'timestamp' => now()->toISOString(),
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar alerta de pânico', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => Auth::id()
+            ]);
+
+            return response()->json([
+                'error' => 'Erro interno do servidor',
+                'message' => 'Não foi possível enviar o alerta de pânico. Tente novamente.',
+                'debug' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
     }
 
     /**
@@ -176,6 +217,76 @@ class PanicAlertController extends Controller
         $message .= "ATENÇÃO: Esta é uma situação de emergência. Tome as medidas necessárias imediatamente!";
         
         return $message;
+    }
+
+    /**
+     * Envia emails de alerta de pânico para perfis específicos
+     */
+    protected function sendPanicEmails(array $alertData): void
+    {
+        try {
+            // Perfis que devem receber emails de alerta de pânico
+            $targetRoles = ['Síndico', 'Administrador', 'Porteiro', 'Secretaria'];
+            
+            // Buscar usuários com os perfis específicos no mesmo condomínio
+            $users = User::where('condominium_id', $alertData['condominium_id'])
+                ->where('is_active', true)
+                ->whereHas('roles', function ($query) use ($targetRoles) {
+                    $query->whereIn('name', $targetRoles);
+                })
+                ->get();
+
+            Log::info('Enviando emails de alerta de pânico', [
+                'alert_id' => $alertData['alert_id'],
+                'target_roles' => $targetRoles,
+                'users_count' => $users->count()
+            ]);
+
+            $sentCount = 0;
+            foreach ($users as $user) {
+                try {
+                    // Verificar se o usuário tem pelo menos um dos perfis desejados
+                    $hasTargetRole = false;
+                    foreach ($targetRoles as $role) {
+                        if ($user->hasRole($role)) {
+                            $hasTargetRole = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasTargetRole) {
+                        Mail::to($user->email)->send(
+                            new \App\Mail\PanicAlertNotification($alertData)
+                        );
+                        
+                        $sentCount++;
+                        
+                        Log::info("Email de alerta de pânico enviado para: {$user->name} ({$user->email})", [
+                            'user_id' => $user->id,
+                            'user_roles' => $user->roles->pluck('name')->toArray()
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Erro ao enviar email de alerta de pânico para {$user->email}: " . $e->getMessage(), [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            Log::info("Emails de alerta de pânico enviados com sucesso", [
+                'alert_id' => $alertData['alert_id'],
+                'total_users' => $users->count(),
+                'emails_sent' => $sentCount
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar emails de alerta de pânico', [
+                'alert_id' => $alertData['alert_id'],
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 
     /**

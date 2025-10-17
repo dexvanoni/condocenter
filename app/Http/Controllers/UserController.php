@@ -8,10 +8,12 @@ use App\Models\Condominium;
 use App\Models\AgregadoPermission;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
@@ -203,87 +205,156 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
         
-        $condominiums = Condominium::active()->get();
-        $units = Unit::active()
-            ->byCondominium($user->condominium_id)
-            ->orderBy('number')
-            ->get();
-        $roles = Role::all();
+        // Verificar se o usuário está editando a si mesmo
+        $isEditingSelf = Auth::user()->id === $user->id;
         
-        // Moradores para vincular agregados
-        $moradores = User::active()
-            ->byCondominium($user->condominium_id)
-            ->moradores()
-            ->where('id', '!=', $user->id)
-            ->orderBy('name')
-            ->get();
+        // Verificar se o usuário tem permissão para gerenciar usuários (Admin/Síndico)
+        $userRoles = Auth::user()->roles->pluck('name')->toArray();
+        $canManageUsers = in_array('Administrador', $userRoles) || in_array('Síndico', $userRoles);
+        
+        if ($isEditingSelf && !$canManageUsers) {
+            // Usuário comum editando a si mesmo - usar view simplificada
+            return view('users.profile-edit', compact('user'));
+        } else {
+            // Admin/Síndico editando qualquer usuário - usar view completa
+            $condominiums = Condominium::active()->get();
+            $units = Unit::active()
+                ->byCondominium($user->condominium_id)
+                ->orderBy('number')
+                ->get();
+            $roles = Role::all();
+            
+            // Moradores para vincular agregados
+            $moradores = User::active()
+                ->byCondominium($user->condominium_id)
+                ->moradores()
+                ->where('id', '!=', $user->id)
+                ->orderBy('name')
+                ->get();
 
-        // Permissões disponíveis para agregados
-        $agregadoPermissions = AgregadoPermission::getAvailablePermissions();
+            // Permissões disponíveis para agregados
+            $agregadoPermissions = AgregadoPermission::getAvailablePermissions();
 
-        return view('users.edit', compact('user', 'condominiums', 'units', 'roles', 'moradores', 'agregadoPermissions'));
+            return view('users.edit', compact('user', 'condominiums', 'units', 'roles', 'moradores', 'agregadoPermissions'));
+        }
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateUserRequest $request, User $user)
+    public function update(Request $request, User $user)
     {
         $this->authorize('update', $user);
         
-        $data = $request->validated();
-
-        // Upload de nova foto se fornecida
-        if ($request->hasFile('photo')) {
-            // Deleta foto antiga
-            if ($user->photo) {
-                $this->fileUploadService->deletePhoto($user->photo);
+        // Verificar se o usuário está editando a si mesmo
+        $isEditingSelf = Auth::user()->id === $user->id;
+        
+        // Verificar se o usuário tem permissão para gerenciar usuários (Admin/Síndico)
+        $userRoles = Auth::user()->roles->pluck('name')->toArray();
+        $canManageUsers = in_array('Administrador', $userRoles) || in_array('Síndico', $userRoles);
+        
+        if ($isEditingSelf && !$canManageUsers) {
+            // Usuário comum editando a si mesmo - usar request simplificado
+            $validatedData = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
+                'phone' => ['nullable', 'string', 'max:20'],
+                'data_nascimento' => ['nullable', 'date', 'before:today'],
+                'telefone_residencial' => ['nullable', 'string', 'max:20'],
+                'telefone_celular' => ['nullable', 'string', 'max:20'],
+                'telefone_comercial' => ['nullable', 'string', 'max:20'],
+                'local_trabalho' => ['nullable', 'string', 'max:255'],
+                'contato_comercial' => ['nullable', 'string', 'max:20'],
+                'photo' => ['nullable', 'image', 'max:2048'],
+            ]);
+            
+            // Upload de nova foto se fornecida
+            if ($request->hasFile('photo')) {
+                // Deleta foto antiga
+                if ($user->photo) {
+                    $this->fileUploadService->deletePhoto($user->photo);
+                }
+                
+                $validatedData['photo'] = $this->fileUploadService->uploadUserPhoto(
+                    $request->file('photo'),
+                    $user->id
+                );
             }
             
-            $data['photo'] = $this->fileUploadService->uploadUserPhoto(
-                $request->file('photo'),
-                $user->id
+            $user->update($validatedData);
+            
+            // Log da atividade
+            $this->authUser()->logActivity(
+                'update',
+                'profile',
+                "Atualizou seu próprio perfil",
+                ['user_id' => $user->id]
             );
-        }
-
-        // Atualiza senha se fornecida
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
-            $data['senha_temporaria'] = false;
-        } else {
-            // Remove senha do array se não foi fornecida
-            unset($data['password']);
-        }
-
-        // Extrai roles antes de atualizar
-        $roles = $data['roles'] ?? null;
-        unset($data['roles']);
-
-        $user->update($data);
-
-        // Atualiza roles se fornecidas
-        if ($roles !== null) {
-            $user->syncRoles($roles);
             
-            // Processa permissões de agregado se aplicável
-            if (in_array('Agregado', $roles) && $request->has('agregado_permissions')) {
-                $this->processAgregadoPermissions($user, $request->input('agregado_permissions', []));
-            } elseif (!in_array('Agregado', $roles)) {
-                // Remove todas as permissões de agregado se não for mais agregado
-                $user->agregadoPermissions()->delete();
+            return redirect()->route('users.edit', $user)
+                ->with('success', 'Perfil atualizado com sucesso!');
+                
+        } else {
+            // Admin/Síndico editando qualquer usuário - usar request completo
+            $updateUserRequest = new UpdateUserRequest();
+            $updateUserRequest->setContainer(app());
+            $updateUserRequest->setRedirector(app('redirect'));
+            $updateUserRequest->setRequest($request);
+            
+            $data = $updateUserRequest->validated();
+
+            // Upload de nova foto se fornecida
+            if ($request->hasFile('photo')) {
+                // Deleta foto antiga
+                if ($user->photo) {
+                    $this->fileUploadService->deletePhoto($user->photo);
+                }
+                
+                $data['photo'] = $this->fileUploadService->uploadUserPhoto(
+                    $request->file('photo'),
+                    $user->id
+                );
             }
+
+            // Atualiza senha se fornecida
+            if ($request->filled('password')) {
+                $data['password'] = Hash::make($request->password);
+                $data['senha_temporaria'] = false;
+            } else {
+                // Remove senha do array se não foi fornecida
+                unset($data['password']);
+            }
+
+            // Extrai roles antes de atualizar
+            $roles = $data['roles'] ?? null;
+            unset($data['roles']);
+
+            $user->update($data);
+
+            // Atualiza roles se fornecidas
+            if ($roles !== null) {
+                $user->syncRoles($roles);
+                
+                // Processa permissões de agregado se aplicável
+                if (in_array('Agregado', $roles) && $request->has('agregado_permissions')) {
+                    $this->processAgregadoPermissions($user, $request->input('agregado_permissions', []));
+                } elseif (!in_array('Agregado', $roles)) {
+                    // Remove todas as permissões de agregado se não for mais agregado
+                    $user->agregadoPermissions()->delete();
+                }
+            }
+
+            // Log da atividade
+            $this->authUser()->logActivity(
+                'update',
+                'users',
+                "Atualizou o usuário {$user->name}",
+                ['user_id' => $user->id]
+            );
+
+            return redirect()->route('users.show', $user)
+                ->with('success', 'Usuário atualizado com sucesso!');
         }
-
-        // Log da atividade
-        $this->authUser()->logActivity(
-            'update',
-            'users',
-            "Atualizou o usuário {$user->name}",
-            ['user_id' => $user->id]
-        );
-
-        return redirect()->route('users.show', $user)
-            ->with('success', 'Usuário atualizado com sucesso!');
     }
 
     /**

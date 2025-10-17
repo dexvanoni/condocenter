@@ -51,9 +51,81 @@
         }
         
         /* Compact Profile Text */
-        #dropdownUser .d-flex.flex-column {
+        #dropdownUser .d-flex.flex-column, #dropdownUserMobile .d-flex.flex-column {
             min-width: 0;
             flex: 1;
+        }
+        
+        /* Mobile Sidebar Styles */
+        #mobileSidebar {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        #mobileSidebar .nav-link {
+            color: rgba(255,255,255,0.8) !important;
+            padding: 0.75rem 1rem;
+            border-radius: 0.375rem;
+            margin: 0.125rem 0;
+            transition: all 0.3s ease;
+        }
+        
+        #mobileSidebar .nav-link:hover {
+            background: rgba(255,255,255,0.1) !important;
+            color: white !important;
+        }
+        
+        #mobileSidebar .nav-link.active {
+            background: rgba(255,255,255,0.2) !important;
+            color: white !important;
+        }
+        
+        /* Mobile Navbar Improvements */
+        @media (max-width: 991.98px) {
+            .navbar-toggler {
+                border: none;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .navbar-toggler:focus {
+                box-shadow: none;
+            }
+            
+            .navbar-toggler-icon {
+                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+            }
+            
+            /* Ajustar botões na navbar mobile */
+            .navbar .btn-group {
+                margin-right: 0.5rem !important;
+            }
+            
+            .navbar .btn-sm {
+                padding: 0.375rem 0.5rem;
+                font-size: 0.75rem;
+            }
+            
+            /* Botão de pânico mais compacto no mobile */
+            #panicButton {
+                padding: 0.375rem 0.75rem;
+                font-size: 0.75rem;
+            }
+        }
+        
+        /* Melhorar responsividade dos botões de ação rápida */
+        @media (max-width: 576px) {
+            .navbar .btn-group .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+            }
+            
+            #panicButton {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.7rem;
+            }
+            
+            .navbar-brand {
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
@@ -64,8 +136,8 @@
     @endphp
 
     <div class="d-flex">
-        <!-- Sidebar -->
-        <nav class="sidebar p-3" id="sidebar" style="width: 250px;">
+        <!-- Sidebar (Desktop) -->
+        <nav class="sidebar p-3 d-none d-lg-block" id="sidebar" style="width: 250px;">
             <div class="mb-4">
                 <h4 class="mb-0">
                     <i class="bi bi-building"></i> CondoManager
@@ -113,12 +185,8 @@
                             @endforeach
                             <li><hr class="dropdown-divider"></li>
                         @endif
-                        @if(Route::has('profile.edit'))
-                        <li><a class="dropdown-item" href="{{ route('profile.edit') }}"><i class="bi bi-person"></i> Perfil</a></li>
-                        @endif
-                        @if(Route::has('settings'))
-                        <li><a class="dropdown-item" href="{{ route('settings') }}"><i class="bi bi-gear"></i> Configurações</a></li>
-                        @endif
+                        <li><a class="dropdown-item" href="{{ route('users.edit', auth()->user()) }}"><i class="bi bi-person"></i> Perfil</a></li>
+                        {{-- <li><a class="dropdown-item" href="{{ route('settings') }}"><i class="bi bi-gear"></i> Configurações</a></li> --}}
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <form method="POST" action="{{ route('logout') }}">
@@ -491,9 +559,15 @@
             <!-- Top Navbar -->
             <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
                 <div class="container-fluid">
-                    <button class="navbar-toggler d-lg-none" type="button" onclick="toggleSidebar()">
+                    <!-- Botão Sanduíche para Mobile -->
+                    <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar" aria-expanded="false" aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
+                    
+                    <!-- Brand/Logo (opcional) -->
+                    <span class="navbar-brand d-lg-none me-auto">
+                        <i class="bi bi-building"></i> CondoManager
+                    </span>
 
                     <div class="d-flex align-items-center ms-auto">
                         <!-- Botão de Pânico -->
@@ -561,6 +635,412 @@
                     </div>
                 </div>
             </nav>
+            
+            <!-- Mobile Sidebar (Collapsible) -->
+            <div class="collapse d-lg-none" id="mobileSidebar">
+                <div class="bg-dark text-white p-3">
+                    <!-- User Profile Section -->
+                    <div class="mb-4">
+                        <div class="dropdown">
+                            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle p-2 rounded" id="dropdownUserMobile" data-bs-toggle="dropdown" aria-expanded="false" style="background: rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                                @if($user->photo)
+                                    <img src="{{ Storage::url($user->photo) }}" alt="{{ $user->name }}" class="rounded-circle me-2" width="32" height="32" style="border: 2px solid rgba(255,255,255,0.3);">
+                                @else
+                                    <div class="rounded-circle me-2 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3);">
+                                        <i class="bi bi-person-fill text-white" style="font-size: 0.9rem;"></i>
+                                    </div>
+                                @endif
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold" style="font-size: 0.9rem;">{{ $user->name }}</span>
+                                    <small class="text-white-50" style="font-size: 0.75rem;">
+                                        @if($user->hasMultipleRoles())
+                                            {{ session('active_role_name', $user->roles->first()->name) }}
+                                        @else
+                                            {{ $user->roles->first()->name }}
+                                        @endif
+                                    </small>
+                                </div>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                @if($user->hasMultipleRoles())
+                                    <li><h6 class="dropdown-header">Trocar Perfil</h6></li>
+                                    @foreach($user->roles as $role)
+                                        <li>
+                                            <a class="dropdown-item {{ session('active_role') == $role->id ? 'active' : '' }}" href="#" onclick="switchProfile({{ $role->id }})">
+                                                <i class="bi bi-person-circle me-2"></i>{{ $role->name }}
+                                            </a>
+                                        </li>
+                                    @endforeach
+                                    <li><hr class="dropdown-divider"></li>
+                                @endif
+                                <li><a class="dropdown-item" href="{{ route('users.edit', auth()->user()) }}"><i class="bi bi-person-gear me-2"></i>Meu Perfil</a></li>
+                                <li><a class="dropdown-item" href="{{ route('password.change') }}"><i class="bi bi-key me-2"></i>Alterar Senha</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="POST" action="{{ route('logout') }}">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="bi bi-box-arrow-right me-2"></i>Sair
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <hr class="bg-white opacity-25">
+
+                    <!-- Mobile Navigation Menu -->
+                    <ul class="nav flex-column">
+                        <!-- Dashboard -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
+                                <i class="bi bi-speedometer2"></i> Dashboard
+                            </a>
+                        </li>
+
+                        <!-- ==================== GESTÃO (APENAS ADMIN/SÍNDICO) ==================== -->
+                        @if(SidebarHelper::isAdminOrSindico($user))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-gear"></i> Gestão
+                            </small>
+                        </li>
+
+                        @can('view_units')
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('units.*') ? 'active' : '' }}" href="{{ route('units.index') }}">
+                                <i class="bi bi-houses"></i> Unidades
+                            </a>
+                        </li>
+                        @endcan
+
+                        @can('view_users')
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
+                                <i class="bi bi-people-fill"></i> Usuários
+                            </a>
+                        </li>
+                        @endcan
+                        @endif
+
+                        <!-- ==================== FINANCEIRO ==================== -->
+                        @if($user->can('view_transactions') || $user->can('view_charges') || $user->can('view_own_financial') || $user->can('view_financial_reports'))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-cash-coin"></i> Financeiro
+                            </small>
+                        </li>
+
+                        {{-- Transações --}}
+                        @if(Route::has('transactions.index') && $user->can('view_transactions'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
+                                <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
+                            </a>
+                        </li>
+                        @endif
+
+                        {{-- Cobranças --}}
+                        @if(Route::has('charges.index') && $user->can('view_charges'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
+                                <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                            </a>
+                        </li>
+                        @endif
+                        
+                        {{-- Receitas e Despesas --}}
+                        @if(Route::has('revenue.index') && $user->can('view_revenue'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
+                                <i class="bi bi-graph-up-arrow"></i> Receitas
+                            </a>
+                        </li>
+                        @endif
+
+                        @if(Route::has('expenses.index') && $user->can('view_expenses'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
+                                <i class="bi bi-graph-down-arrow"></i> Despesas
+                            </a>
+                        </li>
+                        @endif
+
+                        {{-- Conciliação Bancária --}}
+                        @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
+                                <i class="bi bi-bank"></i> Conciliação Bancária
+                            </a>
+                        </li>
+                        @endif
+
+                        {{-- Relatórios Financeiros --}}
+                        @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
+                                <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
+                            </a>
+                        </li>
+                        @endif
+
+                        {{-- Prestação de Contas --}}
+                        @if(Route::has('accountability-reports.index') && $user->can('view_accountability_reports'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
+                                <i class="bi bi-file-earmark-text"></i> Prestação de Contas
+                            </a>
+                        </li>
+                        @endif
+
+                        {{-- Saldo/Balanço --}}
+                        @if(Route::has('balance.index') && $user->can('view_balance'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
+                                <i class="bi bi-pie-chart"></i> Balanço Patrimonial
+                            </a>
+                        </li>
+                        @endif
+
+                        {{-- Separador para Admin/Síndico --}}
+                        @if(SidebarHelper::isAdminOrSindico($user))
+                        <li class="nav-item">
+                            <hr class="bg-white opacity-10 my-2">
+                        </li>
+                        @endif
+
+                        {{-- Minhas Finanças (apenas se não tiver acesso total) --}}
+                        @if(Route::has('my-finances') && $user->can('view_own_financial') && !$user->can('view_charges'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
+                                <i class="bi bi-wallet2"></i> Minhas Finanças
+                            </a>
+                        </li>
+                        @endif
+                        @endif
+
+                        <!-- ==================== ESPAÇOS E RESERVAS ==================== -->
+                        @if(SidebarHelper::canViewReservations($user) || SidebarHelper::canManageSpaces($user))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-calendar-event"></i> Espaços
+                            </small>
+                        </li>
+
+                        {{-- Minhas Reservas (Todos que tem acesso) --}}
+                        @if(Route::has('reservations.index') && SidebarHelper::canViewReservations($user))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
+                                <i class="bi bi-calendar-check"></i> Minhas Reservas
+                            </a>
+                        </li>
+                        @endif
+
+                        {{-- GESTÃO DE ESPAÇOS (Apenas Admin/Síndico) --}}
+                        @if(Route::has('spaces.index') && SidebarHelper::canManageSpaces($user))
+                        <li class="nav-item">
+                            <hr class="bg-white opacity-10 my-2">
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('spaces.*') ? 'active' : '' }}" href="{{ route('spaces.index') }}">
+                                <i class="bi bi-building"></i> Gerenciar Espaços
+                            </a>
+                        </li>
+                        @endif
+                        
+                        @if(SidebarHelper::canApproveReservations($user))
+                        @if(Route::has('reservations.manage'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
+                                <i class="bi bi-list-check"></i> Aprovar Reservas
+                            </a>
+                        </li>
+                        @endif
+                        @if(Route::has('recurring-reservations.index'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('recurring-reservations.*') ? 'active' : '' }}" href="{{ route('recurring-reservations.index') }}">
+                                <i class="bi bi-arrow-repeat"></i> Reservas Recorrentes
+                            </a>
+                        </li>
+                        @endif
+                        @endif
+                        @endif
+
+                        <!-- ==================== MARKETPLACE ==================== -->
+                        @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace'))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-shop"></i> Marketplace
+                            </small>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('marketplace.index') ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
+                                <i class="bi bi-bag"></i> Ver Anúncios
+                            </a>
+                        </li>
+
+                        @if(Route::has('marketplace.my-ads') && SidebarHelper::canCreateMarketplace($user))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('marketplace.create') || request()->routeIs('marketplace.my-ads') ? 'active' : '' }}" href="{{ route('marketplace.my-ads') }}">
+                                <i class="bi bi-plus-circle"></i> Meus Anúncios
+                            </a>
+                        </li>
+                        @endif
+                        @endif
+
+                        <!-- ==================== PETS ==================== -->
+                        @if(Route::has('pets.index') && SidebarHelper::canAccessModule($user, 'pets'))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-heart"></i> Pets
+                            </small>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('pets.index') ? 'active' : '' }}" href="{{ route('pets.index') }}">
+                                <i class="bi bi-list-ul"></i> Ver Pets
+                            </a>
+                        </li>
+
+                        @if(Route::has('pets.my') && SidebarHelper::canManagePets($user))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('pets.create') || request()->routeIs('pets.my') ? 'active' : '' }}" href="{{ route('pets.my') }}">
+                                <i class="bi bi-plus-circle"></i> Meus Pets
+                            </a>
+                        </li>
+                        @endif
+                        @endif
+
+                        <!-- ==================== ASSEMBLEIAS (Não para Agregados) ==================== -->
+                        @if(Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-people"></i> Assembleias
+                            </small>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('assemblies.index') ? 'active' : '' }}" href="{{ route('assemblies.index') }}">
+                                <i class="bi bi-calendar-event"></i> Ver Assembleias
+                            </a>
+                        </li>
+
+                        @if(Route::has('assemblies.create'))
+                        @can('manage_assemblies')
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('assemblies.create') ? 'active' : '' }}" href="{{ route('assemblies.create') }}">
+                                <i class="bi bi-plus-circle"></i> Nova Assembleia
+                            </a>
+                        </li>
+                        @endcan
+                        @endif
+                        @endif
+
+                        <!-- ==================== ENCOMENDAS ==================== -->
+                        @if(Route::has('packages.index') && (SidebarHelper::canViewPackages($user) || SidebarHelper::canRegisterPackages($user)))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-box-seam"></i> Encomendas
+                            </small>
+                        </li>
+
+                        @if(Route::has('packages.register') && SidebarHelper::canRegisterPackages($user))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('packages.register') ? 'active' : '' }}" href="{{ route('packages.register') }}">
+                                <i class="bi bi-plus-circle"></i> Registrar Encomenda
+                            </a>
+                        </li>
+                        @endif
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
+                                <i class="bi bi-list-ul"></i> 
+                                {{ SidebarHelper::canRegisterPackages($user) ? 'Todas Encomendas' : 'Minhas Encomendas' }}
+                            </a>
+                        </li>
+                        @endif
+
+                        <!-- ==================== CONTROLE DE ACESSO (Apenas Porteiro) ==================== -->
+                        @if(Route::has('entries.index'))
+                        @can('register_entries')
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-door-open"></i> Portaria
+                            </small>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
+                                <i class="bi bi-list-check"></i> Controle de Acesso
+                            </a>
+                        </li>
+                        @endcan
+                        @endif
+
+                        <!-- ==================== MENSAGENS ==================== -->
+                        @if(Route::has('messages.index'))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-chat-dots"></i> Comunicação
+                            </small>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('messages.index') ? 'active' : '' }}" href="{{ route('messages.index') }}">
+                                <i class="bi bi-inbox"></i> Mensagens
+                                @php
+                                    $unreadCount = $user->receivedMessages()->where('is_read', false)->count();
+                                @endphp
+                                @if($unreadCount > 0)
+                                <span class="badge bg-danger rounded-pill ms-auto">{{ $unreadCount }}</span>
+                                @endif
+                            </a>
+                        </li>
+
+                        @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('messages.create') ? 'active' : '' }}" href="{{ route('messages.create') }}">
+                                <i class="bi bi-send"></i> Nova Mensagem
+                            </a>
+                        </li>
+                        @endif
+
+                        <!-- ==================== NOTIFICAÇÕES ==================== -->
+                        @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
+                                <i class="bi bi-bell"></i> Notificações
+                                @php
+                                    $unreadNotifications = $user->notifications()->where('is_read', false)->count();
+                                @endphp
+                                @if($unreadNotifications > 0)
+                                <span class="badge bg-warning rounded-pill ms-auto">{{ $unreadNotifications }}</span>
+                                @endif
+                            </a>
+                        </li>
+                        @endif
+                        @endif
+
+                        <!-- ==================== ALERTAS DE PÂNICO (APENAS ADMIN/SÍNDICO) ==================== -->
+                        @if(SidebarHelper::isAdminOrSindico($user))
+                        <li class="nav-item mt-3">
+                            <a class="nav-link {{ request()->routeIs('panic-alerts.index') ? 'active' : '' }}" href="{{ route('panic-alerts.index') }}">
+                                <i class="bi bi-shield-exclamation"></i> Alertas de Pânico
+                            </a>
+                        </li>
+                        @endif
+
+                        <!-- ==================== ALERTA DE PÂNICO ==================== -->
+                        <li class="nav-item mt-4">
+                            <button class="btn btn-panic w-100" onclick="openPanicModal()">
+                                <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
 
             <!-- Page Content -->
             <div class="container-fluid p-4">
@@ -600,11 +1080,7 @@
     @stack('scripts')
 
     <script>
-        // Toggle sidebar on mobile
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('d-none');
-        }
+        // Mobile sidebar já funciona com Bootstrap collapse
 
         // Switch profile
         function switchProfile(roleId) {
@@ -718,6 +1194,9 @@
             function drag(e) {
                 if (!isDragging) return;
                 
+                // Prevenir scroll durante o drag no mobile
+                e.preventDefault();
+                
                 const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
                 currentX = clientX - startX;
                 
@@ -726,8 +1205,8 @@
                 
                 slideButton.style.transform = `translateX(${currentX}px)`;
 
-                // Verificar se chegou em 90% do slide
-                if (currentX >= maxSlide * 0.9 && slideButton.dataset.isProcessing !== 'true') {
+                // Verificar se chegou em 85% do slide (reduzido para facilitar no mobile)
+                if (currentX >= maxSlide * 0.85 && slideButton.dataset.isProcessing !== 'true') {
                     slideButton.dataset.isProcessing = 'true'; // Marcar como processando
                     slideText.textContent = 'Confirmação detectada!';
                     slideButton.innerHTML = '<i class="bi bi-check"></i>';
@@ -1230,6 +1709,9 @@
             function drag(e) {
                 if (!isDragging) return;
                 
+                // Prevenir scroll durante o drag no mobile
+                e.preventDefault();
+                
                 const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
                 currentX = clientX - startX;
                 
@@ -1238,8 +1720,8 @@
                 
                 slideButton.style.transform = `translateX(${currentX}px)`;
 
-                // Verificar se chegou em 90% do slide
-                if (currentX >= maxSlide * 0.9 && slideButton.dataset.isProcessing !== 'true') {
+                // Verificar se chegou em 85% do slide (reduzido para facilitar no mobile)
+                if (currentX >= maxSlide * 0.85 && slideButton.dataset.isProcessing !== 'true') {
                     slideButton.dataset.isProcessing = 'true'; // Marcar como processando
                     slideText.textContent = 'Confirmação detectada!';
                     slideButton.innerHTML = '<i class="bi bi-check"></i>';
@@ -1401,7 +1883,7 @@
     
     <!-- Modal para Enviar Alerta de Pânico -->
     <div class="modal fade" id="panicModal" tabindex="-1" aria-labelledby="panicModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-sm-down">
             <div class="modal-content border-danger">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title" id="panicModalLabel">
@@ -1418,46 +1900,46 @@
                         
                     <h6 class="mb-3">Selecione o tipo de emergência:</h6>
                     <div class="row g-2">
-                            <div class="col-md-6">
+                            <div class="col-6 col-md-6">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="fire">
-                                <i class="bi bi-fire fs-3 d-block mb-2"></i>
-                                    <strong>INCÊNDIO</strong>
+                                <i class="bi bi-fire emergency-icon"></i>
+                                <span class="emergency-text">INCÊNDIO</span>
                                 </button>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-6 col-md-6">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="robbery">
-                                <i class="bi bi-shield-exclamation fs-3 d-block mb-2"></i>
-                                <strong>ROUBO/FURTO</strong>
+                                <i class="bi bi-shield-exclamation emergency-icon"></i>
+                                <span class="emergency-text">ROUBO/FURTO</span>
                                 </button>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-6 col-md-6">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="police">
-                                <i class="bi bi-telephone fs-3 d-block mb-2"></i>
-                                <strong>CHAMEM A POLÍCIA</strong>
+                                <i class="bi bi-telephone emergency-icon"></i>
+                                <span class="emergency-text">CHAMEM A POLÍCIA</span>
                                 </button>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-6 col-md-6">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="ambulance">
-                                <i class="bi bi-heart-pulse fs-3 d-block mb-2"></i>
-                                <strong>CHAMEM AMBULÂNCIA</strong>
+                                <i class="bi bi-heart-pulse emergency-icon"></i>
+                                <span class="emergency-text">CHAMEM AMBULÂNCIA</span>
                                 </button>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-6 col-md-6">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="domestic_violence">
-                                <i class="bi bi-exclamation-triangle fs-3 d-block mb-2"></i>
-                                <strong>VIOLÊNCIA DOMÉSTICA</strong>
+                                <i class="bi bi-exclamation-triangle emergency-icon"></i>
+                                <span class="emergency-text">VIOLÊNCIA DOMÉSTICA</span>
                                 </button>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-6 col-md-6">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="lost_child">
-                                <i class="bi bi-person-heart fs-3 d-block mb-2"></i>
-                                <strong>CRIANÇA PERDIDA</strong>
+                                <i class="bi bi-person-heart emergency-icon"></i>
+                                <span class="emergency-text">CRIANÇA PERDIDA</span>
                                 </button>
                             </div>
-                            <div class="col-md-12">
+                            <div class="col-12 col-md-12">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="flood">
-                                <i class="bi bi-droplet fs-3 d-block mb-2"></i>
-                                <strong>ENCHENTE</strong>
+                                <i class="bi bi-droplet emergency-icon"></i>
+                                <span class="emergency-text">ENCHENTE</span>
                                 </button>
                             </div>
                         </div>
@@ -1514,7 +1996,7 @@
     
     <!-- Modal de Notificação Global de Pânico -->
     <div class="modal fade" id="globalPanicNotificationModal" tabindex="-1" aria-labelledby="globalPanicNotificationModalLabel" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-sm-down">
             <div class="modal-content border-danger">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title" id="globalPanicNotificationModalLabel">
@@ -1559,13 +2041,17 @@
 
                     <div class="text-center">
                         <p class="fs-5 mb-4"><strong>Como você deseja responder a esta emergência?</strong></p>
-                        <div class="d-flex justify-content-center gap-3">
-                            <button type="button" class="btn btn-warning btn-lg" onclick="handleCiente()">
-                                <i class="bi bi-eye-fill me-2"></i>CIENTE
-                            </button>
-                            <button type="button" class="btn btn-success btn-lg" onclick="handleTomareiProvidencia()">
-                                <i class="bi bi-check-circle-fill me-2"></i>TOMAREI PROVIDÊNCIA
-                            </button>
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <button type="button" class="btn btn-warning btn-lg w-100 response-btn" onclick="handleCiente()">
+                                    <i class="bi bi-eye-fill me-2"></i>CIENTE
+                                </button>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <button type="button" class="btn btn-success btn-lg w-100 response-btn" onclick="handleTomareiProvidencia()">
+                                    <i class="bi bi-check-circle-fill me-2"></i>TOMAREI PROVIDÊNCIA
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1634,38 +2120,44 @@
             100% { transform: scale(1); }
         }
         
-        /* CSS para Slide Button */
+        /* CSS para Slide Button - Melhorado para Mobile */
         .slide-container {
             margin: 20px 0;
+            padding: 0 10px;
         }
 
         .slide-track {
             position: relative;
             width: 100%;
-            height: 50px;
+            height: 60px; /* Aumentado para mobile */
             background: #f8f9fa;
             border: 2px solid #dee2e6;
-            border-radius: 25px;
+            border-radius: 30px;
             overflow: hidden;
             cursor: pointer;
+            touch-action: none; /* Melhora o touch no mobile */
         }
 
         .slide-button {
             position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 44px;
-            height: 44px;
+            top: 3px;
+            left: 3px;
+            width: 54px; /* Aumentado para mobile */
+            height: 54px; /* Aumentado para mobile */
             background: #dc3545;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 18px;
+            font-size: 20px; /* Aumentado */
             cursor: grab;
             transition: transform 0.3s ease, background 0.3s ease;
             z-index: 2;
+            user-select: none; /* Evita seleção de texto */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
         
         .slide-button:active {
@@ -1679,14 +2171,25 @@
             transform: translate(-50%, -50%);
             color: #6c757d;
             font-weight: 500;
+            font-size: 16px; /* Aumentado para mobile */
             pointer-events: none;
             z-index: 1;
+            text-align: center;
+            width: 100%;
+            padding: 0 60px; /* Espaço para o botão */
         }
         
+        /* Botões de Emergência - Responsivos */
         .emergency-btn {
-            height: 80px;
+            min-height: 100px; /* Aumentado para mobile */
             border: 2px solid #dc3545 !important;
             transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 10px;
+            text-align: center;
         }
         
         .emergency-btn:hover {
@@ -1696,8 +2199,88 @@
             box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
         }
         
-        .emergency-btn i {
-            font-size: 2rem;
+        .emergency-icon {
+            font-size: 2.5rem; /* Aumentado para mobile */
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .emergency-text {
+            font-size: 14px; /* Ajustado para mobile */
+            font-weight: bold;
+            line-height: 1.2;
+        }
+        
+        /* Botões de Resposta - Responsivos */
+        .response-btn {
+            min-height: 60px; /* Altura mínima para mobile */
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        /* Responsividade específica para mobile */
+        @media (max-width: 576px) {
+            .modal-dialog {
+                margin: 10px;
+            }
+            
+            .emergency-btn {
+                min-height: 120px; /* Ainda maior no mobile */
+                padding: 20px 10px;
+            }
+            
+            .emergency-icon {
+                font-size: 3rem; /* Ícones maiores no mobile */
+            }
+            
+            .emergency-text {
+                font-size: 13px; /* Texto menor para caber */
+            }
+            
+            .slide-track {
+                height: 70px; /* Track maior no mobile */
+            }
+            
+            .slide-button {
+                width: 64px; /* Botão maior no mobile */
+                height: 64px;
+                font-size: 24px;
+            }
+            
+            .slide-text {
+                font-size: 18px; /* Texto maior no mobile */
+                padding: 0 70px;
+            }
+            
+            .response-btn {
+                min-height: 70px; /* Botões maiores no mobile */
+                font-size: 18px;
+            }
+            
+            /* Melhorar espaçamento no mobile */
+            .modal-body {
+                padding: 20px 15px;
+            }
+            
+            .row.g-2 {
+                --bs-gutter-x: 0.75rem;
+                --bs-gutter-y: 0.75rem;
+            }
+        }
+        
+        /* Melhorias para tablets */
+        @media (min-width: 577px) and (max-width: 768px) {
+            .emergency-btn {
+                min-height: 110px;
+            }
+            
+            .emergency-icon {
+                font-size: 2.8rem;
+            }
+            
+            .emergency-text {
+                font-size: 15px;
+            }
         }
     </style>
 

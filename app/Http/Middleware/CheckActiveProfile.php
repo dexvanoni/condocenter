@@ -31,6 +31,9 @@ class CheckActiveProfile
                 'logout',
                 'password.change',
                 'password.update',
+                'panic.send',        // Permitir alertas de pânico
+                'panic.check',       // Permitir verificação de alertas
+                'panic.resolve',     // Permitir resolução de alertas
             ];
 
             if (!in_array($request->route()->getName(), $allowedRoutes)) {
