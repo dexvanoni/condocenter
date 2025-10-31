@@ -51,7 +51,7 @@ class QRCodeHelper
         $url = route('pets.show-qr', $pet->qr_code);
 
         return QrCode::size(400)
-            ->format('png')
+            ->format('svg')
             ->errorCorrection('H')
             ->generate($url);
     }

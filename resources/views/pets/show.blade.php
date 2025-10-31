@@ -30,7 +30,7 @@
                     
                     <!-- QR Code -->
                     <div class="qr-code-container mb-3">
-                        {!! QrCode::size(200)->generate(route('pets.show-qr', $pet->qr_code)) !!}
+                        {!! QrCode::size(200)->format('svg')->generate(route('pets.show-qr', $pet->qr_code)) !!}
                     </div>
                     
                     <div class="d-grid gap-2">

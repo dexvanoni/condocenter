@@ -8,11 +8,16 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h2><i class="bi bi-hearts"></i> Cadastro de Pets</h2>
-                @can('create', App\Models\Pet::class)
-                <a href="{{ route('pets.create') }}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Cadastrar Pet
-                </a>
-                @endcan
+                <div class="d-flex gap-2">
+                    <a href="{{ route('pets.verify') }}" class="btn btn-success">
+                        <i class="bi bi-qr-code-scan"></i> Verificar QR Code
+                    </a>
+                    @can('create', App\Models\Pet::class)
+                    <a href="{{ route('pets.create') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Cadastrar Pet
+                    </a>
+                    @endcan
+                </div>
             </div>
         </div>
     </div>
@@ -92,13 +97,21 @@
                     @endif
                 </div>
                 <div class="card-footer bg-transparent">
-                    <div class="d-flex gap-2 flex-wrap">
+                    <div class="d-flex gap-2 flex-wrap mb-2">
+                        <!-- Botão Ver Detalhes -->
+                        <a href="{{ route('pets.show', $pet) }}" 
+                           class="btn btn-primary btn-sm flex-grow-1">
+                            <i class="bi bi-eye"></i> Ver Detalhes
+                        </a>
+
                         <!-- Botão Chamar o Dono -->
                         <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $pet->owner->phone) }}?text=Olá! Encontrei seu pet {{ $pet->name }}!" 
                            class="btn btn-success btn-sm flex-grow-1" target="_blank">
                             <i class="bi bi-whatsapp"></i> Chamar Dono
                         </a>
-
+                    </div>
+                    
+                    <div class="d-flex gap-2 flex-wrap">
                         <!-- Botão QR Code -->
                         <a href="{{ route('pets.download-qr', $pet) }}" 
                            class="btn btn-info btn-sm" title="Baixar QR Code">

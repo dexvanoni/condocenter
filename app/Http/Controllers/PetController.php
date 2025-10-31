@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\QRCodeHelper;
 use App\Models\Pet;
 use App\Models\Unit;
 use App\Models\User;
-use App\Helpers\QRCodeHelper;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class PetController extends Controller
@@ -228,14 +228,22 @@ class PetController extends Controller
     {
         $this->authorize('view', $pet);
 
-        $qrCode = QrCode::format('png')
+        $qrCode = QrCode::format('svg')
             ->size(400)
             ->errorCorrection('H')
             ->generate(route('pets.show-qr', $pet->qr_code));
 
         return response($qrCode)
-            ->header('Content-Type', 'image/png')
-            ->header('Content-Disposition', 'attachment; filename="pet-' . $pet->id . '-qrcode.png"');
+            ->header('Content-Type', 'image/svg+xml')
+            ->header('Content-Disposition', 'attachment; filename="pet-' . $pet->id . '-qrcode.svg"');
+    }
+
+    /**
+     * Exibir página de verificação de QR Code
+     */
+    public function verify()
+    {
+        return view('pets.verify');
     }
 
     /**
@@ -284,4 +292,3 @@ class PetController extends Controller
         ]);
     }
 }
-
