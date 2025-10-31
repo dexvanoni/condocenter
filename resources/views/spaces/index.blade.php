@@ -2,6 +2,35 @@
 
 @section('title', 'Gestão de Espaços')
 
+@push('styles')
+<style>
+    .space-image-container {
+        height: 200px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+    }
+    
+    .space-image-container img {
+        transition: transform 0.3s ease;
+    }
+    
+    .card:hover .space-image-container img {
+        transform: scale(1.05);
+    }
+    
+    .space-image-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+        pointer-events: none;
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="row">
     <div class="col-12">
@@ -22,13 +51,22 @@
     @forelse($spaces as $space)
     <div class="col-md-6 col-lg-4">
         <div class="card h-100 shadow-sm {{ $space->is_active ? '' : 'border-secondary opacity-75' }}">
-            <div class="card-header {{ $space->is_active ? 'bg-primary text-white' : 'bg-secondary text-white' }} py-2">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">{{ $space->name }}</h6>
-                    @if(!$space->is_active)
-                    <span class="badge bg-light text-dark small">Inativo</span>
-                    @endif
+            <!-- Imagem do Espaço -->
+            <div class="space-image-container">
+                <img src="{{ $space->getPhotoUrl() }}" 
+                     alt="{{ $space->name }}" 
+                     class="w-100 h-100"
+                     style="object-fit: cover;">
+                <div class="space-image-overlay"></div>
+                @if(!$space->is_active)
+                <div class="position-absolute top-0 end-0 m-2" style="z-index: 1;">
+                    <span class="badge bg-secondary">Inativo</span>
                 </div>
+                @endif
+            </div>
+            
+            <div class="card-header {{ $space->is_active ? 'bg-primary text-white' : 'bg-secondary text-white' }} py-2">
+                <h6 class="mb-0">{{ $space->name }}</h6>
             </div>
             <div class="card-body p-3">
                 <!-- Primeira linha: Tipo e Capacidade -->

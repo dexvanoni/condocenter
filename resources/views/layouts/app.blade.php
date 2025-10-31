@@ -450,6 +450,21 @@
                 @endif
                 @endif
 
+                <!-- ==================== REGIMENTO INTERNO ==================== -->
+                @if(Route::has('internal-regulations.index'))
+                <li class="nav-item mt-3">
+                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                        <i class="bi bi-file-earmark-text"></i> Documentos
+                    </small>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
+                        <i class="bi bi-journal-text"></i> Regimento Interno
+                    </a>
+                </li>
+                @endif
+
                 <!-- ==================== ENCOMENDAS ==================== -->
                 @if(Route::has('packages.index') && (SidebarHelper::canViewPackages($user) || SidebarHelper::canRegisterPackages($user)))
                 <li class="nav-item mt-3">
@@ -936,6 +951,21 @@
                         </li>
                         @endcan
                         @endif
+                        @endif
+
+                        <!-- ==================== REGIMENTO INTERNO ==================== -->
+                        @if(Route::has('internal-regulations.index'))
+                        <li class="nav-item mt-3">
+                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
+                                <i class="bi bi-file-earmark-text"></i> Documentos
+                            </small>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
+                                <i class="bi bi-journal-text"></i> Regimento Interno
+                            </a>
+                        </li>
                         @endif
 
                         <!-- ==================== ENCOMENDAS ==================== -->

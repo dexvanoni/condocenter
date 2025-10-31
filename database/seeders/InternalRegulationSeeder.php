@@ -1,0 +1,512 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use App\Models\InternalRegulation;
+use App\Models\Condominium;
+use App\Models\User;
+
+class InternalRegulationSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        // Buscar o primeiro condomínio
+        $condominium = Condominium::first();
+        
+        if (!$condominium) {
+            $this->command->warn('Nenhum condomínio encontrado. Crie um condomínio primeiro.');
+            return;
+        }
+
+        // Buscar o primeiro administrador ou síndico
+        $admin = User::role(['Administrador', 'Síndico'])
+            ->where('condominium_id', $condominium->id)
+            ->first();
+
+        if (!$admin) {
+            $admin = User::where('condominium_id', $condominium->id)->first();
+        }
+
+        // Verificar se já existe regimento
+        $existingRegulation = InternalRegulation::where('condominium_id', $condominium->id)
+            ->where('is_active', true)
+            ->first();
+
+        if ($existingRegulation) {
+            $this->command->info('Já existe um regimento interno ativo para este condomínio.');
+            return;
+        }
+
+        // Criar o regimento interno
+        InternalRegulation::create([
+            'condominium_id' => $condominium->id,
+            'content' => $this->getRegulationContent(),
+            'assembly_date' => now()->subMonths(1), // Data exemplo
+            'assembly_details' => 'Assembleia Geral Ordinária',
+            'version' => 1,
+            'is_active' => true,
+            'updated_by' => $admin?->id,
+        ]);
+
+        $this->command->info('Regimento Interno criado com sucesso!');
+    }
+
+    /**
+     * Retorna o conteúdo completo do regimento interno
+     */
+    private function getRegulationContent(): string
+    {
+        $filePath = database_path('seeders/regimento-content.txt');
+        return file_get_contents($filePath);
+    }
+}
+
+/* OLD HEREDOC VERSION - KEEPING FOR REFERENCE
+
+REGIMENTO INTERNO DO CONDOMÍNIO HABITACIONAL AUGUSTO SEVERO (CHAS)
+
+TÍTULO I - DISPOSIÇÕES PRELIMINARES
+
+CAPÍTULO I - DA FINALIDADE E APLICAÇÃO
+
+Art. 1º Este Regimento Interno tem por finalidade regulamentar o uso e a convivência nas áreas comuns e privativas do Condomínio Habitacional Augusto Severo (CHAS), complementando o Estatuto da Administração de Compossuidores.
+
+Art. 2º O CHAS é constituído por 120 (cento e vinte) casas e 144 (cento e quarenta e quatro) apartamentos, distribuídos em 3 (três) torres com 48 (quarenta e oito) unidades cada, destinados à moradia de militares, suboficiais, sargentos da Força Aérea Brasileira e seus dependentes.
+
+Art. 3º Este Regimento aplica-se a todos os compossuidores, seus dependentes, visitantes, prestadores de serviços e demais pessoas que transitarem ou permanecerem no conjunto habitacional.
+
+Art. 4º Este Regimento observa subsidiariamente a Lei nº 4.591/64, o Código Civil Brasileiro, o Módulo 3 do Manual do SISPNR e demais legislações aplicáveis.
+
+Art. 5º Em caso de conflito entre este Regimento e o Estatuto da Administração de Compossuidores, prevalecerá o Estatuto.
+
+TÍTULO II - DAS ÁREAS COMUNS E PRIVATIVAS
+
+CAPÍTULO II - DA DEFINIÇÃO DAS ÁREAS
+
+Art. 6º São consideradas áreas comuns:
+
+I - vias internas de circulação de veículos e pedestres;
+II - áreas verdes, jardins e praças;
+III - playground, quadras esportivas e áreas de lazer;
+IV - salão de festas e churrasqueiras;
+V - portarias e guaritas;
+VI - estacionamentos de visitantes;
+VII - casa de máquinas, reservatórios de água e instalações técnicas;
+VIII - halls de entrada, corredores, escadas e elevadores dos edifícios;
+IX - sistema de coleta de lixo;
+X - rede elétrica, hidráulica e de esgoto até os pontos de ligação com as unidades;
+XI - muros, grades e cercas perimetrais;
+XII - telhados e lajes de cobertura; e
+XIII - demais áreas não individualizadas como privativas.
+
+Art. 7º São consideradas áreas privativas as unidades habitacionais (casas e apartamentos) e suas respectivas vagas de garagem quando individualizadas.
+
+TÍTULO III - DO USO DAS ÁREAS COMUNS
+
+CAPÍTULO III - DAS NORMAS GERAIS DE CONVIVÊNCIA
+
+Art. 8º O uso das áreas comuns deve observar os princípios da boa-fé, respeito mútuo e finalidade social, vedando-se qualquer utilização que:
+
+I - prejudique o sossego, a salubridade ou a segurança dos demais moradores;
+II - cause danos ao patrimônio comum;
+III - impeça ou dificulte o uso pelos demais moradores; ou
+IV - descaracterize a função residencial do conjunto habitacional.
+
+Art. 9º É vedado obstruir, ainda que temporariamente, vias de circulação, escadas, corredores, halls, saídas de emergência e demais áreas de uso comum.
+
+Art. 10 É proibido depositar entulhos, móveis, materiais de construção ou quaisquer objetos nas áreas comuns, salvo autorização prévia e por prazo determinado pela Administração.
+
+CAPÍTULO IV - DO SILÊNCIO E SOSSEGO
+
+Art. 11 Fica estabelecido o horário de silêncio das 22h às 6h, diariamente, devendo os moradores, seus dependentes e visitantes abster-se de produzir ruídos que ultrapassem os níveis aceitáveis de tolerância.
+
+Parágrafo 1º Durante o horário de silêncio, são vedados:
+
+I - som alto de aparelhos eletrônicos, instrumentos musicais ou similares;
+II - obras, reformas ou atividades ruidosas;
+III - festas ou eventos sem autorização prévia;
+IV - uso de ferramentas elétricas, furadeiras, serras ou equipamentos ruidosos; e
+V - gritos, discussões ou qualquer comportamento que perturbe o sossego.
+
+Parágrafo 2º Fora do horário de silêncio, os níveis de ruído devem permanecer dentro dos limites razoáveis, observando-se a legislação municipal aplicável.
+
+Art. 12 Reformas e obras que gerem ruído somente poderão ser realizadas:
+
+I - de segunda a sexta-feira, das 8h às 17h;
+II - aos sábados, das 9h às 13h; e
+III - vedadas aos domingos e feriados.
+
+Parágrafo único Em situações excepcionais e emergenciais, a Diretoria poderá autorizar obras fora dos horários estabelecidos.
+
+CAPÍTULO V - DOS ANIMAIS DOMÉSTICOS
+
+Art. 13 É permitida a permanência de animais domésticos nas unidades habitacionais, desde que observadas as condições deste Regimento.
+
+Art. 14 Os proprietários de animais devem:
+
+I - manter o animal vacinado conforme legislação sanitária vigente;
+II - impedir que o animal circule desacompanhado pelas áreas comuns;
+III - conduzir o animal sempre com guia/coleira nas áreas comuns;
+IV - recolher imediatamente as fezes do animal, descartando-as em local apropriado;
+V - impedir que o animal defeque ou urine em áreas comuns, jardins, playgrounds ou locais de circulação;
+VI - evitar latidos, miados ou sons excessivos que perturbem os vizinhos;
+VII - responsabilizar-se por quaisquer danos causados pelo animal; e
+VIII - impedir a permanência do animal em locais de uso coletivo como salão de festas, playground e quadras esportivas.
+
+Art. 15 É vedado manter animais em estado de abandono, maus-tratos ou condições insalubres.
+
+Art. 16 Animais com doenças contagiosas não devem circular pelas áreas comuns até a completa recuperação.
+
+Art. 17 É proibida a criação de animais para fins comerciais ou a manutenção de número excessivo de animais que caracterize canil ou gatil.
+
+Parágrafo único Considera-se número excessivo a quantidade superior a:
+
+I - 3 (três) animais de médio/grande porte; ou
+II - 5 (cinco) animais de pequeno porte.
+
+CAPÍTULO VI - DA GARAGEM E ESTACIONAMENTO
+
+Seção I - Disposições Gerais
+
+Art. 18 Cada unidade habitacional tem direito a, no mínimo, 1 (uma) vaga de estacionamento, conforme especificado no Estatuto.
+
+Art. 19 As vagas de garagem são privativas e vinculadas às respectivas unidades habitacionais, não podendo ser locadas ou cedidas a terceiros não moradores.
+
+Art. 20 As vagas excedentes ou descobertas poderão ser locadas pela Administração aos compossuidores interessados, mediante sorteio ou critérios definidos em Assembleia Geral.
+
+Parágrafo único Os valores arrecadados com vagas excedentes reverterão ao Fundo de Reserva de Emergência, conforme item 3.6.6, alínea "c" do Módulo 3.
+
+Seção II - Normas de Utilização
+
+Art. 21 Nas áreas de garagem e estacionamento, devem ser observadas as seguintes regras:
+
+I - velocidade máxima de 10 km/h;
+II - proibido estacionar em locais não demarcados, em frente a outras vagas ou obstruindo a circulação;
+III - proibido lavar veículos nas áreas de garagem, salvo em local específico quando existente;
+IV - proibido fazer reparos mecânicos que sujem ou atrapalhem os demais usuários;
+V - proibido armazenar combustíveis, produtos inflamáveis ou corrosivos;
+VI - manter os veículos em condições adequadas de conservação, sem vazamentos; e
+VII - respeitar as sinalizações e áreas reservadas a manobras.
+
+Art. 22 Veículos abandonados, sem condições de uso ou sem documentação há mais de 60 (sessenta) dias poderão ser removidos pela Administração, após notificação ao proprietário.
+
+Art. 23 Nas vias internas do conjunto habitacional, a velocidade máxima é de 20 km/h.
+
+Seção III - Estacionamento de Visitantes
+
+Art. 24 O estacionamento de visitantes é destinado exclusivamente a veículos de pessoas em visita aos moradores, pelo período máximo de 12 (doze) horas.
+
+Parágrafo único Veículos que permanecerem além do prazo estabelecido poderão ser notificados e, persistindo a irregularidade, removidos por conta e risco do proprietário.
+
+CAPÍTULO VII - DAS MUDANÇAS
+
+Art. 25 Mudanças somente poderão ser realizadas mediante comunicação prévia ao Presidente da Administração, com antecedência mínima de 48 (quarenta e oito) horas.
+
+Art. 26 Os horários permitidos para mudanças são:
+
+I - segunda a sexta-feira: das 8h às 18h;
+II - sábados: das 9h às 17h; e
+III - domingos e feriados: vedados, salvo autorização excepcional.
+
+Art. 27 Durante a mudança, o morador responsável deve:
+
+I - providenciar proteções nos elevadores (nos edifícios), paredes e pisos das áreas comuns;
+II - garantir que os transportadores não obstruam vias de circulação;
+III - providenciar a limpeza imediata de sujeiras decorrentes da mudança;
+IV - responsabilizar-se por danos causados às áreas comuns; e
+V - zelar para que não haja perturbação aos demais moradores.
+
+Art. 28 O acesso de caminhões de mudança deve ser previamente coordenado com a portaria para evitar congestionamentos.
+
+CAPÍTULO VIII - DOS ELEVADORES (ESPECÍFICO PARA APARTAMENTOS)
+
+Art. 29 O uso dos elevadores deve observar as seguintes normas:
+
+I - dar preferência a idosos, gestantes, pessoas com mobilidade reduzida e crianças de colo;
+II - não sobrecarregar além da capacidade indicada;
+III - não obstruir as portas impedindo o fechamento automático;
+IV - não permitir que crianças desacompanhadas operem os elevadores;
+V - em caso de emergência, aguardar socorro sem tentar sair sozinho;
+VI - proibido fumar, cuspir ou sujar o interior do elevador; e
+VII - proibido transportar materiais que danifiquem ou sujem o equipamento sem proteção adequada.
+
+Art. 30 Para transporte de materiais de construção, mudanças ou objetos volumosos, deverá ser utilizado preferencialmente o elevador de serviço, quando existente, ou elevador social com proteções adequadas.
+
+Art. 31 Em caso de mau funcionamento, os usuários devem comunicar imediatamente à Administração e aguardar o atendimento técnico.
+
+CAPÍTULO IX - DAS OBRAS E REFORMAS
+
+Seção I - Autorizações
+
+Art. 32 Qualquer obra ou reforma nas unidades habitacionais, mesmo que interna, deve ser previamente comunicada à Administração de Compossuidores.
+
+Art. 33 Obras estruturais ou que alterem a fachada externa dependem de autorização prévia e formal do Elo Executivo, conforme Módulo 3, item 3.3.7, alínea "c" e "p".
+
+Parágrafo único São consideradas obras estruturais aquelas que envolvam:
+
+I - remoção ou alteração de paredes mestras;
+II - alteração de estrutura de concreto, vigas ou pilares;
+III - modificação da fachada, cores externas ou elementos arquitetônicos;
+IV - alteração do layout original das casas sem autorização; e
+V - ampliações ou construções adicionais.
+
+Art. 34 Para casas, é vedado:
+
+I - construir além dos limites do terreno da unidade;
+II - alterar o gabarito (altura) sem autorização;
+III - realizar modificações que prejudiquem a drenagem ou áreas verdes comuns; e
+IV - construir muros, grades ou cercas fora dos padrões estabelecidos.
+
+Seção II - Normas de Execução
+
+Art. 35 Durante a execução de obras e reformas, o morador deve:
+
+I - observar os horários estabelecidos no Art. 12;
+II - manter os acessos e áreas comuns limpos e desobstruídos;
+III - providenciar caçambas ou recipientes adequados para entulhos;
+IV - retirar os entulhos em até 48 (quarenta e oito) horas após o término da obra;
+V - evitar poeira excessiva, molhando os entulhos quando necessário;
+VI - impedir que materiais caiam em unidades vizinhas ou áreas comuns;
+VII - garantir que os operários utilizem os banheiros da unidade em reforma; e
+VIII - responsabilizar-se por danos causados a terceiros ou áreas comuns.
+
+Art. 36 É vedado:
+
+I - depositar entulhos nas áreas comuns além do prazo estabelecido;
+II - realizar obras que comprometam a segurança da edificação;
+III - alterar ou interferir em instalações elétricas, hidráulicas ou de gás das áreas comuns;
+IV - obstruir caixas de inspeção, hidrantes ou equipamentos de segurança; e
+V - realizar obras sem a devida Anotação de Responsabilidade Técnica (ART) quando exigível.
+
+CAPÍTULO X - DO SALÃO DE FESTAS E ÁREAS DE LAZER
+
+Art. 37 O salão de festas, churrasqueiras e demais áreas de lazer são de uso comum e podem ser reservados pelos compossuidores.
+
+Art. 38 A reserva deve ser feita com antecedência mínima de 7 (sete) dias e máxima de 60 (sessenta) dias junto à Administração.
+
+Parágrafo 1º Cada compossuidor poderá reservar o salão no máximo 1 (uma) vez por mês.
+
+Parágrafo 2º Em caso de múltiplos interessados na mesma data, terá preferência quem solicitar primeiro.
+
+Art. 39 O uso do salão de festas está condicionado:
+
+I - ao pagamento de taxa de utilização, conforme valor estabelecido em Assembleia Geral;
+II - ao depósito caução reembolsável, para cobertura de eventuais danos;
+III - à entrega do espaço nas mesmas condições recebidas, limpo e organizado;
+IV - ao respeito aos horários: término obrigatório às 23h; e
+V - à responsabilidade por danos causados durante o evento.
+
+Art. 40 É vedado no salão de festas:
+
+I - realização de eventos com fins lucrativos ou comerciais;
+II - número de pessoas acima da capacidade máxima estabelecida;
+III - uso de som em volume que perturbe os moradores;
+IV - consumo de drogas ilícitas;
+V - jogos de azar; e
+VI - comportamentos que atentem contra a moral e os bons costumes.
+
+Art. 41 A locação do salão para terceiros não compossuidores somente será permitida mediante autorização formal da Diretoria e contrapartida financeira superior à cobrada dos moradores, conforme item 3.3.7, alínea "s" do Módulo 3.
+
+CAPÍTULO XI - DOS VISITANTES
+
+Art. 42 A identificação de visitantes é obrigatória, mediante apresentação de documento oficial com foto na portaria.
+
+Art. 43 O acesso de visitantes está condicionado à autorização do morador visitado.
+
+Art. 44 O morador é responsável pelos atos de seus visitantes, inclusive por danos causados ao patrimônio ou a terceiros.
+
+Art. 45 Visitantes que permanecerem por período superior a 7 (sete) dias consecutivos devem ser cadastrados na Administração.
+
+Art. 46 A permanência de visitantes por período superior a 30 (trinta) dias caracteriza ocupação irregular e deve ser comunicada à Administração.
+
+CAPÍTULO XII - DAS ENTREGAS E PRESTADORES DE SERVIÇOS
+
+Art. 47 Entregadores e prestadores de serviços devem ser identificados na portaria, informando:
+
+I - nome completo;
+II - documento de identificação;
+III - empresa ou finalidade da visita; e
+IV - unidade de destino.
+
+Art. 48 É responsabilidade do morador informar a portaria sobre a expectativa de recebimento de entregas ou serviços.
+
+Art. 49 Prestadores de serviços que executem atividades nas unidades devem:
+
+I - portar identificação visível;
+II - utilizar os acessos de serviço quando existentes;
+III - observar os horários comerciais; e
+IV - recolher e remover os resíduos gerados.
+
+Art. 50 A Administração não se responsabiliza por encomendas, correspondências ou objetos deixados com porteiros ou funcionários.
+
+Parágrafo único Encomendas devem ser entregues diretamente aos moradores ou em local específico designado pela Administração.
+
+CAPÍTULO XIII - DA PORTARIA E SEGURANÇA
+
+Art. 51 A portaria funciona 24 (vinte e quatro) horas por dia, sendo responsável por:
+
+I - controlar o acesso de pessoas e veículos;
+II - registrar visitantes, entregadores e prestadores de serviços;
+III - acionar os moradores para autorização de acesso;
+IV - zelar pela segurança das áreas comuns;
+V - comunicar à Administração situações anormais ou emergenciais; e
+VI - orientar visitantes e prestadores sobre as normas do condomínio.
+
+Art. 52 Os moradores devem tratar os porteiros e funcionários com respeito e cordialidade.
+
+Art. 53 É vedado aos moradores:
+
+I - solicitar aos porteiros serviços estranhos às suas funções;
+II - interferir nas atividades de segurança; ou
+III - permitir acesso não autorizado de pessoas.
+
+Art. 54 Em casos de suspeita de atividade ilícita ou comportamento ameaçador, os porteiros devem acionar imediatamente as autoridades competentes.
+
+CAPÍTULO XIV - DO LIXO E RESÍDUOS
+
+Art. 55 O descarte de lixo deve ser realizado em local e horários apropriados, observando-se a coleta municipal.
+
+Art. 56 Os moradores devem:
+
+I - acondicionar o lixo em sacos plásticos fechados;
+II - separar resíduos recicláveis quando houver coleta seletiva;
+III - não depositar lixo fora dos recipientes destinados para este fim;
+IV - descartar entulhos de obras em caçambas próprias;
+V - não descartar materiais perigosos, tóxicos ou hospitalares no lixo comum; e
+VI - recolher as fezes de animais conforme Art. 14.
+
+Art. 57 É vedado:
+
+I - deixar sacos de lixo em corredores, halls ou áreas comuns;
+II - jogar lixo ou objetos pelas janelas;
+III - depositar lixo nos horários de silêncio, evitando ruídos excessivos; e
+IV - utilizar as lixeiras comuns para descarte de fezes de animais.
+
+CAPÍTULO XV - DOS FUNCIONÁRIOS
+
+Art. 58 A Administração de Compossuidores poderá contratar funcionários para zeladoria, limpeza, manutenção, segurança e demais serviços necessários.
+
+Art. 59 Os funcionários devem:
+
+I - portar identificação visível durante o expediente;
+II - cumprir as normas de conduta estabelecidas pela Administração;
+III - tratar os moradores e visitantes com respeito e cordialidade; e
+IV - zelar pelo patrimônio comum.
+
+Art. 60 É vedado aos moradores:
+
+I - contratar funcionários da Administração para serviços particulares durante o expediente;
+II - solicitar serviços não previstos nas atribuições do funcionário; ou
+III - oferecer gorjetas ou vantagens que comprometam a imparcialidade do serviço.
+
+TÍTULO IV - DAS PROIBIÇÕES GERAIS
+
+CAPÍTULO XVI - DAS VEDAÇÕES
+
+Art. 61 É expressamente vedado no conjunto habitacional:
+
+I - utilizar áreas comuns para fins comerciais, propagandas ou atividades lucrativas não autorizadas;
+II - realizar reuniões ou eventos políticos, religiosos ou ideológicos que causem transtornos;
+III - afixar cartazes, faixas ou publicidade sem autorização da Administração;
+IV - guardar ou manipular explosivos, combustíveis, materiais corrosivos ou perigosos;
+V - remover ou danificar equipamentos de segurança, hidrantes ou extintores;
+VI - alterar ou desrespeitar sinalizações de trânsito e segurança;
+VII - colocar objetos nas janelas, varandas ou peitoris que possam cair;
+VIII - estender roupas em locais visíveis externamente nos apartamentos;
+IX - cultivar plantas em locais que prejudiquem a estrutura ou escorram água em unidades vizinhas;
+X - praticar jogos ou esportes que causem transtornos ou danos;
+XI - usar linguagem ofensiva, comportamento agressivo ou desrespeitoso;
+XII - portar armas de fogo sem autorização legal nas áreas comuns;
+XIII - dedetizar áreas comuns sem coordenação prévia com a Administração; e
+XIV - instalar antenas, aparelhos de ar-condicionado ou equipamentos externos sem autorização prévia.
+
+TÍTULO V - DAS SANÇÕES
+
+CAPÍTULO XVII - DAS PENALIDADES
+
+Art. 62 O descumprimento das normas deste Regimento sujeitará o infrator às seguintes penalidades:
+
+I - Advertência por escrito - para infrações leves ou de primeira ocorrência;
+II - Multa - para infrações médias, reincidências ou infrações graves; e
+III - Suspensão do uso de áreas comuns - para infrações reiteradas ou graves relacionadas ao uso inadequado das áreas de lazer.
+
+Parágrafo 1º As multas terão os valores estabelecidos no Estatuto, revertendo ao Fundo de Reserva de Emergência.
+
+Parágrafo 2º As penalidades serão aplicadas pelo Presidente da Administração, cabendo recurso à Assembleia Geral.
+
+Art. 63 Constituem infrações leves:
+
+I - não comunicar visitas ou prestadores de serviços à portaria;
+II - estacionar irregularmente por curto período;
+III - descumprir horários de uso de áreas comuns; e
+IV - outras infrações que não causem danos ou transtornos significativos.
+
+Penalidade: Advertência escrita.
+
+Art. 64 Constituem infrações médias:
+
+I - produzir ruídos excessivos fora do horário de silêncio;
+II - deixar lixo em locais inadequados;
+III - realizar obras fora dos horários permitidos;
+IV - não recolher fezes de animais;
+V - desrespeitar normas de trânsito interno;
+VI - obstruir temporariamente áreas comuns; e
+VII - reincidência em infração leve.
+
+Penalidade: Multa equivalente ao valor da Taxa de Uso do PNR.
+
+Art. 65 Constituem infrações graves:
+
+I - perturbar o sossego durante o horário de silêncio;
+II - manter animais agressivos ou em condições insalubres;
+III - causar danos ao patrimônio comum;
+IV - realizar obras estruturais sem autorização;
+V - agredir verbal ou fisicamente outros moradores, funcionários ou visitantes;
+VI - desrespeitar reiteradamente as normas após advertências;
+VII - praticar atos que comprometam a segurança do conjunto;
+VIII - guardar materiais perigosos ou explosivos; e
+IX - outras infrações que causem danos significativos ou riscos.
+
+Penalidade: Multa em dobro e suspensão do uso de áreas comuns por até 60 (sessenta) dias.
+
+Art. 66 Danos ao patrimônio comum deverão ser reparados pelo responsável em até 30 (trinta) dias, sob pena de multa adicional de 10% (dez por cento) do valor do reparo.
+
+Art. 67 O não pagamento de multas no prazo de 30 (trinta) dias ensejará:
+
+I - cobrança judicial; e
+II - comunicação ao Elo Executivo para adoção de medidas administrativas cabíveis.
+
+TÍTULO VI - DISPOSIÇÕES FINAIS
+
+CAPÍTULO XVIII - DAS DISPOSIÇÕES GERAIS
+
+Art. 68 Este Regimento Interno poderá ser alterado, a qualquer tempo, por deliberação de maioria absoluta dos compossuidores em Assembleia Geral especificamente convocada para este fim.
+
+Art. 69 Os casos omissos serão resolvidos pelo Presidente da Administração, com assistência do Conselho Fiscal, em primeira instância, ou pela Assembleia Geral, em segunda instância.
+
+Art. 70 Nos casos que envolvam interesse do Elo Executivo ou da União, o Presidente deverá comunicar ao Elo Executivo para manifestação antes de deliberar.
+
+Art. 71 Este Regimento não poderá, em hipótese alguma, contrariar dispositivos do Estatuto da Administração de Compossuidores ou do Módulo 3 do Manual do SISPNR.
+
+Art. 72 Cópia deste Regimento deverá ser entregue a todos os novos compossuidores no ato de recebimento das chaves do PNR.
+
+Art. 73 O desconhecimento das normas deste Regimento não exime ninguém de seu cumprimento.
+
+Art. 74 A Diretoria poderá expedir orientações complementares para esclarecimento ou detalhamento de normas deste Regimento, desde que não contrariem seu conteúdo.
+
+Art. 75 Este Regimento Interno entra em vigor na data de sua aprovação em Assembleia Geral.
+
+Aprovado em Assembleia Geral Ordinária.
+
+_______________________________
+Presidente da Administração de Compossuidores
+CHAS - Condomínio Habitacional Augusto Severo
+
+Observação final: Este Regimento está em conformidade com o Código Civil Brasileiro (Lei 10.406/2002), Lei do Condomínio (Lei 4.591/1964), Módulo 3 do Manual do SISPNR e NSCA 12-1, respeitando as peculiaridades de uma Administração de Compossuidores de Próprios Nacionais Residenciais da Aeronáutica.
+
+*/

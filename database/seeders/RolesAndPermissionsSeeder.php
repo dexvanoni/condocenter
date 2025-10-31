@@ -59,6 +59,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage_spaces',
             'view_spaces',
             'make_reservations',
+            'manage_reservations',
             'approve_reservations',
             'view_reservations',
             
@@ -127,6 +128,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage_bank_statements',
             'manage_spaces',
             'view_spaces',
+            'manage_reservations',
             'approve_reservations',
             'view_reservations',
             'manage_marketplace_items',

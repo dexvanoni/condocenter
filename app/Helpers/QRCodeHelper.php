@@ -44,6 +44,19 @@ class QRCodeHelper
     }
 
     /**
+     * Gera QR Code para um pet
+     */
+    public static function generateForPet($pet)
+    {
+        $url = route('pets.show-qr', $pet->qr_code);
+
+        return QrCode::size(400)
+            ->format('png')
+            ->errorCorrection('H')
+            ->generate($url);
+    }
+
+    /**
      * Valida um QR Code
      */
     public static function validate($qrCodeData)
@@ -84,6 +97,25 @@ class QRCodeHelper
                     'type' => 'visitor',
                     'data' => $data,
                     'message' => 'Visitante pré-autorizado'
+                ];
+            }
+
+            if ($data['type'] === 'pet') {
+                // Verificar se pet existe
+                $pet = \App\Models\Pet::where('qr_code', $data['qr_code'])
+                    ->where('is_active', true)
+                    ->with(['owner', 'unit', 'condominium'])
+                    ->first();
+
+                if (!$pet) {
+                    return ['valid' => false, 'message' => 'Pet não encontrado ou inativo'];
+                }
+
+                return [
+                    'valid' => true,
+                    'type' => 'pet',
+                    'pet' => $pet,
+                    'message' => 'Pet encontrado'
                 ];
             }
 

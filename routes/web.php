@@ -11,6 +11,9 @@ Route::get('/', function () {
 // Webhook routes (public, sem autenticação)
 Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webhooks.asaas');
 
+// QR Code público de pets (sem autenticação)
+Route::get('/pets/qr/{qrCode}', [\App\Http\Controllers\PetController::class, 'showQrCode'])->name('pets.show-qr');
+
 // Rotas autenticadas
 Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -45,11 +48,15 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     
-    // Gerenciar Reservas (Síndico)
+    // Gerenciar Reservas (Síndico/Admin)
     Route::middleware(['can:manage_reservations'])->group(function () {
-        Route::get('/reservations/manage', function() { 
-            return view('reservations.manage'); 
-        })->name('reservations.manage');
+        Route::get('/reservations/manage', [\App\Http\Controllers\ReservationManagementController::class, 'index'])->name('reservations.manage');
+        Route::get('/reservations/manage/{id}', [\App\Http\Controllers\ReservationManagementController::class, 'show'])->name('reservations.manage.show');
+        Route::get('/reservations/manage/{id}/edit', [\App\Http\Controllers\ReservationManagementController::class, 'edit'])->name('reservations.manage.edit');
+        Route::put('/reservations/manage/{id}', [\App\Http\Controllers\ReservationManagementController::class, 'update'])->name('reservations.manage.update');
+        Route::delete('/reservations/manage/{id}', [\App\Http\Controllers\ReservationManagementController::class, 'destroy'])->name('reservations.manage.destroy');
+        Route::post('/reservations/manage/bulk-action', [\App\Http\Controllers\ReservationManagementController::class, 'bulkAction'])->name('reservations.manage.bulk-action');
+        Route::get('/reservations/manage/spaces/list', [\App\Http\Controllers\ReservationManagementController::class, 'getSpaces'])->name('reservations.manage.spaces');
     });
 
     // Reservas Recorrentes (Síndico/Admin)
@@ -87,12 +94,29 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     
     // Pets
     Route::middleware(['check.module.access:pets'])->group(function () {
-        Route::get('/pets', function() { return view('pets.index'); })->name('pets.index');
+        Route::get('/pets/verify', [\App\Http\Controllers\PetController::class, 'verify'])->name('pets.verify');
+        Route::resource('pets', \App\Http\Controllers\PetController::class);
+        Route::get('/pets/owners/{unit}', [\App\Http\Controllers\PetController::class, 'getOwnersByUnit'])->name('pets.owners');
+        Route::get('/pets/{pet}/download-qr', [\App\Http\Controllers\PetController::class, 'downloadQrCode'])->name('pets.download-qr');
+        Route::post('/pets/verify-qr', [\App\Http\Controllers\PetController::class, 'verifyQrCode'])->name('pets.verify-qr');
     });
     
     // Assembleias
     Route::middleware(['can:view_assemblies'])->group(function () {
         Route::get('/assemblies', function() { return view('assemblies.index'); })->name('assemblies.index');
+    });
+    
+    // Regimento Interno (todos os usuários podem ver, apenas admin/síndico pode editar)
+    Route::prefix('internal-regulations')->name('internal-regulations.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\InternalRegulationController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\InternalRegulationController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\InternalRegulationController::class, 'store'])->name('store');
+        Route::get('/edit', [\App\Http\Controllers\InternalRegulationController::class, 'edit'])->name('edit');
+        Route::put('/', [\App\Http\Controllers\InternalRegulationController::class, 'update'])->name('update');
+        Route::get('/history', [\App\Http\Controllers\InternalRegulationController::class, 'history'])->name('history');
+        Route::get('/history/{historyId}', [\App\Http\Controllers\InternalRegulationController::class, 'showHistory'])->name('show-history');
+        Route::get('/export-pdf', [\App\Http\Controllers\InternalRegulationController::class, 'exportPdf'])->name('export-pdf');
+        Route::get('/print', [\App\Http\Controllers\InternalRegulationController::class, 'print'])->name('print');
     });
     
     // Mensagens

@@ -133,6 +133,23 @@
         </div>
     </div>
 
+    <!-- Leitor de QR Code de Pets -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-center py-4">
+                    <h4 class="text-white mb-3">
+                        <i class="bi bi-qr-code-scan"></i> Encontrou um Pet Perdido?
+                    </h4>
+                    <p class="text-white mb-3">Escaneie o QR Code da coleira para ver as informações e contatar o dono</p>
+                    <button type="button" class="btn btn-light btn-lg" data-bs-toggle="modal" data-bs-target="#petQrReaderModal">
+                        <i class="bi bi-camera"></i> Escanear QR Code
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Acesso ao Sistema -->
     <div class="row">
         <div class="col-12">
@@ -266,4 +283,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+
+<!-- Incluir componente do leitor de QR Code -->
+@include('components.pet-qr-reader')
+
 @endsection
