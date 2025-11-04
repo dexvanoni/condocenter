@@ -149,6 +149,9 @@
                             <a href="{{ route('pets.download-qr', $pet) }}" class="btn btn-sm btn-info ms-2">
                                 <i class="bi bi-download"></i> Baixar QR Code
                             </a>
+                            <a href="/pets/{{ $pet->id }}/print-tag" class="btn btn-sm btn-primary ms-2" target="_blank">
+                                <i class="bi bi-printer"></i> Imprimir Tag
+                            </a>
                         </div>
 
                         <div class="d-flex gap-2">

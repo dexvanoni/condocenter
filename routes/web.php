@@ -4,6 +4,11 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
+// Rota de teste absoluta
+Route::get('/test-print-tag/{id}', function($id) {
+    return "Test OK - ID: $id - " . now();
+});
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -13,6 +18,12 @@ Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webho
 
 // QR Code público de pets (sem autenticação)
 Route::get('/pets/qr/{qrCode}', [\App\Http\Controllers\PetController::class, 'showQrCode'])->name('pets.show-qr');
+
+// Rotas de impressão de tag (com autenticação básica)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/pets/{pet}/download-qr', [\App\Http\Controllers\PetController::class, 'downloadQrCode'])->name('pets.download-qr');
+    Route::get('/pets/{pet}/print-tag', [\App\Http\Controllers\PetController::class, 'printTag'])->name('pets.print-tag');
+});
 
 // Rotas autenticadas
 Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->group(function () {
@@ -95,10 +106,10 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     // Pets
     Route::middleware(['check.module.access:pets'])->group(function () {
         Route::get('/pets/verify', [\App\Http\Controllers\PetController::class, 'verify'])->name('pets.verify');
-        Route::resource('pets', \App\Http\Controllers\PetController::class);
-        Route::get('/pets/owners/{unit}', [\App\Http\Controllers\PetController::class, 'getOwnersByUnit'])->name('pets.owners');
-        Route::get('/pets/{pet}/download-qr', [\App\Http\Controllers\PetController::class, 'downloadQrCode'])->name('pets.download-qr');
         Route::post('/pets/verify-qr', [\App\Http\Controllers\PetController::class, 'verifyQrCode'])->name('pets.verify-qr');
+        Route::get('/pets/owners/{unit}', [\App\Http\Controllers\PetController::class, 'getOwnersByUnit'])->name('pets.owners');
+        
+        Route::resource('pets', \App\Http\Controllers\PetController::class);
     });
     
     // Assembleias

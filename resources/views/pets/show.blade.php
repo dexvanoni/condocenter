@@ -38,6 +38,10 @@
                            class="btn btn-info">
                             <i class="bi bi-download"></i> Baixar QR Code
                         </a>
+                        <a href="/pets/{{ $pet->id }}/print-tag" 
+                           class="btn btn-primary" target="_blank">
+                            <i class="bi bi-printer"></i> Imprimir Tag (3x4cm)
+                        </a>
                         <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $pet->owner->phone) }}?text=Olá! Encontrei seu pet {{ $pet->name }}!" 
                            class="btn btn-success" target="_blank">
                             <i class="bi bi-whatsapp"></i> Chamar Dono

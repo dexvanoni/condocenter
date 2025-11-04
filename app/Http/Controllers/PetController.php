@@ -291,4 +291,16 @@ class PetController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Exibir tag de impressão do pet (3x4cm)
+     */
+    public function printTag(Pet $pet)
+    {
+        $this->authorize('view', $pet);
+
+        $pet->load(['owner', 'unit', 'condominium']);
+
+        return view('pets.print-tag', compact('pet'));
+    }
 }
