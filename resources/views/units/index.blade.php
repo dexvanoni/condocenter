@@ -61,13 +61,12 @@
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Número</th>
+                        <th>Ap/Casa</th>
                         <th>Bloco</th>
                         <th>Tipo</th>
                         <th>Situação</th>
-                        <th>Endereço</th>
-                        <th>Moradores</th>
+                        <th>Responsável</th>
+                        <th>Total</th>
                         <th>Status</th>
                         <th width="150">Ações</th>
                     </tr>
@@ -75,7 +74,6 @@
                 <tbody>
                     @forelse($units as $unit)
                     <tr>
-                        <td>{{ $unit->id }}</td>
                         <td><strong>{{ $unit->number }}</strong></td>
                         <td>{{ $unit->block ?? '-' }}</td>
                         <td>
@@ -87,11 +85,14 @@
                             <span class="badge bg-secondary">{{ $unit->situacao_label }}</span>
                         </td>
                         <td>
-                            @if($unit->logradouro)
-                                {{ $unit->logradouro }}, {{ $unit->numero }}
-                                @if($unit->bairro) - {{ $unit->bairro }}@endif
+                            @if($unit->morador)
+                                <span class="text-primary fw-bold">
+                                    <i class="bi bi-person-badge"></i> {{ $unit->morador->name }}
+                                </span>
                             @else
-                                <span class="text-muted">-</span>
+                                <span class="text-muted">
+                                    <i class="bi bi-dash-circle"></i> Sem responsável
+                                </span>
                             @endif
                         </td>
                         <td>
@@ -129,7 +130,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="text-center py-4">
+                        <td colspan="8" class="text-center py-4">
                             <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
                             Nenhuma unidade encontrada.
                         </td>

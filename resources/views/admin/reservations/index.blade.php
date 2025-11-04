@@ -614,7 +614,15 @@ $(document).ready(function() {
                 var spaces = response.spaces;
                 
                 $('#editReservationId').val(data.id);
-                $('#editDate').val(data.reservation_date);
+                
+                // Formatar a data corretamente para o input tipo date (YYYY-MM-DD)
+                var reservationDate = data.reservation_date;
+                if (reservationDate) {
+                    // Se vier como objeto Date ou string ISO, extrair apenas a parte da data
+                    reservationDate = reservationDate.split('T')[0];
+                }
+                $('#editDate').val(reservationDate);
+                
                 $('#editStartTime').val(data.start_time.substring(0, 5));
                 $('#editEndTime').val(data.end_time.substring(0, 5));
                 $('#editStatus').val(data.status);

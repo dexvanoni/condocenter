@@ -53,6 +53,16 @@ class Unit extends Model implements Auditable
         return $this->hasMany(User::class);
     }
 
+    /**
+     * Retorna o morador responsável pela unidade
+     */
+    public function morador()
+    {
+        return $this->hasOne(User::class)->whereHas('roles', function($query) {
+            $query->where('name', 'Morador');
+        });
+    }
+
     public function charges()
     {
         return $this->hasMany(Charge::class);

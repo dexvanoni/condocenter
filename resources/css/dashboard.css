@@ -1,0 +1,654 @@
+/* ===============================================
+   DASHBOARD - ESTILOS PREMIUM COM ANIMAÇÕES
+   =============================================== */
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --danger-gradient: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+    --shadow-xl: 0 12px 32px rgba(0,0,0,0.2);
+    
+    --transition-fast: all 0.2s ease;
+    --transition-normal: all 0.3s ease;
+    --transition-slow: all 0.5s ease;
+}
+
+/* ===============================================
+   CORREÇÕES DE TEXTO - EVITAR CORTE
+   =============================================== */
+
+/* Garantir que textos em títulos e labels não sejam cortados */
+.dashboard-title,
+.dashboard-subtitle,
+.section-title {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Garantir que todos os elementos de texto dentro dos cards não cortem */
+.card-stat h1,
+.card-stat h2,
+.card-stat h3,
+.card-stat h4,
+.card-stat h5,
+.card-stat h6,
+.card-stat p,
+.card-stat span,
+.card-stat div {
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ===============================================
+   ANIMAÇÕES GLOBAIS
+   =============================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+/* ===============================================
+   CARDS PREMIUM
+   =============================================== */
+
+.dashboard-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    transition: var(--transition-normal);
+    overflow: hidden;
+    animation: fadeIn 0.6s ease;
+    background: white;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.card-stat {
+    position: relative;
+    border: none;
+    border-radius: 20px;
+    overflow: visible;
+    transition: var(--transition-normal);
+    animation: scaleIn 0.5s ease;
+}
+
+.card-stat::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    opacity: 0;
+    transition: var(--transition-normal);
+}
+
+.card-stat:hover::before {
+    opacity: 1;
+}
+
+.card-stat:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-xl);
+}
+
+/* Card Body - Garantir que não corta texto */
+.card-stat .card-body {
+    overflow: visible;
+}
+
+.card-stat .flex-grow-1 {
+    min-width: 0;
+    overflow: visible;
+}
+
+/* Cards com Gradientes */
+.card-gradient-primary {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.card-gradient-success {
+    background: var(--success-gradient);
+    color: white;
+}
+
+.card-gradient-danger {
+    background: var(--danger-gradient);
+    color: white;
+}
+
+.card-gradient-warning {
+    background: var(--warning-gradient);
+    color: white;
+}
+
+.card-gradient-info {
+    background: var(--info-gradient);
+    color: white;
+}
+
+/* ===============================================
+   CARDS DE ESTATÍSTICAS
+   =============================================== */
+
+.stat-icon {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(10px);
+    transition: var(--transition-normal);
+}
+
+.card-stat:hover .stat-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0.5rem 0;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+}
+
+.stat-change {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.813rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.2);
+    margin-top: 0.5rem;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+    max-width: 100%;
+}
+
+/* ===============================================
+   LISTAS E TABELAS
+   =============================================== */
+
+.list-item-hover {
+    padding: 1rem;
+    border-radius: 12px;
+    transition: var(--transition-fast);
+    cursor: pointer;
+}
+
+.list-item-hover:hover {
+    background: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.table-modern {
+    border-collapse: separate;
+    border-spacing: 0 8px;
+}
+
+.table-modern thead th {
+    border: none;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+}
+
+.table-modern tbody tr {
+    background: white;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-fast);
+}
+
+.table-modern tbody tr:hover {
+    transform: scale(1.01);
+    box-shadow: var(--shadow-md);
+}
+
+.table-modern tbody td {
+    border: none;
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.table-modern tbody tr td:first-child {
+    border-radius: 12px 0 0 12px;
+}
+
+.table-modern tbody tr td:last-child {
+    border-radius: 0 12px 12px 0;
+}
+
+/* ===============================================
+   BADGES E TAGS
+   =============================================== */
+
+.badge-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.813rem;
+    letter-spacing: 0.3px;
+    transition: var(--transition-fast);
+}
+
+.badge-modern:hover {
+    transform: scale(1.05);
+}
+
+/* ===============================================
+   PROGRESS BARS
+   =============================================== */
+
+.progress-modern {
+    height: 10px;
+    border-radius: 20px;
+    background: #e9ecef;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.progress-modern .progress-bar {
+    border-radius: 20px;
+    background: var(--primary-gradient);
+    animation: shimmer 2s infinite;
+    background-size: 200% 100%;
+}
+
+/* ===============================================
+   BOTÕES PREMIUM
+   =============================================== */
+
+.btn-modern {
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: var(--transition-normal);
+    border: none;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-modern:active {
+    transform: translateY(0);
+}
+
+.btn-gradient-primary {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.btn-gradient-success {
+    background: var(--success-gradient);
+    color: white;
+}
+
+.btn-gradient-danger {
+    background: var(--danger-gradient);
+    color: white;
+}
+
+/* ===============================================
+   GRÁFICOS E CHARTS
+   =============================================== */
+
+.chart-container {
+    position: relative;
+    padding: 1.5rem;
+    border-radius: 16px;
+    background: white;
+    box-shadow: var(--shadow-md);
+}
+
+.chart-legend {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.chart-legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+/* ===============================================
+   SEÇÕES DO DASHBOARD
+   =============================================== */
+
+.dashboard-header {
+    margin-bottom: 2rem;
+    animation: slideInLeft 0.6s ease;
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-subtitle {
+    font-size: 1rem;
+    color: #718096;
+}
+
+.section-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+/* ===============================================
+   WIDGETS ESPECIAIS
+   =============================================== */
+
+.widget-quick-action {
+    padding: 1.5rem;
+    border-radius: 16px;
+    background: white;
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    transition: var(--transition-normal);
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    color: inherit;
+}
+
+.widget-quick-action:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+    color: inherit;
+}
+
+.widget-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.widget-notification {
+    position: relative;
+    padding: 1rem;
+    border-radius: 12px;
+    background: white;
+    border-left: 4px solid;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1rem;
+    animation: slideInRight 0.5s ease;
+}
+
+.widget-notification.success {
+    border-left-color: #38ef7d;
+}
+
+.widget-notification.danger {
+    border-left-color: #f45c43;
+}
+
+.widget-notification.warning {
+    border-left-color: #ffa502;
+}
+
+.widget-notification.info {
+    border-left-color: #4facfe;
+}
+
+/* ===============================================
+   TIMELINE
+   =============================================== */
+
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #667eea, #764ba2);
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 2rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2.5rem;
+    top: 0.5rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+/* ===============================================
+   LOADING E SKELETON
+   =============================================== */
+
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(102, 126, 234, 0.1);
+    border-left-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===============================================
+   RESPONSIVIDADE
+   =============================================== */
+
+@media (max-width: 768px) {
+    .stat-value {
+        font-size: 1.75rem;
+    }
+    
+    .dashboard-title {
+        font-size: 1.5rem;
+    }
+    
+    .dashboard-card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-stat:hover {
+        transform: none;
+    }
+}
+
+/* ===============================================
+   UTILITÁRIOS
+   =============================================== */
+
+.glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.text-gradient-primary {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hover-lift {
+    transition: var(--transition-normal);
+}
+
+.hover-lift:hover {
+    transform: translateY(-5px);
+}
+
+.fade-in {
+    animation: fadeIn 0.6s ease;
+}
+
+.slide-in-left {
+    animation: slideInLeft 0.6s ease;
+}
+
+.slide-in-right {
+    animation: slideInRight 0.6s ease;
+}
+
+.scale-in {
+    animation: scaleIn 0.5s ease;
+}
+
+/* ===============================================
+   STAGGER ANIMATIONS (atraso progressivo)
+   =============================================== */
+
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+.stagger-6 { animation-delay: 0.6s; }
+

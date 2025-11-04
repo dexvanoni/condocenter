@@ -43,7 +43,7 @@ class UnitController extends Controller
         
         /** @var \App\Models\User $user */
         $user = $request->user();
-        $query = Unit::with(['condominium', 'users'])
+        $query = Unit::with(['condominium', 'users', 'morador'])
             ->byCondominium($user->condominium_id);
 
         // Filtros

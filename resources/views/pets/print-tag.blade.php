@@ -22,14 +22,14 @@
             padding: 20px;
         }
 
-        /* Container da tag - 3x4cm */
+        /* Container da tag - 3x2cm */
         .pet-tag {
-            width: 3cm;
-            height: 4cm;
+            width: 2cm;
+            height: 2cm;
             background: white;
-            border: 2px solid #333;
-            border-radius: 8px;
-            padding: 8px;
+            border: 1.5px solid #333;
+            border-radius: 4px;
+            padding: 3px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -46,15 +46,15 @@
             align-items: center;
             justify-content: center;
             width: 100%;
-            padding: 5px 0;
+            padding: 2px 0;
             min-height: 0;
         }
 
         .qr-container svg {
             width: 100%;
             height: auto;
-            max-width: 2.5cm;
-            max-height: 2.5cm;
+            max-width: 1.4cm;
+            max-height: 1.4cm;
             display: block;
         }
 
@@ -62,26 +62,26 @@
         .owner-info {
             text-align: center;
             width: 100%;
-            padding-top: 8px;
+            padding-top: 2px;
             border-top: 1px solid #ddd;
             flex-shrink: 0;
         }
 
         .owner-label {
-            font-size: 7px;
+            font-size: 5px;
             color: #666;
-            margin-bottom: 3px;
+            margin-bottom: 1px;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
         }
 
         .owner-phone {
-            font-size: 9px;
+            font-size: 10px;
             color: #000;
             font-weight: bold;
             word-break: break-all;
-            line-height: 1.3;
+            line-height: 1.2;
             display: block;
         }
 
@@ -170,7 +170,7 @@
     <div class="print-instructions">
         <strong>📌 Pronto para imprimir!</strong>
         <p>Pressione <strong>Ctrl+P</strong> (ou Cmd+P no Mac) para imprimir a tag.</p>
-        <p style="font-size: 12px; margin-top: 8px; opacity: 0.9;">Tamanho: 3x4cm</p>
+        <p style="font-size: 12px; margin-top: 8px; opacity: 0.9;">Tamanho: 3x2cm</p>
         <button onclick="window.print()">🖨️ Imprimir Agora</button>
     </div>
 
@@ -181,7 +181,6 @@
         
         <div class="owner-info">
             <div class="owner-phone">{{ $pet->owner->phone }}</div>
-            <div class="owner-phone">{{ $pet->name }}</div>
         </div>
     </div>
 </body>

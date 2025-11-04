@@ -365,7 +365,7 @@
                 @if(Route::has('reservations.manage'))
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
-                        <i class="bi bi-list-check"></i> Aprovar Reservas
+                        <i class="bi bi-list-check"></i> Gerenciar Reservas
                     </a>
                 </li>
                 @endif

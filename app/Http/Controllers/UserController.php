@@ -295,13 +295,57 @@ class UserController extends Controller
                 ->with('success', 'Perfil atualizado com sucesso!');
                 
         } else {
-            // Admin/Síndico editando qualquer usuário - usar request completo
-            $updateUserRequest = new UpdateUserRequest();
-            $updateUserRequest->setContainer(app());
-            $updateUserRequest->setRedirector(app('redirect'));
-            $updateUserRequest->setRequest($request);
+            // Admin/Síndico editando qualquer usuário - usar validação completa
+            $data = $request->validate([
+                'condominium_id' => ['sometimes', 'required', 'exists:condominiums,id'],
+                'unit_id' => ['nullable', 'exists:units,id'],
+                'morador_vinculado_id' => ['nullable', 'exists:users,id'],
+                'name' => ['sometimes', 'required', 'string', 'max:255'],
+                'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($user->id)],
+                'phone' => ['nullable', 'string', 'max:20'],
+                'telefone_residencial' => ['nullable', 'string', 'max:20'],
+                'telefone_celular' => ['nullable', 'string', 'max:20'],
+                'telefone_comercial' => ['nullable', 'string', 'max:20'],
+                'cpf' => ['sometimes', 'required', 'string', 'size:14', Rule::unique('users')->ignore($user->id), 'regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$/'],
+                'cnh' => ['nullable', 'string', 'max:20'],
+                'data_nascimento' => ['nullable', 'date', 'before:today'],
+                'data_entrada' => ['nullable', 'date'],
+                'data_saida' => ['nullable', 'date', 'after:data_entrada'],
+                'necessita_cuidados_especiais' => ['boolean'],
+                'descricao_cuidados_especiais' => ['nullable', 'string', 'required_if:necessita_cuidados_especiais,true'],
+                'local_trabalho' => ['nullable', 'string', 'max:255'],
+                'contato_comercial' => ['nullable', 'string', 'max:20'],
+                'photo' => ['nullable', 'image', 'max:2048'],
+                'roles' => ['sometimes', 'array', 'min:1'],
+                'roles.*' => ['exists:roles,name'],
+                'agregado_permissions' => ['array', 'nullable'],
+                'possui_dividas' => ['boolean'],
+                'is_active' => ['boolean'],
+                'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            ]);
             
-            $data = $updateUserRequest->validated();
+            // Validações adicionais
+            if ($request->has('roles')) {
+                $requestedRoles = $request->input('roles', []);
+                
+                // Validar que apenas admin pode editar Síndico ou Conselho Fiscal
+                $restrictedRoles = ['Síndico', 'Conselho Fiscal'];
+                if (array_intersect($restrictedRoles, $requestedRoles) && !$this->authUser()->hasRole('Administrador')) {
+                    return redirect()->back()->withErrors(['roles' => 'Apenas administradores podem atribuir os perfis de Síndico ou Conselho Fiscal.'])->withInput();
+                }
+                
+                // Validar que agregado deve ter morador vinculado
+                if (in_array('Agregado', $requestedRoles) && !$request->input('morador_vinculado_id')) {
+                    return redirect()->back()->withErrors(['morador_vinculado_id' => 'Agregados devem estar vinculados a um morador.'])->withInput();
+                }
+                
+                // Validar que não-admin e não-porteiro devem ter unidade
+                $rolesWithoutUnit = ['Administrador', 'Porteiro'];
+                $needsUnit = !array_intersect($rolesWithoutUnit, $requestedRoles);
+                if ($needsUnit && !$request->input('unit_id')) {
+                    return redirect()->back()->withErrors(['unit_id' => 'Este perfil requer que uma unidade seja vinculada.'])->withInput();
+                }
+            }
 
             // Upload de nova foto se fornecida
             if ($request->hasFile('photo')) {
