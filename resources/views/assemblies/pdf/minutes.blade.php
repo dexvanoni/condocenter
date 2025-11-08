@@ -87,13 +87,22 @@
     <div class="section">
         <h2>Itens da Pauta</h2>
         @foreach($items as $item)
+            @php
+                $statusClasses = [
+                    'pending' => 'badge-warning',
+                    'open' => 'badge-info',
+                    'closed' => 'badge-success',
+                    'cancelled' => 'badge-danger',
+                ];
+                $badgeClass = $statusClasses[$item['status']] ?? 'badge-info';
+            @endphp
             <div class="item-card">
                 <div class="item-header">
                     <div>
                         <div class="item-title">{{ $loop->iteration }}. {{ $item['title'] }}</div>
                         <div style="font-size: 11px; color: #6b7280;">{{ $item['description'] ?? '—' }}</div>
                     </div>
-                    <span class="badge badge-warning">Status: {{ ucfirst($item['status']) }}</span>
+                    <span class="badge {{ $badgeClass }}">Status: {{ $item['status_label'] }}</span>
                 </div>
                 <div class="vote-line">
                     <span>Total de votos</span>

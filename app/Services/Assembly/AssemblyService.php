@@ -155,11 +155,20 @@ class AssemblyService
                     ]);
                 }
             }
+
+            $assembly->update(array_merge(['status' => $toStatus], $timestamps));
+
+            if ($toStatus === 'completed') {
+                $assembly->items()
+                    ->whereNotIn('status', ['cancelled', 'closed'])
+                    ->update(['status' => 'closed']);
+            }
+
+            $assembly->refresh();
+
             if ($toStatus === 'completed') {
                 $this->minutesService->generateAndPersistMinutes($assembly);
             }
-
-            $assembly->update(array_merge(['status' => $toStatus], $timestamps));
 
             $assembly->statusLogs()->create([
                 'changed_by' => $actor->id,

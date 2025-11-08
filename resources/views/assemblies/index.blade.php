@@ -549,12 +549,21 @@
                 return;
             }
 
-            this.container.innerHTML = this.state.assemblies
-                .map(assembly => this.buildAssemblyCard(assembly))
+            const accordionId = `assemblies-accordion-${this.state.status}`;
+            const items = this.state.assemblies
+                .map(assembly => this.buildAssemblyAccordionItem(assembly, accordionId))
                 .join('');
+
+            this.container.innerHTML = `
+                <div class="col-12">
+                    <div class="accordion accordion-flush" id="${accordionId}">
+                        ${items}
+                    </div>
+                </div>
+            `;
         },
 
-        buildAssemblyCard(assembly) {
+        buildAssemblyAccordionItem(assembly, accordionId) {
             const effectiveStatus = assembly.display_status ?? assembly.status;
             const statusBadge = this.getStatusBadge(effectiveStatus);
             const votingType = assembly.voting_type === 'secret'
@@ -575,28 +584,39 @@
             const manageButtons = this.buildAssemblyActions(assembly);
             const closeButton = this.buildCloseButton(assembly);
 
+            const headingId = `${accordionId}-heading-${assembly.id}`;
+            const collapseId = `${accordionId}-collapse-${assembly.id}`;
+            const isInitiallyOpen = false;
+            const expandedAttr = isInitiallyOpen ? 'true' : 'false';
+            const buttonClass = isInitiallyOpen ? 'accordion-button' : 'accordion-button collapsed';
+            const collapseClass = isInitiallyOpen ? 'accordion-collapse collapse show' : 'accordion-collapse collapse';
+
             return `
-                <div class="col-12">
-                    <div class="card h-100">
-                        <div class="card-header d-flex flex-wrap justify-content-between align-items-start gap-2">
-                            <div>
-                                <h5 class="card-title mb-1 d-flex flex-wrap align-items-center gap-2">
-                                    <span>${assembly.title}</span>
-                                    ${votingType}
-                                </h5>
-                                <div class="d-flex flex-wrap align-items-center gap-3 text-muted small">
-                                    <span><i class="bi bi-calendar-event"></i> ${this.formatDate(assembly.scheduled_at)}</span>
-                                    ${votingWindow}
-                                    <span><i class="bi bi-person-check"></i> ${allowedRoles}</span>
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="${headingId}">
+                        <button class="${buttonClass}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${expandedAttr}" aria-controls="${collapseId}">
+                            <div class="w-100 d-flex flex-column flex-lg-row align-items-lg-center gap-3">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex flex-wrap align-items-center gap-2">
+                                        <span class="fw-semibold text-body">${assembly.title}</span>
+                                        ${votingType}
+                                    </div>
+                                    <div class="d-flex flex-wrap align-items-center gap-3 text-muted small mt-1">
+                                        <span><i class="bi bi-calendar-event"></i> ${this.formatDate(assembly.scheduled_at)}</span>
+                                        ${votingWindow}
+                                        <span><i class="bi bi-person-check"></i> ${allowedRoles}</span>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column align-items-lg-end gap-1 text-start text-lg-end">
+                                    <span class="badge ${statusBadge.class}">${statusBadge.label}</span>
+                                    <span class="text-muted small">${this.getUrgencyLabel(assembly.urgency)}</span>
                                 </div>
                             </div>
-                            <div class="text-end">
-                            <span class="badge ${statusBadge.class}">${statusBadge.label}</span>
-                            <div class="text-muted small">${this.getUrgencyLabel(assembly.urgency)}</div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            ${assembly.description ? `<p class="text-muted">${assembly.description}</p>` : ''}
+                        </button>
+                    </h2>
+                    <div id="${collapseId}" class="${collapseClass}" aria-labelledby="${headingId}">
+                        <div class="accordion-body">
+                            ${assembly.description ? `<p class="text-muted mb-4">${assembly.description}</p>` : ''}
                             <div class="mb-4">
                                 <h6 class="fw-semibold mb-2">Itens da pauta</h6>
                                 <div class="d-flex flex-column gap-3">
@@ -604,15 +624,15 @@
                                 </div>
                             </div>
                             ${attachments}
-                        </div>
-                        <div class="card-footer d-flex justify-content-between align-items-center">
-                            <div class="text-muted small">
-                                Criado por ${assembly.creator?.name ?? 'N/A'} em ${this.formatDate(assembly.created_at)}
-                            </div>
-                            <div class="d-flex gap-2">
-                                ${closeButton}
-                                ${manageButtons}
-                                ${minutesButton}
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-4 pt-3 border-top">
+                                <div class="text-muted small">
+                                    Criado por ${assembly.creator?.name ?? 'N/A'} em ${this.formatDate(assembly.created_at)}
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    ${closeButton}
+                                    ${manageButtons}
+                                    ${minutesButton}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1067,7 +1087,12 @@
                     credentials: 'same-origin',
                 });
 
-                const data = await response.json();
+                let data = {};
+                try {
+                    data = await response.json();
+                } catch (parseError) {
+                    data = {};
+                }
 
                 if (!response.ok) {
                     if (response.status === 422 && data.errors) {

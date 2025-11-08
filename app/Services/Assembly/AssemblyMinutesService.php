@@ -10,7 +10,8 @@ class AssemblyMinutesService
 {
     public function generateAndPersistMinutes(Assembly $assembly): void
     {
-        $assembly->loadMissing([
+        $assembly->unsetRelation('items');
+        $assembly->load([
             'items.votes.voter.roles',
             'items.votes.unit',
             'attachments',
@@ -76,6 +77,13 @@ class AssemblyMinutesService
                 'title' => $item->title,
                 'description' => $item->description,
                 'status' => $item->status,
+                'status_label' => match ($item->status) {
+                    'pending' => 'Pendente',
+                    'open' => 'Aberto',
+                    'closed' => 'Encerrado',
+                    'cancelled' => 'Cancelado',
+                    default => ucfirst($item->status),
+                },
                 'totals' => [
                     'options' => $totals,
                     'total_votes' => $totalVotes,
@@ -93,6 +101,13 @@ class AssemblyMinutesService
                 'title' => $assembly->title,
                 'description' => $assembly->description,
                 'status' => $assembly->status,
+                'status_label' => match ($assembly->status) {
+                    'scheduled' => 'Agendada',
+                    'in_progress' => 'Em andamento',
+                    'completed' => 'Concluída',
+                    'cancelled' => 'Cancelada',
+                    default => ucfirst($assembly->status),
+                },
                 'scheduled_at' => optional($assembly->scheduled_at)?->toIso8601String(),
                 'started_at' => optional($assembly->started_at)?->toIso8601String(),
                 'ended_at' => optional($assembly->ended_at)?->toIso8601String(),
@@ -127,7 +142,7 @@ class AssemblyMinutesService
         $lines[] = '# Ata da Assembleia';
         $lines[] = '';
         $lines[] = "**Título:** {$assembly['title']}";
-        $lines[] = "**Situação:** {$assembly['status']}";
+        $lines[] = "**Situação:** {$assembly['status_label']}";
         $lines[] = "**Urgência:** {$assembly['urgency']}";
 
         if ($assembly['scheduled_at']) {
