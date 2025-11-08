@@ -98,6 +98,21 @@ class Condominium extends Model implements Auditable
         return $this->hasMany(BankStatement::class);
     }
 
+    public function bankAccounts()
+    {
+        return $this->hasMany(BankAccount::class);
+    }
+
+    public function fees()
+    {
+        return $this->hasMany(Fee::class);
+    }
+
+    public function condominiumAccounts()
+    {
+        return $this->hasMany(CondominiumAccount::class);
+    }
+
     // Scopes
     public function scopeActive($query)
     {

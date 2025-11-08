@@ -2,6 +2,10 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MarketplaceAdminController;
+use App\Http\Controllers\FeeController;
+use App\Http\Controllers\Finance\AccountabilityReportController;
+use App\Http\Controllers\Finance\CondominiumAccountController;
+use App\Http\Controllers\Finance\FinancialStatusController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +51,33 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
     });
     
+    // Taxas
+    Route::middleware(['can:view_charges'])->group(function () {
+        Route::resource('fees', FeeController::class);
+        Route::post('fees/{fee}/generate', [FeeController::class, 'generateCharges'])->name('fees.generate');
+    });
+
+    // Painel financeiro
+    Route::get('/financial/status', FinancialStatusController::class)->name('financial.status.index');
+    Route::get('/financial/accounts', [CondominiumAccountController::class, 'index'])->name('financial.accounts.index');
+    Route::post('/financial/accounts/income', [CondominiumAccountController::class, 'storeIncome'])
+        ->middleware('can:manage_transactions')
+        ->name('financial.accounts.income.store');
+    Route::post('/financial/accounts/expense', [CondominiumAccountController::class, 'storeExpense'])
+        ->middleware('can:manage_transactions')
+        ->name('financial.accounts.expense.store');
+
+    Route::get('/financial/accountability', [AccountabilityReportController::class, 'index'])->name('accountability-reports.index');
+    Route::get('/financial/accountability/export/pdf', [AccountabilityReportController::class, 'exportPdf'])
+        ->middleware('can:export_accountability_reports')
+        ->name('accountability-reports.export.pdf');
+    Route::get('/financial/accountability/export/excel', [AccountabilityReportController::class, 'exportExcel'])
+        ->middleware('can:export_accountability_reports')
+        ->name('accountability-reports.export.excel');
+    Route::get('/financial/accountability/print', [AccountabilityReportController::class, 'print'])
+        ->middleware('can:export_accountability_reports')
+        ->name('accountability-reports.print');
+
     // Espaços (Síndico)
     Route::middleware(['can:manage_spaces'])->group(function () {
         Route::resource('spaces', \App\Http\Controllers\SpaceController::class);

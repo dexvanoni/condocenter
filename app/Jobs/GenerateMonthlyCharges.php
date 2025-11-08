@@ -68,10 +68,15 @@ class GenerateMonthlyCharges implements ShouldQueue
                     'description' => "Cobrança mensal do condomínio referente a {$monthYear}",
                     'amount' => $unitAmount,
                     'due_date' => $dueDate,
+                    'recurrence_period' => $dueDate->format('Y-m'),
                     'fine_percentage' => 2.00,
                     'interest_rate' => 1.00,
                     'type' => 'regular',
                     'status' => 'pending',
+                    'generated_by' => 'manual',
+                    'metadata' => [
+                        'legacy_generator' => 'GenerateMonthlyChargesJob',
+                    ],
                 ]);
 
                 $chargesCreated++;

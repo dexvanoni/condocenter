@@ -126,6 +126,19 @@ Todos os documentos do projeto organizados por finalidade.
 
 ---
 
+## 📏 GOVERNANÇA E REGRAS
+
+### 11. [REGRAS_PROJETO.md](REGRAS_PROJETO.md)
+**O que é:** Diretrizes para operações sensíveis  
+**Quando usar:** Sempre que houver intenção de alterar o banco de dados  
+**Conteúdo:**
+- Procedimento para solicitar autorização
+- Checklist de mitigação (backup, rollback)
+- Requisitos de comunicação com responsáveis
+- **Tempo de leitura:** 3 min
+
+---
+
 ## 🎯 GUIAS RÁPIDOS
 
 ### Por Perfil de Usuário

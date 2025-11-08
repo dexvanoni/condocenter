@@ -240,7 +240,10 @@
         $menuActive = [
             'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*'),
             'financeiro' => request()->routeIs('transactions.*')
+                || request()->routeIs('fees.*')
                 || request()->routeIs('charges.*')
+                || request()->routeIs('financial.status.*')
+                || request()->routeIs('financial.accounts.*')
                 || request()->routeIs('revenue.*')
                 || request()->routeIs('expenses.*')
                 || request()->routeIs('bank-reconciliation.*')
@@ -378,10 +381,31 @@
                                 </a>
                             </li>
                             @endif
+                            @if(Route::has('fees.index') && $user->can('view_charges'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
+                                    <i class="bi bi-journal-text"></i> {{ $user->can('manage_charges') ? 'Configurar Taxas' : 'Taxas' }}
+                                </a>
+                            </li>
+                            @endif
                             @if(Route::has('charges.index') && $user->can('view_charges'))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
                                     <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('financial.status.index') && ($user->can('view_charges') || $user->can('view_financial_reports')))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
+                                    <i class="bi bi-people"></i> Painel de Adimplência
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('financial.accounts.index') && ($user->can('view_transactions') || $user->can('view_own_financial')))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
+                                    <i class="bi bi-journal-richtext"></i> Contas do Condomínio
                                 </a>
                             </li>
                             @endif
@@ -875,10 +899,31 @@
                                         </a>
                                     </li>
                                     @endif
+                                    @if(Route::has('fees.index') && $user->can('view_charges'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
+                                            <i class="bi bi-journal-text"></i> {{ $user->can('manage_charges') ? 'Configurar Taxas' : 'Taxas' }}
+                                        </a>
+                                    </li>
+                                    @endif
                                     @if(Route::has('charges.index') && $user->can('view_charges'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
                                             <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('financial.status.index') && ($user->can('view_charges') || $user->can('view_financial_reports')))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
+                                            <i class="bi bi-people"></i> Painel de Adimplência
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('financial.accounts.index') && ($user->can('view_transactions') || $user->can('view_own_financial')))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
+                                            <i class="bi bi-journal-richtext"></i> Contas do Condomínio
                                         </a>
                                     </li>
                                     @endif

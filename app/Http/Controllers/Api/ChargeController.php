@@ -72,6 +72,8 @@ class ChargeController extends Controller
             'fine_percentage' => 'nullable|numeric|min:0|max:100',
             'interest_rate' => 'nullable|numeric|min:0|max:100',
             'type' => 'required|in:regular,extra',
+            'recurrence_period' => 'nullable|string|max:20',
+            'metadata' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -87,10 +89,13 @@ class ChargeController extends Controller
             'description' => $request->description,
             'amount' => $request->amount,
             'due_date' => $request->due_date,
+            'recurrence_period' => $request->recurrence_period,
             'fine_percentage' => $request->fine_percentage ?? 2.00,
             'interest_rate' => $request->interest_rate ?? 1.00,
             'type' => $request->type,
             'status' => 'pending',
+            'generated_by' => 'manual',
+            'metadata' => $request->metadata,
         ]);
 
         return response()->json([
@@ -112,6 +117,8 @@ class ChargeController extends Controller
             'type' => 'required|in:regular,extra',
             'apply_to_all_units' => 'boolean',
             'unit_ids' => 'required_if:apply_to_all_units,false|array',
+            'recurrence_period' => 'nullable|string|max:20',
+            'metadata' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
@@ -142,10 +149,13 @@ class ChargeController extends Controller
                 'description' => $request->description,
                 'amount' => $request->amount,
                 'due_date' => $request->due_date,
+                'recurrence_period' => $request->recurrence_period,
                 'fine_percentage' => $request->fine_percentage ?? 2.00,
                 'interest_rate' => $request->interest_rate ?? 1.00,
                 'type' => $request->type,
                 'status' => 'pending',
+                'generated_by' => 'manual',
+                'metadata' => $request->metadata,
             ]);
 
             $chargesCreated[] = $charge;

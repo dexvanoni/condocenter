@@ -46,10 +46,16 @@ class GenerateReservationPayment implements ShouldQueue
                 'description' => "Reserva do(a) {$this->space->name} para o dia {$this->reservation->reservation_date->format('d/m/Y')}",
                 'amount' => $amount,
                 'due_date' => $this->reservation->reservation_date->copy()->subDays(1), // 1 dia antes
+                'recurrence_period' => $this->reservation->reservation_date->format('Y-m-d'),
                 'fine_percentage' => 0, // Sem multa para taxa de reserva
                 'interest_rate' => 0, // Sem juros
                 'type' => 'extra',
                 'status' => 'pending',
+                'generated_by' => 'reservation',
+                'metadata' => [
+                    'reservation_id' => $this->reservation->id,
+                    'space_id' => $this->space->id,
+                ],
             ]);
 
             // Criar ou atualizar cliente no Asaas

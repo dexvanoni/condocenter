@@ -85,6 +85,9 @@ Bem-vindo à documentação completa do sistema CondoCenter!
 2. [API_DOCUMENTATION.md](API_DOCUMENTATION.md) - Documentação da API
 3. [PROJETO_SUMMARY.md](PROJETO_SUMMARY.md) - Arquitetura do projeto
 
+### 📏 **Governança e Regras**
+1. [REGRAS_PROJETO.md](REGRAS_PROJETO.md) - Diretrizes para operações sensíveis
+
 ### 📗 **Para Administradores**
 1. [DEPLOY.md](DEPLOY.md) - Como fazer deploy
 2. [FUNCIONALIDADES.md](FUNCIONALIDADES.md) - O que o sistema faz

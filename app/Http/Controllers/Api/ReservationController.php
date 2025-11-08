@@ -794,10 +794,16 @@ class ReservationController extends Controller
             'description' => "Reserva do(a) {$space->name} para o dia {$reservation->reservation_date->format('d/m/Y')}",
             'amount' => $amount,
             'due_date' => $reservation->reservation_date->copy()->subDays(1), // 1 dia antes
+            'recurrence_period' => $reservation->reservation_date->format('Y-m-d'),
             'fine_percentage' => 0,
             'interest_rate' => 0,
             'type' => 'extra',
             'status' => 'pending',
+            'generated_by' => 'reservation',
+            'metadata' => [
+                'reservation_id' => $reservation->id,
+                'space_id' => $space->id,
+            ],
         ]);
 
         // Criar ou atualizar cliente no Asaas

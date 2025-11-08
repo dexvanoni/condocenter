@@ -28,6 +28,11 @@ class SendOverdueReminders implements ShouldQueue
                 ->get();
 
             foreach ($overdueCharges as $charge) {
+                $channel = data_get($charge->metadata, 'payment_channel');
+                if ($channel === 'payroll') {
+                    continue;
+                }
+
                 // Atualizar status para overdue
                 $charge->update(['status' => 'overdue']);
 
@@ -38,7 +43,11 @@ class SendOverdueReminders implements ShouldQueue
                 $totalWithFines = $charge->calculateTotal();
 
                 // Notificar moradores da unidade
-                $residents = $charge->unit->users;
+                if (!$charge->unit || !$charge->unit->is_active) {
+                    continue;
+                }
+
+                $residents = $charge->unit->users->filter(fn($user) => $user->is_active);
 
                 foreach ($residents as $resident) {
                     Notification::create([

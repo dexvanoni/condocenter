@@ -13,6 +13,10 @@ Schedule::command('charges:check-overdue')
     ->dailyAt('09:00')
     ->description('Verifica cobranças em atraso e envia lembretes');
 
+Schedule::command('charges:send-reminders')
+    ->dailyAt('08:00')
+    ->description('Envia lembretes de cobranças que vencem hoje e amanhã');
+
 Schedule::command('reports:generate-monthly')
     ->monthlyOn(1, '08:00')
     ->description('Gera relatórios mensais para todos os condomínios');

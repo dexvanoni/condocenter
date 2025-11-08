@@ -14,18 +14,24 @@ class Charge extends Model implements Auditable
     protected $fillable = [
         'condominium_id',
         'unit_id',
+        'fee_id',
         'title',
         'description',
         'amount',
         'due_date',
+        'recurrence_period',
         'fine_percentage',
         'interest_rate',
         'status',
         'type',
+        'generated_by',
         'asaas_payment_id',
         'boleto_url',
         'pix_code',
         'pix_qrcode',
+        'metadata',
+        'first_reminder_sent_at',
+        'second_reminder_sent_at',
     ];
 
     protected $casts = [
@@ -33,6 +39,9 @@ class Charge extends Model implements Auditable
         'fine_percentage' => 'decimal:2',
         'interest_rate' => 'decimal:2',
         'due_date' => 'date',
+        'first_reminder_sent_at' => 'datetime',
+        'second_reminder_sent_at' => 'datetime',
+        'metadata' => 'array',
     ];
 
     // Relacionamentos
@@ -44,6 +53,11 @@ class Charge extends Model implements Auditable
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function fee()
+    {
+        return $this->belongsTo(Fee::class);
     }
 
     public function payments()

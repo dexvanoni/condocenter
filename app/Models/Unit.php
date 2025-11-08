@@ -13,6 +13,7 @@ class Unit extends Model implements Auditable
 
     protected $fillable = [
         'condominium_id',
+        'default_payment_channel',
         'number',
         'block',
         'type',
@@ -39,6 +40,7 @@ class Unit extends Model implements Auditable
         'ideal_fraction' => 'decimal:4',
         'area' => 'decimal:2',
         'is_active' => 'boolean',
+        'default_payment_channel' => 'string',
         'possui_dividas' => 'boolean',
     ];
 
@@ -91,6 +93,11 @@ class Unit extends Model implements Auditable
     public function entries()
     {
         return $this->hasMany(Entry::class);
+    }
+
+    public function feeConfigurations()
+    {
+        return $this->hasMany(FeeUnitConfiguration::class);
     }
 
     // Atributos computados
