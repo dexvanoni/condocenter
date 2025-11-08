@@ -250,7 +250,7 @@ function displayPetInfo(pet) {
 }
 
 #qrVideo {
-    border: 3px solid #667eea;
+    border: 3px solid #3866d2;
 }
 </style>
 @endpush

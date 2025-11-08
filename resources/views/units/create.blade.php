@@ -4,8 +4,12 @@
 
 @push('styles')
 <style>
+    body {
+        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+        min-height: 100vh;
+    }
     .step-wizard {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
         border-radius: 15px;
         padding: 2rem;
         color: white;
@@ -30,8 +34,8 @@
     }
     .step-item.active .step-number {
         background: white;
-        color: #667eea;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        color: #3866d2;
+        box-shadow: 0 4px 15px rgba(10,27,103,0.2);
     }
     .section-card {
         border: none;
@@ -45,7 +49,7 @@
         transform: translateY(-2px);
     }
     .section-header {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background: linear-gradient(135deg, rgba(10,27,103,0.15) 0%, rgba(56,102,210,0.15) 100%);
         padding: 1.25rem;
         border-radius: 15px 15px 0 0;
         display: flex;
@@ -54,7 +58,7 @@
     }
     .section-header i {
         font-size: 1.5rem;
-        color: #667eea;
+        color: #3866d2;
     }
     .section-body {
         padding: 2rem;
@@ -74,12 +78,12 @@
         overflow: hidden;
     }
     .photo-preview-container:hover {
-        border-color: #667eea;
-        background: #f0f2ff;
+        border-color: var(--brand-light);
+        background: rgba(56, 102, 210, 0.08);
     }
     .photo-preview-container.has-image {
         border-style: solid;
-        border-color: #667eea;
+        border-color: var(--brand-light);
     }
     .photo-preview {
         max-width: 100%;
@@ -107,11 +111,11 @@
         transform: translateY(-50%);
     }
     .form-control:focus, .form-select:focus {
-        border-color: #667eea;
-        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        border-color: var(--brand-light);
+        box-shadow: 0 0 0 0.2rem rgba(56, 102, 210, 0.25);
     }
     .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
         border: none;
         padding: 0.75rem 2rem;
         border-radius: 10px;
@@ -120,7 +124,7 @@
     }
     .btn-primary:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 6px 20px rgba(10, 27, 103, 0.4);
     }
     .type-selector {
         display: grid;
@@ -136,13 +140,13 @@
         transition: all 0.3s ease;
     }
     .type-card:hover {
-        border-color: #667eea;
-        background: #f8f9ff;
+        border-color: var(--brand-light);
+        background: rgba(56, 102, 210, 0.05);
     }
     .type-card.selected {
-        border-color: #667eea;
-        background: linear-gradient(135deg, #f8f9ff 0%, #e6e9ff 100%);
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        border-color: var(--brand-light);
+        background: linear-gradient(135deg, rgba(10,27,103,0.08) 0%, rgba(56,102,210,0.12) 100%);
+        box-shadow: 0 4px 15px rgba(10, 27, 103, 0.2);
     }
     .type-card i {
         font-size: 3rem;
@@ -163,12 +167,12 @@
         transition: all 0.3s ease;
     }
     .situacao-option:hover {
-        border-color: #667eea;
-        background: #f8f9ff;
+        border-color: var(--brand-light);
+        background: rgba(56, 102, 210, 0.05);
     }
     .situacao-option.selected {
-        border-color: #667eea;
-        background: #667eea;
+        border-color: var(--brand-light);
+        background: var(--brand-light);
         color: white;
     }
     .situacao-option i {
@@ -191,7 +195,7 @@
     }
     .char-item i {
         font-size: 2rem;
-        color: #667eea;
+        color: var(--brand-light);
         margin-bottom: 0.5rem;
         display: block;
     }
@@ -207,7 +211,7 @@
     }
     .address-preview {
         background: #f8f9fa;
-        border-left: 4px solid #667eea;
+        border-left: 4px solid var(--brand-light);
         padding: 1rem;
         border-radius: 8px;
         margin-top: 1rem;

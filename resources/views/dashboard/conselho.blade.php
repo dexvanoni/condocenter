@@ -23,8 +23,8 @@
                         <i class="bi bi-download"></i> Exportar Relatórios
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-pdf text-danger"></i> Exportar PDF</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-excel text-success"></i> Exportar Excel</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-pdf text-brand"></i> Exportar PDF</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-excel text-brand"></i> Exportar Excel</a></li>
                     </ul>
                 </div>
             </div>
@@ -147,12 +147,12 @@
             <div class="dashboard-card hover-lift">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-success bg-opacity-10 text-success me-3">
+                        <div class="widget-icon bg-brand-soft me-3">
                             <i class="bi bi-graph-up-arrow fs-4"></i>
                         </div>
                         <div class="flex-grow-1">
                             <h6 class="text-muted mb-1">Receitas no Ano</h6>
-                            <h4 class="mb-0 text-success">R$ {{ number_format($receitasAno, 2, ',', '.') }}</h4>
+                            <h4 class="mb-0 text-brand">R$ {{ number_format($receitasAno, 2, ',', '.') }}</h4>
                         </div>
                     </div>
                 </div>
@@ -163,12 +163,12 @@
             <div class="dashboard-card hover-lift">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-danger bg-opacity-10 text-danger me-3">
+                        <div class="widget-icon bg-brand-soft me-3">
                             <i class="bi bi-graph-down-arrow fs-4"></i>
                         </div>
                         <div class="flex-grow-1">
                             <h6 class="text-muted mb-1">Despesas no Ano</h6>
-                            <h4 class="mb-0 text-danger">R$ {{ number_format($despesasAno, 2, ',', '.') }}</h4>
+                            <h4 class="mb-0 text-brand-dark">R$ {{ number_format($despesasAno, 2, ',', '.') }}</h4>
                         </div>
                     </div>
                 </div>
@@ -202,7 +202,7 @@
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="section-title mb-0">
-                            <i class="bi bi-receipt text-primary"></i> Transações do Mês ({{ $totalTransacoes }})
+                            <i class="bi bi-receipt text-brand"></i> Transações do Mês ({{ $totalTransacoes }})
                         </h5>
                         <a href="{{ route('transactions.index') }}" class="btn btn-sm btn-outline-primary">
                             Ver Todas <i class="bi bi-arrow-right"></i>
@@ -239,17 +239,17 @@
                                     <td>{{ Str::limit($transacao->description, 50) }}</td>
                                     <td class="text-center">
                                         @if($transacao->receipts->count() > 0)
-                                            <a href="#" class="text-success" title="Ver comprovantes">
+                                            <a href="#" class="text-brand" title="Ver comprovantes">
                                                 <i class="bi bi-file-check-fill"></i> {{ $transacao->receipts->count() }}
                                             </a>
                                         @else
-                                            <span class="text-danger" title="Sem comprovante">
+                                            <span class="text-brand-dark" title="Sem comprovante">
                                                 <i class="bi bi-exclamation-triangle-fill"></i>
                                             </span>
                                         @endif
                                     </td>
                                     <td class="text-end">
-                                        <strong class="{{ $transacao->type === 'income' ? 'text-success' : 'text-danger' }}">
+                                        <strong class="{{ $transacao->type === 'income' ? 'text-brand' : 'text-brand-dark' }}">
                                             {{ $transacao->type === 'income' ? '+' : '-' }}
                                             R$ {{ number_format($transacao->amount, 2, ',', '.') }}
                                         </strong>
@@ -268,7 +268,7 @@
                             <tfoot>
                                 <tr class="fw-bold">
                                     <td colspan="5" class="text-end">Saldo do Mês:</td>
-                                    <td class="text-end {{ $saldoMes >= 0 ? 'text-success' : 'text-danger' }}">
+                                    <td class="text-end {{ $saldoMes >= 0 ? 'text-brand' : 'text-brand-dark' }}">
                                         R$ {{ number_format($saldoMes, 2, ',', '.') }}
                                     </td>
                                 </tr>
@@ -286,7 +286,7 @@
             <div class="dashboard-card mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-pie-chart text-primary"></i> Despesas por Categoria
+                        <i class="bi bi-pie-chart text-brand"></i> Despesas por Categoria
                     </h5>
                 </div>
                 <div class="card-body">
@@ -316,7 +316,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-clipboard-data text-info"></i> Resumo de Auditoria
+                        <i class="bi bi-clipboard-data text-brand"></i> Resumo de Auditoria
                     </h5>
                 </div>
                 <div class="card-body">
@@ -324,7 +324,7 @@
                         <div class="list-group-item px-0">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <i class="bi bi-file-text text-primary me-2"></i>
+                                    <i class="bi bi-file-text text-brand me-2"></i>
                                     Total de Transações
                                 </div>
                                 <strong>{{ $totalTransacoes }}</strong>
@@ -333,10 +333,10 @@
                         <div class="list-group-item px-0">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <i class="bi bi-{{ $semComprovante > 0 ? 'exclamation-triangle text-warning' : 'check-circle text-success' }} me-2"></i>
+                                    <i class="bi bi-{{ $semComprovante > 0 ? 'exclamation-triangle text-brand' : 'check-circle text-brand' }} me-2"></i>
                                     Sem Comprovante
                                 </div>
-                                <strong class="{{ $semComprovante > 0 ? 'text-warning' : 'text-success' }}">
+                                <strong class="text-brand">
                                     {{ $semComprovante }}
                                 </strong>
                             </div>
@@ -344,10 +344,10 @@
                         <div class="list-group-item px-0">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <i class="bi bi-{{ $inadimplentes > 0 ? 'exclamation-circle text-danger' : 'check-circle text-success' }} me-2"></i>
+                                    <i class="bi bi-{{ $inadimplentes > 0 ? 'exclamation-circle text-brand' : 'check-circle text-brand' }} me-2"></i>
                                     Inadimplentes
                                 </div>
-                                <strong class="{{ $inadimplentes > 0 ? 'text-danger' : 'text-success' }}">
+                                <strong class="text-brand">
                                     {{ $inadimplentes }}
                                 </strong>
                             </div>
@@ -355,7 +355,7 @@
                         <div class="list-group-item px-0 border-bottom-0">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <i class="bi bi-calendar-check text-info me-2"></i>
+                                    <i class="bi bi-calendar-check text-brand me-2"></i>
                                     Período Analisado
                                 </div>
                                 <strong>{{ now()->format('m/Y') }}</strong>

@@ -223,6 +223,14 @@
         .nav-link.toggle-only {
             font-weight: 600;
         }
+
+        .btn-panic {
+            background: linear-gradient(135deg, #ce0000 0%, #ff4343 100%) !important;
+            border-color: transparent;
+            color: white;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+        }
     </style>
 </head>
 <body>
@@ -671,12 +679,13 @@
                 </li>
                 @endif
 
+                <!-- ==================== ALERTA DE PÂNICO ==================== -->
                 <li class="nav-item mt-4">
                     <button class="btn btn-panic w-100" onclick="openPanicModal()">
                         <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
                     </button>
-                </li>
-            </ul>
+                    </li>
+                </ul>
 
         </nav>
 
@@ -952,7 +961,7 @@
                                     @if(SidebarHelper::canApproveReservations($user) && Route::has('reservations.manage'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
-                                            <i class="bi bi-list-check"></i> Aprovar Reservas
+                                            <i class="bi bi-list-check"></i> Gerenciar Reservas
                                         </a>
                                     </li>
                                     @endif

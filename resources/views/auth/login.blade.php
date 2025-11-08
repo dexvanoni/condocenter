@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -21,7 +21,7 @@
             overflow: hidden;
         }
         .login-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             color: white;
             padding: 2rem;
             text-align: center;
@@ -95,6 +95,8 @@
                             </div>
                         </form>
 
+
+                        <!--
                         <hr class="my-4">
 
                         <div class="text-center text-muted small">
@@ -104,6 +106,7 @@
                             <p class="mb-1">🚪 Porteiro: porteiro@vistaverde.com / password</p>
                             <p class="mb-0">🔧 Admin: admin@condomanager.com / password</p>
                         </div>
+                        -->
                     </div>
                 </div>
             </div>

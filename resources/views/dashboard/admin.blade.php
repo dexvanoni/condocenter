@@ -121,7 +121,7 @@
             <div class="dashboard-card hover-lift">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-success bg-opacity-10 text-success me-3">
+                        <div class="widget-icon bg-brand-soft me-3">
                             <i class="bi bi-check-circle fs-4"></i>
                         </div>
                         <div class="flex-grow-1">
@@ -138,7 +138,7 @@
             <div class="dashboard-card hover-lift">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-primary bg-opacity-10 text-primary me-3">
+                        <div class="widget-icon bg-brand-soft me-3">
                             <i class="bi bi-buildings fs-4"></i>
                         </div>
                         <div class="flex-grow-1">
@@ -155,7 +155,7 @@
             <div class="dashboard-card hover-lift">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-info bg-opacity-10 text-info me-3">
+                        <div class="widget-icon bg-brand-soft me-3">
                             <i class="bi bi-cash-stack fs-4"></i>
                         </div>
                         <div class="flex-grow-1">
@@ -177,7 +177,7 @@
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="section-title mb-0">
-                            <i class="bi bi-building text-primary"></i> Condomínios na Plataforma
+                            <i class="bi bi-building text-brand"></i> Condomínios na Plataforma
                         </h5>
                     </div>
                 </div>
@@ -248,7 +248,7 @@
             <div class="dashboard-card mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-trophy text-warning"></i> Top Condomínios
+                        <i class="bi bi-trophy text-brand"></i> Top Condomínios
                     </h5>
                 </div>
                 <div class="card-body">
@@ -282,7 +282,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-person-badge text-info"></i> Usuários por Perfil
+                        <i class="bi bi-person-badge text-brand"></i> Usuários por Perfil
                     </h5>
                 </div>
                 <div class="card-body">
@@ -324,7 +324,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-lightning-charge text-warning"></i> Ações Rápidas
+                        <i class="bi bi-lightning-charge text-brand"></i> Ações Rápidas
                     </h5>
                 </div>
                 <div class="card-body">
@@ -332,7 +332,7 @@
                         @can('view_users')
                         <div class="col-md-4 col-sm-6">
                             <a href="{{ route('users.index') }}" class="widget-quick-action">
-                                <div class="widget-icon bg-primary bg-opacity-10 text-primary">
+                                <div class="widget-icon bg-brand-soft">
                                     <i class="bi bi-people"></i>
                                 </div>
                                 <h6 class="mt-3 mb-1">Gerenciar Usuários</h6>
@@ -344,7 +344,7 @@
                         @can('view_units')
                         <div class="col-md-4 col-sm-6">
                             <a href="{{ route('units.index') }}" class="widget-quick-action">
-                                <div class="widget-icon bg-success bg-opacity-10 text-success">
+                                <div class="widget-icon bg-brand-soft">
                                     <i class="bi bi-building"></i>
                                 </div>
                                 <h6 class="mt-3 mb-1">Gerenciar Unidades</h6>
@@ -356,8 +356,8 @@
                         @can('view_transactions')
                         <div class="col-md-4 col-sm-6">
                             <a href="{{ route('transactions.index') }}" class="widget-quick-action">
-                                <div class="widget-icon bg-info bg-opacity-10 text-info">
-                                    <i class="bi bi-graph-up-arrow"></i>
+                                <div class="widget-icon bg-brand-soft">
+                                    <i class="bi bi-graph-up"></i>
                                 </div>
                                 <h6 class="mt-3 mb-1">Transações</h6>
                                 <small class="text-muted">Análises financeiras</small>

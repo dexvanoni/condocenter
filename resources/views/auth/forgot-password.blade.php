@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -17,7 +17,14 @@
         .login-card {
             background: white;
             border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(10,27,103,0.15);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            filter: brightness(1.05);
         }
     </style>
 </head>

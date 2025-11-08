@@ -19,7 +19,7 @@
             </div>
             <div class="col-md-4 text-end">
                 @if($chargesPendentes->count() > 0 || $chargesAtrasadas->count() > 0)
-                <a href="{{ route('charges.index') }}" class="btn btn-modern btn-gradient-warning">
+                <a href="{{ route('charges.index') }}" class="btn btn-primary">
                     <i class="bi bi-credit-card"></i> Pagar Cobranças
                 </a>
                 @endif
@@ -65,14 +65,14 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="dashboard-card border-primary fade-in">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <div class="card-header bg-brand-gradient text-white d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-1">
                             <i class="bi bi-megaphone"></i> Assembleias aguardando seu voto
                         </h5>
                         <span class="text-white-50 small">Vote em todos os itens para remover este alerta</span>
                     </div>
-                    <span class="badge bg-light text-primary">{{ $assembliesPendentes->count() }}</span>
+                    <span class="badge badge-brand">{{ $assembliesPendentes->count() }}</span>
                 </div>
                 <div class="card-body">
                     @foreach($assembliesPendentes as $assembly)
@@ -90,12 +90,12 @@
                                         </span>
                                     @endif
                                 </p>
-                                <span class="badge bg-warning text-dark">
+                                <span class="badge badge-brand">
                                     {{ $assembly['pending_items'] }} de {{ $assembly['total_items'] }} itens pendentes
                                 </span>
                             </div>
                             <div class="text-end">
-                                <span class="badge text-bg-primary mb-1">
+                                <span class="badge badge-brand mb-1">
                                     {{ $statusLabels[$assembly['status']] ?? \Illuminate\Support\Str::title($assembly['status']) }}
                                 </span>
                                 <div class="small text-muted">
@@ -228,12 +228,12 @@
                                     <td><strong>{{ $charge->title }}</strong></td>
                                     <td>{{ $charge->due_date->format('d/m/Y') }}</td>
                                     <td>
-                                        <span class="badge-modern bg-danger">
+                                        <span class="badge-modern bg-brand">
                                             <i class="bi bi-exclamation-triangle"></i> ATRASADO
                                         </span>
                                     </td>
                                     <td class="text-end">
-                                        <strong class="text-danger">R$ {{ number_format($charge->calculateTotal(), 2, ',', '.') }}</strong>
+                                        <strong class="text-brand">R$ {{ number_format($charge->calculateTotal(), 2, ',', '.') }}</strong>
                                     </td>
                                     <td class="text-center">
                                         <button class="btn btn-sm btn-danger">
@@ -248,7 +248,7 @@
                                     <td><strong>{{ $charge->title }}</strong></td>
                                     <td>{{ $charge->due_date->format('d/m/Y') }}</td>
                                     <td>
-                                        <span class="badge-modern bg-warning text-dark">
+                                        <span class="badge-modern bg-brand text-white">
                                             <i class="bi bi-clock"></i> PENDENTE
                                         </span>
                                     </td>
@@ -274,8 +274,8 @@
         <div class="col-12">
             <div class="dashboard-card border-success fade-in">
                 <div class="card-body text-center py-5">
-                    <i class="bi bi-check-circle display-1 text-success mb-3"></i>
-                    <h4 class="text-success mb-2">Parabéns! Você está em dia! 🎉</h4>
+                    <i class="bi bi-check-circle display-1 text-brand mb-3"></i>
+                    <h4 class="text-brand mb-2">Parabéns! Você está em dia! 🎉</h4>
                     <p class="text-muted mb-0">Não há cobranças pendentes no momento.</p>
                 </div>
             </div>
@@ -291,7 +291,7 @@
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="section-title mb-0">
-                            <i class="bi bi-calendar-event text-primary"></i> Minhas Reservas
+                            <i class="bi bi-calendar-event text-brand"></i> Minhas Reservas
                         </h5>
                 <a href="{{ route('reservations.index') }}" class="btn btn-sm btn-gradient-primary">
                     <i class="bi bi-calendar-check"></i> Ver Calendário
@@ -346,7 +346,7 @@
             <div class="dashboard-card mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-box-seam text-success"></i> 
+                        <i class="bi bi-box-seam text-brand"></i> 
                         Encomendas Pendentes ({{ $encomendas->count() }})
                     </h5>
                 </div>
@@ -366,7 +366,7 @@
                                     <i class="bi bi-clock"></i> Chegou em: {{ $encomenda->received_at->format('d/m/Y H:i') }}
                                 </small>
                             </div>
-                            <button class="btn btn-sm btn-success">
+                            <button class="btn btn-sm btn-primary">
                                 <i class="bi bi-check2"></i> Retirar
                             </button>
                         </div>
@@ -384,7 +384,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-bell text-warning"></i> 
+                        <i class="bi bi-bell text-brand"></i> 
                         Notificações ({{ $totalNotificacoes }})
                     </h5>
                 </div>
@@ -394,13 +394,13 @@
                         <div class="d-flex">
                             <div class="me-3">
                                 @if(str_contains($notificacao->type ?? '', 'package'))
-                                <i class="bi bi-box-seam fs-4 text-info"></i>
+                                <i class="bi bi-box-seam fs-4 text-brand"></i>
                                 @elseif(str_contains($notificacao->type ?? '', 'payment'))
-                                <i class="bi bi-cash fs-4 text-warning"></i>
+                                <i class="bi bi-cash fs-4 text-brand"></i>
                                 @elseif(str_contains($notificacao->type ?? '', 'reservation'))
-                                <i class="bi bi-calendar-check fs-4 text-success"></i>
+                                <i class="bi bi-calendar-check fs-4 text-brand"></i>
                                 @else
-                                <i class="bi bi-info-circle fs-4 text-primary"></i>
+                                <i class="bi bi-info-circle fs-4 text-brand"></i>
                                 @endif
                             </div>
                             <div class="flex-grow-1">
@@ -432,7 +432,7 @@
             <div class="dashboard-card fade-in">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-check-circle text-success"></i> Últimas Cobranças Pagas
+                        <i class="bi bi-check-circle text-brand"></i> Últimas Cobranças Pagas
                     </h5>
                 </div>
                 <div class="card-body p-0">
@@ -452,7 +452,7 @@
                                     <td>{{ $charge->title }}</td>
                                     <td>{{ $charge->due_date->format('d/m/Y') }}</td>
                                     <td>
-                                        <span class="badge-modern bg-success">
+                                        <span class="badge-modern bg-brand">
                                             <i class="bi bi-check-circle"></i> Pago
                                         </span>
                                     </td>

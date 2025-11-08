@@ -117,7 +117,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-box-seam text-success"></i> 
+                        <i class="bi bi-box-seam text-brand"></i> 
                         Encomendas Pendentes ({{ $encomendas->count() }})
                     </h5>
                 </div>
@@ -125,7 +125,7 @@
                     @forelse($encomendas as $encomenda)
                     <div class="list-item-hover border-bottom pb-3 mb-3">
                         <div class="d-flex align-items-start">
-                            <i class="bi bi-box text-success fs-3 me-3"></i>
+                            <i class="bi bi-box text-brand fs-3 me-3"></i>
                             <div class="flex-grow-1">
                                 <h6 class="mb-1">
                                     @if($encomenda->sender)
@@ -162,7 +162,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-bell text-warning"></i> 
+                        <i class="bi bi-bell text-brand"></i> 
                         Notificações ({{ $notificacoes->count() }})
                     </h5>
                 </div>
@@ -170,7 +170,7 @@
                     @forelse($notificacoes as $notificacao)
                     <div class="list-item-hover border-bottom pb-3 mb-3">
                         <div class="d-flex align-items-start">
-                            <i class="bi bi-bell-fill text-warning fs-4 me-3 mt-1"></i>
+                            <i class="bi bi-bell-fill text-brand fs-4 me-3 mt-1"></i>
                             <div class="flex-grow-1">
                                 <h6 class="mb-1">{{ $notificacao->title ?? 'Notificação' }}</h6>
                                 <p class="mb-1 small">{{ $notificacao->message ?? $notificacao->description }}</p>
@@ -198,7 +198,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-grid-3x3-gap text-primary"></i> Funcionalidades Disponíveis
+                        <i class="bi bi-grid-3x3-gap text-brand"></i> Funcionalidades Disponíveis
                     </h5>
                 </div>
                 <div class="card-body">

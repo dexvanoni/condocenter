@@ -14,7 +14,7 @@
             padding: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             color: white;
             padding: 20px;
             text-align: center;
@@ -28,7 +28,7 @@
         .info-box {
             background: white;
             padding: 15px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #3866d2;
             margin: 15px 0;
         }
         .footer {
@@ -68,7 +68,7 @@
                     <p><strong>Registrado por:</strong> {{ $package->registeredBy->name }}</p>
                 </div>
                 
-                <p style="background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">
+                <p style="background: rgba(10, 27, 103, 0.08); padding: 15px; border-radius: 5px; border-left: 4px solid #3866d2;">
                     <strong>⚠️ Importante:</strong> Retire sua encomenda na portaria o quanto antes.
                 </p>
             @else
@@ -83,7 +83,7 @@
             @endif
             
             <p style="text-align: center; margin-top: 30px;">
-                <a href="{{ config('app.url') }}/dashboard" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                <a href="{{ config('app.url') }}/dashboard" style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
                     Acessar o Sistema
                 </a>
             </p>

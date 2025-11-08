@@ -3,11 +3,11 @@
    =============================================== */
 
 :root {
-    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-    --danger-gradient: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
-    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --primary-gradient: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand-light) 100%);
+    --success-gradient: linear-gradient(135deg, rgba(10, 27, 103, 0.95) 0%, rgba(56, 102, 210, 0.95) 100%);
+    --danger-gradient: linear-gradient(135deg, rgba(10, 27, 103, 0.9) 0%, rgba(56, 102, 210, 0.8) 100%);
+    --warning-gradient: linear-gradient(135deg, rgba(10, 27, 103, 0.75) 0%, rgba(56, 102, 210, 0.75) 100%);
+    --info-gradient: linear-gradient(135deg, rgba(56, 102, 210, 0.7) 0%, rgba(10, 27, 103, 0.7) 100%);
     
     --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
     --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
@@ -550,19 +550,23 @@
 }
 
 .widget-notification.success {
-    border-left-color: #38ef7d;
+    border-left-color: rgba(56, 102, 210, 0.9);
+    background: rgba(56, 102, 210, 0.08);
 }
 
 .widget-notification.danger {
-    border-left-color: #f45c43;
+    border-left-color: rgba(10, 27, 103, 0.9);
+    background: rgba(10, 27, 103, 0.08);
 }
 
 .widget-notification.warning {
-    border-left-color: #ffa502;
+    border-left-color: rgba(56, 102, 210, 0.7);
+    background: rgba(56, 102, 210, 0.06);
 }
 
 .widget-notification.info {
-    border-left-color: #4facfe;
+    border-left-color: rgba(10, 27, 103, 0.7);
+    background: rgba(10, 27, 103, 0.06);
 }
 
 /* ===============================================
@@ -581,7 +585,7 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: linear-gradient(to bottom, #667eea, #764ba2);
+    background: linear-gradient(to bottom, var(--brand-dark), var(--brand-light));
 }
 
 .timeline-item {
@@ -598,8 +602,8 @@
     height: 12px;
     border-radius: 50%;
     background: white;
-    border: 3px solid #667eea;
-    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    border: 3px solid var(--brand-light);
+    box-shadow: 0 0 0 4px rgba(10, 27, 103, 0.15);
 }
 
 /* ===============================================
@@ -617,8 +621,8 @@
     display: inline-block;
     width: 40px;
     height: 40px;
-    border: 4px solid rgba(102, 126, 234, 0.1);
-    border-left-color: #667eea;
+    border: 4px solid rgba(10, 27, 103, 0.1);
+    border-left-color: var(--brand-light);
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }

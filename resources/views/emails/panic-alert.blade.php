@@ -15,7 +15,7 @@
             padding: 20px;
         }
         .alert-header {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -34,13 +34,13 @@
             background: white;
             padding: 30px;
             border-radius: 0 0 5px 5px;
-            border-left: 5px solid #dc3545;
-            border-right: 5px solid #dc3545;
-            border-bottom: 5px solid #dc3545;
+            border-left: 5px solid #0a1b67;
+            border-right: 5px solid #0a1b67;
+            border-bottom: 5px solid #0a1b67;
         }
         .emergency-box {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
+            background: rgba(10, 27, 103, 0.08);
+            border-left: 4px solid #3866d2;
             padding: 20px;
             margin: 20px 0;
         }
@@ -67,7 +67,7 @@
             margin-top: 5px;
         }
         .urgent-notice {
-            background: #dc3545;
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             color: white;
             padding: 20px;
             text-align: center;
@@ -104,7 +104,7 @@
                 <strong>📅 Data/Hora:</strong> {{ $alertData['timestamp'] }}
             </div>
 
-            <h3 style="color: #dc3545;">Informações do Alerta:</h3>
+            <h3 style="color: #0a1b67;">Informações do Alerta:</h3>
             
             <div class="info-grid">
                 <div class="info-item">
@@ -151,13 +151,13 @@
                 <p style="color: #666; margin-bottom: 10px;">Responda rapidamente:</p>
                 <div style="display: inline-block;">
                     <a href="tel:{{ $alertData['user_phone'] }}" 
-                       style="background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold;">
+                       style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold;">
                         📞 Ligar para {{ $alertData['user_name'] }}
                     </a>
                 </div>
                 <div style="display: inline-block;">
                     <a href="{{ config('app.url') }}/dashboard" 
-                       style="background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold;">
+                       style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 5px; font-weight: bold;">
                         🖥️ Acessar o Sistema
                     </a>
                 </div>

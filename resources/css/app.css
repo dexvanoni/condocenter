@@ -4,12 +4,15 @@
 
 /* Custom Styles */
 :root {
-    --primary-color: #3490dc;
-    --secondary-color: #6c757d;
-    --success-color: #38c172;
-    --danger-color: #e3342f;
-    --warning-color: #ffed4e;
-    --info-color: #6cb2eb;
+    --brand-dark: #0a1b67;
+    --brand-light: #3866d2;
+    --primary-color: var(--brand-light);
+    --secondary-color: var(--brand-dark);
+    --success-color: rgba(56, 102, 210, 0.85);
+    --danger-color: rgba(10, 27, 103, 0.85);
+    --warning-color: rgba(56, 102, 210, 0.65);
+    --info-color: rgba(10, 27, 103, 0.65);
+    --brand-gradient: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand-light) 100%);
 }
 
 body {
@@ -19,7 +22,7 @@ body {
 
 .sidebar {
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-gradient);
     color: white;
 }
 
@@ -32,6 +35,61 @@ body {
 .sidebar .nav-link.active {
     color: white;
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+.text-brand {
+    color: var(--brand-light) !important;
+}
+
+.text-brand-dark {
+    color: var(--brand-dark) !important;
+}
+
+.bg-brand {
+    background: var(--brand-light) !important;
+    color: #fff !important;
+}
+
+.bg-brand-gradient {
+    background: var(--brand-gradient) !important;
+    color: #fff !important;
+}
+
+.bg-brand-soft {
+    background: rgba(56, 102, 210, 0.12) !important;
+    color: var(--brand-light) !important;
+}
+
+.border-brand {
+    border-color: var(--brand-light) !important;
+}
+
+.badge-brand {
+    background: rgba(56, 102, 210, 0.15) !important;
+    color: var(--brand-dark) !important;
+}
+
+.btn-primary {
+    background: var(--brand-gradient);
+    border: none;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: var(--brand-gradient);
+    filter: brightness(1.05);
+}
+
+.btn-outline-primary {
+    color: var(--brand-light);
+    border-color: var(--brand-light);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    background: var(--brand-gradient);
+    border-color: var(--brand-light);
+    color: white;
 }
 
 .card {

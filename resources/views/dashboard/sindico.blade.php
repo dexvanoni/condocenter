@@ -116,7 +116,7 @@
             <div class="dashboard-card hover-lift stagger-1">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-warning bg-opacity-10 text-warning" style="width: 56px; height: 56px;">
+                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
                             <i class="bi bi-clock-history fs-3"></i>
                         </div>
                     </div>
@@ -131,12 +131,12 @@
             <div class="dashboard-card hover-lift stagger-2">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-danger bg-opacity-10 text-danger" style="width: 56px; height: 56px;">
+                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
                             <i class="bi bi-exclamation-triangle fs-3"></i>
                         </div>
                     </div>
                     <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;">Em Atraso</h6>
-                    <h3 class="mb-1 fw-bold text-danger">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</h3>
+                    <h3 class="mb-1 fw-bold text-brand-dark">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</h3>
                     <small class="text-muted">{{ $inadimplentes }} {{ Str::plural('unidade', $inadimplentes) }}</small>
                 </div>
             </div>
@@ -147,7 +147,7 @@
             <div class="dashboard-card hover-lift stagger-3">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-success bg-opacity-10 text-success" style="width: 56px; height: 56px;">
+                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
                             <i class="bi bi-box-seam fs-3"></i>
                         </div>
                     </div>
@@ -163,7 +163,7 @@
             <div class="dashboard-card hover-lift stagger-4">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-info bg-opacity-10 text-info" style="width: 56px; height: 56px;">
+                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
                             <i class="bi bi-calendar-check fs-3"></i>
                         </div>
                     </div>
@@ -183,7 +183,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="section-title mb-0">
-                            <i class="bi bi-bar-chart-line text-primary"></i> Evolução Financeira (6 meses)
+                            <i class="bi bi-bar-chart-line text-brand"></i> Evolução Financeira (6 meses)
                         </h5>
                         <div class="chart-legend">
                             <div class="chart-legend-item">
@@ -206,12 +206,12 @@
             <div class="dashboard-card">
                 <div class="card-body">
                     <h5 class="section-title mb-4">
-                        <i class="bi bi-lightning-charge text-warning"></i> Ações Rápidas
+                        <i class="bi bi-lightning-charge text-brand"></i> Ações Rápidas
                     </h5>
                     <div class="d-grid gap-3">
                         @can('view_transactions')
                         <a href="{{ route('transactions.index') }}" class="widget-quick-action">
-                            <div class="widget-icon bg-success bg-opacity-10 text-success">
+                            <div class="widget-icon bg-brand-soft">
                                 <i class="bi bi-cash-stack"></i>
                             </div>
                             <h6 class="mt-2 mb-0">Transações</h6>
@@ -221,7 +221,7 @@
 
                         @can('manage_reservations')
                         <a href="{{ route('reservations.manage') }}" class="widget-quick-action">
-                            <div class="widget-icon bg-warning bg-opacity-10 text-warning">
+                            <div class="widget-icon bg-brand-soft">
                                 <i class="bi bi-calendar-event"></i>
                             </div>
                             <h6 class="mt-2 mb-0">Gerenciar Reservas</h6>
@@ -231,7 +231,7 @@
 
                         @can('view_users')
                         <a href="{{ route('users.index') }}" class="widget-quick-action">
-                            <div class="widget-icon bg-info bg-opacity-10 text-info">
+                            <div class="widget-icon bg-brand-soft">
                                 <i class="bi bi-people"></i>
                             </div>
                             <h6 class="mt-2 mb-0">Moradores</h6>
@@ -252,7 +252,7 @@
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="section-title mb-0">
-                            <i class="bi bi-receipt text-primary"></i> Últimas Transações
+                            <i class="bi bi-receipt text-brand"></i> Últimas Transações
                         </h5>
                         <a href="{{ route('transactions.index') }}" class="btn btn-sm btn-outline-primary">
                             Ver Todas <i class="bi bi-arrow-right"></i>
@@ -287,7 +287,7 @@
                                         <span class="text-muted">{{ $transacao->category }}</span>
                                     </td>
                                     <td class="text-end">
-                                        <strong class="{{ $transacao->type === 'income' ? 'text-success' : 'text-danger' }}">
+                                        <strong class="{{ $transacao->type === 'income' ? 'text-brand' : 'text-brand-dark' }}">
                                             {{ $transacao->type === 'income' ? '+' : '-' }}
                                             R$ {{ number_format($transacao->amount, 2, ',', '.') }}
                                         </strong>
@@ -313,7 +313,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-calendar-event text-primary"></i> Próximas Reservas
+                        <i class="bi bi-calendar-event text-brand"></i> Próximas Reservas
                     </h5>
                 </div>
                 <div class="card-body">
@@ -321,7 +321,7 @@
                     <div class="list-item-hover border-bottom pb-3 mb-3">
                         <div class="d-flex">
                             <div class="me-3">
-                                <div class="text-center p-2 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-width: 60px;">
+                                <div class="text-center p-2 rounded" style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%); color: white; min-width: 60px;">
                                     <div class="fw-bold fs-4">{{ $reserva->reservation_date->format('d') }}</div>
                                     <small>{{ $reserva->reservation_date->format('M') }}</small>
                                 </div>

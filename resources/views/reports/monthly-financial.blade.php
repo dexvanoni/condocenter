@@ -12,18 +12,18 @@
         .header {
             text-align: center;
             margin-bottom: 30px;
-            border-bottom: 2px solid #667eea;
+            border-bottom: 2px solid #3866d2;
             padding-bottom: 15px;
         }
         .header h1 {
-            color: #667eea;
+            color: #3866d2;
             margin: 0;
         }
         .info-box {
             background: #f5f5f5;
             padding: 15px;
             margin-bottom: 20px;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid #3866d2;
         }
         table {
             width: 100%;
@@ -31,7 +31,7 @@
             margin-bottom: 20px;
         }
         table th {
-            background: #667eea;
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             color: white;
             padding: 10px;
             text-align: left;

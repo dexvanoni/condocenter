@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="mb-1">
-                <i class="bi bi-speedometer2 text-primary"></i> 
+                <i class="bi bi-speedometer2 text-brand"></i> 
                 Dashboard
             </h1>
             <p class="text-muted mb-0">
@@ -30,7 +30,7 @@
                 <h6 class="alert-heading mb-1">Perfil Ativo</h6>
                 <p class="mb-0">
                     @foreach(Auth::user()->roles as $role)
-                        <span class="badge bg-primary me-1">{{ $role->name }}</span>
+                        <span class="badge badge-brand me-1">{{ $role->name }}</span>
                     @endforeach
                 </p>
             </div>
@@ -41,11 +41,11 @@
         <!-- Notificações -->
         <div class="col-lg-6 mb-4">
             <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-brand-gradient text-white">
                     <h5 class="mb-0">
                         <i class="bi bi-bell"></i> Notificações
                         @if($notificacoes->count() > 0)
-                            <span class="badge bg-light text-primary ms-2">{{ $notificacoes->count() }}</span>
+                            <span class="badge badge-brand ms-2">{{ $notificacoes->count() }}</span>
                         @endif
                     </h5>
                 </div>
@@ -53,7 +53,7 @@
                     @if($notificacoes->count() > 0)
                         @foreach($notificacoes as $notificacao)
                         <div class="d-flex align-items-start mb-3 p-2 rounded" style="background: #e3f2fd;">
-                            <i class="bi bi-bell-fill text-primary me-3 mt-1"></i>
+                            <i class="bi bi-bell-fill text-brand me-3 mt-1"></i>
                             <div class="flex-grow-1">
                                 <h6 class="mb-1">{{ $notificacao->title ?? 'Notificação' }}</h6>
                                 <p class="mb-1 small">{{ $notificacao->message ?? $notificacao->description }}</p>
@@ -74,7 +74,7 @@
         <!-- Informações do Usuário -->
         <div class="col-lg-6 mb-4">
             <div class="card h-100 border-0 shadow-sm">
-                <div class="card-header bg-success text-white">
+                <div class="card-header bg-brand-gradient text-white">
                     <h5 class="mb-0">
                         <i class="bi bi-person-circle"></i> Suas Informações
                     </h5>
@@ -122,7 +122,7 @@
                         <div class="col-6">
                             <small class="text-muted d-block">Status</small>
                             @if(Auth::user()->is_active)
-                                <span class="badge bg-success">Ativo</span>
+                                <span class="badge badge-brand">Ativo</span>
                             @else
                                 <span class="badge bg-secondary">Inativo</span>
                             @endif
@@ -136,7 +136,7 @@
     <!-- Leitor de QR Code de Pets -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);">
                 <div class="card-body text-center py-4">
                     <h4 class="text-white mb-3">
                         <i class="bi bi-qr-code-scan"></i> Encontrou um Pet Perdido?
@@ -165,7 +165,7 @@
                         <div class="col-md-3">
                             <a href="{{ route('spaces.index') }}" class="text-decoration-none">
                                 <div class="text-center p-3 border rounded h-100 hover-shadow">
-                                    <i class="bi bi-building text-info fs-2 mb-2 d-block"></i>
+                                    <i class="bi bi-building text-brand fs-2 mb-2 d-block"></i>
                                     <h6>Espaços</h6>
                                     <small class="text-muted">Áreas comuns</small>
                                 </div>
@@ -177,7 +177,7 @@
                         <div class="col-md-3">
                             <a href="{{ route('marketplace.index') }}" class="text-decoration-none">
                                 <div class="text-center p-3 border rounded h-100 hover-shadow">
-                                    <i class="bi bi-shop text-success fs-2 mb-2 d-block"></i>
+                                    <i class="bi bi-shop text-brand fs-2 mb-2 d-block"></i>
                                     <h6>Marketplace</h6>
                                     <small class="text-muted">Compras e vendas</small>
                                 </div>
@@ -189,7 +189,7 @@
                         <div class="col-md-3">
                             <a href="{{ route('pets.index') }}" class="text-decoration-none">
                                 <div class="text-center p-3 border rounded h-100 hover-shadow">
-                                    <i class="bi bi-heart text-danger fs-2 mb-2 d-block"></i>
+                                    <i class="bi bi-heart text-brand fs-2 mb-2 d-block"></i>
                                     <h6>Pets</h6>
                                     <small class="text-muted">Animais de estimação</small>
                                 </div>
@@ -201,7 +201,7 @@
                         <div class="col-md-3">
                             <a href="{{ route('assemblies.index') }}" class="text-decoration-none">
                                 <div class="text-center p-3 border rounded h-100 hover-shadow">
-                                    <i class="bi bi-people text-warning fs-2 mb-2 d-block"></i>
+                                    <i class="bi bi-people text-brand fs-2 mb-2 d-block"></i>
                                     <h6>Assembleias</h6>
                                     <small class="text-muted">Reuniões e votações</small>
                                 </div>
@@ -213,7 +213,7 @@
                         <div class="col-md-3">
                             <a href="{{ route('notifications.index') }}" class="text-decoration-none">
                                 <div class="text-center p-3 border rounded h-100 hover-shadow">
-                                    <i class="bi bi-bell text-primary fs-2 mb-2 d-block"></i>
+                                    <i class="bi bi-bell text-brand fs-2 mb-2 d-block"></i>
                                     <h6>Notificações</h6>
                                     <small class="text-muted">Avisos e comunicados</small>
                                 </div>

@@ -12,7 +12,7 @@
     
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -38,7 +38,7 @@
         .pet-name {
             font-size: 2rem;
             font-weight: bold;
-            color: #667eea;
+            color: #3866d2;
             margin-bottom: 10px;
         }
         .info-row {
@@ -58,7 +58,7 @@
             margin-top: 20px;
         }
         .whatsapp-btn {
-            background: #25D366;
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
             color: white;
             padding: 15px 30px;
             border-radius: 50px;

@@ -112,7 +112,7 @@
     <div class="row g-3 mb-4">
         <div class="col-md-4">
             <a href="#" class="widget-quick-action" data-bs-toggle="modal" data-bs-target="#registrarEntradaModal">
-                <div class="widget-icon bg-primary bg-opacity-10 text-primary">
+                <div class="widget-icon bg-brand-soft">
                     <i class="bi bi-door-open"></i>
                 </div>
                 <h6 class="mt-3 mb-1">Registrar Entrada</h6>
@@ -121,7 +121,7 @@
         </div>
         <div class="col-md-4">
             <a href="#" class="widget-quick-action" data-bs-toggle="modal" data-bs-target="#registrarEncomendaModal">
-                <div class="widget-icon bg-success bg-opacity-10 text-success">
+                <div class="widget-icon bg-brand-soft">
                     <i class="bi bi-box-seam"></i>
                 </div>
                 <h6 class="mt-3 mb-1">Registrar Encomenda</h6>
@@ -130,7 +130,7 @@
         </div>
         <div class="col-md-4">
             <a href="#" class="widget-quick-action" data-bs-toggle="modal" data-bs-target="#scanQRCodeModal">
-                <div class="widget-icon bg-info bg-opacity-10 text-info">
+                <div class="widget-icon bg-brand-soft">
                     <i class="bi bi-qr-code-scan"></i>
                 </div>
                 <h6 class="mt-3 mb-1">Escanear QR Code</h6>
@@ -147,7 +147,7 @@
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="section-title mb-0">
-                            <i class="bi bi-list-ul text-primary"></i> Entradas de Hoje ({{ $totalEntradasHoje }})
+                            <i class="bi bi-list-ul text-brand"></i> Entradas de Hoje ({{ $totalEntradasHoje }})
                         </h5>
                         <div class="d-flex gap-2">
                             <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
@@ -233,7 +233,7 @@
             <div class="dashboard-card mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-box-seam text-success"></i> Encomendas de Hoje
+                        <i class="bi bi-box-seam text-brand"></i> Encomendas de Hoje
                     </h5>
                 </div>
                 <div class="card-body">
@@ -274,7 +274,7 @@
             <div class="dashboard-card">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-clock-history text-info"></i> Última Atividade
+                        <i class="bi bi-clock-history text-brand"></i> Última Atividade
                     </h5>
                 </div>
                 <div class="card-body">
@@ -310,7 +310,7 @@
 <div class="modal fade" id="registrarEntradaModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header bg-brand-gradient text-white">
                 <h5 class="modal-title">
                     <i class="bi bi-door-open"></i> Registrar Entrada
                 </h5>
@@ -367,7 +367,7 @@
 <div class="modal fade" id="registrarEncomendaModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-success text-white">
+            <div class="modal-header bg-brand-gradient text-white">
                 <h5 class="modal-title">
                     <i class="bi bi-box-seam"></i> Registrar Encomenda
                 </h5>
@@ -412,14 +412,14 @@
 <div class="modal fade" id="scanQRCodeModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header bg-info text-white">
+            <div class="modal-header bg-brand-gradient text-white">
                 <h5 class="modal-title">
                     <i class="bi bi-qr-code-scan"></i> Escanear QR Code
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center py-5">
-                <i class="bi bi-qr-code-scan display-1 text-info mb-3"></i>
+                <i class="bi bi-qr-code-scan display-1 text-brand mb-3"></i>
                 <p class="text-muted">Funcionalidade de escaneamento de QR Code em desenvolvimento</p>
             </div>
             <div class="modal-footer">

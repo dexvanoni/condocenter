@@ -5,10 +5,10 @@
 @push('styles')
 <style>
     :root {
-        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        --success-gradient: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
-        --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-        --info-gradient: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+        --primary-gradient: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+        --success-gradient: linear-gradient(135deg, rgba(10, 27, 103, 0.9) 0%, rgba(56, 102, 210, 0.9) 100%);
+        --warning-gradient: linear-gradient(135deg, rgba(10, 27, 103, 0.75) 0%, rgba(56, 102, 210, 0.75) 100%);
+        --info-gradient: linear-gradient(135deg, rgba(56, 102, 210, 0.7) 0%, rgba(10, 27, 103, 0.7) 100%);
     }
 
     .user-profile-header {
@@ -16,7 +16,7 @@
         border-radius: 20px;
         padding: 2rem;
         margin-bottom: 2rem;
-        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 10px 40px rgba(10, 27, 103, 0.3);
         position: relative;
         overflow: hidden;
     }
@@ -139,9 +139,9 @@
     }
 
     .stat-card:hover {
-        border-color: #667eea;
+        border-color: var(--brand-light);
         transform: scale(1.05);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        box-shadow: 0 8px 25px rgba(10, 27, 103, 0.2);
     }
 
     .stat-icon {
@@ -205,13 +205,13 @@
     }
 
     .permission-item.crud {
-        border-left-color: #10b981;
-        background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, white 100%);
+        border-left-color: var(--brand-light);
+        background: linear-gradient(90deg, rgba(10, 27, 103, 0.08) 0%, white 100%);
     }
 
     .permission-item.view {
-        border-left-color: #3b82f6;
-        background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, white 100%);
+        border-left-color: var(--brand-dark);
+        background: linear-gradient(90deg, rgba(56, 102, 210, 0.08) 0%, white 100%);
     }
 
     .permission-item:hover {
@@ -220,12 +220,12 @@
     }
 
     .alert-special-care {
-        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
         border: none;
         border-radius: 12px;
         color: white;
         padding: 1.5rem;
-        box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+        box-shadow: 0 4px 15px rgba(10, 27, 103, 0.25);
     }
 
     .btn-action {
@@ -265,9 +265,9 @@
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: #667eea;
+        background: var(--brand-light);
         border: 2px solid white;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 2px 8px rgba(10, 27, 103, 0.4);
     }
 
     .linked-user-badge {
@@ -286,10 +286,10 @@
     }
 
     .linked-user-badge:hover {
-        border-color: #667eea;
+        border-color: var(--brand-light);
         transform: scale(1.05);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-        color: #667eea;
+        box-shadow: 0 4px 12px rgba(10, 27, 103, 0.2);
+        color: var(--brand-light);
     }
 </style>
 @endpush
@@ -534,7 +534,7 @@
                 <div class="row g-3">
                     <div class="col-6 col-md-3">
                         <div class="stat-card">
-                            <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="stat-icon" style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);">
                                 <i class="bi bi-calendar-check text-white"></i>
                             </div>
                             <div class="stat-value">{{ $user->reservations->count() }}</div>
@@ -601,7 +601,7 @@
         <!-- Permissões Especiais (Agregados) -->
         @if($user->isAgregado())
         <div class="premium-card">
-            <div class="premium-card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="premium-card-header" style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);">
                 <h5 class="text-white"><i class="bi bi-gear-fill"></i> Permissões Especiais</h5>
             </div>
             <div class="card-body p-4">

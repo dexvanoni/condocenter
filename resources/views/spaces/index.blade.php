@@ -7,7 +7,7 @@
     .space-image-container {
         height: 200px;
         overflow: hidden;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
         position: relative;
     }
     
@@ -27,6 +27,11 @@
         bottom: 0;
         background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
         pointer-events: none;
+    }
+
+    .spaces-hero {
+        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+        color: white;
     }
 </style>
 @endpush
