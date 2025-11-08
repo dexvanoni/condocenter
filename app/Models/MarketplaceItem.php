@@ -12,7 +12,7 @@ class MarketplaceItem extends Model
 
     protected $fillable = [
         'condominium_id', 'seller_id', 'unit_id', 'title', 'description',
-        'price', 'category', 'condition', 'images', 'status', 'views',
+        'price', 'category', 'condition', 'whatsapp', 'images', 'status', 'views',
     ];
 
     protected $casts = [

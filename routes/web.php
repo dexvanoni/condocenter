@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MarketplaceAdminController;
 use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -87,6 +88,15 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             Route::get('/reservations/spaces/list', [\App\Http\Controllers\AdminReservationController::class, 'getSpaces'])->name('reservations.spaces');
         });
     });
+    
+    Route::prefix('marketplace/admin')
+        ->name('marketplace.admin.')
+        ->group(function () {
+            Route::get('/', [MarketplaceAdminController::class, 'index'])->name('index');
+            Route::post('/settings/toggle-aggregados', [MarketplaceAdminController::class, 'toggleAggregados'])->name('settings.toggle');
+            Route::put('/{item}', [MarketplaceAdminController::class, 'update'])->name('update');
+            Route::delete('/{item}', [MarketplaceAdminController::class, 'destroy'])->name('destroy');
+        });
     
     // Marketplace
     Route::middleware(['check.module.access:marketplace'])->group(function () {

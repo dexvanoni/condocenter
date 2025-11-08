@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\SidebarHelper;
 use App\Http\Controllers\Controller;
 use App\Models\MarketplaceItem;
 use Illuminate\Http\Request;
@@ -61,6 +62,7 @@ class MarketplaceController extends Controller
             'price' => 'required|numeric|min:0',
             'category' => 'required|in:products,services,jobs,real_estate,vehicles,other',
             'condition' => 'required|in:new,used,refurbished,not_applicable',
+            'whatsapp' => ['required', 'string', 'regex:/^\d{10,11}$/'],
             'images' => 'nullable|array|max:3',
             'images.*' => 'image|mimes:jpeg,jpg,png|max:2048',
         ]);
@@ -71,6 +73,10 @@ class MarketplaceController extends Controller
 
         $user = Auth::user();
 
+        if (!SidebarHelper::canCreateMarketplace($user)) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
         // Upload de imagens
         $imagesPaths = [];
         if ($request->hasFile('images')) {
@@ -79,6 +85,8 @@ class MarketplaceController extends Controller
                 $imagesPaths[] = $path;
             }
         }
+
+        $sanitizedWhatsapp = preg_replace('/\D/', '', $request->whatsapp ?? '');
 
         $item = MarketplaceItem::create([
             'condominium_id' => $user->condominium_id,
@@ -89,6 +97,7 @@ class MarketplaceController extends Controller
             'price' => $request->price,
             'category' => $request->category,
             'condition' => $request->condition,
+            'whatsapp' => $sanitizedWhatsapp,
             'images' => $imagesPaths,
             'status' => 'active',
         ]);
@@ -137,6 +146,7 @@ class MarketplaceController extends Controller
             'title' => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
             'price' => 'sometimes|numeric|min:0',
+            'whatsapp' => ['sometimes', 'string', 'regex:/^\d{10,11}$/'],
             'status' => 'sometimes|in:active,sold,inactive',
         ]);
 
@@ -144,7 +154,17 @@ class MarketplaceController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $item->update($request->all());
+        $sanitizedWhatsapp = $request->has('whatsapp')
+            ? preg_replace('/\D/', '', $request->input('whatsapp'))
+            : null;
+
+        $payload = $request->all();
+
+        if ($sanitizedWhatsapp !== null) {
+            $payload['whatsapp'] = $sanitizedWhatsapp;
+        }
+
+        $item->update($payload);
 
         return response()->json([
             'message' => 'Anúncio atualizado com sucesso',

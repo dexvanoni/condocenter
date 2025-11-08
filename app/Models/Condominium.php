@@ -24,10 +24,12 @@ class Condominium extends Model implements Auditable
         'email',
         'description',
         'is_active',
+        'marketplace_allow_agregados',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'marketplace_allow_agregados' => 'boolean',
     ];
 
     // Relacionamentos

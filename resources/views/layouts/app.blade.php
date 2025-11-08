@@ -386,17 +386,27 @@
                         <i class="bi bi-shop"></i> Marketplace
                     </small>
                 </li>
+                
+                @if(SidebarHelper::canCreateMarketplace($user))
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') === 'novo' ? 'active' : '' }}"
+                       href="{{ route('marketplace.index', ['acao' => 'novo']) }}">
+                        <i class="bi bi-plus-circle"></i> Criar Novo Anúncio
+                    </a>
+                </li>
+                @endif
 
                 <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('marketplace.index') ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
+                    <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') !== 'novo' ? 'active' : '' }}"
+                       href="{{ route('marketplace.index') }}">
                         <i class="bi bi-bag"></i> Ver Anúncios
                     </a>
                 </li>
 
-                @if(Route::has('marketplace.my-ads') && SidebarHelper::canCreateMarketplace($user))
+                @if(Route::has('marketplace.admin.index') && ($user->can('manage_marketplace') || $user->can('manage_marketplace_items') || $user->hasAnyRole(['Administrador','Síndico'])))
                 <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('marketplace.create') || request()->routeIs('marketplace.my-ads') ? 'active' : '' }}" href="{{ route('marketplace.my-ads') }}">
-                        <i class="bi bi-plus-circle"></i> Meus Anúncios
+                    <a class="nav-link {{ request()->routeIs('marketplace.admin.*') ? 'active' : '' }}" href="{{ route('marketplace.admin.index') }}">
+                        <i class="bi bi-shield-check"></i> Moderação
                     </a>
                 </li>
                 @endif

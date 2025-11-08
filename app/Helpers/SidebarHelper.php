@@ -37,9 +37,16 @@ class SidebarHelper
     {
         // Se não for agregado, verificar permissões administrativas normais
         if (!$user->isAgregado()) {
+            if ($module === 'marketplace') {
+                return $user->can('manage_marketplace')
+                    || $user->can('manage_marketplace_items')
+                    || $user->can('create_marketplace')
+                    || $user->can('create_marketplace_items')
+                    || $user->hasAnyRole(['Administrador', 'Síndico']);
+            }
+
             return match($module) {
                 'spaces' => $user->can('manage_spaces'),
-                'marketplace' => $user->can('manage_marketplace'),
                 'pets' => $user->can('manage_pets'),
                 'packages' => $user->can('register_packages'),
                 'messages' => $user->can('send_messages'),
@@ -48,6 +55,14 @@ class SidebarHelper
         }
 
         // Para agregados, verificar nível de permissão
+        if ($module === 'marketplace') {
+            $condominium = $user->condominium;
+
+            if (!$condominium || !$condominium->marketplace_allow_agregados) {
+                return false;
+            }
+        }
+
         return AgregadoPermission::hasPermission($user->id, $module, 'crud');
     }
 
@@ -126,7 +141,11 @@ class SidebarHelper
             return self::canCrudModule($user, 'marketplace');
         }
 
-        return $user->can('create_marketplace') || $user->can('manage_marketplace');
+        return $user->can('create_marketplace')
+            || $user->can('create_marketplace_items')
+            || $user->can('manage_marketplace')
+            || $user->can('manage_marketplace_items')
+            || $user->hasAnyRole(['Administrador', 'Síndico']);
     }
 
     /**
