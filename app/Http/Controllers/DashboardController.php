@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Assembly;
 use App\Models\Charge;
 use App\Models\Transaction;
 use App\Models\Reservation;
@@ -255,6 +256,39 @@ class DashboardController extends Controller
             ->whereMonth('received_at', now()->month)
             ->count();
 
+        // Assembleias aguardando voto do usuário
+        $assembliesPendentes = Assembly::with(['items', 'allowedRoles'])
+            ->withCount([
+                'items as pending_items_count' => function ($query) use ($user) {
+                    $query->whereDoesntHave('votes', function ($voteQuery) use ($user) {
+                        $voteQuery->where('voter_id', $user->id);
+                    });
+                },
+            ])
+            ->withCount('items')
+            ->where('condominium_id', $user->condominium_id)
+            ->whereIn('status', ['scheduled', 'in_progress'])
+            ->get()
+            ->filter(function (Assembly $assembly) use ($user) {
+                return $assembly->isVotingOpen()
+                    && $assembly->canUserVote($user)
+                    && ($assembly->pending_items_count ?? 0) > 0;
+            })
+            ->map(function (Assembly $assembly) {
+                $assembly->append('display_status');
+                return [
+                    'id' => $assembly->id,
+                    'title' => $assembly->title,
+                    'status' => $assembly->display_status ?? $assembly->status,
+                    'urgency' => $assembly->urgency,
+                    'scheduled_at' => $assembly->scheduled_at,
+                    'voting_closes_at' => $assembly->voting_closes_at,
+                    'pending_items' => $assembly->pending_items_count ?? 0,
+                    'total_items' => $assembly->items_count ?? $assembly->items->count(),
+                ];
+            })
+            ->values();
+
         // Notificações não lidas
         $notificacoes = $user->notifications()
             ->where('is_read', false)
@@ -281,6 +315,7 @@ class DashboardController extends Controller
             'totalReservasAtivas',
             'encomendas',
             'encombendasMes',
+            'assembliesPendentes',
             'notificacoes',
             'totalNotificacoes',
             'possuiDividas',

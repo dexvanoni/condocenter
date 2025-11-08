@@ -157,8 +157,8 @@ class UserHistoryService
      */
     protected function getAssembliesHistory(User $user): Collection
     {
-        return $user->votes()
-            ->with('assembly')
+        return $user->assemblyVotes()
+            ->with(['assembly', 'item'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function($v) {
@@ -166,8 +166,9 @@ class UserHistoryService
                     'assembly_id' => $v->assembly->id ?? 'N/A',
                     'title' => $v->assembly->title ?? 'N/A',
                     'date' => $v->assembly && $v->assembly->scheduled_at ? $v->assembly->scheduled_at->format('d/m/Y') : 'N/A',
-                    'vote' => $v->vote ?? 'N/A',
-                    'voted_at' => $v->created_at->format('d/m/Y H:i'),
+                    'item' => $v->item->title ?? 'N/A',
+                    'vote' => $v->choice ?? 'N/A',
+                    'voted_at' => ($v->submitted_at ?? $v->created_at)->format('d/m/Y H:i'),
                 ];
             });
     }

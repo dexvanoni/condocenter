@@ -115,9 +115,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'update' => 'api.assemblies.update',
         'destroy' => 'api.assemblies.destroy',
     ]);
-    Route::post('assemblies/{assembly}/vote', [AssemblyController::class, 'vote'])->name('api.assemblies.vote');
+    Route::post('assemblies/{assembly}/items/{item}/vote', [AssemblyController::class, 'vote'])->name('api.assemblies.items.vote');
     Route::post('assemblies/{assembly}/start', [AssemblyController::class, 'start'])->name('api.assemblies.start');
     Route::post('assemblies/{assembly}/complete', [AssemblyController::class, 'complete'])->name('api.assemblies.complete');
+    Route::post('assemblies/{assembly}/cancel', [AssemblyController::class, 'cancel'])->name('api.assemblies.cancel');
+    Route::get('assemblies/{assembly}/minutes/export', [AssemblyController::class, 'exportMinutes'])->name('api.assemblies.minutes.export');
     
     // Mensagens
     Route::apiResource('messages', MessageController::class)->names([

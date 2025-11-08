@@ -124,9 +124,9 @@ class User extends Authenticatable implements Auditable
         return $this->hasMany(Assembly::class, 'created_by');
     }
 
-    public function votes()
+    public function assemblyVotes()
     {
-        return $this->hasMany(Vote::class);
+        return $this->hasMany(AssemblyVote::class, 'voter_id');
     }
 
     public function sentMessages()

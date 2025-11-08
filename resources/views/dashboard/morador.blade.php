@@ -47,6 +47,75 @@
     </div>
     @endif
 
+    @if($assembliesPendentes->isNotEmpty())
+    @php
+        $statusLabels = [
+            'scheduled' => 'Agendada',
+            'in_progress' => 'Em andamento',
+            'completed' => 'Concluída',
+            'cancelled' => 'Cancelada',
+        ];
+        $urgencyLabels = [
+            'low' => 'Baixa',
+            'normal' => 'Normal',
+            'high' => 'Alta',
+            'critical' => 'Crítica',
+        ];
+    @endphp
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="dashboard-card border-primary fade-in">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="bi bi-megaphone"></i> Assembleias aguardando seu voto
+                        </h5>
+                        <span class="text-white-50 small">Vote em todos os itens para remover este alerta</span>
+                    </div>
+                    <span class="badge bg-light text-primary">{{ $assembliesPendentes->count() }}</span>
+                </div>
+                <div class="card-body">
+                    @foreach($assembliesPendentes as $assembly)
+                    <div class="list-item-hover border-bottom pb-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <h6 class="mb-1">{{ $assembly['title'] }}</h6>
+                                <p class="mb-1 small text-muted">
+                                    <i class="bi bi-calendar-event"></i>
+                                    {{ optional($assembly['scheduled_at'])->format('d/m/Y H:i') ?? 'Sem data' }}
+                                    @if($assembly['voting_closes_at'])
+                                        <span class="ms-2">
+                                            <i class="bi bi-lock"></i>
+                                            encerra em {{ \Carbon\Carbon::parse($assembly['voting_closes_at'])->diffForHumans(null, true) }}
+                                        </span>
+                                    @endif
+                                </p>
+                                <span class="badge bg-warning text-dark">
+                                    {{ $assembly['pending_items'] }} de {{ $assembly['total_items'] }} itens pendentes
+                                </span>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge text-bg-primary mb-1">
+                                    {{ $statusLabels[$assembly['status']] ?? \Illuminate\Support\Str::title($assembly['status']) }}
+                                </span>
+                                <div class="small text-muted">
+                                    Urgência: {{ $urgencyLabels[$assembly['urgency']] ?? \Illuminate\Support\Str::title($assembly['urgency']) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endforeach
+                    <div class="text-end">
+                        <a href="{{ route('assemblies.index') }}" class="btn btn-sm btn-gradient-primary">
+                            <i class="bi bi-people"></i> Ir para Assembleias
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Cards de Status -->
     <div class="row g-4 mb-4">
         <!-- Total de Débitos -->
