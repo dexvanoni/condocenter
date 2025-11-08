@@ -57,8 +57,8 @@
         <!-- Receitas do Mês -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-success stagger-1">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Receitas do Mês</p>
                             <h2 class="stat-value">R$ {{ number_format($totalReceitas, 2, ',', '.') }}</h2>
@@ -80,8 +80,8 @@
         <!-- Despesas do Mês -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-danger stagger-2">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Despesas do Mês</p>
                             <h2 class="stat-value">R$ {{ number_format($totalDespesas, 2, ',', '.') }}</h2>
@@ -103,8 +103,8 @@
         <!-- Saldo do Mês -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-{{ $saldoMes >= 0 ? 'info' : 'warning' }} stagger-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Saldo do Mês</p>
                             <h2 class="stat-value">R$ {{ number_format(abs($saldoMes), 2, ',', '.') }}</h2>
@@ -123,8 +123,8 @@
         <!-- Inadimplência -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-{{ $inadimplentes > 0 ? 'warning' : 'success' }} stagger-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Inadimplência</p>
                             <h2 class="stat-value">R$ {{ number_format($valorEmAtraso, 2, ',', '.') }}</h2>

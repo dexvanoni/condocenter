@@ -31,7 +31,7 @@
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-{{ $saldo >= 0 ? 'success' : 'danger' }} stagger-1">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
                         <div class="stat-icon" style="width: 64px; height: 64px;">
                             <i class="bi bi-wallet2" style="font-size: 2rem;"></i>
                         </div>
@@ -52,7 +52,7 @@
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-success stagger-2">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
                         <div class="stat-icon" style="width: 64px; height: 64px;">
                             <i class="bi bi-arrow-up-circle" style="font-size: 2rem;"></i>
                         </div>
@@ -73,7 +73,7 @@
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-danger stagger-3">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
                         <div class="stat-icon" style="width: 64px; height: 64px;">
                             <i class="bi bi-arrow-down-circle" style="font-size: 2rem;"></i>
                         </div>
@@ -94,7 +94,7 @@
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-{{ $taxaAdimplencia >= 90 ? 'info' : 'warning' }} stagger-4">
                 <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
                         <div class="stat-icon" style="width: 64px; height: 64px;">
                             <i class="bi bi-graph-up-arrow" style="font-size: 2rem;"></i>
                         </div>

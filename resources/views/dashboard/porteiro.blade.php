@@ -30,8 +30,8 @@
         <!-- Total de Entradas Hoje -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-primary stagger-1">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Entradas Hoje</p>
                             <h2 class="stat-value">{{ $totalEntradasHoje }}</h2>
@@ -50,8 +50,8 @@
         <!-- Visitantes -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-info stagger-2">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Visitantes</p>
                             <h2 class="stat-value">{{ $visitantes }}</h2>
@@ -70,8 +70,8 @@
         <!-- Prestadores de Serviço -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-warning stagger-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Prestadores</p>
                             <h2 class="stat-value">{{ $prestadores }}</h2>
@@ -90,8 +90,8 @@
         <!-- Encomendas -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-success stagger-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Encomendas Hoje</p>
                             <h2 class="stat-value">{{ $totalEncombendasHoje }}</h2>

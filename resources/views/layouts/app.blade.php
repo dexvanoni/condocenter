@@ -127,12 +127,131 @@
                 font-size: 1rem;
             }
         }
+
+        .sidebar .nav-item-group {
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-link-toggle {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: inherit;
+            padding: 0.75rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .nav-link-toggle:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        .sidebar .nav-link-toggle {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .sidebar .nav-link-toggle:hover,
+        .sidebar .nav-link-toggle.active {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+        }
+
+        .mobile-sidebar .nav-link-toggle {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .mobile-sidebar .nav-link-toggle:hover,
+        .mobile-sidebar .nav-link-toggle.active {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+
+        .nav-link-toggle .toggle-icon {
+            margin-left: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .nav-link-toggle[aria-expanded="true"] .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .inner-nav {
+            margin-top: 0.25rem;
+        }
+
+        .inner-nav .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem 0.5rem 1.75rem;
+            font-size: 0.85rem;
+            border-radius: 0.375rem;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .sidebar .inner-nav .nav-link {
+            color: rgba(255,255,255,0.75) !important;
+        }
+
+        .sidebar .inner-nav .nav-link:hover,
+        .sidebar .inner-nav .nav-link.active {
+            background: rgba(255,255,255,0.18) !important;
+            color: #fff !important;
+        }
+
+        .mobile-sidebar .inner-nav .nav-link {
+            color: rgba(255,255,255,0.85) !important;
+        }
+
+        .mobile-sidebar .inner-nav .nav-link:hover,
+        .mobile-sidebar .inner-nav .nav-link.active {
+            background: rgba(255,255,255,0.2) !important;
+            color: #fff !important;
+        }
+
+        .inner-nav .badge {
+            margin-left: auto;
+        }
+
+        .nav-link.toggle-only {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     @php
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
+        $menuActive = [
+            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*'),
+            'financeiro' => request()->routeIs('transactions.*')
+                || request()->routeIs('charges.*')
+                || request()->routeIs('revenue.*')
+                || request()->routeIs('expenses.*')
+                || request()->routeIs('bank-reconciliation.*')
+                || request()->routeIs('financial-reports.*')
+                || request()->routeIs('accountability-reports.*')
+                || request()->routeIs('balance.*')
+                || request()->routeIs('my-finances'),
+            'espacos' => request()->routeIs('reservations.*')
+                || request()->routeIs('spaces.*')
+                || request()->routeIs('recurring-reservations.*')
+                || request()->routeIs('reservations.manage'),
+            'marketplace' => request()->routeIs('marketplace.*'),
+            'pets' => request()->routeIs('pets.*'),
+            'assemblies' => request()->routeIs('assemblies.*'),
+            'documents' => request()->routeIs('internal-regulations.*'),
+            'packages' => request()->routeIs('packages.*'),
+            'portaria' => request()->routeIs('entries.*'),
+            'comunicacao' => request()->routeIs('messages.*') || request()->routeIs('notifications.*'),
+        ];
     @endphp
 
     <div class="d-flex">
@@ -202,365 +321,348 @@
 
             <hr class="bg-white opacity-25">
 
-            <ul class="nav flex-column">
-                <!-- Dashboard -->
+            <ul class="nav flex-column" id="sidebarMenu">
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                         <i class="bi bi-speedometer2"></i> Dashboard
                     </a>
                 </li>
 
-                <!-- ==================== GESTÃO (APENAS ADMIN/SÍNDICO) ==================== -->
                 @if(SidebarHelper::isAdminOrSindico($user))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-gear"></i> Gestão
-                    </small>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['gestao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuGestao" aria-expanded="{{ $menuActive['gestao'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-gear me-2"></i>Gestão</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['gestao'] ? 'show' : '' }}" id="menuGestao" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            @can('view_units')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('units.*') ? 'active' : '' }}" href="{{ route('units.index') }}">
+                                    <i class="bi bi-houses"></i> Unidades
+                                </a>
+                            </li>
+                            @endcan
+                            @can('view_users')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
+                                    <i class="bi bi-people-fill"></i> Usuários
+                                </a>
+                            </li>
+                            @endcan
+                        </ul>
+                    </div>
                 </li>
-
-                @can('view_units')
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('units.*') ? 'active' : '' }}" href="{{ route('units.index') }}">
-                        <i class="bi bi-houses"></i> Unidades
-                    </a>
-                </li>
-                @endcan
-
-                @can('view_users')
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
-                        <i class="bi bi-people-fill"></i> Usuários
-                    </a>
-                </li>
-                @endcan
                 @endif
 
-                <!-- ==================== FINANCEIRO ==================== -->
                 @if($user->can('view_transactions') || $user->can('view_charges') || $user->can('view_own_financial') || $user->can('view_financial_reports'))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-cash-coin"></i> Financeiro
-                    </small>
-                </li>
-
-                {{-- Transações --}}
-                @if(Route::has('transactions.index') && $user->can('view_transactions'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
-                        <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
-                    </a>
-                </li>
-                @endif
-
-                {{-- Cobranças --}}
-                @if(Route::has('charges.index') && $user->can('view_charges'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
-                        <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
-                    </a>
-                </li>
-                @endif
-                
-                {{-- Receitas e Despesas --}}
-                @if(Route::has('revenue.index') && $user->can('view_revenue'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
-                        <i class="bi bi-graph-up-arrow"></i> Receitas
-                    </a>
-                </li>
-                @endif
-
-                @if(Route::has('expenses.index') && $user->can('view_expenses'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
-                        <i class="bi bi-graph-down-arrow"></i> Despesas
-                    </a>
-                </li>
-                @endif
-
-                {{-- Conciliação Bancária --}}
-                @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
-                        <i class="bi bi-bank"></i> Conciliação Bancária
-                    </a>
-                </li>
-                @endif
-
-                {{-- Relatórios Financeiros --}}
-                @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
-                        <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
-                    </a>
-                </li>
-                @endif
-
-                {{-- Prestação de Contas --}}
-                @if(Route::has('accountability-reports.index') && $user->can('view_accountability_reports'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
-                        <i class="bi bi-file-earmark-text"></i> Prestação de Contas
-                    </a>
-                </li>
-                @endif
-
-                {{-- Saldo/Balanço --}}
-                @if(Route::has('balance.index') && $user->can('view_balance'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
-                        <i class="bi bi-pie-chart"></i> Balanço Patrimonial
-                    </a>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['financeiro'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuFinanceiro" aria-expanded="{{ $menuActive['financeiro'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-cash-coin me-2"></i>Financeiro</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="menuFinanceiro" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            @if(Route::has('transactions.index') && $user->can('view_transactions'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
+                                    <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('charges.index') && $user->can('view_charges'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
+                                    <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('revenue.index') && $user->can('view_revenue'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
+                                    <i class="bi bi-graph-up-arrow"></i> Receitas
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('expenses.index') && $user->can('view_expenses'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
+                                    <i class="bi bi-graph-down-arrow"></i> Despesas
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
+                                    <i class="bi bi-bank"></i> Conciliação Bancária
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
+                                    <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('accountability-reports.index') && $user->can('view_accountability_reports'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
+                                    <i class="bi bi-file-earmark-text"></i> Prestação de Contas
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('balance.index') && $user->can('view_balance'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
+                                    <i class="bi bi-pie-chart"></i> Balanço Patrimonial
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('my-finances') && $user->can('view_own_financial') && !$user->can('view_charges'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
+                                    <i class="bi bi-wallet2"></i> Minhas Finanças
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
                 </li>
                 @endif
 
-                {{-- Separador para Admin/Síndico --}}
-                @if(SidebarHelper::isAdminOrSindico($user))
-                <li class="nav-item">
-                    <hr class="bg-white opacity-10 my-2">
-                </li>
-                @endif
-
-                {{-- Minhas Finanças (apenas se não tiver acesso total) --}}
-                @if(Route::has('my-finances') && $user->can('view_own_financial') && !$user->can('view_charges'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
-                        <i class="bi bi-wallet2"></i> Minhas Finanças
-                    </a>
-                </li>
-                @endif
-                @endif
-
-                <!-- ==================== ESPAÇOS E RESERVAS ==================== -->
                 @if(SidebarHelper::canViewReservations($user) || SidebarHelper::canManageSpaces($user))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-calendar-event"></i> Espaços
-                    </small>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['espacos'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuEspacos" aria-expanded="{{ $menuActive['espacos'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-calendar-event me-2"></i>Espaços</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['espacos'] ? 'show' : '' }}" id="menuEspacos" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            @if(Route::has('reservations.index') && SidebarHelper::canViewReservations($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
+                                    <i class="bi bi-calendar-check"></i> Minhas Reservas
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('spaces.index') && SidebarHelper::canManageSpaces($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('spaces.*') ? 'active' : '' }}" href="{{ route('spaces.index') }}">
+                                    <i class="bi bi-building"></i> Gerenciar Espaços
+                                </a>
+                            </li>
+                            @endif
+                            @if(SidebarHelper::canApproveReservations($user) && Route::has('reservations.manage'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
+                                    <i class="bi bi-list-check"></i> Gerenciar Reservas
+                                </a>
+                            </li>
+                            @endif
+                            @if(SidebarHelper::canApproveReservations($user) && Route::has('recurring-reservations.index'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('recurring-reservations.*') ? 'active' : '' }}" href="{{ route('recurring-reservations.index') }}">
+                                    <i class="bi bi-arrow-repeat"></i> Reservas Recorrentes
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
                 </li>
-
-
-                {{-- Minhas Reservas (Todos que tem acesso) --}}
-                @if(Route::has('reservations.index') && SidebarHelper::canViewReservations($user))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                        <i class="bi bi-calendar-check"></i> Minhas Reservas
-                    </a>
-                </li>
-                @endif
-
-                {{-- GESTÃO DE ESPAÇOS (Apenas Admin/Síndico) --}}
-                @if(Route::has('spaces.index') && SidebarHelper::canManageSpaces($user))
-                <li class="nav-item">
-                    <hr class="bg-white opacity-10 my-2">
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('spaces.*') ? 'active' : '' }}" href="{{ route('spaces.index') }}">
-                        <i class="bi bi-building"></i> Gerenciar Espaços
-                    </a>
-                </li>
-                @endif
-                
-                @if(SidebarHelper::canApproveReservations($user))
-                @if(Route::has('reservations.manage'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
-                        <i class="bi bi-list-check"></i> Gerenciar Reservas
-                    </a>
-                </li>
-                @endif
-                @if(Route::has('recurring-reservations.index'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('recurring-reservations.*') ? 'active' : '' }}" href="{{ route('recurring-reservations.index') }}">
-                        <i class="bi bi-arrow-repeat"></i> Reservas Recorrentes
-                    </a>
-                </li>
-                @endif
-                @endif
                 @endif
 
-                <!-- ==================== MARKETPLACE ==================== -->
                 @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace'))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-shop"></i> Marketplace
-                    </small>
-                </li>
-                
-                @if(SidebarHelper::canCreateMarketplace($user))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') === 'novo' ? 'active' : '' }}"
-                       href="{{ route('marketplace.index', ['acao' => 'novo']) }}">
-                        <i class="bi bi-plus-circle"></i> Criar Novo Anúncio
-                    </a>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['marketplace'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuMarketplace" aria-expanded="{{ $menuActive['marketplace'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-shop me-2"></i>Marketplace</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['marketplace'] ? 'show' : '' }}" id="menuMarketplace" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            @if(SidebarHelper::canCreateMarketplace($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') === 'novo' ? 'active' : '' }}" href="{{ route('marketplace.index', ['acao' => 'novo']) }}">
+                                    <i class="bi bi-plus-circle"></i> Criar Novo Anúncio
+                                </a>
+                            </li>
+                            @endif
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') !== 'novo' ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
+                                    <i class="bi bi-bag"></i> Ver Anúncios
+                                </a>
+                            </li>
+                            @if(Route::has('marketplace.admin.index') && ($user->can('manage_marketplace') || $user->can('manage_marketplace_items') || $user->hasAnyRole(['Administrador','Síndico'])))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('marketplace.admin.*') ? 'active' : '' }}" href="{{ route('marketplace.admin.index') }}">
+                                    <i class="bi bi-shield-check"></i> Moderação
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
                 </li>
                 @endif
 
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') !== 'novo' ? 'active' : '' }}"
-                       href="{{ route('marketplace.index') }}">
-                        <i class="bi bi-bag"></i> Ver Anúncios
-                    </a>
-                </li>
-
-                @if(Route::has('marketplace.admin.index') && ($user->can('manage_marketplace') || $user->can('manage_marketplace_items') || $user->hasAnyRole(['Administrador','Síndico'])))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('marketplace.admin.*') ? 'active' : '' }}" href="{{ route('marketplace.admin.index') }}">
-                        <i class="bi bi-shield-check"></i> Moderação
-                    </a>
-                </li>
-                @endif
-                @endif
-
-                <!-- ==================== PETS ==================== -->
                 @if(Route::has('pets.index') && SidebarHelper::canAccessModule($user, 'pets'))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-heart"></i> Pets
-                    </small>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('pets.index') ? 'active' : '' }}" href="{{ route('pets.index') }}">
-                        <i class="bi bi-list-ul"></i> Ver Pets
-                    </a>
-                </li>
-
-                @if(Route::has('pets.my') && SidebarHelper::canManagePets($user))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('pets.create') || request()->routeIs('pets.my') ? 'active' : '' }}" href="{{ route('pets.my') }}">
-                        <i class="bi bi-plus-circle"></i> Meus Pets
-                    </a>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['pets'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuPets" aria-expanded="{{ $menuActive['pets'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-heart me-2"></i>Pets</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['pets'] ? 'show' : '' }}" id="menuPets" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('pets.index') ? 'active' : '' }}" href="{{ route('pets.index') }}">
+                                    <i class="bi bi-list-ul"></i> Ver Pets
+                                </a>
+                            </li>
+                            @if(Route::has('pets.my') && SidebarHelper::canManagePets($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('pets.create') || request()->routeIs('pets.my') ? 'active' : '' }}" href="{{ route('pets.my') }}">
+                                    <i class="bi bi-plus-circle"></i> Meus Pets
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
                 </li>
                 @endif
-                @endif
 
-                <!-- ==================== ASSEMBLEIAS (Não para Agregados) ==================== -->
                 @if(Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-people"></i> Assembleias
-                    </small>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['assemblies'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuAssemblies" aria-expanded="{{ $menuActive['assemblies'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-people me-2"></i>Assembleias</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['assemblies'] ? 'show' : '' }}" id="menuAssemblies" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('assemblies.index') ? 'active' : '' }}" href="{{ route('assemblies.index') }}">
+                                    <i class="bi bi-calendar-event"></i> Ver Assembleias
+                                </a>
+                            </li>
+                            @if(Route::has('assemblies.create'))
+                                @can('manage_assemblies')
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('assemblies.create') ? 'active' : '' }}" href="{{ route('assemblies.create') }}">
+                                        <i class="bi bi-plus-circle"></i> Nova Assembleia
+                                    </a>
+                                </li>
+                                @endcan
+                            @endif
+                        </ul>
+                    </div>
                 </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('assemblies.index') ? 'active' : '' }}" href="{{ route('assemblies.index') }}">
-                        <i class="bi bi-calendar-event"></i> Ver Assembleias
-                    </a>
-                </li>
-
-                @if(Route::has('assemblies.create'))
-                @can('manage_assemblies')
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('assemblies.create') ? 'active' : '' }}" href="{{ route('assemblies.create') }}">
-                        <i class="bi bi-plus-circle"></i> Nova Assembleia
-                    </a>
-                </li>
-                @endcan
                 @endif
-                @endif
 
-                <!-- ==================== REGIMENTO INTERNO ==================== -->
                 @if(Route::has('internal-regulations.index'))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-file-earmark-text"></i> Documentos
-                    </small>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
-                        <i class="bi bi-journal-text"></i> Regimento Interno
-                    </a>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['documents'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuDocumentos" aria-expanded="{{ $menuActive['documents'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-file-earmark-text me-2"></i>Documentos</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['documents'] ? 'show' : '' }}" id="menuDocumentos" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
+                                    <i class="bi bi-journal-text"></i> Regimento Interno
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
                 @endif
 
-                <!-- ==================== ENCOMENDAS ==================== -->
                 @if(Route::has('packages.index') && (SidebarHelper::canViewPackages($user) || SidebarHelper::canRegisterPackages($user)))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-box-seam"></i> Encomendas
-                    </small>
-                </li>
-
-                @if(Route::has('packages.register') && SidebarHelper::canRegisterPackages($user))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('packages.register') ? 'active' : '' }}" href="{{ route('packages.register') }}">
-                        <i class="bi bi-plus-circle"></i> Registrar Encomenda
-                    </a>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['packages'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuEncomendas" aria-expanded="{{ $menuActive['packages'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-box-seam me-2"></i>Encomendas</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['packages'] ? 'show' : '' }}" id="menuEncomendas" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            @if(Route::has('packages.register') && SidebarHelper::canRegisterPackages($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('packages.register') ? 'active' : '' }}" href="{{ route('packages.register') }}">
+                                    <i class="bi bi-plus-circle"></i> Registrar Encomenda
+                                </a>
+                            </li>
+                            @endif
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
+                                    <i class="bi bi-list-ul"></i> {{ SidebarHelper::canRegisterPackages($user) ? 'Todas Encomendas' : 'Minhas Encomendas' }}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
                 @endif
 
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
-                        <i class="bi bi-list-ul"></i> 
-                        {{ SidebarHelper::canRegisterPackages($user) ? 'Todas Encomendas' : 'Minhas Encomendas' }}
-                    </a>
-                </li>
-                @endif
-
-                <!-- ==================== CONTROLE DE ACESSO (Apenas Porteiro) ==================== -->
                 @if(Route::has('entries.index'))
-                @can('register_entries')
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-door-open"></i> Portaria
-                    </small>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
-                        <i class="bi bi-list-check"></i> Controle de Acesso
-                    </a>
-                </li>
-                @endcan
+                    @can('register_entries')
+                    <li class="nav-item nav-item-group">
+                        <button class="nav-link-toggle {{ $menuActive['portaria'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuPortaria" aria-expanded="{{ $menuActive['portaria'] ? 'true' : 'false' }}">
+                            <span><i class="bi bi-door-open me-2"></i>Portaria</span>
+                            <i class="bi bi-chevron-down toggle-icon"></i>
+                        </button>
+                        <div class="collapse {{ $menuActive['portaria'] ? 'show' : '' }}" id="menuPortaria" data-bs-parent="#sidebarMenu">
+                            <ul class="nav flex-column inner-nav">
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
+                                        <i class="bi bi-list-check"></i> Controle de Acesso
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    @endcan
                 @endif
 
-                <!-- ==================== MENSAGENS ==================== -->
                 @if(Route::has('messages.index'))
-                <li class="nav-item mt-3">
-                    <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                        <i class="bi bi-chat-dots"></i> Comunicação
-                    </small>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('messages.index') ? 'active' : '' }}" href="{{ route('messages.index') }}">
-                        <i class="bi bi-inbox"></i> Mensagens
-                        @php
-                            $unreadCount = $user->receivedMessages()->where('is_read', false)->count();
-                        @endphp
-                        @if($unreadCount > 0)
-                        <span class="badge bg-danger rounded-pill ms-auto">{{ $unreadCount }}</span>
-                        @endif
-                    </a>
-                </li>
-
-                @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('messages.create') ? 'active' : '' }}" href="{{ route('messages.create') }}">
-                        <i class="bi bi-send"></i> Nova Mensagem
-                    </a>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['comunicacao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuComunicacao" aria-expanded="{{ $menuActive['comunicacao'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-chat-dots me-2"></i>Comunicação</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['comunicacao'] ? 'show' : '' }}" id="menuComunicacao" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('messages.index') ? 'active' : '' }}" href="{{ route('messages.index') }}">
+                                    <i class="bi bi-inbox"></i> Mensagens
+                                    @php
+                                        $unreadCount = $user->receivedMessages()->where('is_read', false)->count();
+                                    @endphp
+                                    @if($unreadCount > 0)
+                                    <span class="badge bg-danger rounded-pill">{{ $unreadCount }}</span>
+                                    @endif
+                                </a>
+                            </li>
+                            @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('messages.create') ? 'active' : '' }}" href="{{ route('messages.create') }}">
+                                    <i class="bi bi-send"></i> Nova Mensagem
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
+                                    <i class="bi bi-bell"></i> Notificações
+                                    @php
+                                        $unreadNotifications = $user->notifications()->where('is_read', false)->count();
+                                    @endphp
+                                    @if($unreadNotifications > 0)
+                                    <span class="badge bg-warning rounded-pill">{{ $unreadNotifications }}</span>
+                                    @endif
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
                 </li>
                 @endif
 
-                <!-- ==================== NOTIFICAÇÕES ==================== -->
-                @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
-                        <i class="bi bi-bell"></i> Notificações
-                        @php
-                            $unreadNotifications = $user->notifications()->where('is_read', false)->count();
-                        @endphp
-                        @if($unreadNotifications > 0)
-                        <span class="badge bg-warning rounded-pill ms-auto">{{ $unreadNotifications }}</span>
-                        @endif
-                    </a>
-                </li>
-                @endif
-                @endif
-
-                <!-- ==================== ALERTAS DE PÂNICO (APENAS ADMIN/SÍNDICO) ==================== -->
                 @if(SidebarHelper::isAdminOrSindico($user))
                 <li class="nav-item mt-3">
                     <a class="nav-link {{ request()->routeIs('panic-alerts.index') ? 'active' : '' }}" href="{{ route('panic-alerts.index') }}">
@@ -569,13 +671,12 @@
                 </li>
                 @endif
 
-                <!-- ==================== ALERTA DE PÂNICO ==================== -->
                 <li class="nav-item mt-4">
                     <button class="btn btn-panic w-100" onclick="openPanicModal()">
                         <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
                     </button>
-                    </li>
-                </ul>
+                </li>
+            </ul>
 
         </nav>
 
@@ -663,7 +764,7 @@
             
             <!-- Mobile Sidebar (Collapsible) -->
             <div class="collapse d-lg-none" id="mobileSidebar">
-                <div class="bg-dark text-white p-3">
+                <div class="bg-dark text-white p-3 mobile-sidebar">
                     <!-- User Profile Section -->
                     <div class="mb-4">
                         <div class="dropdown">
@@ -716,354 +817,348 @@
                     <hr class="bg-white opacity-25">
 
                     <!-- Mobile Navigation Menu -->
-                    <ul class="nav flex-column">
-                        <!-- Dashboard -->
+                    <ul class="nav flex-column" id="mobileSidebarMenu">
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                                 <i class="bi bi-speedometer2"></i> Dashboard
                             </a>
                         </li>
 
-                        <!-- ==================== GESTÃO (APENAS ADMIN/SÍNDICO) ==================== -->
                         @if(SidebarHelper::isAdminOrSindico($user))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-gear"></i> Gestão
-                            </small>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['gestao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuGestao" aria-expanded="{{ $menuActive['gestao'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-gear me-2"></i>Gestão</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['gestao'] ? 'show' : '' }}" id="mobileMenuGestao" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    @can('view_units')
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('units.*') ? 'active' : '' }}" href="{{ route('units.index') }}">
+                                            <i class="bi bi-houses"></i> Unidades
+                                        </a>
+                                    </li>
+                                    @endcan
+                                    @can('view_users')
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
+                                            <i class="bi bi-people-fill"></i> Usuários
+                                        </a>
+                                    </li>
+                                    @endcan
+                                </ul>
+                            </div>
                         </li>
-
-                        @can('view_units')
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('units.*') ? 'active' : '' }}" href="{{ route('units.index') }}">
-                                <i class="bi bi-houses"></i> Unidades
-                            </a>
-                        </li>
-                        @endcan
-
-                        @can('view_users')
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}" href="{{ route('users.index') }}">
-                                <i class="bi bi-people-fill"></i> Usuários
-                            </a>
-                        </li>
-                        @endcan
                         @endif
 
-                        <!-- ==================== FINANCEIRO ==================== -->
                         @if($user->can('view_transactions') || $user->can('view_charges') || $user->can('view_own_financial') || $user->can('view_financial_reports'))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-cash-coin"></i> Financeiro
-                            </small>
-                        </li>
-
-                        {{-- Transações --}}
-                        @if(Route::has('transactions.index') && $user->can('view_transactions'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
-                                <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
-                            </a>
-                        </li>
-                        @endif
-
-                        {{-- Cobranças --}}
-                        @if(Route::has('charges.index') && $user->can('view_charges'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
-                                <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
-                            </a>
-                        </li>
-                        @endif
-                        
-                        {{-- Receitas e Despesas --}}
-                        @if(Route::has('revenue.index') && $user->can('view_revenue'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
-                                <i class="bi bi-graph-up-arrow"></i> Receitas
-                            </a>
-                        </li>
-                        @endif
-
-                        @if(Route::has('expenses.index') && $user->can('view_expenses'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
-                                <i class="bi bi-graph-down-arrow"></i> Despesas
-                            </a>
-                        </li>
-                        @endif
-
-                        {{-- Conciliação Bancária --}}
-                        @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
-                                <i class="bi bi-bank"></i> Conciliação Bancária
-                            </a>
-                        </li>
-                        @endif
-
-                        {{-- Relatórios Financeiros --}}
-                        @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
-                                <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
-                            </a>
-                        </li>
-                        @endif
-
-                        {{-- Prestação de Contas --}}
-                        @if(Route::has('accountability-reports.index') && $user->can('view_accountability_reports'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
-                                <i class="bi bi-file-earmark-text"></i> Prestação de Contas
-                            </a>
-                        </li>
-                        @endif
-
-                        {{-- Saldo/Balanço --}}
-                        @if(Route::has('balance.index') && $user->can('view_balance'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
-                                <i class="bi bi-pie-chart"></i> Balanço Patrimonial
-                            </a>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['financeiro'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuFinanceiro" aria-expanded="{{ $menuActive['financeiro'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-cash-coin me-2"></i>Financeiro</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="mobileMenuFinanceiro" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    @if(Route::has('transactions.index') && $user->can('view_transactions'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
+                                            <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('charges.index') && $user->can('view_charges'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
+                                            <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('revenue.index') && $user->can('view_revenue'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
+                                            <i class="bi bi-graph-up-arrow"></i> Receitas
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('expenses.index') && $user->can('view_expenses'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
+                                            <i class="bi bi-graph-down-arrow"></i> Despesas
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
+                                            <i class="bi bi-bank"></i> Conciliação Bancária
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
+                                            <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('accountability-reports.index') && $user->can('view_accountability_reports'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
+                                            <i class="bi bi-file-earmark-text"></i> Prestação de Contas
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('balance.index') && $user->can('view_balance'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
+                                            <i class="bi bi-pie-chart"></i> Balanço Patrimonial
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('my-finances') && $user->can('view_own_financial') && !$user->can('view_charges'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
+                                            <i class="bi bi-wallet2"></i> Minhas Finanças
+                                        </a>
+                                    </li>
+                                    @endif
+                                </ul>
+                            </div>
                         </li>
                         @endif
 
-                        {{-- Separador para Admin/Síndico --}}
-                        @if(SidebarHelper::isAdminOrSindico($user))
-                        <li class="nav-item">
-                            <hr class="bg-white opacity-10 my-2">
-                        </li>
-                        @endif
-
-                        {{-- Minhas Finanças (apenas se não tiver acesso total) --}}
-                        @if(Route::has('my-finances') && $user->can('view_own_financial') && !$user->can('view_charges'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
-                                <i class="bi bi-wallet2"></i> Minhas Finanças
-                            </a>
-                        </li>
-                        @endif
-                        @endif
-
-                        <!-- ==================== ESPAÇOS E RESERVAS ==================== -->
                         @if(SidebarHelper::canViewReservations($user) || SidebarHelper::canManageSpaces($user))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-calendar-event"></i> Espaços
-                            </small>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['espacos'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuEspacos" aria-expanded="{{ $menuActive['espacos'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-calendar-event me-2"></i>Espaços</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['espacos'] ? 'show' : '' }}" id="mobileMenuEspacos" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    @if(Route::has('reservations.index') && SidebarHelper::canViewReservations($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
+                                            <i class="bi bi-calendar-check"></i> Minhas Reservas
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('spaces.index') && SidebarHelper::canManageSpaces($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('spaces.*') ? 'active' : '' }}" href="{{ route('spaces.index') }}">
+                                            <i class="bi bi-building"></i> Gerenciar Espaços
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(SidebarHelper::canApproveReservations($user) && Route::has('reservations.manage'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
+                                            <i class="bi bi-list-check"></i> Aprovar Reservas
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(SidebarHelper::canApproveReservations($user) && Route::has('recurring-reservations.index'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('recurring-reservations.*') ? 'active' : '' }}" href="{{ route('recurring-reservations.index') }}">
+                                            <i class="bi bi-arrow-repeat"></i> Reservas Recorrentes
+                                        </a>
+                                    </li>
+                                    @endif
+                                </ul>
+                            </div>
                         </li>
-
-                        {{-- Minhas Reservas (Todos que tem acesso) --}}
-                        @if(Route::has('reservations.index') && SidebarHelper::canViewReservations($user))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                                <i class="bi bi-calendar-check"></i> Minhas Reservas
-                            </a>
-                        </li>
-                        @endif
-
-                        {{-- GESTÃO DE ESPAÇOS (Apenas Admin/Síndico) --}}
-                        @if(Route::has('spaces.index') && SidebarHelper::canManageSpaces($user))
-                        <li class="nav-item">
-                            <hr class="bg-white opacity-10 my-2">
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('spaces.*') ? 'active' : '' }}" href="{{ route('spaces.index') }}">
-                                <i class="bi bi-building"></i> Gerenciar Espaços
-                            </a>
-                        </li>
-                        @endif
-                        
-                        @if(SidebarHelper::canApproveReservations($user))
-                        @if(Route::has('reservations.manage'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('reservations.manage') ? 'active' : '' }}" href="{{ route('reservations.manage') }}">
-                                <i class="bi bi-list-check"></i> Aprovar Reservas
-                            </a>
-                        </li>
-                        @endif
-                        @if(Route::has('recurring-reservations.index'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('recurring-reservations.*') ? 'active' : '' }}" href="{{ route('recurring-reservations.index') }}">
-                                <i class="bi bi-arrow-repeat"></i> Reservas Recorrentes
-                            </a>
-                        </li>
-                        @endif
-                        @endif
                         @endif
 
-                        <!-- ==================== MARKETPLACE ==================== -->
                         @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace'))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-shop"></i> Marketplace
-                            </small>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('marketplace.index') ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
-                                <i class="bi bi-bag"></i> Ver Anúncios
-                            </a>
-                        </li>
-
-                        @if(Route::has('marketplace.my-ads') && SidebarHelper::canCreateMarketplace($user))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('marketplace.create') || request()->routeIs('marketplace.my-ads') ? 'active' : '' }}" href="{{ route('marketplace.my-ads') }}">
-                                <i class="bi bi-plus-circle"></i> Meus Anúncios
-                            </a>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['marketplace'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuMarketplace" aria-expanded="{{ $menuActive['marketplace'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-shop me-2"></i>Marketplace</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['marketplace'] ? 'show' : '' }}" id="mobileMenuMarketplace" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') !== 'novo' ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
+                                            <i class="bi bi-bag"></i> Ver Anúncios
+                                        </a>
+                                    </li>
+                                    @if(Route::has('marketplace.my-ads') && SidebarHelper::canCreateMarketplace($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('marketplace.create') || request()->routeIs('marketplace.my-ads') || (request()->routeIs('marketplace.index') && request()->get('acao') === 'novo') ? 'active' : '' }}" href="{{ route('marketplace.my-ads') }}">
+                                            <i class="bi bi-plus-circle"></i> Meus Anúncios
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('marketplace.admin.index') && ($user->can('manage_marketplace') || $user->can('manage_marketplace_items') || $user->hasAnyRole(['Administrador','Síndico'])))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('marketplace.admin.*') ? 'active' : '' }}" href="{{ route('marketplace.admin.index') }}">
+                                            <i class="bi bi-shield-check"></i> Moderação
+                                        </a>
+                                    </li>
+                                    @endif
+                                </ul>
+                            </div>
                         </li>
                         @endif
-                        @endif
 
-                        <!-- ==================== PETS ==================== -->
                         @if(Route::has('pets.index') && SidebarHelper::canAccessModule($user, 'pets'))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-heart"></i> Pets
-                            </small>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('pets.index') ? 'active' : '' }}" href="{{ route('pets.index') }}">
-                                <i class="bi bi-list-ul"></i> Ver Pets
-                            </a>
-                        </li>
-
-                        @if(Route::has('pets.my') && SidebarHelper::canManagePets($user))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('pets.create') || request()->routeIs('pets.my') ? 'active' : '' }}" href="{{ route('pets.my') }}">
-                                <i class="bi bi-plus-circle"></i> Meus Pets
-                            </a>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['pets'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuPets" aria-expanded="{{ $menuActive['pets'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-heart me-2"></i>Pets</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['pets'] ? 'show' : '' }}" id="mobileMenuPets" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('pets.index') ? 'active' : '' }}" href="{{ route('pets.index') }}">
+                                            <i class="bi bi-list-ul"></i> Ver Pets
+                                        </a>
+                                    </li>
+                                    @if(Route::has('pets.my') && SidebarHelper::canManagePets($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('pets.create') || request()->routeIs('pets.my') ? 'active' : '' }}" href="{{ route('pets.my') }}">
+                                            <i class="bi bi-plus-circle"></i> Meus Pets
+                                        </a>
+                                    </li>
+                                    @endif
+                                </ul>
+                            </div>
                         </li>
                         @endif
-                        @endif
 
-                        <!-- ==================== ASSEMBLEIAS (Não para Agregados) ==================== -->
                         @if(Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-people"></i> Assembleias
-                            </small>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['assemblies'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuAssemblies" aria-expanded="{{ $menuActive['assemblies'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-people me-2"></i>Assembleias</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['assemblies'] ? 'show' : '' }}" id="mobileMenuAssemblies" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('assemblies.index') ? 'active' : '' }}" href="{{ route('assemblies.index') }}">
+                                            <i class="bi bi-calendar-event"></i> Ver Assembleias
+                                        </a>
+                                    </li>
+                                    @if(Route::has('assemblies.create'))
+                                        @can('manage_assemblies')
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('assemblies.create') ? 'active' : '' }}" href="{{ route('assemblies.create') }}">
+                                                <i class="bi bi-plus-circle"></i> Nova Assembleia
+                                            </a>
+                                        </li>
+                                        @endcan
+                                    @endif
+                                </ul>
+                            </div>
                         </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('assemblies.index') ? 'active' : '' }}" href="{{ route('assemblies.index') }}">
-                                <i class="bi bi-calendar-event"></i> Ver Assembleias
-                            </a>
-                        </li>
-
-                        @if(Route::has('assemblies.create'))
-                        @can('manage_assemblies')
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('assemblies.create') ? 'active' : '' }}" href="{{ route('assemblies.create') }}">
-                                <i class="bi bi-plus-circle"></i> Nova Assembleia
-                            </a>
-                        </li>
-                        @endcan
                         @endif
-                        @endif
 
-                        <!-- ==================== REGIMENTO INTERNO ==================== -->
                         @if(Route::has('internal-regulations.index'))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-file-earmark-text"></i> Documentos
-                            </small>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
-                                <i class="bi bi-journal-text"></i> Regimento Interno
-                            </a>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['documents'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuDocumentos" aria-expanded="{{ $menuActive['documents'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-file-earmark-text me-2"></i>Documentos</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['documents'] ? 'show' : '' }}" id="mobileMenuDocumentos" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
+                                            <i class="bi bi-journal-text"></i> Regimento Interno
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </li>
                         @endif
 
-                        <!-- ==================== ENCOMENDAS ==================== -->
                         @if(Route::has('packages.index') && (SidebarHelper::canViewPackages($user) || SidebarHelper::canRegisterPackages($user)))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-box-seam"></i> Encomendas
-                            </small>
-                        </li>
-
-                        @if(Route::has('packages.register') && SidebarHelper::canRegisterPackages($user))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('packages.register') ? 'active' : '' }}" href="{{ route('packages.register') }}">
-                                <i class="bi bi-plus-circle"></i> Registrar Encomenda
-                            </a>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['packages'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuEncomendas" aria-expanded="{{ $menuActive['packages'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-box-seam me-2"></i>Encomendas</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['packages'] ? 'show' : '' }}" id="mobileMenuEncomendas" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    @if(Route::has('packages.register') && SidebarHelper::canRegisterPackages($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('packages.register') ? 'active' : '' }}" href="{{ route('packages.register') }}">
+                                            <i class="bi bi-plus-circle"></i> Registrar Encomenda
+                                        </a>
+                                    </li>
+                                    @endif
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
+                                            <i class="bi bi-list-ul"></i> {{ SidebarHelper::canRegisterPackages($user) ? 'Todas Encomendas' : 'Minhas Encomendas' }}
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </li>
                         @endif
 
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
-                                <i class="bi bi-list-ul"></i> 
-                                {{ SidebarHelper::canRegisterPackages($user) ? 'Todas Encomendas' : 'Minhas Encomendas' }}
-                            </a>
-                        </li>
-                        @endif
-
-                        <!-- ==================== CONTROLE DE ACESSO (Apenas Porteiro) ==================== -->
                         @if(Route::has('entries.index'))
-                        @can('register_entries')
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-door-open"></i> Portaria
-                            </small>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
-                                <i class="bi bi-list-check"></i> Controle de Acesso
-                            </a>
-                        </li>
-                        @endcan
+                            @can('register_entries')
+                            <li class="nav-item nav-item-group mt-2">
+                                <button class="nav-link-toggle {{ $menuActive['portaria'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuPortaria" aria-expanded="{{ $menuActive['portaria'] ? 'true' : 'false' }}">
+                                    <span><i class="bi bi-door-open me-2"></i>Portaria</span>
+                                    <i class="bi bi-chevron-down toggle-icon"></i>
+                                </button>
+                                <div class="collapse {{ $menuActive['portaria'] ? 'show' : '' }}" id="mobileMenuPortaria" data-bs-parent="#mobileSidebarMenu">
+                                    <ul class="nav flex-column inner-nav">
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('entries.*') ? 'active' : '' }}" href="{{ route('entries.index') }}">
+                                                <i class="bi bi-list-check"></i> Controle de Acesso
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </li>
+                            @endcan
                         @endif
 
-                        <!-- ==================== MENSAGENS ==================== -->
                         @if(Route::has('messages.index'))
-                        <li class="nav-item mt-3">
-                            <small class="text-white-50 ms-3 text-uppercase fw-bold" style="font-size: 0.75rem;">
-                                <i class="bi bi-chat-dots"></i> Comunicação
-                            </small>
-                        </li>
-
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('messages.index') ? 'active' : '' }}" href="{{ route('messages.index') }}">
-                                <i class="bi bi-inbox"></i> Mensagens
-                                @php
-                                    $unreadCount = $user->receivedMessages()->where('is_read', false)->count();
-                                @endphp
-                                @if($unreadCount > 0)
-                                <span class="badge bg-danger rounded-pill ms-auto">{{ $unreadCount }}</span>
-                                @endif
-                            </a>
-                        </li>
-
-                        @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('messages.create') ? 'active' : '' }}" href="{{ route('messages.create') }}">
-                                <i class="bi bi-send"></i> Nova Mensagem
-                            </a>
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['comunicacao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuComunicacao" aria-expanded="{{ $menuActive['comunicacao'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-chat-dots me-2"></i>Comunicação</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['comunicacao'] ? 'show' : '' }}" id="mobileMenuComunicacao" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('messages.index') ? 'active' : '' }}" href="{{ route('messages.index') }}">
+                                            <i class="bi bi-inbox"></i> Mensagens
+                                            @php
+                                                $unreadCount = $user->receivedMessages()->where('is_read', false)->count();
+                                            @endphp
+                                            @if($unreadCount > 0)
+                                            <span class="badge bg-danger rounded-pill">{{ $unreadCount }}</span>
+                                            @endif
+                                        </a>
+                                    </li>
+                                    @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('messages.create') ? 'active' : '' }}" href="{{ route('messages.create') }}">
+                                            <i class="bi bi-send"></i> Nova Mensagem
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
+                                            <i class="bi bi-bell"></i> Notificações
+                                            @php
+                                                $unreadNotifications = $user->notifications()->where('is_read', false)->count();
+                                            @endphp
+                                            @if($unreadNotifications > 0)
+                                            <span class="badge bg-warning rounded-pill">{{ $unreadNotifications }}</span>
+                                            @endif
+                                        </a>
+                                    </li>
+                                    @endif
+                                </ul>
+                            </div>
                         </li>
                         @endif
 
-                        <!-- ==================== NOTIFICAÇÕES ==================== -->
-                        @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
-                                <i class="bi bi-bell"></i> Notificações
-                                @php
-                                    $unreadNotifications = $user->notifications()->where('is_read', false)->count();
-                                @endphp
-                                @if($unreadNotifications > 0)
-                                <span class="badge bg-warning rounded-pill ms-auto">{{ $unreadNotifications }}</span>
-                                @endif
-                            </a>
-                        </li>
-                        @endif
-                        @endif
-
-                        <!-- ==================== ALERTAS DE PÂNICO (APENAS ADMIN/SÍNDICO) ==================== -->
                         @if(SidebarHelper::isAdminOrSindico($user))
                         <li class="nav-item mt-3">
                             <a class="nav-link {{ request()->routeIs('panic-alerts.index') ? 'active' : '' }}" href="{{ route('panic-alerts.index') }}">
@@ -1072,7 +1167,6 @@
                         </li>
                         @endif
 
-                        <!-- ==================== ALERTA DE PÂNICO ==================== -->
                         <li class="nav-item mt-4">
                             <button class="btn btn-panic w-100" onclick="openPanicModal()">
                                 <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO

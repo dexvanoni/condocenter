@@ -121,8 +121,8 @@
         <!-- Total de Débitos -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-{{ $totalDebitos > 0 ? 'warning' : 'success' }} stagger-1">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Débitos Pendentes</p>
                             <h2 class="stat-value">R$ {{ number_format($totalDebitos, 2, ',', '.') }}</h2>
@@ -141,8 +141,8 @@
         <!-- Total Pago no Ano -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-info stagger-2">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Pago em {{ now()->year }}</p>
                             <h2 class="stat-value">R$ {{ number_format($totalPagoAno, 2, ',', '.') }}</h2>
@@ -161,8 +161,8 @@
         <!-- Minhas Reservas -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-primary stagger-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Reservas Ativas</p>
                             <h2 class="stat-value">{{ $totalReservasAtivas }}</h2>
@@ -181,8 +181,8 @@
         <!-- Encomendas -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-success stagger-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Encomendas</p>
                             <h2 class="stat-value">{{ $encomendas->count() }}</h2>

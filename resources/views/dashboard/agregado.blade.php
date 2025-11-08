@@ -49,8 +49,8 @@
         <!-- Morador Responsável -->
         <div class="col-xl-4">
             <div class="card-stat card-gradient-primary stagger-1">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Morador Responsável</p>
                             <h4 class="mb-2">{{ $moradorResponsavel->name }}</h4>
@@ -72,8 +72,8 @@
         <!-- Encomendas -->
         <div class="col-xl-4">
             <div class="card-stat card-gradient-success stagger-2">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Encomendas Pendentes</p>
                             <h2 class="stat-value">{{ $encomendas->count() }}</h2>
@@ -92,8 +92,8 @@
         <!-- Notificações -->
         <div class="col-xl-4">
             <div class="card-stat card-gradient-warning stagger-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
+                <div class="card-body px-4 py-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Notificações</p>
                             <h2 class="stat-value">{{ $notificacoes->count() }}</h2>
