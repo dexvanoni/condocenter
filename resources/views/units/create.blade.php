@@ -5,7 +5,7 @@
 @push('styles')
 <style>
     body {
-        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+        //background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
         min-height: 100vh;
     }
     .step-wizard {

@@ -94,9 +94,9 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
                         <div class="flex-grow-1">
                             <p class="stat-label mb-2">Encomendas Hoje</p>
-                            <h2 class="stat-value">{{ $totalEncombendasHoje }}</h2>
+                            <h2 class="stat-value">{{ $totalEncomendasHoje }}</h2>
                             <div class="stat-change">
-                                {{ $encombendasPendentes }} pendente(s)
+                                {{ $encomendasPendentesTotal }} pendente(s)
                             </div>
                         </div>
                         <div class="stat-icon">
@@ -120,12 +120,12 @@
             </a>
         </div>
         <div class="col-md-4">
-            <a href="#" class="widget-quick-action" data-bs-toggle="modal" data-bs-target="#registrarEncomendaModal">
+            <a href="{{ route('packages.index') }}" class="widget-quick-action">
                 <div class="widget-icon bg-brand-soft">
                     <i class="bi bi-box-seam"></i>
                 </div>
-                <h6 class="mt-3 mb-1">Registrar Encomenda</h6>
-                <small class="text-muted">Nova encomenda recebida</small>
+                <h6 class="mt-3 mb-1">Painel de Encomendas</h6>
+                <small class="text-muted">Registrar chegadas e retiradas</small>
             </a>
         </div>
         <div class="col-md-4">
@@ -229,28 +229,30 @@
 
         <!-- Sidebar -->
         <div class="col-xl-4">
-            <!-- Encomendas Hoje -->
+            <!-- Encomendas Pendentes -->
             <div class="dashboard-card mb-4">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
-                        <i class="bi bi-box-seam text-brand"></i> Encomendas de Hoje
+                        <i class="bi bi-box-seam text-brand"></i> Encomendas Pendentes
                     </h5>
                 </div>
                 <div class="card-body">
-                    @forelse($encombendasHoje as $encomenda)
+                    @forelse($encomendasPendentes as $pendente)
                     <div class="list-item-hover border-bottom pb-3 mb-3">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
-                                <h6 class="mb-1">Unidade {{ $encomenda->unit->full_identifier }}</h6>
+                                <h6 class="mb-1">Unidade {{ $pendente->unit->full_identifier }}</h6>
                                 <small class="text-muted">
-                                    {{ $encomenda->received_at->format('H:i') }}
-                                    @if($encomenda->sender)
-                                    <br>De: {{ $encomenda->sender }}
-                                    @endif
+                                    Recebida em {{ $pendente->received_at->format('d/m \à\s H:i') }}
                                 </small>
+                                @if($pendente->unit && $pendente->unit->users->count())
+                                <small class="text-muted d-block">
+                                    Moradores: {{ $pendente->unit->users->pluck('name')->join(', ') }}
+                                </small>
+                                @endif
                             </div>
-                            <span class="badge-modern bg-{{ $encomenda->status === 'pending' ? 'warning' : 'success' }}">
-                                {{ $encomenda->status === 'pending' ? 'Pendente' : 'Retirada' }}
+                            <span class="badge-modern bg-warning text-dark">
+                                {{ $pendente->type_label }}
                             </span>
                         </div>
                     </div>
@@ -262,10 +264,41 @@
                     @endforelse
 
                     <div class="text-center mt-3">
-                        <button class="btn btn-sm btn-gradient-success w-100" data-bs-toggle="modal" data-bs-target="#registrarEncomendaModal">
-                            <i class="bi bi-plus-circle"></i> Registrar Nova Encomenda
-                        </button>
+                        <a class="btn btn-sm btn-gradient-success w-100" href="{{ route('packages.index') }}">
+                            <i class="bi bi-box-arrow-in-up-right"></i> Abrir painel completo
+                        </a>
                     </div>
+                </div>
+            </div>
+
+            <!-- Encomendas de Hoje -->
+            <div class="dashboard-card mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-calendar-event text-brand"></i> Encomendas registradas hoje
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @forelse($encomendasHoje as $encomendaHoje)
+                    <div class="list-item-hover border-bottom pb-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">Unidade {{ $encomendaHoje->unit->full_identifier }}</h6>
+                                <small class="text-muted">
+                                    {{ $encomendaHoje->received_at->format('H:i') }}
+                                </small>
+                            </div>
+                            <span class="badge-modern bg-{{ $encomendaHoje->isPending() ? 'warning text-dark' : 'success' }}">
+                                {{ $encomendaHoje->type_label }}
+                            </span>
+                        </div>
+                    </div>
+                    @empty
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                        <p class="mb-0">Nenhuma encomenda registrada hoje</p>
+                    </div>
+                    @endforelse
                 </div>
             </div>
 
@@ -357,51 +390,6 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary">
                     <i class="bi bi-check-circle"></i> Registrar Entrada
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Registrar Encomenda -->
-<div class="modal fade" id="registrarEncomendaModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-brand-gradient text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-box-seam"></i> Registrar Encomenda
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="formRegistrarEncomenda">
-                    <div class="mb-3">
-                        <label class="form-label">Unidade *</label>
-                        <select class="form-select" name="unit_id" required>
-                            <option value="">Selecione...</option>
-                            @foreach(Auth::user()->condominium->units as $unit)
-                            <option value="{{ $unit->id }}">{{ $unit->full_identifier }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Remetente</label>
-                        <input type="text" class="form-control" name="sender" placeholder="Correios, Amazon, etc">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Código de Rastreio</label>
-                        <input type="text" class="form-control" name="tracking_code">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Descrição</label>
-                        <textarea class="form-control" name="description" rows="2" placeholder="Ex: Caixa média, envelope"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success">
-                    <i class="bi bi-check-circle"></i> Registrar e Notificar
                 </button>
             </div>
         </div>

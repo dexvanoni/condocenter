@@ -70,7 +70,7 @@ class UnitController extends Controller
             $query->orderBy('number');
         }
 
-        $units = $query->paginate(20);
+        $units = $query->paginate(20)->withQueryString();
 
         return view('units.index', compact('units'));
     }

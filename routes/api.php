@@ -79,6 +79,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     ]);
     
     // Encomendas
+    Route::get('packages/summary/units', [PackageController::class, 'summary'])->name('api.packages.summary');
+    Route::get('packages/residents/search', [PackageController::class, 'residents'])->name('api.packages.residents');
     Route::apiResource('packages', PackageController::class)->names([
         'index' => 'api.packages.index',
         'store' => 'api.packages.store',

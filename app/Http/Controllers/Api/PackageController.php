@@ -3,38 +3,36 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Package\CollectPackageRequest;
+use App\Http\Requests\Package\StorePackageRequest;
 use App\Models\Package;
-use App\Jobs\SendPackageNotification;
+use App\Services\PackageService;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class PackageController extends Controller
 {
+    public function __construct(
+        private readonly PackageService $packageService
+    ) {
+    }
+
     /**
      * Lista encomendas
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
-        $query = Package::with(['unit', 'registeredBy', 'collectedBy'])
-            ->where('condominium_id', $user->condominium_id);
-
-        // Se for morador, mostrar apenas suas encomendas
-        if ($user->isMorador() && $user->unit_id) {
-            $query->where('unit_id', $user->unit_id);
-        }
-
-        // Filtros
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->has('unit_id')) {
-            $query->where('unit_id', $request->unit_id);
-        }
-
-        $packages = $query->orderBy('received_at', 'desc')->paginate(15);
+        $packages = $this->packageService->listPackages($user, [
+            'status' => $request->input('status'),
+            'type' => $request->input('type'),
+            'unit_id' => $request->input('unit_id'),
+            'search' => $request->input('search'),
+            'per_page' => $request->input('per_page'),
+        ]);
 
         return response()->json($packages);
     }
@@ -42,89 +40,47 @@ class PackageController extends Controller
     /**
      * Registra uma nova encomenda
      */
-    public function store(Request $request)
+    public function store(StorePackageRequest $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'unit_id' => 'required|exists:units,id',
-            'sender' => 'nullable|string|max:255',
-            'tracking_code' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
-            'notes' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $user = Auth::user();
-
-        $package = Package::create([
-            'condominium_id' => $user->condominium_id,
-            'unit_id' => $request->unit_id,
-            'registered_by' => $user->id,
-            'sender' => $request->sender,
-            'tracking_code' => $request->tracking_code,
-            'description' => $request->description,
-            'received_at' => now(),
-            'status' => 'pending',
-            'notes' => $request->notes,
-            'notification_sent' => false,
-        ]);
-
-        // Enviar notificação para o morador
-        SendPackageNotification::dispatch($package, 'arrived');
+        try {
+            $package = $this->packageService->register(
+                $request->user(),
+                (int) $request->validated('unit_id'),
+                $request->validated('type')
+            );
 
         return response()->json([
-            'message' => 'Encomenda registrada com sucesso. Morador será notificado.',
-            'package' => $package->load('unit')
-        ], 201);
+                'message' => 'Encomenda registrada com sucesso. Moradores foram notificados.',
+                'package' => $package,
+            ], 201);
+        } catch (AuthorizationException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 403);
+        }
     }
 
     /**
      * Registra retirada de encomenda
      */
-    public function collect(Request $request, $id)
+    public function collect(CollectPackageRequest $request, Package $package): JsonResponse
     {
-        $package = Package::findOrFail($id);
+        try {
+            $updatedPackage = $this->packageService->markAsCollected($package, $request->user());
 
-        // Verificar permissão
-        $user = Auth::user();
-        if ($package->condominium_id !== $user->condominium_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
-
-        // Verificar se já foi coletada
-        if ($package->status === 'collected') {
             return response()->json([
-                'error' => 'Esta encomenda já foi retirada'
-            ], 400);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'collected_by' => 'required|exists:users,id',
-            'notes' => 'nullable|string',
+                'message' => 'Retirada de encomenda registrada com sucesso',
+                'package' => $updatedPackage,
         ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+        } catch (AuthorizationException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 403);
+        } catch (ValidationException $exception) {
+            return response()->json(['errors' => $exception->errors()], 422);
         }
-
-        $package->markAsCollected($request->collected_by);
-        
-        if ($request->notes) {
-            $package->update(['notes' => $request->notes]);
-        }
-
-        return response()->json([
-            'message' => 'Retirada de encomenda registrada com sucesso',
-            'package' => $package->load(['unit', 'collectedBy'])
-        ]);
     }
 
     /**
      * Exibe uma encomenda
      */
-    public function show($id)
+    public function show($id): JsonResponse
     {
         $package = Package::with(['unit', 'registeredBy', 'collectedBy'])
             ->findOrFail($id);
@@ -145,9 +101,46 @@ class PackageController extends Controller
     }
 
     /**
+     * Resumo por unidade para painel do porteiro
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user->can('register_packages')) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        $units = $this->packageService->summarizeUnits($user, [
+            'search' => $request->input('search'),
+        ]);
+
+        return response()->json(['data' => $units]);
+    }
+
+    /**
+     * Busca moradores/agregados por nome ou CPF
+     */
+    public function residents(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user->can('register_packages')) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        $results = $this->packageService->searchResidents(
+            $user,
+            (string) $request->input('search', '')
+        );
+
+        return response()->json(['data' => $results]);
+    }
+
+    /**
      * Atualiza uma encomenda
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id): JsonResponse
     {
         $package = Package::findOrFail($id);
 
@@ -179,7 +172,7 @@ class PackageController extends Controller
     /**
      * Remove uma encomenda
      */
-    public function destroy($id)
+    public function destroy($id): JsonResponse
     {
         $package = Package::findOrFail($id);
 

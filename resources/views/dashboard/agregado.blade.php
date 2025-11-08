@@ -127,18 +127,10 @@
                         <div class="d-flex align-items-start">
                             <i class="bi bi-box text-brand fs-3 me-3"></i>
                             <div class="flex-grow-1">
-                                <h6 class="mb-1">
-                                    @if($encomenda->sender)
-                                        {{ $encomenda->sender }}
-                                    @else
-                                        Encomenda
-                                    @endif
-                                </h6>
+                                <h6 class="mb-1">{{ $encomenda->type_label }}</h6>
                                 <p class="mb-1 small text-muted">
-                                    @if($encomenda->description)
-                                        {{ $encomenda->description }}<br>
-                                    @endif
-                                    <i class="bi bi-clock"></i> Chegou em: {{ $encomenda->received_at->format('d/m/Y H:i') }}
+                                    <i class="bi bi-clock"></i> Chegou em: {{ $encomenda->received_at->format('d/m/Y H:i') }}<br>
+                                    Retirar na portaria
                                 </p>
                                 <small class="text-muted">
                                     {{ $encomenda->received_at->diffForHumans() }}

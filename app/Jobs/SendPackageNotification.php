@@ -2,15 +2,16 @@
 
 namespace App\Jobs;
 
-use App\Models\Package;
 use App\Models\Notification;
+use App\Models\Package;
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class SendPackageNotification implements ShouldQueue
 {
@@ -34,12 +35,25 @@ class SendPackageNotification implements ShouldQueue
     public function handle(): void
     {
         try {
-            // Buscar moradores da unidade
-            $residents = $this->package->unit->users;
+            $this->package->loadMissing('unit');
+
+            if (!$this->package->unit) {
+                Log::warning('Encomenda sem unidade associada ao enviar notificação', [
+                    'package_id' => $this->package->id,
+                ]);
+                return;
+            }
+
+            $residents = User::query()
+                ->select('id', 'email', 'name')
+                ->byCondominium($this->package->condominium_id)
+                ->where('unit_id', $this->package->unit_id)
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Morador', 'Agregado']))
+                ->get();
 
             foreach ($residents as $resident) {
                 // Criar notificação no banco
-                $notification = Notification::create([
+                Notification::create([
                     'condominium_id' => $this->package->condominium_id,
                     'user_id' => $resident->id,
                     'type' => 'package_' . $this->type,
@@ -47,9 +61,10 @@ class SendPackageNotification implements ShouldQueue
                     'message' => $this->getMessageText(),
                     'data' => [
                         'package_id' => $this->package->id,
-                        'sender' => $this->package->sender,
-                        'tracking_code' => $this->package->tracking_code,
+                        'type' => $this->package->type,
+                        'type_label' => $this->package->type_label,
                         'received_at' => $this->package->received_at,
+                        'collected_at' => $this->package->collected_at,
                     ],
                     'channel' => 'database',
                     'sent' => true,
@@ -86,21 +101,21 @@ class SendPackageNotification implements ShouldQueue
     protected function getMessageText(): string
     {
         if ($this->type === 'arrived') {
-            $msg = "Uma encomenda chegou para a unidade {$this->package->unit->full_identifier}. ";
-            
-            if ($this->package->sender) {
-                $msg .= "Remetente: {$this->package->sender}. ";
-            }
-            
-            if ($this->package->tracking_code) {
-                $msg .= "Código de rastreio: {$this->package->tracking_code}. ";
-            }
-            
-            $msg .= "Retire na portaria.";
-            
-            return $msg;
+            $unitLabel = $this->package->unit->full_identifier ?? "Unidade {$this->package->unit->number}";
+
+            return sprintf(
+                'Chegou uma encomenda (%s) para %s. Retire na portaria.',
+                $this->package->type_label,
+                $unitLabel
+            );
         }
 
-        return "Sua encomenda foi retirada em {$this->package->collected_at->format('d/m/Y H:i')}.";
+        $collectedAt = optional($this->package->collected_at)->format('d/m/Y H:i');
+            
+        return sprintf(
+            'A encomenda (%s) foi retirada em %s.',
+            $this->package->type_label,
+            $collectedAt ?? 'horário não informado'
+        );
     }
 }

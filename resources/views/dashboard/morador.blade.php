@@ -356,19 +356,15 @@
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <h6 class="mb-1">
-                                    @if($encomenda->sender)
-                                    {{ $encomenda->sender }}
-                                    @else
-                                    Encomenda
-                                    @endif
+                                    {{ $encomenda->type_label }}
                                 </h6>
                                 <small class="text-muted">
                                     <i class="bi bi-clock"></i> Chegou em: {{ $encomenda->received_at->format('d/m/Y H:i') }}
                                 </small>
                             </div>
-                            <button class="btn btn-sm btn-primary">
-                                <i class="bi bi-check2"></i> Retirar
-                            </button>
+                            <span class="badge bg-warning text-dark">
+                                Retirar na portaria
+                            </span>
                         </div>
                     </div>
                     @empty

@@ -133,12 +133,12 @@ class DashboardController extends Controller
             ->get();
 
         // Encomendas Pendentes
-        $encombendasPendentes = Package::where('condominium_id', $condominium->id)
-            ->where('status', 'pending')
+        $encombendasPendentes = Package::byCondominium($condominium->id)
+            ->pending()
             ->count();
 
         // Encomendas de Hoje
-        $encombendasHoje = Package::where('condominium_id', $condominium->id)
+        $encombendasHoje = Package::byCondominium($condominium->id)
             ->whereDate('received_at', today())
             ->count();
 
@@ -246,8 +246,8 @@ class DashboardController extends Controller
             ->count();
 
         // Encomendas Pendentes
-        $encomendas = Package::where('unit_id', $user->unit_id)
-            ->where('status', 'pending')
+        $encomendas = Package::forUnit($user->unit_id)
+            ->pending()
             ->orderBy('received_at', 'desc')
             ->get();
 
@@ -345,18 +345,27 @@ class DashboardController extends Controller
             ->count();
 
         // Encomendas registradas hoje
-        $encombendasHoje = Package::with(['unit'])
-            ->where('condominium_id', $condominium->id)
+        $encomendasHoje = Package::with('unit')
+            ->byCondominium($condominium->id)
             ->whereDate('received_at', today())
+            ->orderByDesc('received_at')
+            ->limit(10)
             ->get();
 
         // Total de Encomendas Hoje
-        $totalEncombendasHoje = $encombendasHoje->count();
+        $totalEncomendasHoje = $encomendasHoje->count();
 
         // Encomendas Pendentes de Retirada (Total)
-        $encombendasPendentes = Package::where('condominium_id', $condominium->id)
-            ->where('status', 'pending')
+        $encomendasPendentesTotal = Package::byCondominium($condominium->id)
+            ->pending()
             ->count();
+
+        $encomendasPendentes = Package::with(['unit', 'unit.users'])
+            ->byCondominium($condominium->id)
+            ->pending()
+            ->orderBy('received_at')
+            ->limit(6)
+            ->get();
 
         // Estatísticas por Tipo de Entrada Hoje
         $entriesByType = Entry::where('condominium_id', $condominium->id)
@@ -383,9 +392,10 @@ class DashboardController extends Controller
             'entradasHoje',
             'totalEntradasHoje',
             'entradasAbertas',
-            'encombendasHoje',
-            'totalEncombendasHoje',
-            'encombendasPendentes',
+            'encomendasHoje',
+            'totalEncomendasHoje',
+            'encomendasPendentes',
+            'encomendasPendentesTotal',
             'visitantes',
             'prestadores',
             'entregas',
@@ -507,8 +517,8 @@ class DashboardController extends Controller
         // Encomendas da unidade (via morador responsável)
         $encomendas = [];
         if ($moradorResponsavel && $moradorResponsavel->unit_id) {
-            $encomendas = Package::where('unit_id', $moradorResponsavel->unit_id)
-                ->where('status', 'pending')
+            $encomendas = Package::forUnit($moradorResponsavel->unit_id)
+                ->pending()
                 ->orderBy('received_at', 'desc')
                 ->limit(5)
                 ->get();

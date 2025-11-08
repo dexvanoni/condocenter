@@ -251,6 +251,32 @@
     </div>
 </div>
 
+<!-- Modal Carrossel de Imagens -->
+<div class="modal fade" id="marketplaceImageCarouselModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="carouselModalTitle">Imagens do anúncio</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="marketplaceImageCarousel" class="carousel slide" data-bs-interval="false">
+                    <div class="carousel-indicators"></div>
+                    <div class="carousel-inner"></div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#marketplaceImageCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Anterior</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#marketplaceImageCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Próxima</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -276,6 +302,12 @@
         const itemModal = itemModalElement ? new bootstrap.Modal(itemModalElement) : null;
         const itemLoader = document.getElementById('marketplaceItemLoader');
         const itemDetails = document.getElementById('marketplaceItemDetails');
+        const imageCarouselModalElement = document.getElementById('marketplaceImageCarouselModal');
+        const imageCarouselModal = imageCarouselModalElement ? new bootstrap.Modal(imageCarouselModalElement) : null;
+        const imageCarouselElement = imageCarouselModalElement ? imageCarouselModalElement.querySelector('#marketplaceImageCarousel') : null;
+        const imageCarouselIndicators = imageCarouselElement ? imageCarouselElement.querySelector('.carousel-indicators') : null;
+        const imageCarouselInner = imageCarouselElement ? imageCarouselElement.querySelector('.carousel-inner') : null;
+        const imageCarouselTitle = imageCarouselModalElement ? imageCarouselModalElement.querySelector('#carouselModalTitle') : null;
         const modalTitle = createModalElement ? createModalElement.querySelector('.modal-title') : null;
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -311,6 +343,8 @@
         const editState = { isEditing: false, itemId: null };
         const submitButtonDefaultHtml = submitButton ? submitButton.innerHTML : '';
         const modalDefaultTitle = modalTitle ? modalTitle.textContent.trim() : 'Novo Anúncio';
+        let currentModalImageUrls = [];
+        let currentModalImageTitle = '';
 
         const config = {
             categories: @json($categories),
@@ -389,6 +423,84 @@
             const normalizedBase = storageBase.replace(/\/$/, '');
             const normalizedPath = String(path).replace(/^\/+/, '');
             return `${normalizedBase}/${normalizedPath}`;
+        }
+
+        function populateImageCarousel(images = [], startIndex = 0, title = '') {
+            if (!imageCarouselElement || !imageCarouselInner || !imageCarouselIndicators) {
+                return;
+            }
+
+            imageCarouselInner.innerHTML = '';
+            imageCarouselIndicators.innerHTML = '';
+
+            if (!Array.isArray(images) || images.length === 0) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.className = 'text-center text-white py-5';
+                emptyMessage.textContent = 'Nenhuma imagem disponível.';
+                imageCarouselInner.appendChild(emptyMessage);
+
+                if (imageCarouselTitle) {
+                    imageCarouselTitle.textContent = title || 'Imagens do anúncio';
+                }
+                return;
+            }
+
+            images.forEach((url, index) => {
+                const indicator = document.createElement('button');
+                indicator.type = 'button';
+                indicator.dataset.bsTarget = '#marketplaceImageCarousel';
+                indicator.dataset.bsSlideTo = String(index);
+                indicator.setAttribute('aria-label', `Slide ${index + 1}`);
+                if (index === startIndex) {
+                    indicator.classList.add('active');
+                    indicator.setAttribute('aria-current', 'true');
+                }
+                imageCarouselIndicators.appendChild(indicator);
+
+                const item = document.createElement('div');
+                item.className = `carousel-item${index === startIndex ? ' active' : ''}`;
+
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = title ? `${title} - Imagem ${index + 1}` : `Imagem ${index + 1}`;
+                img.className = 'd-block w-100 rounded';
+                img.style.maxHeight = '75vh';
+                img.style.objectFit = 'contain';
+                img.style.backgroundColor = '#000';
+
+                item.appendChild(img);
+                imageCarouselInner.appendChild(item);
+            });
+
+            if (imageCarouselTitle) {
+                imageCarouselTitle.textContent = title || 'Imagens do anúncio';
+            }
+
+            const existingInstance = imageCarouselElement ? bootstrap.Carousel.getInstance(imageCarouselElement) : null;
+            if (existingInstance) {
+                existingInstance.dispose();
+            }
+
+            const carouselInstance = bootstrap.Carousel.getOrCreateInstance(imageCarouselElement, {
+                interval: false,
+                ride: false,
+                wrap: true,
+            });
+            carouselInstance.to(Math.min(Math.max(startIndex, 0), images.length - 1));
+        }
+
+        function openImageCarousel(startIndex = 0) {
+            if (!imageCarouselModal) {
+                return;
+            }
+
+            if (!Array.isArray(currentModalImageUrls) || currentModalImageUrls.length === 0) {
+                showFeedback('info', 'Nenhuma imagem disponível para visualização.');
+                return;
+            }
+
+            populateImageCarousel(currentModalImageUrls, startIndex, currentModalImageTitle);
+            imageCarouselModal.show();
         }
 
         function showLoader() {
@@ -695,7 +807,7 @@
                 : 'Valor sob consulta';
             const sellerName = item?.seller?.name || 'Morador';
             const sellerPhone = item?.seller?.phone || null;
-            const sellerEmail = item?.seller?.email || null;
+            const sellerEmail = null;
             const unitBlock = item?.seller?.unit?.block || item?.unit?.block;
             const unitNumber = item?.seller?.unit?.number || item?.unit?.number;
             const unitLabel = [unitBlock ? `Bloco ${unitBlock}` : null, unitNumber ? `Unidade ${unitNumber}` : null].filter(Boolean).join(' • ') || 'Unidade não informada';
@@ -725,7 +837,7 @@
             }
 
             if (contacts.length > 0) {
-                modalFields.sellerContacts.innerHTML = contacts.join(' • ');
+                modalFields.sellerContacts.innerHTML = contacts.join(' </br> ');
             } else {
                 modalFields.sellerContacts.textContent = 'Contato não informado.';
             }
@@ -736,15 +848,13 @@
             modalFields.description.textContent = item.description || 'Sem descrição informada.';
 
             const imagesContainer = modalFields.images;
-            const storageBase = imagesContainer?.dataset?.storageBase || '';
             imagesContainer.innerHTML = '';
 
-            if (Array.isArray(item.images) && item.images.length > 0) {
-                item.images.forEach(path => {
-                    const normalizedBase = storageBase.replace(/\/$/, '');
-                    const normalizedPath = String(path).replace(/^\/+/, '');
-                    const url = `${normalizedBase}/${normalizedPath}`;
+            currentModalImageUrls = Array.isArray(item.images) ? item.images.map(path => normalizeImageUrl(path)) : [];
+            currentModalImageTitle = item.title || 'Imagens do anúncio';
 
+            if (currentModalImageUrls.length > 0) {
+                currentModalImageUrls.forEach((url, index) => {
                     const img = document.createElement('img');
                     img.src = url;
                     img.alt = item.title || 'Imagem do anúncio';
@@ -752,6 +862,19 @@
                     img.style.width = '150px';
                     img.style.height = '120px';
                     img.style.objectFit = 'cover';
+                    img.style.cursor = 'zoom-in';
+                    img.tabIndex = 0;
+                    img.setAttribute('role', 'button');
+                    img.setAttribute('aria-label', `Visualizar imagem ${index + 1} em tela cheia`);
+
+                    img.addEventListener('click', () => openImageCarousel(index));
+                    img.addEventListener('keydown', event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            openImageCarousel(index);
+                        }
+                    });
+
                     imagesContainer.appendChild(img);
                 });
             } else {
