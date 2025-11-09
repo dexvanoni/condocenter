@@ -75,21 +75,17 @@
 </table>
 
 <table>
-    <tr><th colspan="5">Pagamentos Registrados</th></tr>
+    <tr><th colspan="3">Pagamentos Recebidos (Resumo)</th></tr>
     <tr>
-        <th>Data Pagamento</th>
-        <th>Cobrança</th>
-        <th>Unidade</th>
         <th>Método</th>
-        <th>Valor Pago</th>
+        <th>Quantidade</th>
+        <th>Valor</th>
     </tr>
-    @foreach($data['payments'] as $payment)
+    @foreach($data['payments_summary'] as $summary)
         <tr>
-            <td>{{ optional($payment->payment_date)->format('d/m/Y') }}</td>
-            <td>{{ optional($payment->charge)->title }}</td>
-            <td>{{ optional(optional($payment->charge)->unit)->full_identifier ?? '' }}</td>
-            <td>{{ strtoupper($payment->payment_method ?? '') }}</td>
-            <td>{{ number_format($payment->amount_paid, 2, ',', '.') }}</td>
+            <td>{{ $summary['method'] }}</td>
+            <td>{{ $summary['transactions'] }}</td>
+            <td>{{ number_format($summary['total'], 2, ',', '.') }}</td>
         </tr>
     @endforeach
 </table>

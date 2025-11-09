@@ -36,11 +36,14 @@ class AccountabilityReportController extends Controller
 
         $data = $this->service->generate($user->condominium_id, $startDate, $endDate);
 
+        $canViewDetails = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
+
         return view('finance.accountability.index', [
             'data' => $data,
             'startDate' => $startDate,
             'endDate' => $endDate,
             'canExport' => $user->can('export_accountability_reports'),
+            'canViewDetails' => $canViewDetails,
         ]);
     }
 
@@ -63,7 +66,7 @@ class AccountabilityReportController extends Controller
             'condominium' => $user->condominium,
         ]);
 
-        $pdf->setPaper('a4', 'portrait');
+        $pdf->setPaper('a4', 'landscape');
 
         return $pdf->download('prestacao_contas_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd') . '.pdf');
     }

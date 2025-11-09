@@ -94,7 +94,7 @@
         <div class="card shadow-sm h-100">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Entradas (Taxas Recebidas)</h5>
-                <span class="badge bg-success">{{ $chargesPaid->count() }}</span>
+                <span class="badge bg-success">{{ $taxEntries->count() }}</span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -108,13 +108,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($chargesPaid as $charge)
+                            @forelse($taxEntries as $entry)
                                 <tr>
-                                    <td>{{ optional($charge->due_date)->format('d/m/Y') }}</td>
-                                    <td>{{ $charge->title }}</td>
-                                    <td>{{ optional($charge->unit)->full_identifier ?? '—' }}</td>
+                                    <td>{{ optional($entry['transaction_date'])->format('d/m/Y') }}</td>
+                                    <td>{{ $entry['title'] }}</td>
+                                    <td>{{ $entry['unit'] ?? '—' }}</td>
                                     <td class="text-end text-success fw-semibold">
-                                        R$ {{ number_format($charge->amount, 2, ',', '.') }}
+                                        R$ {{ number_format($entry['amount'], 2, ',', '.') }}
                                     </td>
                                 </tr>
                             @empty

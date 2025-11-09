@@ -7,6 +7,7 @@ use App\Models\Charge;
 use App\Models\Fee;
 use App\Services\ChargeSettlementService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +21,7 @@ class ChargeSettlementController extends Controller
         $this->middleware(['can:manage_transactions']);
     }
 
-    public function markPaid(Request $request, Charge $charge): RedirectResponse
+    public function markPaid(Request $request, Charge $charge): RedirectResponse|JsonResponse
     {
         $this->authorizeCharge($charge);
 
@@ -37,6 +38,13 @@ class ChargeSettlementController extends Controller
             $data['notes'] ?? null,
             Auth::id()
         );
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Cobrança marcada como paga com sucesso.',
+                'charge' => $charge->fresh(['unit']),
+            ]);
+        }
 
         return redirect($request->input('return_url', url()->previous()))
             ->with('success', 'Cobrança marcada como paga com sucesso.');
@@ -70,19 +78,13 @@ class ChargeSettlementController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $charges = $fee->charges()
-            ->where('status', '!=', 'paid')
-            ->get();
-
-        foreach ($charges as $charge) {
-            $this->settlementService->markAsPaid(
-                $charge,
-                Carbon::parse($data['paid_at']),
-                $data['payment_method'],
-                $data['notes'] ?? null,
-                Auth::id()
-            );
-        }
+        $this->settlementService->markAllPaid(
+            $fee,
+            Carbon::parse($data['paid_at']),
+            $data['payment_method'],
+            $data['notes'] ?? null,
+            Auth::id()
+        );
 
         return redirect($request->input('return_url', url()->previous()))
             ->with('success', 'Todas as cobranças pendentes foram marcadas como pagas.');

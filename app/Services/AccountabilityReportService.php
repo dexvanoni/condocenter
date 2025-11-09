@@ -16,6 +16,10 @@ class AccountabilityReportService
         $manualIncomes = CondominiumAccount::with('creator')
             ->where('condominium_id', $condominiumId)
             ->where('type', 'income')
+            ->where(function ($query) {
+                $query->whereNull('source_type')
+                    ->orWhere('source_type', 'manual_income');
+            })
             ->whereBetween('transaction_date', [$startDate, $endDate])
             ->orderBy('transaction_date')
             ->get();
@@ -27,16 +31,23 @@ class AccountabilityReportService
             ->orderBy('transaction_date')
             ->get();
 
-        $chargesPaid = Charge::with(['fee'])
-            ->where('condominium_id', $condominiumId)
-            ->where('status', 'paid')
-            ->whereBetween('due_date', [$startDate, $endDate])
-            ->orderBy('due_date')
+        $chargeIncomeEntries = CondominiumAccount::where('condominium_id', $condominiumId)
+            ->where('type', 'income')
+            ->where('source_type', 'charge')
+            ->whereBetween('transaction_date', [$startDate, $endDate])
+            ->orderBy('transaction_date')
             ->get();
 
-        $chargeSummary = $chargesPaid
-            ->groupBy(function (Charge $charge) {
-                return $charge->fee?->name ?? $charge->title;
+        $chargeIds = $chargeIncomeEntries->pluck('source_id')->filter()->unique();
+        $chargesById = Charge::with('fee')
+            ->whereIn('id', $chargeIds)
+            ->get()
+            ->keyBy('id');
+
+        $chargeSummary = $chargeIncomeEntries
+            ->groupBy(function (CondominiumAccount $entry) use ($chargesById) {
+                $charge = $chargesById->get($entry->source_id);
+                return $charge?->fee?->name ?? $charge?->title ?? $entry->description ?? 'Cobranças';
             })
             ->map(function (Collection $group, $name) {
                 return [
@@ -46,13 +57,26 @@ class AccountabilityReportService
             })
             ->values();
 
-        $payments = Payment::with(['charge.unit'])
-            ->whereHas('charge', function ($query) use ($condominiumId, $startDate, $endDate) {
-                $query->where('condominium_id', $condominiumId)
-                    ->whereBetween('due_date', [$startDate, $endDate]);
+        $payments = Payment::with(['charge'])
+            ->whereHas('charge', function ($query) use ($condominiumId) {
+                $query->where('condominium_id', $condominiumId);
             })
+            ->whereBetween('payment_date', [$startDate, $endDate])
             ->orderBy('payment_date')
             ->get();
+
+        $paymentsSummary = $payments
+            ->groupBy(function (Payment $payment) {
+                return strtoupper($payment->payment_method ?? 'OUTROS');
+            })
+            ->map(function (Collection $group, string $method) {
+                return [
+                    'method' => $method === 'OUTROS' ? 'Outros métodos' : $method,
+                    'transactions' => $group->count(),
+                    'total' => $group->sum('amount_paid'),
+                ];
+            })
+            ->values();
 
         $bankAccounts = BankAccount::where('condominium_id', $condominiumId)
             ->orderBy('name')
@@ -78,7 +102,7 @@ class AccountabilityReportService
         $totals = [
             'manual_income' => $manualIncomes->sum('amount'),
             'manual_expense' => $manualExpenses->sum('amount'),
-            'charges_income' => $chargesPaid->sum('amount'),
+            'charges_income' => $chargeIncomeEntries->sum('amount'),
         ];
 
         $totals['total_income'] = $totals['manual_income'] + $totals['charges_income'];
@@ -91,7 +115,7 @@ class AccountabilityReportService
             'manual_incomes' => $manualIncomes,
             'manual_expenses' => $manualExpenses,
             'charge_summary' => $chargeSummary,
-            'payments' => $payments,
+            'payments_summary' => $paymentsSummary,
             'bank_accounts' => $bankAccounts,
             'totals' => $totals,
             'start_date' => $startDate,

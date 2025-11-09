@@ -139,27 +139,49 @@
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Data</th>
-                                <th>Descrição</th>
-                                <th>Método</th>
+                                <th>{{ $canViewDetails ? 'Data' : 'Categoria' }}</th>
+                                @if($canViewDetails)
+                                    <th>Descrição</th>
+                                    <th>Método</th>
+                                @endif
                                 <th class="text-end">Valor</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($data['manual_incomes'] as $income)
-                                <tr>
-                                    <td>{{ optional($income->transaction_date)->format('d/m/Y') }}</td>
-                                    <td>{{ $income->description }}</td>
-                                    <td>{{ strtoupper($income->payment_method ?? '—') }}</td>
-                                    <td class="text-end text-success fw-semibold">
-                                        R$ {{ number_format($income->amount, 2, ',', '.') }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="text-center text-muted py-4">Nenhum recebimento avulso registrado.</td>
-                                </tr>
-                            @endforelse
+                            @if($canViewDetails)
+                                @forelse($data['manual_incomes'] as $income)
+                                    <tr>
+                                        <td>{{ optional($income->transaction_date)->format('d/m/Y') }}</td>
+                                        <td>{{ $income->description }}</td>
+                                        <td>{{ strtoupper($income->payment_method ?? '—') }}</td>
+                                        <td class="text-end text-success fw-semibold">
+                                            R$ {{ number_format($income->amount, 2, ',', '.') }}
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">Nenhum recebimento avulso registrado.</td>
+                                    </tr>
+                                @endforelse
+                            @else
+                                @php
+                                    $groupedManualIncomes = $data['manual_incomes']->groupBy(function ($income) {
+                                        return strtoupper($income->payment_method ?? 'OUTROS');
+                                    });
+                                @endphp
+                                @forelse($groupedManualIncomes as $method => $group)
+                                    <tr>
+                                        <td>{{ $method === 'OUTROS' ? 'Outros métodos' : $method }}</td>
+                                        <td class="text-end text-success fw-semibold">
+                                            R$ {{ number_format($group->sum('amount'), 2, ',', '.') }}
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="2" class="text-center text-muted py-4">Nenhum recebimento avulso registrado.</td>
+                                    </tr>
+                                @endforelse
+                            @endif
                         </tbody>
                     </table>
                 </div>
@@ -167,6 +189,10 @@
         </div>
     </div>
 </div>
+
+@if($canViewDetails)
+    @include('finance.accountability.shared-tables', ['data' => $data, 'skipCharges' => true])
+@endif
 
 <div class="row g-3 mt-3">
     <div class="col-12">
@@ -253,35 +279,31 @@
     <div class="col-xl-6">
         <div class="card shadow-sm h-100">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Pagamentos Registrados (Detalhe)</h5>
-                <span class="badge bg-primary">{{ $data['payments']->count() }}</span>
+                <h5 class="mb-0">Pagamentos Recebidos (Resumo)</h5>
+                <span class="badge bg-primary">{{ $data['payments_summary']->sum('transactions') }}</span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Data Pgto.</th>
-                                <th>Cobrança</th>
-                                <th>Unidade</th>
                                 <th>Método</th>
-                                <th class="text-end">Valor Pago</th>
+                                <th class="text-end">Quantidade</th>
+                                <th class="text-end">Valor Total</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($data['payments'] as $payment)
+                            @forelse($data['payments_summary'] as $paymentSummary)
                                 <tr>
-                                    <td>{{ optional($payment->payment_date)->format('d/m/Y') }}</td>
-                                    <td>{{ optional($payment->charge)->title }}</td>
-                                    <td>{{ optional(optional($payment->charge)->unit)->full_identifier ?? '—' }}</td>
-                                    <td>{{ strtoupper($payment->payment_method ?? '—') }}</td>
+                                    <td>{{ $paymentSummary['method'] }}</td>
+                                    <td class="text-end">{{ $paymentSummary['transactions'] }}</td>
                                     <td class="text-end text-primary fw-semibold">
-                                        R$ {{ number_format($payment->amount_paid, 2, ',', '.') }}
+                                        R$ {{ number_format($paymentSummary['total'], 2, ',', '.') }}
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">Nenhum pagamento registrado.</td>
+                                    <td colspan="3" class="text-center text-muted py-4">Nenhum pagamento registrado.</td>
                                 </tr>
                             @endforelse
                         </tbody>

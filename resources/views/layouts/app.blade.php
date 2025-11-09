@@ -231,6 +231,9 @@
             font-weight: bold;
             animation: pulse 2s infinite;
         }
+        .mb-0, .mb-4 {
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
@@ -366,7 +369,12 @@
                 </li>
                 @endif
 
-                @if($user->can('view_transactions') || $user->can('view_charges') || $user->can('view_own_financial') || $user->can('view_financial_reports'))
+                @php
+                    $isFinanceAdmin = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
+                    $isFinanceResident = $user->isMorador();
+                    $canViewFinance = !$user->isAgregado() && ($isFinanceAdmin || $isFinanceResident);
+                @endphp
+                @if($canViewFinance)
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['financeiro'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuFinanceiro" aria-expanded="{{ $menuActive['financeiro'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-cash-coin me-2"></i>Financeiro</span>
@@ -374,91 +382,103 @@
                     </button>
                     <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="menuFinanceiro" data-bs-parent="#sidebarMenu">
                         <ul class="nav flex-column inner-nav">
-                            @if(Route::has('transactions.index') && $user->can('view_transactions'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
-                                    <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
-                                </a>
-                            </li>
+                            @if($isFinanceAdmin)
+                                @if(Route::has('transactions.index') && $user->can('view_transactions'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
+                                        <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('fees.index') && $user->can('view_charges'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
+                                        <i class="bi bi-journal-text"></i> {{ $user->can('manage_charges') ? 'Configurar Taxas' : 'Taxas' }}
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('charges.index') && $user->can('view_charges'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
+                                        <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('financial.status.index') && $user->can('view_financial_reports'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
+                                        <i class="bi bi-graph-up"></i> Painel de Adimplência
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('financial.bank-accounts.index') && $user->can('manage_transactions'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
+                                        <i class="bi bi-building-check"></i> Contas Bancárias
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('revenue.index') && $user->can('view_revenue'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
+                                        <i class="bi bi-graph-up-arrow"></i> Receitas
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('expenses.index') && $user->can('view_expenses'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
+                                        <i class="bi bi-graph-down-arrow"></i> Despesas
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
+                                        <i class="bi bi-bank"></i> Conciliação Bancária
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
+                                        <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('accountability-reports.index') && ($user->can('view_accountability_reports') || $user->can('view_financial_reports')))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
+                                        <i class="bi bi-file-earmark-text"></i> Prestação de Contas
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('balance.index') && $user->can('view_balance'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
+                                        <i class="bi bi-pie-chart"></i> Balanço Patrimonial
+                                    </a>
+                                </li>
+                                @endif
                             @endif
-                            @if(Route::has('fees.index') && $user->can('view_charges'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
-                                    <i class="bi bi-journal-text"></i> {{ $user->can('manage_charges') ? 'Configurar Taxas' : 'Taxas' }}
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('charges.index') && $user->can('view_charges'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
-                                    <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('financial.status.index') && ($user->can('view_charges') || $user->can('view_financial_reports')))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
-                                    <i class="bi bi-people"></i> Painel de Adimplência
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('financial.accounts.index') && ($user->can('view_transactions') || $user->can('view_own_financial')))
+
+                            @if(Route::has('financial.accounts.index') && ($isFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $isFinanceResident))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
-                                    <i class="bi bi-journal-richtext"></i> Contas do Condomínio
+                                    <i class="bi bi-bank"></i> Contas do Condomínio
                                 </a>
                             </li>
                             @endif
-                            @if(Route::has('financial.bank-accounts.index') && $user->can('view_bank_statements'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
-                                    <i class="bi bi-bank2"></i> Contas Bancárias
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('revenue.index') && $user->can('view_revenue'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
-                                    <i class="bi bi-graph-up-arrow"></i> Receitas
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('expenses.index') && $user->can('view_expenses'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
-                                    <i class="bi bi-graph-down-arrow"></i> Despesas
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
-                                    <i class="bi bi-bank"></i> Conciliação Bancária
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
-                                    <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('accountability-reports.index') && $user->can('view_accountability_reports'))
+
+                            @if(!$isFinanceAdmin && Route::has('accountability-reports.index') && ($isFinanceResident || $user->can('view_accountability_reports') || $user->can('view_financial_reports')))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
-                                    <i class="bi bi-file-earmark-text"></i> Prestação de Contas
+                                    <i class="bi bi-journal-check"></i> Prestação de Contas
                                 </a>
                             </li>
                             @endif
-                            @if(Route::has('balance.index') && $user->can('view_balance'))
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
-                                    <i class="bi bi-pie-chart"></i> Balanço Patrimonial
-                                </a>
-                            </li>
-                            @endif
-                            @if(Route::has('my-finances') && $user->can('view_own_financial') && !$user->can('view_charges'))
+
+                            @if(Route::has('my-finances') && $isFinanceResident)
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                     <i class="bi bi-wallet2"></i> Minhas Finanças
@@ -891,7 +911,12 @@
                         </li>
                         @endif
 
-                        @if($user->can('view_transactions') || $user->can('view_charges') || $user->can('view_own_financial') || $user->can('view_financial_reports'))
+                        @php
+                            $mobileFinanceAdmin = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
+                            $mobileFinanceResident = $user->isMorador();
+                            $mobileCanSeeFinance = !$user->isAgregado() && ($mobileFinanceAdmin || $mobileFinanceResident);
+                        @endphp
+                        @if($mobileCanSeeFinance)
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['financeiro'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuFinanceiro" aria-expanded="{{ $menuActive['financeiro'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-cash-coin me-2"></i>Financeiro</span>
@@ -899,91 +924,89 @@
                             </button>
                             <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="mobileMenuFinanceiro" data-bs-parent="#mobileSidebarMenu">
                                 <ul class="nav flex-column inner-nav">
-                                    @if(Route::has('transactions.index') && $user->can('view_transactions'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
-                                            <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
-                                        </a>
-                                    </li>
+                                    @if($mobileFinanceAdmin)
+                                        @if(Route::has('transactions.index') && $user->can('view_transactions'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
+                                                <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('fees.index') && $user->can('view_charges'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
+                                                <i class="bi bi-journal-text"></i> {{ $user->can('manage_charges') ? 'Configurar Taxas' : 'Taxas' }}
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('charges.index') && $user->can('view_charges'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
+                                                <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('financial.status.index') && $user->can('view_financial_reports'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
+                                                <i class="bi bi-graph-up"></i> Painel de Adimplência
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('financial.bank-accounts.index') && $user->can('manage_transactions'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
+                                                <i class="bi bi-building-check"></i> Contas Bancárias
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('revenue.index') && $user->can('view_revenue'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
+                                                <i class="bi bi-graph-up-arrow"></i> Receitas
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('expenses.index') && $user->can('view_expenses'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
+                                                <i class="bi bi-graph-down-arrow"></i> Despesas
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
+                                                <i class="bi bi-bank"></i> Conciliação Bancária
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
+                                                <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
+                                            </a>
+                                        </li>
+                                        @endif
                                     @endif
-                                    @if(Route::has('fees.index') && $user->can('view_charges'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
-                                            <i class="bi bi-journal-text"></i> {{ $user->can('manage_charges') ? 'Configurar Taxas' : 'Taxas' }}
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('charges.index') && $user->can('view_charges'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
-                                            <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('financial.status.index') && ($user->can('view_charges') || $user->can('view_financial_reports')))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
-                                            <i class="bi bi-people"></i> Painel de Adimplência
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('financial.accounts.index') && ($user->can('view_transactions') || $user->can('view_own_financial')))
+
+                                    @if(Route::has('financial.accounts.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
-                                            <i class="bi bi-journal-richtext"></i> Contas do Condomínio
+                                            <i class="bi bi-bank"></i> Contas do Condomínio
                                         </a>
                                     </li>
                                     @endif
-                                    @if(Route::has('financial.bank-accounts.index') && $user->can('view_bank_statements'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
-                                            <i class="bi bi-bank2"></i> Contas Bancárias
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('revenue.index') && $user->can('view_revenue'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
-                                            <i class="bi bi-graph-up-arrow"></i> Receitas
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('expenses.index') && $user->can('view_expenses'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
-                                            <i class="bi bi-graph-down-arrow"></i> Despesas
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
-                                            <i class="bi bi-bank"></i> Conciliação Bancária
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
-                                            <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('accountability-reports.index') && $user->can('view_accountability_reports'))
+
+                                    @if(!$mobileFinanceAdmin && Route::has('accountability-reports.index') && ($mobileFinanceResident || $user->can('view_accountability_reports') || $user->can('view_financial_reports')))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
-                                            <i class="bi bi-file-earmark-text"></i> Prestação de Contas
+                                            <i class="bi bi-journal-check"></i> Prestação de Contas
                                         </a>
                                     </li>
                                     @endif
-                                    @if(Route::has('balance.index') && $user->can('view_balance'))
-                                    <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
-                                            <i class="bi bi-pie-chart"></i> Balanço Patrimonial
-                                        </a>
-                                    </li>
-                                    @endif
-                                    @if(Route::has('my-finances') && $user->can('view_own_financial') && !$user->can('view_charges'))
+
+                                    @if(Route::has('my-finances') && $mobileFinanceResident)
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                             <i class="bi bi-wallet2"></i> Minhas Finanças

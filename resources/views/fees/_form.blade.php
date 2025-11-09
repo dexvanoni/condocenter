@@ -409,13 +409,13 @@
                 applyStateToCheckbox(event.target);
             }
 
-            if (applyAllMode && event.target.classList?.contains('unit-config-input') && event.target.type !== 'hidden') {
+            if (event.target.classList?.contains('unit-config-input') && event.target.type !== 'hidden') {
                 markUnitAsModified(event.target.dataset.unitId);
             }
         });
 
         document.addEventListener('input', function (event) {
-            if (applyAllMode && event.target.classList?.contains('unit-config-input')) {
+            if (event.target.classList?.contains('unit-config-input')) {
                 markUnitAsModified(event.target.dataset.unitId);
             }
         });

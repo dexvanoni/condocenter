@@ -104,7 +104,7 @@ class FeeController extends Controller
         $charges = Charge::with('unit')
             ->where('fee_id', $fee->id)
             ->orderByDesc('due_date')
-            ->paginate(15);
+            ->get();
 
         return view('fees.show', compact('fee', 'charges'));
     }

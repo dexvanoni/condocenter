@@ -35,19 +35,21 @@ class CondominiumAccountController extends Controller
             ->orderByDesc('transaction_date')
             ->orderByDesc('created_at');
 
-        $manualIncomes = (clone $entriesQuery)->where('type', 'income')->get();
-        $manualExpenses = (clone $entriesQuery)->where('type', 'expense')->get();
+        $incomeEntries = (clone $entriesQuery)->where('type', 'income')->get();
+        $expenseEntries = (clone $entriesQuery)->where('type', 'expense')->get();
+        $chargeIncomeEntries = $incomeEntries->filter(fn (CondominiumAccount $entry) => $entry->source_type === 'charge');
+        $manualIncomeEntries = $incomeEntries->reject(fn (CondominiumAccount $entry) => $entry->source_type === 'charge');
 
-        $chargesPaid = Charge::with(['unit', 'fee'])
-            ->where('condominium_id', $condominiumId)
-            ->where('status', 'paid')
-            ->whereBetween('due_date', [$startDate, $endDate])
-            ->get();
+        $chargeIds = $chargeIncomeEntries->pluck('source_id')->filter()->unique();
+        $chargesById = Charge::with(['unit', 'fee'])
+            ->whereIn('id', $chargeIds)
+            ->get()
+            ->keyBy('id');
 
         $summary = [
-            'income_manual' => $manualIncomes->sum('amount'),
-            'income_charges' => $chargesPaid->sum('amount'),
-            'expenses_manual' => $manualExpenses->sum('amount'),
+            'income_manual' => $manualIncomeEntries->sum('amount'),
+            'income_charges' => $chargeIncomeEntries->sum('amount'),
+            'expenses_manual' => $expenseEntries->sum('amount'),
         ];
 
         $summary['total_income'] = $summary['income_manual'] + $summary['income_charges'];
@@ -55,19 +57,24 @@ class CondominiumAccountController extends Controller
 
         $openingBalance = $this->calculateBalanceUntil($condominiumId, $startDate->copy()->subDay());
 
-        $timelineIncomes = $chargesPaid->map(function (Charge $charge) {
+        $taxIncomeTimeline = $chargeIncomeEntries->map(function (CondominiumAccount $entry) use ($chargesById) {
+            $charge = $chargesById->get($entry->source_id);
+
             return [
-                'id' => $charge->id,
-                'title' => $charge->title,
-                'amount' => $charge->amount,
-                'transaction_date' => $charge->due_date,
+                'id' => $entry->id,
+                'charge_id' => $entry->source_id,
+                'title' => $charge?->title ?? $entry->description,
+                'amount' => $entry->amount,
+                'transaction_date' => $entry->transaction_date,
                 'source' => 'charge',
-                'unit' => optional($charge->unit)->full_identifier,
-                'details' => $charge->description,
-                'payment_channel' => data_get($charge->metadata, 'payment_channel', 'system'),
+                'unit' => optional($charge?->unit)->full_identifier,
+                'details' => $charge?->description,
+                'payment_channel' => data_get($charge?->metadata, 'payment_channel', $entry->payment_method),
             ];
-        })->concat(
-            $manualIncomes->map(function (CondominiumAccount $account) {
+        });
+
+        $timelineIncomes = $taxIncomeTimeline->concat(
+            $manualIncomeEntries->map(function (CondominiumAccount $account) {
                 return [
                     'id' => $account->id,
                     'title' => $account->description,
@@ -82,7 +89,7 @@ class CondominiumAccountController extends Controller
             })
         )->sortByDesc('transaction_date');
 
-        $timelineExpenses = $manualExpenses->map(function (CondominiumAccount $account) {
+        $timelineExpenses = $expenseEntries->map(function (CondominiumAccount $account) {
             return [
                 'id' => $account->id,
                 'title' => $account->description,
@@ -108,7 +115,7 @@ class CondominiumAccountController extends Controller
             'endDate' => $endDate,
             'openingBalance' => $openingBalance,
             'closingBalance' => $openingBalance + $summary['balance'],
-            'chargesPaid' => $chargesPaid,
+            'taxEntries' => $taxIncomeTimeline,
         ]);
     }
 
@@ -177,6 +184,7 @@ class CondominiumAccountController extends Controller
         CondominiumAccount::create([
             'condominium_id' => $user->condominium_id,
             'type' => 'income',
+            'source_type' => 'manual_income',
             'description' => $validated['description'],
             'amount' => $validated['amount'],
             'transaction_date' => $validated['transaction_date'],

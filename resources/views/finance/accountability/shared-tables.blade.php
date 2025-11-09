@@ -1,3 +1,8 @@
+@php
+    $showChargeSummary = !($skipCharges ?? false);
+@endphp
+
+@if($showChargeSummary)
 <h4>Entradas - Taxas Recebidas</h4>
 <table class="table table-bordered table-sm">
     <thead class="table-light">
@@ -19,6 +24,7 @@
         @endforelse
     </tbody>
 </table>
+@endif
 
 <h4>Entradas - Avulsas</h4>
 <table class="table table-bordered table-sm">
@@ -100,29 +106,25 @@
     </tbody>
 </table>
 
-<h4>Pagamentos Registrados</h4>
+<h4>Pagamentos Recebidos (Resumo)</h4>
 <table class="table table-bordered table-sm">
     <thead class="table-light">
         <tr>
-            <th>Data Pgto.</th>
-            <th>Cobrança</th>
-            <th>Unidade</th>
             <th>Método</th>
-            <th class="text-end">Valor Pago</th>
+            <th class="text-end">Quantidade</th>
+            <th class="text-end">Total</th>
         </tr>
     </thead>
     <tbody>
-        @forelse($data['payments'] as $payment)
+        @forelse($data['payments_summary'] as $summary)
             <tr>
-                <td>{{ optional($payment->payment_date)->format('d/m/Y') }}</td>
-                <td>{{ optional($payment->charge)->title }}</td>
-                <td>{{ optional(optional($payment->charge)->unit)->full_identifier ?? '—' }}</td>
-                <td>{{ strtoupper($payment->payment_method ?? '—') }}</td>
-                <td class="text-end">R$ {{ number_format($payment->amount_paid, 2, ',', '.') }}</td>
+                <td>{{ $summary['method'] }}</td>
+                <td class="text-end">{{ $summary['transactions'] }}</td>
+                <td class="text-end">R$ {{ number_format($summary['total'], 2, ',', '.') }}</td>
             </tr>
         @empty
             <tr>
-                <td colspan="5" class="text-center text-muted">Nenhum pagamento registrado.</td>
+                <td colspan="3" class="text-center text-muted">Nenhum pagamento registrado.</td>
             </tr>
         @endforelse
     </tbody>

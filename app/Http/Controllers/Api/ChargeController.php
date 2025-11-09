@@ -32,30 +32,79 @@ class ChargeController extends Controller
             return response()->json(['error' => 'Usuário não vinculado a um condomínio'], 403);
         }
 
-        $query = Charge::with(['unit', 'payments'])
+        $baseQuery = Charge::with(['unit', 'payments'])
             ->where('condominium_id', $condominiumId);
 
         // Se for morador, mostrar apenas suas cobranças
         if ($user->isMorador() && $user->unit_id) {
-            $query->where('unit_id', $user->unit_id);
+            $baseQuery->where('unit_id', $user->unit_id);
         }
 
         // Filtros
         if ($request->has('status')) {
-            $query->where('status', $request->status);
+            $baseQuery->where('status', $request->status);
         }
 
         if ($request->has('unit_id')) {
-            $query->where('unit_id', $request->unit_id);
+            $baseQuery->where('unit_id', $request->unit_id);
         }
 
         if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('due_date', [$request->start_date, $request->end_date]);
+            $baseQuery->whereBetween('due_date', [$request->start_date, $request->end_date]);
         }
 
-        $charges = $query->orderBy('due_date', 'desc')->paginate(15);
+        if ($request->filled('search')) {
+            $term = trim($request->search);
+            $baseQuery->where(function ($q) use ($term) {
+                $q->where('title', 'like', '%' . $term . '%')
+                    ->orWhereHas('unit', function ($unitQuery) use ($term) {
+                        $unitQuery->where('full_identifier', 'like', '%' . $term . '%');
+                    });
+            });
+        }
 
-        return response()->json($charges);
+        $chargesQuery = clone $baseQuery;
+        $pendingCount = (clone $baseQuery)->where('status', 'pending')->count();
+        $overdueCount = (clone $baseQuery)->where('status', 'overdue')->count();
+        $paidThisMonth = (clone $baseQuery)
+            ->where('status', 'paid')
+            ->whereBetween('due_date', [now()->startOfMonth(), now()->endOfMonth()])
+            ->count();
+        $amountToReceive = (clone $baseQuery)
+            ->whereIn('status', ['pending', 'overdue'])
+            ->sum('amount');
+
+        $perPage = $request->integer('per_page', 15);
+        $charges = $chargesQuery->orderBy('due_date', 'desc')->paginate($perPage);
+
+        $unitOptions = $user->isMorador() && $user->unit_id
+            ? Unit::where('id', $user->unit_id)->get(['id', 'full_identifier'])
+            : Unit::where('condominium_id', $condominiumId)
+                ->orderBy('block')
+                ->orderBy('number')
+                ->get(['id', 'full_identifier']);
+
+        return response()->json([
+            'data' => $charges->items(),
+            'meta' => [
+                'current_page' => $charges->currentPage(),
+                'last_page' => $charges->lastPage(),
+                'per_page' => $charges->perPage(),
+                'total' => $charges->total(),
+            ],
+            'summary' => [
+                'pending' => $pendingCount,
+                'overdue' => $overdueCount,
+                'paid_this_month' => $paidThisMonth,
+                'amount_to_receive' => $amountToReceive,
+            ],
+            'filters' => [
+                'units' => $unitOptions->map(fn ($unit) => [
+                    'id' => $unit->id,
+                    'label' => $unit->full_identifier,
+                ])->values(),
+            ],
+        ]);
     }
 
     /**

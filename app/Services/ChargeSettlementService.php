@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Charge;
 use App\Models\CondominiumAccount;
+use App\Models\Fee;
 use App\Models\Payment;
 use App\Models\PaymentCancellation;
 use Carbon\Carbon;
@@ -116,6 +117,51 @@ class ChargeSettlementService
 
             $charge->forceFill([
                 'status' => 'pending',
+                'paid_at' => null,
+                'metadata' => $metadata,
+            ])->save();
+        });
+    }
+
+    public function markAllPaid(Fee $fee, Carbon $paidAt, string $paymentMethod, ?string $notes, ?int $userId = null): void
+    {
+        $charges = $fee->charges()
+            ->where('status', '!=', 'paid')
+            ->get();
+
+        foreach ($charges as $charge) {
+            $this->markAsPaid($charge, $paidAt, $paymentMethod, $notes, $userId);
+        }
+    }
+
+    public function cancelCharge(Charge $charge, ?string $reason = null, ?int $userId = null): void
+    {
+        if ($charge->status === 'paid') {
+            throw ValidationException::withMessages([
+                'charge' => 'Não é possível cancelar uma cobrança que já foi paga.',
+            ]);
+        }
+
+        $this->database->transaction(function () use ($charge, $reason, $userId) {
+            Payment::where('charge_id', $charge->id)->delete();
+
+            CondominiumAccount::where('condominium_id', $charge->condominium_id)
+                ->where('type', 'income')
+                ->where('source_type', 'charge')
+                ->where('source_id', $charge->id)
+                ->delete();
+
+            $metadata = $charge->metadata ?? [];
+            $metadata['cancelled_at'] = now()->format('Y-m-d H:i:s');
+            if ($userId) {
+                $metadata['cancelled_by'] = $userId;
+            }
+            if ($reason) {
+                $metadata['cancelled_reason'] = $reason;
+            }
+
+            $charge->forceFill([
+                'status' => 'cancelled',
                 'paid_at' => null,
                 'metadata' => $metadata,
             ])->save();

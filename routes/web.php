@@ -51,6 +51,11 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     // Cobranças
     Route::middleware(['can:view_charges'])->group(function () {
         Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
+        Route::get('/charges/data', [\App\Http\Controllers\ChargeController::class, 'data'])->name('charges.data');
+        Route::get('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'show'])->name('charges.show');
+        Route::delete('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'destroy'])
+            ->middleware('can:manage_charges')
+            ->name('charges.destroy');
     });
     
     // Taxas

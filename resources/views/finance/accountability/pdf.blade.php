@@ -129,29 +129,25 @@
         </tbody>
     </table>
 
-    <h3>Pagamentos Recebidos</h3>
+    <h3>Pagamentos Recebidos (Resumo)</h3>
     <table>
         <thead>
             <tr>
-                <th>Data Pagamento</th>
-                <th>Cobrança</th>
-                <th>Unidade</th>
                 <th>Método</th>
-                <th class="text-right">Valor Pago</th>
+                <th class="text-right">Quantidade</th>
+                <th class="text-right">Valor Total</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($data['payments'] as $payment)
+            @forelse($data['payments_summary'] as $summary)
                 <tr>
-                    <td>{{ optional($payment->payment_date)->format('d/m/Y') }}</td>
-                    <td>{{ optional($payment->charge)->title }}</td>
-                    <td>{{ optional(optional($payment->charge)->unit)->full_identifier ?? '—' }}</td>
-                    <td>{{ strtoupper($payment->payment_method ?? '—') }}</td>
-                    <td class="text-right">R$ {{ number_format($payment->amount_paid, 2, ',', '.') }}</td>
+                    <td>{{ $summary['method'] }}</td>
+                    <td class="text-right">{{ $summary['transactions'] }}</td>
+                    <td class="text-right">R$ {{ number_format($summary['total'], 2, ',', '.') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5">Nenhum pagamento registrado.</td>
+                    <td colspan="3">Nenhum pagamento registrado.</td>
                 </tr>
             @endforelse
         </tbody>
