@@ -409,6 +409,13 @@
                                 </a>
                             </li>
                             @endif
+                            @if(Route::has('financial.bank-accounts.index') && $user->can('view_bank_statements'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
+                                    <i class="bi bi-bank2"></i> Contas Bancárias
+                                </a>
+                            </li>
+                            @endif
                             @if(Route::has('revenue.index') && $user->can('view_revenue'))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
@@ -924,6 +931,13 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
                                             <i class="bi bi-journal-richtext"></i> Contas do Condomínio
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('financial.bank-accounts.index') && $user->can('view_bank_statements'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
+                                            <i class="bi bi-bank2"></i> Contas Bancárias
                                         </a>
                                     </li>
                                     @endif

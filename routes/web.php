@@ -7,6 +7,8 @@ use App\Http\Controllers\Finance\AccountabilityReportController;
 use App\Http\Controllers\Finance\CondominiumAccountController;
 use App\Http\Controllers\Finance\FinancialStatusController;
 use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\Finance\BankAccountController;
+use App\Http\Controllers\Finance\ChargeSettlementController;
 use Illuminate\Support\Facades\Route;
 
 // Rota de teste absoluta
@@ -56,6 +58,17 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::resource('fees', FeeController::class);
         Route::post('fees/{fee}/generate', [FeeController::class, 'generateCharges'])->name('fees.generate');
     });
+
+    Route::resource('financial/bank-accounts', BankAccountController::class)
+        ->parameters(['bank-accounts' => 'bankAccount'])
+        ->names('financial.bank-accounts');
+
+    Route::post('charges/{charge}/mark-paid', [ChargeSettlementController::class, 'markPaid'])
+        ->name('charges.mark-paid');
+    Route::post('charges/{charge}/revoke-payroll', [ChargeSettlementController::class, 'revokePayroll'])
+        ->name('charges.revoke-payroll');
+    Route::post('fees/{fee}/charges/mark-all-paid', [ChargeSettlementController::class, 'markAllPaid'])
+        ->name('fees.charges.mark-all-paid');
 
     // Painel financeiro
     Route::get('/financial/status', FinancialStatusController::class)->name('financial.status.index');

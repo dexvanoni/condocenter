@@ -39,6 +39,21 @@
     );
 @endphp
 
+@once
+    @push('styles')
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    @endpush
+@endonce
+
+@once
+    @push('scripts')
+        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+    @endpush
+@endonce
+
+<input type="hidden" name="apply_all_units" id="apply_all_units" value="{{ old('apply_all_units', 0) }}">
+
 <div class="row g-3">
     <div class="col-md-6">
         <label class="form-label fw-semibold">Nome da Taxa *</label>
@@ -203,17 +218,21 @@
                    class="form-control"
                    placeholder="Filtrar por bloco, número ou morador">
         </div>
+        <button type="button" class="btn btn-sm btn-outline-success" id="apply-all-units">
+            Aplicar a todos
+        </button>
         <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-units">
             Selecionar todas
         </button>
         <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-units">
             Limpar seleção
         </button>
+        <span class="badge bg-success d-none" id="apply-all-feedback">Aplicando taxa em todas as unidades</span>
     </div>
 </div>
 
 <div class="table-responsive border rounded">
-    <table class="table table-hover mb-0 align-middle">
+    <table id="units-table" class="table table-hover mb-0 align-middle">
         <thead class="table-light">
             <tr>
                 <th style="width: 50px;"></th>
@@ -232,24 +251,27 @@
                     $paymentChannel = Arr::get($config, 'payment_channel', $unit->default_payment_channel ?? 'system');
                     $searchBlob = strtolower(trim(($unit->full_identifier ?? '') . ' ' . (optional($unit->morador)->name ?? '')));
                 @endphp
-                <tr class="unit-row" data-search="{{ $searchBlob }}">
+                <tr class="unit-row" data-search="{{ $searchBlob }}" data-unit-id="{{ $unit->id }}">
                     <td>
                         <div class="form-check">
                             <input class="form-check-input unit-toggle"
                                    type="checkbox"
                                    value="1"
                                    data-target="unit-config-{{ $unit->id }}"
+                                   data-unit-id="{{ $unit->id }}"
                                    {{ $isSelected ? 'checked' : '' }}>
                             <input type="hidden"
                                    name="unit_configurations[{{ $unit->id }}][unit_id]"
                                    value="{{ $unit->id }}"
-                                   class="unit-config-{{ $unit->id }}"
+                                   class="unit-config-{{ $unit->id }} unit-config-input"
+                                   data-unit-id="{{ $unit->id }}"
                                    {{ $isSelected ? '' : 'disabled' }}>
                             @if(isset($config['id']))
                                 <input type="hidden"
                                        name="unit_configurations[{{ $unit->id }}][id]"
                                        value="{{ $config['id'] }}"
-                                       class="unit-config-{{ $unit->id }}"
+                                       class="unit-config-{{ $unit->id }} unit-config-input"
+                                       data-unit-id="{{ $unit->id }}"
                                        {{ $isSelected ? '' : 'disabled' }}>
                             @endif
                         </div>
@@ -265,10 +287,11 @@
                     </td>
                     <td style="width: 180px;">
                         <select name="unit_configurations[{{ $unit->id }}][payment_channel]"
-                                class="form-select form-select-sm unit-config-{{ $unit->id }}"
+                                class="form-select form-select-sm unit-config-{{ $unit->id }} unit-config-input"
+                                data-unit-id="{{ $unit->id }}"
                                 {{ $isSelected ? '' : 'disabled' }}>
-                            <option value="system" {{ $paymentChannel === 'system' ? 'selected' : '' }}>Sistema</option>
                             <option value="payroll" {{ $paymentChannel === 'payroll' ? 'selected' : '' }}>Desconto em folha</option>
+                            <option value="system" {{ $paymentChannel === 'system' ? 'selected' : '' }}>Sistema</option>
                         </select>
                     </td>
                     <td style="width: 180px;">
@@ -277,7 +300,8 @@
                             <input type="number"
                                    step="0.01"
                                    min="0"
-                                   class="form-control unit-config-{{ $unit->id }}"
+                                   class="form-control unit-config-{{ $unit->id }} unit-config-input"
+                                   data-unit-id="{{ $unit->id }}"
                                    name="unit_configurations[{{ $unit->id }}][custom_amount]"
                                    value="{{ Arr::get($config, 'custom_amount') }}"
                                    placeholder="Usar valor padrão"
@@ -287,19 +311,22 @@
                     <td style="width: 220px;">
                         <div class="d-flex gap-2">
                             <input type="date"
-                                   class="form-control form-control-sm unit-config-{{ $unit->id }}"
+                                   class="form-control form-control-sm unit-config-{{ $unit->id }} unit-config-input"
+                                   data-unit-id="{{ $unit->id }}"
                                    name="unit_configurations[{{ $unit->id }}][starts_at]"
                                    value="{{ Arr::get($config, 'starts_at') }}"
                                    {{ $isSelected ? '' : 'disabled' }}>
                             <input type="date"
-                                   class="form-control form-control-sm unit-config-{{ $unit->id }}"
+                                   class="form-control form-control-sm unit-config-{{ $unit->id }} unit-config-input"
+                                   data-unit-id="{{ $unit->id }}"
                                    name="unit_configurations[{{ $unit->id }}][ends_at]"
                                    value="{{ Arr::get($config, 'ends_at') }}"
                                    {{ $isSelected ? '' : 'disabled' }}>
                         </div>
                     </td>
                     <td>
-                        <textarea class="form-control form-control-sm unit-config-{{ $unit->id }}"
+                        <textarea class="form-control form-control-sm unit-config-{{ $unit->id }} unit-config-input"
+                                  data-unit-id="{{ $unit->id }}"
                                   name="unit_configurations[{{ $unit->id }}][notes]"
                                   rows="2"
                                   placeholder="Detalhes específicos"
@@ -314,9 +341,27 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const feeForm = document.getElementById('fee-form');
+        const applyAllField = document.getElementById('apply_all_units');
+        const applyAllButton = document.getElementById('apply-all-units');
+        const applyAllFeedback = document.getElementById('apply-all-feedback');
+        const selectAllButton = document.getElementById('select-all-units');
+        const clearAllButton = document.getElementById('clear-all-units');
+        const filterInput = document.getElementById('unit-filter');
+
+        let applyAllMode = applyAllField?.value === '1';
+        const checkboxState = {};
+        const modifiedUnits = new Set();
+
         const toggleInputs = (targetClass, enabled) => {
             document.querySelectorAll('.' + targetClass).forEach(input => {
+                if (applyAllMode) {
+                    input.disabled = false;
+                    return;
+                }
+
                 input.disabled = !enabled;
+
                 if (!enabled) {
                     if (input.type === 'checkbox') {
                         input.checked = false;
@@ -329,40 +374,86 @@
             });
         };
 
-        document.querySelectorAll('.unit-toggle').forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
-                const target = this.dataset.target;
-                toggleInputs(target, this.checked);
-            });
+        const applyStateToCheckbox = (checkbox) => {
+            if (!checkbox) return;
 
-            // Garantir estado inicial correto (evita envio de inputs desnecessários)
-            toggleInputs(checkbox.dataset.target, checkbox.checked);
-        });
+            const unitId = checkbox.dataset.unitId;
 
-        document.getElementById('select-all-units')?.addEventListener('click', () => {
-            document.querySelectorAll('.unit-toggle').forEach(checkbox => {
+            if (applyAllMode) {
                 checkbox.checked = true;
                 toggleInputs(checkbox.dataset.target, true);
-            });
+                return;
+            }
+
+            const isChecked = checkboxState.hasOwnProperty(unitId)
+                ? checkboxState[unitId]
+                : checkbox.checked;
+
+            checkbox.checked = isChecked;
+            toggleInputs(checkbox.dataset.target, isChecked);
+        };
+
+        const applyStateToAllCheckboxes = () => {
+            document.querySelectorAll('.unit-toggle').forEach(applyStateToCheckbox);
+        };
+
+        const markUnitAsModified = (unitId) => {
+            if (!unitId) return;
+            modifiedUnits.add(unitId);
+        };
+
+        document.addEventListener('change', function (event) {
+            if (event.target.classList?.contains('unit-toggle')) {
+                const unitId = event.target.dataset.unitId;
+                checkboxState[unitId] = event.target.checked;
+                applyStateToCheckbox(event.target);
+            }
+
+            if (applyAllMode && event.target.classList?.contains('unit-config-input') && event.target.type !== 'hidden') {
+                markUnitAsModified(event.target.dataset.unitId);
+            }
         });
 
-        document.getElementById('clear-all-units')?.addEventListener('click', () => {
+        document.addEventListener('input', function (event) {
+            if (applyAllMode && event.target.classList?.contains('unit-config-input')) {
+                markUnitAsModified(event.target.dataset.unitId);
+            }
+        });
+
+        selectAllButton?.addEventListener('click', () => {
+            if (applyAllMode) return;
             document.querySelectorAll('.unit-toggle').forEach(checkbox => {
-                checkbox.checked = false;
-                toggleInputs(checkbox.dataset.target, false);
+                checkboxState[checkbox.dataset.unitId] = true;
             });
+            applyStateToAllCheckboxes();
         });
 
-        const filterInput = document.getElementById('unit-filter');
-        if (filterInput) {
-            filterInput.addEventListener('input', () => {
-                const searchTerm = filterInput.value.trim().toLowerCase();
-                document.querySelectorAll('.unit-row').forEach(row => {
-                    const matches = searchTerm === '' || row.dataset.search.includes(searchTerm);
-                    row.style.display = matches ? '' : 'none';
-                });
+        clearAllButton?.addEventListener('click', () => {
+            if (applyAllMode) return;
+            document.querySelectorAll('.unit-toggle').forEach(checkbox => {
+                checkboxState[checkbox.dataset.unitId] = false;
             });
-        }
+            applyStateToAllCheckboxes();
+        });
+
+        applyAllButton?.addEventListener('click', () => {
+            if (applyAllMode) return;
+
+            applyAllMode = true;
+            applyAllField.value = '1';
+            applyAllButton.classList.add('active');
+            applyAllFeedback?.classList.remove('d-none');
+            selectAllButton?.setAttribute('disabled', 'disabled');
+            clearAllButton?.setAttribute('disabled', 'disabled');
+
+            document.querySelectorAll('.unit-toggle').forEach(checkbox => {
+                checkboxState[checkbox.dataset.unitId] = true;
+                checkbox.checked = true;
+                checkbox.disabled = true;
+            });
+
+            applyStateToAllCheckboxes();
+        });
 
         const recurrenceSelect = document.getElementById('recurrence');
         const recurrenceDependentFields = document.querySelectorAll('.recurrence-dependent');
@@ -394,6 +485,69 @@
 
             toggleRecurrenceFields();
             recurrenceSelect.addEventListener('change', toggleRecurrenceFields);
+        }
+
+        const unitsTable = $('#units-table');
+        let dataTable = null;
+
+        if (unitsTable.length) {
+            dataTable = unitsTable.DataTable({
+                paging: true,
+                pageLength: 25,
+                ordering: false,
+                searching: true,
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json'
+                },
+                drawCallback: function () {
+                    applyStateToAllCheckboxes();
+                }
+            });
+
+            if (filterInput) {
+                filterInput.addEventListener('input', () => {
+                    dataTable.search(filterInput.value).draw();
+                });
+            }
+        }
+
+        document.querySelectorAll('.unit-toggle').forEach(checkbox => {
+            checkboxState[checkbox.dataset.unitId] = checkbox.checked;
+        });
+
+        if (applyAllMode) {
+            applyAllButton?.classList.add('active');
+            applyAllFeedback?.classList.remove('d-none');
+            selectAllButton?.setAttribute('disabled', 'disabled');
+            clearAllButton?.setAttribute('disabled', 'disabled');
+
+            document.querySelectorAll('.unit-toggle').forEach(checkbox => {
+                checkbox.checked = true;
+                checkbox.disabled = true;
+            });
+        }
+
+        applyStateToAllCheckboxes();
+
+        if (filterInput) {
+            filterInput.dispatchEvent(new Event('input'));
+        }
+
+        if (feeForm) {
+            feeForm.addEventListener('submit', () => {
+                if (applyAllMode) {
+                    document.querySelectorAll('.unit-row').forEach(row => {
+                        const unitId = row.dataset.unitId;
+                        const inputs = row.querySelectorAll('.unit-config-input');
+
+                        if (modifiedUnits.has(unitId)) {
+                            inputs.forEach(input => input.disabled = false);
+                        } else {
+                            inputs.forEach(input => input.disabled = true);
+                        }
+                    });
+                }
+            });
         }
     });
 </script>

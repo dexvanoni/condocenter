@@ -25,19 +25,15 @@
 </table>
 
 <table>
-    <tr><th colspan="4">Entradas - Taxas Recebidas</th></tr>
+    <tr><th colspan="2">Entradas - Taxas Recebidas</th></tr>
     <tr>
-        <th>Data</th>
-        <th>Descrição</th>
-        <th>Unidade</th>
+        <th>Taxa</th>
         <th>Valor</th>
     </tr>
-    @foreach($data['charges_paid'] as $charge)
+    @foreach($data['charge_summary'] as $summary)
         <tr>
-            <td>{{ optional($charge->due_date)->format('d/m/Y') }}</td>
-            <td>{{ $charge->title }}</td>
-            <td>{{ optional($charge->unit)->full_identifier ?? '' }}</td>
-            <td>{{ number_format($charge->amount, 2, ',', '.') }}</td>
+            <td>{{ $summary['name'] }}</td>
+            <td>{{ number_format($summary['total'], 2, ',', '.') }}</td>
         </tr>
     @endforeach
 </table>
@@ -94,6 +90,26 @@
             <td>{{ optional(optional($payment->charge)->unit)->full_identifier ?? '' }}</td>
             <td>{{ strtoupper($payment->payment_method ?? '') }}</td>
             <td>{{ number_format($payment->amount_paid, 2, ',', '.') }}</td>
+        </tr>
+    @endforeach
+</table>
+
+<table>
+    <tr><th colspan="5">Contas bancárias</th></tr>
+    <tr>
+        <th>Conta</th>
+        <th>Instituição</th>
+        <th>Titular</th>
+        <th>Atualizado em</th>
+        <th>Saldo atual</th>
+    </tr>
+    @foreach($data['bank_accounts'] as $account)
+        <tr>
+            <td>{{ $account['name'] }}</td>
+            <td>{{ $account['institution'] ?? '' }}</td>
+            <td>{{ $account['holder'] ?? '' }}</td>
+            <td>{{ optional($account['balance_updated_at'])->format('d/m/Y H:i') ?? '' }}</td>
+            <td>{{ number_format($account['current_balance'], 2, ',', '.') }}</td>
         </tr>
     @endforeach
 </table>

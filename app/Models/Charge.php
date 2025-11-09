@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Models\PaymentCancellation;
 
 class Charge extends Model implements Auditable
 {
@@ -32,6 +33,7 @@ class Charge extends Model implements Auditable
         'metadata',
         'first_reminder_sent_at',
         'second_reminder_sent_at',
+        'paid_at',
     ];
 
     protected $casts = [
@@ -42,6 +44,7 @@ class Charge extends Model implements Auditable
         'first_reminder_sent_at' => 'datetime',
         'second_reminder_sent_at' => 'datetime',
         'metadata' => 'array',
+        'paid_at' => 'datetime',
     ];
 
     // Relacionamentos
@@ -63,6 +66,11 @@ class Charge extends Model implements Auditable
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function cancellations()
+    {
+        return $this->hasMany(PaymentCancellation::class);
     }
 
     // Scopes

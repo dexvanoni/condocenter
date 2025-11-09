@@ -98,32 +98,28 @@
         <div class="card shadow-sm h-100">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Entradas - Taxas Recebidas</h5>
-                <span class="badge bg-success">{{ $data['charges_paid']->count() }}</span>
+                <span class="badge bg-success">{{ $data['charge_summary']->count() }}</span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Data</th>
-                                <th>Descrição</th>
-                                <th>Unidade</th>
+                                <th>Taxa</th>
                                 <th class="text-end">Valor</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($data['charges_paid'] as $charge)
+                            @forelse($data['charge_summary'] as $summary)
                                 <tr>
-                                    <td>{{ optional($charge->due_date)->format('d/m/Y') }}</td>
-                                    <td>{{ $charge->title }}</td>
-                                    <td>{{ optional($charge->unit)->full_identifier ?? '—' }}</td>
+                                    <td>{{ $summary['name'] }}</td>
                                     <td class="text-end text-success fw-semibold">
-                                        R$ {{ number_format($charge->amount, 2, ',', '.') }}
+                                        R$ {{ number_format($summary['total'], 2, ',', '.') }}
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted py-4">Nenhuma taxa recebida no período.</td>
+                                    <td colspan="2" class="text-center text-muted py-4">Nenhuma taxa recebida no período.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -162,6 +158,49 @@
                             @empty
                                 <tr>
                                     <td colspan="4" class="text-center text-muted py-4">Nenhum recebimento avulso registrado.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mt-3">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Contas bancárias</h5>
+                <span class="text-muted small">Resumo dos saldos por conta</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Conta</th>
+                                <th>Instituição</th>
+                                <th>Titular</th>
+                                <th>Última atualização</th>
+                                <th class="text-end">Saldo atual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($data['bank_accounts'] as $account)
+                                <tr>
+                                    <td class="fw-semibold">{{ $account['name'] }}</td>
+                                    <td>{{ $account['institution'] ?? '—' }}</td>
+                                    <td>{{ $account['holder'] ?? '—' }}</td>
+                                    <td>{{ optional($account['balance_updated_at'])->format('d/m/Y H:i') ?? '—' }}</td>
+                                    <td class="text-end fw-semibold {{ $account['current_balance'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                        R$ {{ number_format($account['current_balance'], 2, ',', '.') }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">Nenhuma conta bancária cadastrada.</td>
                                 </tr>
                             @endforelse
                         </tbody>

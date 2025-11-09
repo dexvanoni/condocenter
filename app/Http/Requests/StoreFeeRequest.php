@@ -24,6 +24,7 @@ class StoreFeeRequest extends FormRequest
             'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
             'auto_generate_charges' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
+            'apply_all_units' => ['sometimes', 'boolean'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'custom_schedule' => ['required_if:recurrence,custom', 'array', 'min:1'],
@@ -50,6 +51,12 @@ class StoreFeeRequest extends FormRequest
         if ($this->has('active')) {
             $this->merge([
                 'active' => filter_var($this->get('active'), FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
+        if ($this->has('apply_all_units')) {
+            $this->merge([
+                'apply_all_units' => filter_var($this->get('apply_all_units'), FILTER_VALIDATE_BOOLEAN),
             ]);
         }
 

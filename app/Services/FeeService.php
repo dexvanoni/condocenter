@@ -8,6 +8,8 @@ use App\Models\Fee;
 use App\Models\FeeUnitConfiguration;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\CondominiumAccount;
+use App\Models\Payment;
 use Carbon\Carbon;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
@@ -23,6 +25,9 @@ class FeeService
     public function createFee(User $user, array $data): Fee
     {
         return $this->database->transaction(function () use ($user, $data) {
+            $applyAll = (bool) ($data['apply_all_units'] ?? false);
+            unset($data['apply_all_units']);
+
             $unitConfigurations = collect($data['unit_configurations'] ?? []);
             unset($data['unit_configurations']);
 
@@ -33,7 +38,11 @@ class FeeService
 
             $fee = Fee::create($this->normalizeFeePayload($data));
 
-            $this->syncUnitConfigurations($fee, $unitConfigurations);
+            $configurationsToSync = $applyAll
+                ? $this->buildApplyAllConfigurations($fee, $unitConfigurations)
+                : $unitConfigurations;
+
+            $this->syncUnitConfigurations($fee, $configurationsToSync);
 
             if ($fee->auto_generate_charges) {
                 $this->generateUpcomingCharges($fee);
@@ -52,6 +61,9 @@ class FeeService
                 ]);
             }
 
+            $applyAll = (bool) ($data['apply_all_units'] ?? false);
+            unset($data['apply_all_units']);
+
             $unitConfigurations = collect($data['unit_configurations'] ?? []);
             unset($data['unit_configurations']);
 
@@ -60,7 +72,11 @@ class FeeService
 
             $fee->update($this->normalizeFeePayload($data));
 
-            $this->syncUnitConfigurations($fee, $unitConfigurations, true);
+            $configurationsToSync = $applyAll
+                ? $this->buildApplyAllConfigurations($fee, $unitConfigurations, true)
+                : $unitConfigurations;
+
+            $this->syncUnitConfigurations($fee, $configurationsToSync, true);
 
             if ($fee->auto_generate_charges) {
                 $this->generateUpcomingCharges($fee);
@@ -122,16 +138,16 @@ class FeeService
 
             $amount = $configuration->custom_amount ?? $fee->amount;
 
-            $exists = Charge::where('fee_id', $fee->id)
+            $existingCharge = Charge::where('fee_id', $fee->id)
                 ->where('unit_id', $configuration->unit_id)
                 ->where('recurrence_period', $recurrencePeriod)
-                ->exists();
+                ->first();
 
-            if ($exists) {
+            if ($existingCharge) {
                 continue;
             }
 
-            Charge::create([
+            $charge = Charge::create([
                 'condominium_id' => $fee->condominium_id,
                 'unit_id' => $configuration->unit_id,
                 'fee_id' => $fee->id,
@@ -151,7 +167,11 @@ class FeeService
                 ],
             ]);
 
-            $chargesCreated++;
+            if ($configuration->payment_channel === 'payroll') {
+                $this->autoSettlePayrollCharge($charge, $configuration, $dueDate, $amount);
+            } else {
+                $chargesCreated++;
+            }
         }
 
         $fee->update(['last_generated_at' => now()]);
@@ -263,6 +283,113 @@ class FeeService
         }
 
         return $data;
+    }
+
+    private function autoSettlePayrollCharge(Charge $charge, FeeUnitConfiguration $configuration, Carbon $dueDate, float $amount): void
+    {
+        $metadata = $charge->metadata ?? [];
+        $metadata['payment_channel'] = $configuration->payment_channel;
+        $metadata['payroll_auto_settled'] = true;
+        $metadata['payroll_settled_at'] = $dueDate->copy()->format('Y-m-d');
+
+        $charge->forceFill([
+            'status' => 'paid',
+            'paid_at' => $dueDate->copy(),
+            'metadata' => $metadata,
+        ])->save();
+
+        $unit = $configuration->unit;
+
+        $payment = Payment::withTrashed()->firstOrNew([
+            'charge_id' => $charge->id,
+            'payment_method' => 'payroll',
+            'payment_date' => $dueDate->toDateString(),
+        ]);
+
+        if ($payment->exists && method_exists($payment, 'trashed') && $payment->trashed()) {
+            $payment->restore();
+        }
+
+        $payment->fill([
+            'amount_paid' => $amount,
+            'notes' => 'Liquidação automática via desconto em folha',
+        ]);
+        $payment->save();
+
+        $account = CondominiumAccount::withTrashed()->firstOrNew([
+            'condominium_id' => $charge->condominium_id,
+            'type' => 'income',
+            'source_type' => 'charge',
+            'source_id' => $charge->id,
+        ]);
+
+        if ($account->exists && method_exists($account, 'trashed') && $account->trashed()) {
+            $account->restore();
+        }
+
+        $account->fill([
+            'description' => sprintf('%s - %s (Folha)', $charge->title, optional($unit)->full_identifier ?? 'Unidade'),
+            'amount' => $amount,
+            'transaction_date' => $dueDate->toDateString(),
+            'payment_method' => 'payroll',
+            'notes' => 'Liquidação automática via desconto em folha',
+        ]);
+        $account->save();
+    }
+
+    private function buildApplyAllConfigurations(Fee $fee, Collection $overrides, bool $isUpdate = false): Collection
+    {
+        $overridesByUnit = $overrides
+            ->filter(fn ($config) => isset($config['unit_id']))
+            ->mapWithKeys(function ($config) {
+                $unitId = (int) $config['unit_id'];
+                return $unitId ? [$unitId => $config] : [];
+            });
+
+        $existingByUnit = $isUpdate
+            ? $fee->configurations()->get()->keyBy('unit_id')
+            : collect();
+
+        return Unit::where('condominium_id', $fee->condominium_id)
+            ->get()
+            ->map(function (Unit $unit) use ($overridesByUnit, $existingByUnit) {
+                $override = $overridesByUnit->get($unit->id, []);
+                $existing = $existingByUnit->get($unit->id);
+
+                $customAmount = $override['custom_amount'] ?? ($existing?->custom_amount);
+                if ($customAmount === '' || $customAmount === null) {
+                    $customAmount = null;
+                }
+
+                $startsAt = $override['starts_at'] ?? optional($existing?->starts_at)->format('Y-m-d');
+                $endsAt = $override['ends_at'] ?? optional($existing?->ends_at)->format('Y-m-d');
+
+                if ($startsAt === '') {
+                    $startsAt = null;
+                }
+
+                if ($endsAt === '') {
+                    $endsAt = null;
+                }
+
+                $notes = $override['notes'] ?? ($existing?->notes);
+                if ($notes === '') {
+                    $notes = null;
+                }
+
+                return [
+                    'id' => $override['id'] ?? ($existing?->id),
+                    'unit_id' => $unit->id,
+                    'payment_channel' => $override['payment_channel']
+                        ?? ($existing?->payment_channel)
+                        ?? ($unit->default_payment_channel ?? 'payroll'),
+                    'custom_amount' => $customAmount,
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt,
+                    'notes' => $notes,
+                ];
+            })
+            ->values();
     }
 
     private function resolveNextDueDate(Fee $fee, Carbon $referenceDate): ?Carbon

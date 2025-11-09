@@ -17,7 +17,7 @@
     </div>
 </div>
 
-<form action="{{ route('fees.store') }}" method="POST">
+<form action="{{ route('fees.store') }}" method="POST" id="fee-form">
     @csrf
     <div class="card shadow-sm">
         <div class="card-body">

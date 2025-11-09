@@ -2,23 +2,19 @@
 <table class="table table-bordered table-sm">
     <thead class="table-light">
         <tr>
-            <th>Data</th>
-            <th>Descrição</th>
-            <th>Unidade</th>
+            <th>Taxa</th>
             <th class="text-end">Valor</th>
         </tr>
     </thead>
     <tbody>
-        @forelse($data['charges_paid'] as $charge)
+        @forelse($data['charge_summary'] as $summary)
             <tr>
-                <td>{{ optional($charge->due_date)->format('d/m/Y') }}</td>
-                <td>{{ $charge->title }}</td>
-                <td>{{ optional($charge->unit)->full_identifier ?? '—' }}</td>
-                <td class="text-end">R$ {{ number_format($charge->amount, 2, ',', '.') }}</td>
+                <td>{{ $summary['name'] }}</td>
+                <td class="text-end">R$ {{ number_format($summary['total'], 2, ',', '.') }}</td>
             </tr>
         @empty
             <tr>
-                <td colspan="4" class="text-center text-muted">Nenhuma taxa recebida.</td>
+                <td colspan="2" class="text-center text-muted">Nenhuma taxa recebida.</td>
             </tr>
         @endforelse
     </tbody>
@@ -45,6 +41,34 @@
         @empty
             <tr>
                 <td colspan="4" class="text-center text-muted">Nenhuma entrada avulsa.</td>
+            </tr>
+        @endforelse
+    </tbody>
+</table>
+
+<h4>Contas bancárias</h4>
+<table class="table table-bordered table-sm">
+    <thead class="table-light">
+        <tr>
+            <th>Conta</th>
+            <th>Instituição</th>
+            <th>Titular</th>
+            <th>Atualizado em</th>
+            <th class="text-end">Saldo atual</th>
+        </tr>
+    </thead>
+    <tbody>
+        @forelse($data['bank_accounts'] as $account)
+            <tr>
+                <td>{{ $account['name'] }}</td>
+                <td>{{ $account['institution'] ?? '—' }}</td>
+                <td>{{ $account['holder'] ?? '—' }}</td>
+                <td>{{ optional($account['balance_updated_at'])->format('d/m/Y H:i') ?? '—' }}</td>
+                <td class="text-end">R$ {{ number_format($account['current_balance'], 2, ',', '.') }}</td>
+            </tr>
+        @empty
+            <tr>
+                <td colspan="5" class="text-center text-muted">Nenhuma conta bancária cadastrada.</td>
             </tr>
         @endforelse
     </tbody>

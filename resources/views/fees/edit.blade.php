@@ -17,7 +17,7 @@
     </div>
 </div>
 
-<form action="{{ route('fees.update', $fee) }}" method="POST">
+<form action="{{ route('fees.update', $fee) }}" method="POST" id="fee-form">
     @csrf
     @method('PUT')
     <div class="card shadow-sm">
