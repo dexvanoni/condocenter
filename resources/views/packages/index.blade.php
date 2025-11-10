@@ -373,9 +373,10 @@
 
                 const response = await fetch(`/api/packages/summary/units?${params.toString()}`, {
                     headers: {
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
-                    credentials: 'include'
+                    credentials: 'same-origin'
                 });
 
                 if (!response.ok) {
@@ -595,9 +596,10 @@
             try {
                 const response = await fetch(`/api/packages/residents/search?search=${encodeURIComponent(trimmed)}`, {
                     headers: {
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
-                    credentials: 'include'
+                    credentials: 'same-origin'
                 });
 
                 if (!response.ok) {
@@ -722,9 +724,10 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
-                    credentials: 'include',
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         unit_id: Number(unitId),
                         type
@@ -763,9 +766,10 @@
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
-                    credentials: 'include',
+                    credentials: 'same-origin',
                     body: JSON.stringify({})
                 });
 

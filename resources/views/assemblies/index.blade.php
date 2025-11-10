@@ -482,7 +482,10 @@
 
             try {
                 const response = await fetch(`/api/assemblies?${params.toString()}`, {
-                    headers: { 'Accept': 'application/json' },
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                     credentials: 'same-origin'
                 });
 
@@ -1026,11 +1029,12 @@
 
             try {
                 const response = await fetch(`/api/assemblies/${assemblyId}/items/${itemId}/vote`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': window.ASSEMBLIES_CONTEXT.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: JSON.stringify(payload),
                     credentials: 'same-origin',
@@ -1082,6 +1086,7 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': window.ASSEMBLIES_CONTEXT.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: JSON.stringify({ reason: trimmedReason }),
                     credentials: 'same-origin',
@@ -1299,7 +1304,8 @@
                     method,
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: formData,
                     credentials: 'same-origin'
@@ -1331,7 +1337,10 @@
         async startEditAssembly(assemblyId) {
             try {
                 const response = await fetch(`/api/assemblies/${assemblyId}`, {
-                    headers: { 'Accept': 'application/json' },
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                     credentials: 'same-origin'
                 });
 
@@ -1412,9 +1421,10 @@
             try {
                 const response = await fetch(`/api/assemblies/${assemblyId}`, {
                     method: 'DELETE',
-            headers: {
+                    headers: {
                         'X-CSRF-TOKEN': window.ASSEMBLIES_CONTEXT.csrf,
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                     credentials: 'same-origin'
                 });
@@ -1436,7 +1446,10 @@
         async exportMinutes(assemblyId) {
             try {
                 const response = await fetch(`/api/assemblies/${assemblyId}/minutes/export`, {
-                    headers: { 'Accept': 'application/json' },
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                     credentials: 'same-origin'
                 });
 

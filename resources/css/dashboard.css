@@ -132,6 +132,14 @@
     box-shadow: var(--shadow-lg);
 }
 
+.dashboard-card-header {
+    padding: 1.25rem 1.75rem !important;
+}
+
+.dashboard-card-body {
+    padding: 1.75rem !important;
+}
+
 .card-stat {
     position: relative;
     border: none;
@@ -160,6 +168,68 @@
 .card-stat:hover {
     transform: translateY(-8px) scale(1.02);
     box-shadow: var(--shadow-xl);
+}
+
+.kpi-card {
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    transition: var(--transition-normal);
+}
+
+.kpi-card .card-body {
+    padding: 1.5rem;
+}
+
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.kpi-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #6c757d;
+    display: block;
+    margin-bottom: 0.4rem;
+}
+
+.kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.kpi-subtitle {
+    font-size: 0.85rem;
+    display: block;
+    margin-top: 0.4rem;
+}
+
+.insight-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px dashed #e9ecef;
+}
+
+.insight-item:last-of-type {
+    border-bottom: none;
+}
+
+.insight-label {
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.insight-value {
+    font-weight: 600;
+    color: var(--brand-dark);
 }
 
 /* Card Body - Garantir que não corta texto */
@@ -648,6 +718,7 @@
     
     .dashboard-card {
         margin-bottom: 1rem;
+        padding: 5px;
     }
     
     .card-stat:hover {

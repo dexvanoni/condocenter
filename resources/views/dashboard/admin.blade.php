@@ -27,154 +27,188 @@
         </div>
     </div>
 
-    <!-- Estatísticas Principais -->
+    <!-- KPIs -->
+    <div class="row g-3 mb-4">
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Condomínios</span>
+                    <h3 class="kpi-value">{{ $totalCondominios }}</h3>
+                    <span class="kpi-subtitle text-success">
+                        {{ number_format($condominiosAtivosPercentual, 1) }}% ativos
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Usuários</span>
+                    <h3 class="kpi-value">{{ $totalUsuarios }}</h3>
+                    <span class="kpi-subtitle text-success">
+                        {{ number_format($usuariosAtivosPercentual, 1) }}% ativos
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Transações (mês)</span>
+                    <h3 class="kpi-value">{{ $totalTransacoesMes }}</h3>
+                    <span class="kpi-subtitle text-muted">
+                        Volume R$ {{ number_format($volumeFinanceiroMes, 0, ',', '.') }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Reservas (mês)</span>
+                    <h3 class="kpi-value">{{ $totalReservasMes }}</h3>
+                    <span class="kpi-subtitle text-muted">Plataforma</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Crescimento usuários</span>
+                    <h3 class="kpi-value {{ $crescimentoUsuarios >= 0 ? 'text-success' : 'text-danger' }}">
+                        {{ number_format($crescimentoUsuarios, 1) }}%
+                    </h3>
+                    <span class="kpi-subtitle text-muted">vs mês anterior</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Cobranças pendentes</span>
+                    <h3 class="kpi-value">{{ $resumoOperacional['cobrancasPendentes'] }}</h3>
+                    <span class="kpi-subtitle text-danger">
+                        R$ {{ number_format($resumoOperacional['valorCobrancasPendentes'], 0, ',', '.') }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
     <div class="row g-4 mb-4">
-        <!-- Total de Condomínios -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-primary stagger-1">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Total de Condomínios</p>
-                            <h2 class="stat-value">{{ $totalCondominios }}</h2>
-                            <div class="stat-change">
-                                {{ $condominiosAtivos }} ativo(s)
-                            </div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-building fs-1"></i>
-                        </div>
+        <div class="col-xl-7">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="section-title mb-0">
+                            <i class="bi bi-activity text-brand"></i> Crescimento da Plataforma (6 meses)
+                        </h5>
                     </div>
+                </div>
+                <div class="card-body dashboard-card-body">
+                    <canvas id="historicoPlataformaChart" height="90"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Total de Usuários -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-success stagger-2">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Total de Usuários</p>
-                            <h2 class="stat-value">{{ $totalUsuarios }}</h2>
-                            <div class="stat-change">
-                                @if($crescimentoUsuarios != 0)
-                                <i class="bi bi-{{ $crescimentoUsuarios > 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                                {{ number_format(abs($crescimentoUsuarios), 1) }}% este mês
-                                @else
-                                {{ $usuariosAtivos }} ativo(s)
-                                @endif
-                            </div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-people fs-1"></i>
-                        </div>
-                    </div>
+        <div class="col-xl-5">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-people text-brand"></i> Distribuição de Perfis
+                    </h5>
                 </div>
-            </div>
-        </div>
-
-        <!-- Transações no Mês -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-info stagger-3">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Transações no Mês</p>
-                            <h2 class="stat-value">{{ $totalTransacoesMes }}</h2>
-                            <div class="stat-change">
-                                R$ {{ number_format($volumeFinanceiroMes, 0, ',', '.') }}
-                            </div>
+                <div class="card-body dashboard-card-body">
+                    <canvas id="usuariosPerfilChart" height="220"></canvas>
+                    <div class="mt-4">
+                        @forelse($usuariosPorPerfil as $perfil => $quantidade)
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold">{{ $perfil }}</span>
+                            <span class="badge bg-light text-dark">{{ $quantidade }}</span>
                         </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-graph-up fs-1"></i>
+                        @empty
+                        <p class="text-muted mb-0 text-center">Nenhum usuário cadastrado</p>
+                        @endforelse
+                        @if(count($usuariosPorPerfil) > 0)
+                        <div class="alert alert-info border-0 mt-3 mb-0">
+                            <small>
+                                <i class="bi bi-info-circle me-1"></i>
+                                Total: {{ $totalUsuarios }} {{ Str::plural('usuário', $totalUsuarios) }} na plataforma
+                            </small>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Reservas no Mês -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-warning stagger-4">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Reservas no Mês</p>
-                            <h2 class="stat-value">{{ $totalReservasMes }}</h2>
-                            <div class="stat-change">
-                                Na plataforma
-                            </div>
-                        </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-calendar-check fs-1"></i>
-                        </div>
+                        @endif
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Métricas Adicionais -->
     <div class="row g-4 mb-4">
-        <div class="col-lg-4">
-            <div class="dashboard-card hover-lift">
+        <div class="col-xl-4">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-speedometer2 text-brand"></i> Indicadores Operacionais
+                    </h5>
+                </div>
                 <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-brand-soft me-3">
-                            <i class="bi bi-check-circle fs-4"></i>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Cobranças em aberto</span>
+                            <p class="insight-value mb-0">
+                                {{ $resumoOperacional['cobrancasPendentes'] }} ocorrência(s)
+                            </p>
                         </div>
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-1">Usuários Ativos</h6>
-                            <h4 class="mb-0">{{ $usuariosAtivos }}</h4>
-                            <small class="text-muted">{{ $usuariosInativos }} inativos</small>
+                        <span class="badge bg-light text-danger">
+                            R$ {{ number_format($resumoOperacional['valorCobrancasPendentes'], 2, ',', '.') }}
+                        </span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Valor em atraso</span>
+                            <p class="insight-value mb-0">
+                                R$ {{ number_format($resumoOperacional['valorCobrancasAtraso'], 2, ',', '.') }}
+                            </p>
                         </div>
+                        <span class="badge bg-light text-danger">Crítico</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Reservas pendentes</span>
+                            <p class="insight-value mb-0">
+                                {{ $resumoOperacional['reservasPendentes'] }} aguardando ação
+                            </p>
+                        </div>
+                        <span class="badge bg-light text-warning">Priorizar</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Condomínios ativos</span>
+                        <span class="fw-semibold">{{ $condominiosAtivos }} / {{ $totalCondominios }}</span>
+                    </div>
+                    <div class="progress-modern mt-2">
+                        <div class="progress-bar" style="width: {{ $condominiosAtivosPercentual }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-3">
+                        <span class="text-muted">Usuários ativos</span>
+                        <span class="fw-semibold">{{ $usuariosAtivos }} / {{ $totalUsuarios }}</span>
+                    </div>
+                    <div class="progress-modern mt-2">
+                        <div class="progress-bar" style="width: {{ $usuariosAtivosPercentual }}%"></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4">
-            <div class="dashboard-card hover-lift">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-brand-soft me-3">
-                            <i class="bi bi-buildings fs-4"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-1">Condomínios Ativos</h6>
-                            <h4 class="mb-0">{{ $condominiosAtivos }}</h4>
-                            <small class="text-muted">{{ $condominiosInativos }} inativos</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="dashboard-card hover-lift">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="widget-icon bg-brand-soft me-3">
-                            <i class="bi bi-cash-stack fs-4"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-1">Volume Financeiro</h6>
-                            <h4 class="mb-0">R$ {{ number_format($volumeFinanceiroMes / 1000, 1) }}K</h4>
-                            <small class="text-muted">Este mês</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tabelas e Gráficos -->
-    <div class="row g-4">
-        <!-- Condomínios Recentes -->
         <div class="col-xl-8">
-            <div class="dashboard-card">
-                <div class="card-header bg-white border-0 pt-4 px-4">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="section-title mb-0">
                             <i class="bi bi-building text-brand"></i> Condomínios na Plataforma
@@ -242,11 +276,9 @@
             </div>
         </div>
 
-        <!-- Sidebar com Informações -->
         <div class="col-xl-4">
-            <!-- Top Condomínios -->
-            <div class="dashboard-card mb-4">
-                <div class="card-header bg-white border-0 pt-4 px-4">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0">
                     <h5 class="section-title mb-0">
                         <i class="bi bi-trophy text-brand"></i> Top Condomínios
                     </h5>
@@ -277,51 +309,13 @@
                     @endforelse
                 </div>
             </div>
-
-            <!-- Usuários por Perfil -->
-            <div class="dashboard-card">
-                <div class="card-header bg-white border-0 pt-4 px-4">
-                    <h5 class="section-title mb-0">
-                        <i class="bi bi-person-badge text-brand"></i> Usuários por Perfil
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @forelse($usuariosPorPerfil as $perfil => $quantidade)
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="flex-grow-1">
-                            <strong>{{ $perfil }}</strong>
-                            <div class="progress-modern mt-2">
-                                <div class="progress-bar" style="width: {{ $totalUsuarios > 0 ? ($quantidade / $totalUsuarios) * 100 : 0 }}%"></div>
-                            </div>
-                        </div>
-                        <div class="ms-3">
-                            <span class="badge bg-light text-dark">{{ $quantidade }}</span>
-                        </div>
-                    </div>
-                    @empty
-                    <div class="text-center text-muted py-4">
-                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                        <p class="mb-0">Nenhum usuário</p>
-                    </div>
-                    @endforelse
-
-                    @if(count($usuariosPorPerfil) > 0)
-                    <div class="alert alert-info border-0 mt-3 mb-0">
-                        <small>
-                            <i class="bi bi-info-circle me-1"></i>
-                            Total: {{ $totalUsuarios }} {{ Str::plural('usuário', $totalUsuarios) }} na plataforma
-                        </small>
-                    </div>
-                    @endif
-                </div>
-            </div>
         </div>
     </div>
 
     <!-- Ações Rápidas -->
-    <div class="row g-4 mt-2">
+    <div class="row g-4">
         <div class="col-12">
-            <div class="dashboard-card">
+            <div class="dashboard-card" style="padding: 1.5rem !important;">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
                         <i class="bi bi-lightning-charge text-brand"></i> Ações Rápidas
@@ -370,4 +364,116 @@
         </div>
     </div>
 </div>
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const historico = @json($historicoPlataforma);
+    const usuariosPorPerfil = @json($usuariosPorPerfil);
+
+    const historicoCanvas = document.getElementById('historicoPlataformaChart');
+    if (historicoCanvas && historico.length) {
+        const labels = historico.map(item => item.mes);
+        const usuariosDataset = historico.map(item => item.usuarios);
+        const condominiosDataset = historico.map(item => item.condominios);
+
+        new Chart(historicoCanvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Novos usuários',
+                        data: usuariosDataset,
+                        borderColor: '#3866d2',
+                        backgroundColor: 'rgba(56, 102, 210, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                    },
+                    {
+                        label: 'Novos condomínios',
+                        data: condominiosDataset,
+                        borderColor: '#11998e',
+                        backgroundColor: 'rgba(17, 153, 142, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                return `${label}: ${context.parsed.y.toLocaleString('pt-BR')}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    const perfilCanvas = document.getElementById('usuariosPerfilChart');
+    const perfilEntries = Object.entries(usuariosPorPerfil);
+    if (perfilCanvas && perfilEntries.length) {
+        const labels = perfilEntries.map(([label]) => label);
+        const data = perfilEntries.map(([, value]) => value);
+        const colors = [
+            '#3866d2',
+            '#0a1b67',
+            '#11998e',
+            '#eb3349',
+            '#f4a261',
+            '#8338ec',
+            '#06d6a0'
+        ];
+
+        new Chart(perfilCanvas, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: colors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                cutout: '65%'
+            }
+        });
+    }
+});
+</script>
+@endpush
 @endsection

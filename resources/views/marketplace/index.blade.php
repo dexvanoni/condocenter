@@ -731,8 +731,10 @@
             state.pageUrl = `${url.pathname}${url.search}`;
 
             fetch(url, {
+                credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
             })
             .then(async response => {
@@ -777,8 +779,10 @@
 
             try {
                 const response = await fetch(`/api/marketplace/${itemId}`, {
+                    credentials: 'same-origin',
                     headers: {
                         'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                 });
 
@@ -917,9 +921,11 @@
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                     body: formData,
                 });
@@ -1025,7 +1031,11 @@
             if (!item) {
                 try {
                     const response = await fetch(`/api/marketplace/${itemId}`, {
-                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
                     });
                     if (!response.ok) {
                         throw new Error('Não foi possível carregar os dados do anúncio.');
@@ -1098,9 +1108,11 @@
             try {
                 const response = await fetch(`/api/marketplace/${itemId}`, {
                     method: 'DELETE',
+                    credentials: 'same-origin',
                     headers: {
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
                     },
                 });
 

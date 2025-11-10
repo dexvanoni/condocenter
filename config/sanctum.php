@@ -2,6 +2,30 @@
 
 use Laravel\Sanctum\Sanctum;
 
+$defaultStateful = explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
+    '%s%s',
+    'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
+    Sanctum::currentApplicationUrlWithPort(),
+)));
+
+$runtimeHosts = [];
+
+if (isset($_SERVER['HTTP_HOST'])) {
+    $runtimeHosts[] = $_SERVER['HTTP_HOST'];
+
+    // Adiciona host sem porta (ex.: 192.168.0.3 a partir de 192.168.0.3:8000)
+    $runtimeHosts[] = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']);
+}
+
+if (isset($_SERVER['SERVER_NAME'])) {
+    $runtimeHosts[] = $_SERVER['SERVER_NAME'];
+}
+
+$stateful = array_values(array_unique(array_filter(array_merge(
+    $defaultStateful,
+    $runtimeHosts
+))));
+
 return [
 
     /*
@@ -15,12 +39,7 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        Sanctum::currentApplicationUrlWithPort(),
-        // Sanctum::currentRequestHost(),
-    ))),
+    'stateful' => $stateful,
 
     /*
     |--------------------------------------------------------------------------

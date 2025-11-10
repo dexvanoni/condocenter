@@ -17,11 +17,20 @@ class FCMClient {
     async initialize() {
         try {
             // Verificar se o FCM está habilitado no sistema
+            const statusHeaders = {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+
+            const authToken = this.getAuthToken();
+            if (authToken) {
+                statusHeaders['Authorization'] = `Bearer ${authToken}`;
+            }
+
             const statusResponse = await fetch('/api/fcm/status', {
-                headers: {
-                    'Authorization': `Bearer ${this.getAuthToken()}`,
-                    'Accept': 'application/json'
-                }
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: statusHeaders,
             });
 
             if (!statusResponse.ok) {
@@ -73,7 +82,13 @@ class FCMClient {
      */
     async loadFirebaseConfig() {
         try {
-            const response = await fetch('/api/fcm/config');
+            const response = await fetch('/api/fcm/config', {
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
             if (!response.ok) {
                 throw new Error('Falha ao carregar configuração');
             }
@@ -282,14 +297,22 @@ class FCMClient {
      */
     async registerToken(token, topics = []) {
         try {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+
+            const authToken = this.getAuthToken();
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
             const response = await fetch('/api/fcm/token', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`,
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
+                credentials: 'same-origin',
+                headers,
                 body: JSON.stringify({
                     fcm_token: token,
                     topics: topics
@@ -353,14 +376,22 @@ class FCMClient {
      */
     async disable() {
         try {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+
+            const authToken = this.getAuthToken();
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
             const response = await fetch('/api/fcm/disable', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`,
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                }
+                credentials: 'same-origin',
+                headers,
             });
 
             const result = await response.json();
@@ -377,14 +408,22 @@ class FCMClient {
      */
     async test() {
         try {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+
+            const authToken = this.getAuthToken();
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
             const response = await fetch('/api/fcm/test', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.getAuthToken()}`,
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                }
+                credentials: 'same-origin',
+                headers,
             });
 
             const result = await response.json();

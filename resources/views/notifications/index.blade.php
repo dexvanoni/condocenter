@@ -33,8 +33,25 @@
 @push('scripts')
 <script>
     function loadNotifications() {
-        fetch('/api/notifications')
-            .then(response => response.json())
+        fetch('/api/notifications', {
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+            .then(async response => {
+                if (!response.ok) {
+                    const message = 'Não foi possível carregar as notificações.';
+                    try {
+                        const errorData = await response.json();
+                        throw new Error(errorData?.message || message);
+                    } catch (error) {
+                        throw new Error(message);
+                    }
+                }
+                return response.json();
+            })
             .then(data => {
                 const container = document.getElementById('notificationsContainer');
                 const notifications = data.data || data;
@@ -75,6 +92,15 @@
                 
                 html += '</div>';
                 container.innerHTML = html;
+            })
+            .catch(error => {
+                const container = document.getElementById('notificationsContainer');
+                container.innerHTML = `
+                    <div class="text-center py-5 text-danger">
+                        <i class="bi bi-exclamation-triangle display-1"></i>
+                        <p class="mt-3">${error.message || 'Erro ao carregar notificações.'}</p>
+                    </div>
+                `;
             });
     }
     
@@ -93,7 +119,10 @@
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            }
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
         })
         .then(() => location.reload());
     }

@@ -25,189 +25,290 @@
         </div>
     </div>
 
-    <!-- KPIs Principais com Cards Gradientes -->
-    <div class="row g-4 mb-4">
-        <!-- Saldo do Mês -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-{{ $saldo >= 0 ? 'success' : 'danger' }} stagger-1">
-                <div class="card-body p-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
-                        <div class="stat-icon" style="width: 64px; height: 64px;">
-                            <i class="bi bi-wallet2" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                    <p class="stat-label mb-2 text-uppercase" style="font-size: 0.7rem; letter-spacing: 1px; font-weight: 600;">Saldo do Mês</p>
-                    <h2 class="stat-value mb-2" style="font-size: 2rem; font-weight: 700;">R$ {{ number_format(abs($saldo), 2, ',', '.') }}</h2>
-                    @if($variacaoReceitas != 0)
-                    <div class="stat-change" style="font-size: 0.8rem;">
-                        <i class="bi bi-{{ $variacaoReceitas > 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                        {{ number_format(abs($variacaoReceitas), 1) }}% vs mês anterior
-                    </div>
-                    @endif
+    <!-- KPIs Principais -->
+    <div class="row g-3 mb-4">
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Saldo do mês</span>
+                    <h3 class="kpi-value {{ $saldo >= 0 ? 'text-success' : 'text-danger' }}">
+                        R$ {{ number_format($saldo, 2, ',', '.') }}
+                    </h3>
+                    <span class="kpi-subtitle text-muted">
+                        {{ $saldo >= 0 ? 'Superávit' : 'Déficit' }}
+                    </span>
                 </div>
             </div>
         </div>
 
-        <!-- Receitas -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-success stagger-2">
-                <div class="card-body p-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
-                        <div class="stat-icon" style="width: 64px; height: 64px;">
-                            <i class="bi bi-arrow-up-circle" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                    <p class="stat-label mb-2 text-uppercase" style="font-size: 0.7rem; letter-spacing: 1px; font-weight: 600;">Receitas do Mês</p>
-                    <h2 class="stat-value mb-2" style="font-size: 2rem; font-weight: 700;">R$ {{ number_format($totalReceitas, 2, ',', '.') }}</h2>
-                    @if($variacaoReceitas != 0)
-                    <div class="stat-change" style="font-size: 0.8rem;">
-                        <i class="bi bi-{{ $variacaoReceitas > 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                        {{ number_format(abs($variacaoReceitas), 1) }}% vs mês anterior
-                    </div>
-                    @endif
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Receitas do mês</span>
+                    <h3 class="kpi-value">R$ {{ number_format($totalReceitas, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle {{ $variacaoReceitas >= 0 ? 'text-success' : 'text-danger' }}">
+                        {{ number_format($variacaoReceitas, 1) }}% vs mês anterior
+                    </span>
                 </div>
             </div>
         </div>
 
-        <!-- Despesas -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-danger stagger-3">
-                <div class="card-body p-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
-                        <div class="stat-icon" style="width: 64px; height: 64px;">
-                            <i class="bi bi-arrow-down-circle" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                    <p class="stat-label mb-2 text-uppercase" style="font-size: 0.7rem; letter-spacing: 1px; font-weight: 600;">Despesas do Mês</p>
-                    <h2 class="stat-value mb-2" style="font-size: 2rem; font-weight: 700;">R$ {{ number_format($totalDespesas, 2, ',', '.') }}</h2>
-                    @if($variacaoDespesas != 0)
-                    <div class="stat-change" style="font-size: 0.8rem;">
-                        <i class="bi bi-{{ $variacaoDespesas > 0 ? 'arrow-up' : 'arrow-down' }}"></i>
-                        {{ number_format(abs($variacaoDespesas), 1) }}% vs mês anterior
-                    </div>
-                    @endif
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Despesas do mês</span>
+                    <h3 class="kpi-value">R$ {{ number_format($totalDespesas, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle {{ $variacaoDespesas <= 0 ? 'text-success' : 'text-danger' }}">
+                        {{ number_format($variacaoDespesas, 1) }}% vs mês anterior
+                    </span>
                 </div>
             </div>
         </div>
 
-        <!-- Taxa de Adimplência -->
-        <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-{{ $taxaAdimplencia >= 90 ? 'info' : 'warning' }} stagger-4">
-                <div class="card-body p-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100 mb-3">
-                        <div class="stat-icon" style="width: 64px; height: 64px;">
-                            <i class="bi bi-graph-up-arrow" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                    <p class="stat-label mb-2 text-uppercase" style="font-size: 0.7rem; letter-spacing: 1px; font-weight: 600;">Taxa de Adimplência</p>
-                    <h2 class="stat-value mb-2" style="font-size: 2rem; font-weight: 700;">{{ number_format($taxaAdimplencia, 1) }}%</h2>
-                    <div class="stat-change" style="font-size: 0.8rem;">
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Taxa de adimplência</span>
+                    <h3 class="kpi-value {{ $taxaAdimplencia >= 90 ? 'text-success' : 'text-warning' }}">
+                        {{ number_format($taxaAdimplencia, 1) }}%
+                    </h3>
+                    <span class="kpi-subtitle text-muted">
                         {{ $inadimplentes }} {{ Str::plural('inadimplente', $inadimplentes) }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">A receber</span>
+                    <h3 class="kpi-value">R$ {{ number_format($totalAReceber, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle text-muted">Cobranças pendentes</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xxl-2 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Em atraso</span>
+                    <h3 class="kpi-value text-danger">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle text-muted">{{ $inadimplentes }} unidade(s)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo Operacional -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-4 col-md-6">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-cash-stack text-brand"></i> Saúde Financeira
+                    </h5>
+                </div>
+                <div class="card-body dashboard-card-body">
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Total a receber</span>
+                            <p class="insight-value mb-0">R$ {{ number_format($totalAReceber, 2, ',', '.') }}</p>
+                        </div>
+                        <span class="badge bg-light text-dark">Mês atual</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Valor em atraso</span>
+                            <p class="insight-value mb-0 text-danger">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</p>
+                        </div>
+                        <span class="badge bg-light text-danger">{{ $inadimplentes }} unidade(s)</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Reservas aprovadas</span>
+                            <p class="insight-value mb-0">{{ $reservasMes }} no mês</p>
+                        </div>
+                        <span class="badge bg-light text-muted">Agenda</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Saldo atual</span>
+                            <p class="insight-value mb-0 {{ $saldo >= 0 ? 'text-success' : 'text-danger' }}">
+                                R$ {{ number_format($saldo, 2, ',', '.') }}
+                            </p>
+                        </div>
+                        <span class="badge bg-light text-muted">Receitas - despesas</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-clipboard-data text-brand"></i> Operações do Dia
+                    </h5>
+                </div>
+                <div class="card-body dashboard-card-body">
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Reservas pendentes</span>
+                            <p class="insight-value mb-0">{{ $reservasPendentes }}</p>
+                        </div>
+                        <span class="badge bg-light text-warning">Aprovar</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Encomendas aguardando</span>
+                            <p class="insight-value mb-0">{{ $encombendasPendentes }}</p>
+                        </div>
+                        <span class="badge bg-light text-muted">{{ $encombendasHoje }} hoje</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Entradas registradas hoje</span>
+                            <p class="insight-value mb-0">{{ $entradasHoje }}</p>
+                        </div>
+                        <span class="badge bg-light text-muted">Portaria</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Moradores ativos</span>
+                            <p class="insight-value mb-0">{{ $moradoresAtivos }}</p>
+                        </div>
+                        <span class="badge bg-light text-success">Engajamento</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-buildings text-brand"></i> Ocupação do Condomínio
+                    </h5>
+                </div>
+                <div class="card-body dashboard-card-body">
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Unidades cadastradas</span>
+                            <p class="insight-value mb-0">{{ $totalUnidades }}</p>
+                        </div>
+                        <span class="badge bg-light text-muted">Total</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Taxa de ocupação</span>
+                            <p class="insight-value mb-0">{{ number_format($ocupacaoPercentual, 1) }}%</p>
+                        </div>
+                        <span class="badge bg-light text-success">Moradores</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Reservas confirmadas</span>
+                            <p class="insight-value mb-0">{{ $proximasReservas->count() }}</p>
+                        </div>
+                        <span class="badge bg-light text-muted">Próximos 5</span>
+                    </div>
+                    <div class="insight-item">
+                        <div>
+                            <span class="insight-label">Reservas pendentes</span>
+                            <p class="insight-value mb-0">{{ $reservasPendentes }}</p>
+                        </div>
+                        <span class="badge bg-light text-warning">Aguardando</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Métricas Secundárias -->
+    <!-- Gráficos -->
     <div class="row g-4 mb-4">
-        <!-- A Receber -->
-        <div class="col-lg-3 col-md-6">
-            <div class="dashboard-card hover-lift stagger-1">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
-                            <i class="bi bi-clock-history fs-3"></i>
-                        </div>
-                    </div>
-                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;">A Receber</h6>
-                    <h3 class="mb-0 fw-bold">R$ {{ number_format($totalAReceber, 2, ',', '.') }}</h3>
-                </div>
-            </div>
-        </div>
-
-        <!-- Em Atraso -->
-        <div class="col-lg-3 col-md-6">
-            <div class="dashboard-card hover-lift stagger-2">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
-                            <i class="bi bi-exclamation-triangle fs-3"></i>
-                        </div>
-                    </div>
-                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;">Em Atraso</h6>
-                    <h3 class="mb-1 fw-bold text-brand-dark">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</h3>
-                    <small class="text-muted">{{ $inadimplentes }} {{ Str::plural('unidade', $inadimplentes) }}</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Encomendas -->
-        <div class="col-lg-3 col-md-6">
-            <div class="dashboard-card hover-lift stagger-3">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
-                            <i class="bi bi-box-seam fs-3"></i>
-                        </div>
-                    </div>
-                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;">Encomendas</h6>
-                    <h3 class="mb-1 fw-bold">{{ $encombendasPendentes }}</h3>
-                    <small class="text-muted">{{ $encombendasHoje }} {{ Str::plural('recebida', $encombendasHoje) }} hoje</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Reservas Pendentes -->
-        <div class="col-lg-3 col-md-6">
-            <div class="dashboard-card hover-lift stagger-4">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="widget-icon bg-brand-soft" style="width: 56px; height: 56px;">
-                            <i class="bi bi-calendar-check fs-3"></i>
-                        </div>
-                    </div>
-                    <h6 class="text-muted text-uppercase mb-2" style="font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px;">Reservas Pendentes</h6>
-                    <h3 class="mb-1 fw-bold">{{ $reservasPendentes }}</h3>
-                    <small class="text-muted">Aguardando aprovação</small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Gráfico Financeiro e Ações Rápidas -->
-    <div class="row g-4 mb-4">
-        <!-- Gráfico de Evolução Financeira -->
         <div class="col-xl-8">
-            <div class="dashboard-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="section-title mb-0">
-                            <i class="bi bi-bar-chart-line text-brand"></i> Evolução Financeira (6 meses)
-                        </h5>
-                        <div class="chart-legend">
-                            <div class="chart-legend-item">
-                                <div class="chart-legend-color" style="background: #11998e;"></div>
-                                <span>Receitas</span>
-                            </div>
-                            <div class="chart-legend-item">
-                                <div class="chart-legend-color" style="background: #eb3349;"></div>
-                                <span>Despesas</span>
-                            </div>
-                        </div>
-                    </div>
-                    <canvas id="graficoFinanceiro" height="80"></canvas>
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-bar-chart-line text-brand"></i> Evolução Financeira (6 meses)
+                    </h5>
+                </div>
+                <div class="card-body dashboard-card-body">
+                    <canvas id="graficoFinanceiro" height="90"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- Ações Rápidas -->
         <div class="col-xl-4">
-            <div class="dashboard-card">
-                <div class="card-body">
-                    <h5 class="section-title mb-4">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-pie-chart text-brand"></i> Adimplência x Inadimplência
+                    </h5>
+                </div>
+                <div class="card-body dashboard-card-body">
+                    <canvas id="graficoAdimplencia" height="220"></canvas>
+                    <div class="mt-4">
+                        <div class="insight-item">
+                            <div>
+                                <span class="insight-label">Unidades adimplentes</span>
+                                <p class="insight-value mb-0">{{ max($totalUnidades - $inadimplentes, 0) }}</p>
+                            </div>
+                            <span class="badge bg-light text-success">{{ number_format($taxaAdimplencia, 1) }}%</span>
+                        </div>
+                        <div class="insight-item">
+                            <div>
+                                <span class="insight-label">Unidades inadimplentes</span>
+                                <p class="insight-value mb-0 text-danger">{{ $inadimplentes }}</p>
+                            </div>
+                            <span class="badge bg-light text-danger">
+                                R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-7">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 dashboard-card-header">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-bar-chart text-brand"></i> Categorias Financeiras (ano)
+                    </h5>
+                </div>
+                <div class="card-body dashboard-card-body">
+                    <canvas id="categoriasFinanceirasChart" height="120"></canvas>
+                    <div class="mt-4">
+                        @forelse($categoriasFinanceiras as $categoria)
+                        <div class="insight-item">
+                            <div>
+                                <span class="insight-label">{{ $categoria->category }}</span>
+                                <p class="insight-value mb-0">
+                                    R$ {{ number_format($categoria->total_movimentado, 2, ',', '.') }}
+                                </p>
+                            </div>
+                            <span class="badge bg-light text-success">
+                                Receitas: R$ {{ number_format($categoria->total_receitas, 2, ',', '.') }}
+                            </span>
+                        </div>
+                        @empty
+                        <p class="text-muted mb-0">Sem movimentações registradas.</p>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-5">
+            <div class="dashboard-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h5 class="section-title mb-0">
                         <i class="bi bi-lightning-charge text-brand"></i> Ações Rápidas
                     </h5>
+                </div>
+                <div class="card-body">
                     <div class="d-grid gap-3">
                         @can('view_transactions')
                         <a href="{{ route('transactions.index') }}" class="widget-quick-action">
@@ -215,7 +316,7 @@
                                 <i class="bi bi-cash-stack"></i>
                             </div>
                             <h6 class="mt-2 mb-0">Transações</h6>
-                            <small class="text-muted">Ver todas as transações</small>
+                            <small class="text-muted">Consultar lançamentos financeiros</small>
                         </a>
                         @endcan
 
@@ -224,8 +325,8 @@
                             <div class="widget-icon bg-brand-soft">
                                 <i class="bi bi-calendar-event"></i>
                             </div>
-                            <h6 class="mt-2 mb-0">Gerenciar Reservas</h6>
-                            <small class="text-muted">{{ $reservasPendentes }} pendente(s)</small>
+                            <h6 class="mt-2 mb-0">Reservas pendentes</h6>
+                            <small class="text-muted">{{ $reservasPendentes }} aguardando aprovação</small>
                         </a>
                         @endcan
 
@@ -234,10 +335,18 @@
                             <div class="widget-icon bg-brand-soft">
                                 <i class="bi bi-people"></i>
                             </div>
-                            <h6 class="mt-2 mb-0">Moradores</h6>
-                            <small class="text-muted">{{ $moradoresAtivos }} ativo(s)</small>
+                            <h6 class="mt-2 mb-0">Moradores ativos</h6>
+                            <small class="text-muted">{{ $moradoresAtivos }} usuário(s)</small>
                         </a>
                         @endcan
+
+                        <a href="{{ route('packages.index') }}" class="widget-quick-action">
+                            <div class="widget-icon bg-brand-soft">
+                                <i class="bi bi-box-seam"></i>
+                            </div>
+                            <h6 class="mt-2 mb-0">Encomendas pendentes</h6>
+                            <small class="text-muted">{{ $encombendasPendentes }} aguardando retirada</small>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -248,7 +357,7 @@
     <div class="row g-4">
         <!-- Últimas Transações -->
         <div class="col-xl-8">
-            <div class="dashboard-card">
+            <div class="dashboard-card" style="padding: 1.5rem !important;">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="section-title mb-0">
@@ -310,7 +419,7 @@
 
         <!-- Próximas Reservas -->
         <div class="col-xl-4">
-            <div class="dashboard-card">
+            <div class="dashboard-card" style="padding: 1.5rem !important;">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
                         <i class="bi bi-calendar-event text-brand"></i> Próximas Reservas
@@ -368,7 +477,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('graficoFinanceiro');
     if (ctx) {
         const graficoData = @json($graficoFinanceiro);
-        
+
         new Chart(ctx, {
             type: 'line',
             data: {
@@ -391,6 +500,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         borderWidth: 3,
                         fill: true,
                         tension: 0.4
+                    },
+                    {
+                        label: 'Saldo',
+                        data: graficoData.map(d => d.saldo),
+                        borderColor: '#f4a261',
+                        backgroundColor: 'rgba(244, 162, 97, 0.15)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        borderDash: [6, 6]
                     }
                 ]
             },
@@ -399,7 +518,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: true,
                 plugins: {
                     legend: {
-                        display: false
+                        display: true,
+                        position: 'top'
                     },
                     tooltip: {
                         backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -446,6 +566,88 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    }
+
+    // Gráfico de Adimplência
+    const adimplenciaCanvas = document.getElementById('graficoAdimplencia');
+    if (adimplenciaCanvas) {
+        const dadosAdimplencia = @json($graficoAdimplencia);
+        new Chart(adimplenciaCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Adimplentes', 'Inadimplentes'],
+                datasets: [{
+                    data: [dadosAdimplencia.adimplentes, dadosAdimplencia.inadimplentes],
+                    backgroundColor: ['#11998e', '#eb3349'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Categorias Financeiras
+    const categoriasCanvas = document.getElementById('categoriasFinanceirasChart');
+    if (categoriasCanvas) {
+        const categorias = @json($categoriasFinanceiras);
+        if (categorias.length) {
+            new Chart(categoriasCanvas, {
+                type: 'bar',
+                data: {
+                    labels: categorias.map(c => c.category),
+                    datasets: [
+                        {
+                            label: 'Receitas',
+                            data: categorias.map(c => Number(c.total_receitas)),
+                            backgroundColor: 'rgba(17, 153, 142, 0.7)'
+                        },
+                        {
+                            label: 'Despesas',
+                            data: categorias.map(c => Number(c.total_despesas)),
+                            backgroundColor: 'rgba(235, 51, 73, 0.7)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed.y || 0;
+                                    return `${context.dataset.label}: R$ ${value.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    })}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'R$ ' + value.toLocaleString('pt-BR');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 });
 </script>

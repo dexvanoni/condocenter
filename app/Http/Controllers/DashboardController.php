@@ -9,6 +9,7 @@ use App\Models\Reservation;
 use App\Models\Package;
 use App\Models\Entry;
 use App\Models\User;
+use App\Models\Condominium;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -125,12 +126,39 @@ class DashboardController extends Controller
             ->where('status', 'pending')
             ->count();
 
+        // Reservas do mês
+        $reservasMes = Reservation::whereHas('space', function ($q) use ($condominium) {
+                $q->where('condominium_id', $condominium->id);
+            })
+            ->whereMonth('reservation_date', now()->month)
+            ->whereYear('reservation_date', now()->year)
+            ->count();
+
         // Últimas Transações
         $ultimasTransacoes = Transaction::with(['user'])
             ->where('condominium_id', $condominium->id)
             ->orderBy('transaction_date', 'desc')
             ->limit(10)
             ->get();
+
+        // Categorias financeiras (ano em curso)
+        $categoriasFinanceiras = Transaction::where('condominium_id', $condominium->id)
+            ->whereYear('transaction_date', now()->year)
+            ->selectRaw("
+                COALESCE(category, 'Não Informada') as category,
+                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_receitas,
+                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_despesas,
+                SUM(amount) as total_movimentado
+            ")
+            ->groupBy('category')
+            ->orderByDesc('total_movimentado')
+            ->limit(6)
+            ->get();
+
+        $graficoAdimplencia = [
+            'adimplentes' => max($totalUnidades - $inadimplentes, 0),
+            'inadimplentes' => $inadimplentes,
+        ];
 
         // Encomendas Pendentes
         $encombendasPendentes = Package::byCondominium($condominium->id)
@@ -149,6 +177,9 @@ class DashboardController extends Controller
                 $q->whereIn('name', ['Morador', 'Síndico']);
             })
             ->count();
+        $ocupacaoPercentual = $totalUnidades > 0
+            ? ($moradoresAtivos / $totalUnidades) * 100
+            : 0;
 
         // Entradas de Hoje
         $entradasHoje = Entry::where('condominium_id', $condominium->id)
@@ -197,7 +228,11 @@ class DashboardController extends Controller
             'moradoresAtivos',
             'entradasHoje',
             'totalUnidades',
-            'graficoFinanceiro'
+            'graficoFinanceiro',
+            'categoriasFinanceiras',
+            'graficoAdimplencia',
+            'ocupacaoPercentual',
+            'reservasMes'
         ));
     }
 
@@ -555,13 +590,13 @@ class DashboardController extends Controller
     protected function adminPlatformDashboard(User $user)
     {
         // Dashboard do administrador da plataforma
-        $totalCondominios = \App\Models\Condominium::count();
-        $totalUsuarios = \App\Models\User::count();
-        $condominiosAtivos = \App\Models\Condominium::where('is_active', true)->count();
+        $totalCondominios = Condominium::count();
+        $totalUsuarios = User::count();
+        $condominiosAtivos = Condominium::where('is_active', true)->count();
         $condominiosInativos = $totalCondominios - $condominiosAtivos;
         
         // Usuários por Perfil
-        $usuariosPorPerfil = \App\Models\User::with('roles')
+        $usuariosPorPerfil = User::with('roles')
             ->get()
             ->flatMap(function ($user) {
                 return $user->roles->pluck('name');
@@ -570,11 +605,17 @@ class DashboardController extends Controller
             ->toArray();
 
         // Usuários Ativos
-        $usuariosAtivos = \App\Models\User::where('is_active', true)->count();
+        $usuariosAtivos = User::where('is_active', true)->count();
         $usuariosInativos = $totalUsuarios - $usuariosAtivos;
+        $usuariosAtivosPercentual = $totalUsuarios > 0
+            ? ($usuariosAtivos / $totalUsuarios) * 100
+            : 0;
+        $condominiosAtivosPercentual = $totalCondominios > 0
+            ? ($condominiosAtivos / $totalCondominios) * 100
+            : 0;
 
         // Condomínios Recentes (últimos 10)
-        $condominios = \App\Models\Condominium::withCount('users', 'units')
+        $condominios = Condominium::withCount('users', 'units')
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
@@ -594,11 +635,11 @@ class DashboardController extends Controller
             ->count();
 
         // Crescimento Mensal
-        $usuariosMesAnterior = \App\Models\User::whereMonth('created_at', now()->subMonth()->month)
+        $usuariosMesAnterior = User::whereMonth('created_at', now()->subMonth()->month)
             ->whereYear('created_at', now()->subMonth()->year)
             ->count();
 
-        $usuariosMesAtual = \App\Models\User::whereMonth('created_at', now()->month)
+        $usuariosMesAtual = User::whereMonth('created_at', now()->month)
             ->whereYear('created_at', now()->year)
             ->count();
 
@@ -607,10 +648,38 @@ class DashboardController extends Controller
             : 0;
 
         // Condomínios com Mais Usuários (Top 5)
-        $topCondominios = \App\Models\Condominium::withCount('users')
+        $topCondominios = Condominium::withCount('users')
             ->orderByDesc('users_count')
             ->limit(5)
             ->get();
+
+        // Histórico de crescimento (6 meses)
+        $historicoPlataforma = collect(range(5, 0))->map(function ($i) {
+            $mes = now()->subMonths($i);
+
+            return [
+                'mes' => $mes->format('M/Y'),
+                'usuarios' => User::whereMonth('created_at', $mes->month)
+                    ->whereYear('created_at', $mes->year)
+                    ->count(),
+                'condominios' => Condominium::whereMonth('created_at', $mes->month)
+                    ->whereYear('created_at', $mes->year)
+                    ->count(),
+            ];
+        });
+
+        // Indicadores operacionais
+        $valorCobrancasPendentes = Charge::whereIn('status', ['pending', 'overdue'])->sum('amount');
+        $valorCobrancasAtraso = Charge::where('status', 'overdue')->sum('amount');
+        $totalCobrancasPendentes = Charge::whereIn('status', ['pending', 'overdue'])->count();
+        $reservasPendentes = Reservation::where('status', 'pending')->count();
+
+        $resumoOperacional = [
+            'cobrancasPendentes' => $totalCobrancasPendentes,
+            'valorCobrancasPendentes' => $valorCobrancasPendentes,
+            'valorCobrancasAtraso' => $valorCobrancasAtraso,
+            'reservasPendentes' => $reservasPendentes,
+        ];
 
         return view('dashboard.admin', compact(
             'totalCondominios',
@@ -625,7 +694,11 @@ class DashboardController extends Controller
             'volumeFinanceiroMes',
             'totalReservasMes',
             'crescimentoUsuarios',
-            'topCondominios'
+            'topCondominios',
+            'historicoPlataforma',
+            'usuariosAtivosPercentual',
+            'condominiosAtivosPercentual',
+            'resumoOperacional'
         ));
     }
 }
