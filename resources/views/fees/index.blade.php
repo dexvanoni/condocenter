@@ -104,6 +104,14 @@
                             <a href="{{ route('fees.edit', $fee) }}" class="btn btn-outline-secondary w-100">
                                 Editar
                             </a>
+                            @if($fee->recurrence === 'monthly')
+                                <form action="{{ route('fees.clone', $fee) }}" method="POST" class="w-100" onsubmit="return confirm('Deseja clonar esta taxa para o próximo mês?');">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline-success w-100">
+                                        Clonar
+                                    </button>
+                                </form>
+                            @endif
                         @endcan
                     </div>
                 </div>

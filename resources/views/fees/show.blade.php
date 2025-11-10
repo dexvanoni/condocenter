@@ -24,6 +24,14 @@
                     <a href="{{ route('fees.edit', $fee) }}" class="btn btn-outline-primary">
                         <i class="bi bi-pencil"></i> Editar
                     </a>
+                    @if($fee->recurrence === 'monthly')
+                        <form action="{{ route('fees.clone', $fee) }}" method="POST" class="d-inline" onsubmit="return confirm('Deseja clonar esta taxa para o próximo mês?');">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-success">
+                                <i class="bi bi-files"></i> Clonar
+                            </button>
+                        </form>
+                    @endif
                     <form action="{{ route('fees.generate', $fee) }}" method="POST" class="d-inline">
                         @csrf
                         <button type="submit" class="btn btn-primary">

@@ -105,6 +105,7 @@
                         <th>Unidade</th>
                         <th>Título</th>
                         <th>Vencimento</th>
+                        <th>Pago em</th>
                         <th>Valor</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -112,7 +113,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="6" class="text-center py-4">
+                        <td colspan="7" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Carregando...</span>
                             </div>
@@ -123,6 +124,45 @@
             </table>
         </div>
         <div id="chargesPagination" class="mt-3"></div>
+    </div>
+</div>
+
+<!-- Modais utilitários -->
+<div class="modal fade" id="gerarCobrancasModal" tabindex="-1" aria-labelledby="gerarCobrancasModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="gerarCobrancasModalLabel">Gerar cobranças em lote</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Para gerar cobranças em lote, selecione a taxa desejada e utilize a ação <strong>"Gerar próxima cobrança"</strong> na página da taxa.</p>
+                <p class="mb-0">Você pode acessar a lista de taxas no botão abaixo.</p>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ route('fees.index') }}" class="btn btn-primary">Ir para taxas</a>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="novaCobrancaModal" tabindex="-1" aria-labelledby="novaCobrancaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="novaCobrancaModalLabel">Nova cobrança manual</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">As cobranças são geradas automaticamente a partir das taxas cadastradas. Para lançar uma cobrança manual, utilize a função de <strong>"Recebimento avulso"</strong> em <em>Contas do Condomínio</em>.</p>
+                <p class="mb-0">Abra a área financeira para registrar uma entrada manual.</p>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ route('financial.accounts.index') }}" class="btn btn-primary">Ir para Contas do Condomínio</a>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -288,7 +328,7 @@
     function statusBadge(status) {
         const map = {
             pending: { label: 'Pendente', color: 'warning' },
-            overdue: { label: 'Em atraso', color: 'danger' },
+            overdue: { label: 'Em Atraso', color: 'danger' },
             paid: { label: 'Pago', color: 'success' },
             cancelled: { label: 'Cancelado', color: 'secondary' },
         };
@@ -321,7 +361,7 @@
         const tbody = document.querySelector('#chargesTable tbody');
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4">
+                <td colspan="7" class="text-center py-4">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Carregando...</span>
                     </div>
@@ -440,7 +480,7 @@
                 const tbody = document.querySelector('#chargesTable tbody');
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="text-center text-danger py-4">
+                        <td colspan="7" class="text-center text-danger py-4">
                             Não foi possível carregar as cobranças. Tente novamente.
                         </td>
                     </tr>
@@ -545,7 +585,7 @@
         if (charges.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
+                    <td colspan="7" class="text-center text-muted py-4">
                         Nenhuma cobrança encontrada para os filtros selecionados.
                     </td>
                 </tr>
@@ -559,6 +599,7 @@
                     <td>${charge.unit?.full_identifier ?? '—'}</td>
                     <td>${charge.title}</td>
                     <td>${formatDate(charge.due_date)}</td>
+                    <td>${formatDate(charge.paid_at)}</td>
                     <td>${formatCurrency(charge.amount)}</td>
                     <td>${statusBadge(charge.status)}</td>
                     <td>${buildActions(charge)}</td>

@@ -62,6 +62,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::middleware(['can:view_charges'])->group(function () {
         Route::resource('fees', FeeController::class);
         Route::post('fees/{fee}/generate', [FeeController::class, 'generateCharges'])->name('fees.generate');
+        Route::post('fees/{fee}/clone', [FeeController::class, 'cloneFee'])->name('fees.clone');
     });
 
     Route::resource('financial/bank-accounts', BankAccountController::class)

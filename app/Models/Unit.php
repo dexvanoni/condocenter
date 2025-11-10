@@ -44,6 +44,10 @@ class Unit extends Model implements Auditable
         'possui_dividas' => 'boolean',
     ];
 
+    protected $appends = [
+        'full_identifier',
+    ];
+
     // Relacionamentos
     public function condominium()
     {

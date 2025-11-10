@@ -86,6 +86,41 @@ class FeeService
         });
     }
 
+    public function cloneMonthlyFee(Fee $fee, User $user): Fee
+    {
+        if ($fee->condominium_id !== $user->condominium_id) {
+            throw ValidationException::withMessages([
+                'fee' => 'Taxa não pertence ao seu condomínio.',
+            ]);
+        }
+
+        if ($fee->recurrence !== 'monthly') {
+            throw ValidationException::withMessages([
+                'fee' => 'A clonagem automática está disponível apenas para taxas mensais.',
+            ]);
+        }
+
+        return $this->database->transaction(function () use ($fee) {
+            $fee->loadMissing('configurations');
+
+            $newFee = $fee->replicate();
+            $newFee->starts_at = $fee->starts_at ? $fee->starts_at->copy()->addMonth() : null;
+            $newFee->ends_at = $fee->ends_at ? $fee->ends_at->copy()->addMonth() : null;
+            $newFee->last_generated_at = null;
+            $newFee->save();
+
+            foreach ($fee->configurations as $configuration) {
+                $newConfiguration = $configuration->replicate();
+                $newConfiguration->fee_id = $newFee->id;
+                $newConfiguration->starts_at = $configuration->starts_at ? $configuration->starts_at->copy()->addMonth() : null;
+                $newConfiguration->ends_at = $configuration->ends_at ? $configuration->ends_at->copy()->addMonth() : null;
+                $newConfiguration->save();
+            }
+
+            return $newFee->fresh(['configurations.unit']);
+        });
+    }
+
     public function deleteFee(Fee $fee, User $user): void
     {
         if ($fee->condominium_id !== $user->condominium_id) {

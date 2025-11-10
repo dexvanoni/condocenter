@@ -141,6 +141,17 @@ class FeeController extends Controller
             ->with('success', 'Taxa atualizada com sucesso!');
     }
 
+    public function cloneFee(Request $request, Fee $fee)
+    {
+        $this->authorizeFee($fee);
+
+        $clonedFee = $this->feeService->cloneMonthlyFee($fee, $request->user());
+
+        return redirect()
+            ->route('fees.show', $clonedFee)
+            ->with('success', 'Taxa clonada com sucesso para o próximo período.');
+    }
+
     public function destroy(Request $request, Fee $fee)
     {
         $this->authorizeFee($fee);
