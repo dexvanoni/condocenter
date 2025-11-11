@@ -1,0 +1,13 @@
+{
+    "php.executablePath": "C:\\laragon\\bin\\php\\php-8.3.16-Win32-vs16-x64\\php.exe",
+    "php.validate.executablePath": "C:\\laragon\\bin\\php\\php-8.3.16-Win32-vs16-x64\\php.exe",
+    "php.suggest.basic": false,
+    "php.validate.enable": true,
+    "php.validate.run": "onSave",
+    "php.validate.executablePath": "C:\\laragon\\bin\\php\\php-8.3.16-Win32-vs16-x64\\php.exe",
+    "intelephense.environment.phpVersion": "8.3.16",
+    "intelephense.environment.includePaths": [
+        "C:\\laragon\\bin\\php\\php-8.3.16-Win32-vs16-x64"
+    ],
+    "intelephense.executable.php": "C:\\laragon\\bin\\php\\php-8.3.16-Win32-vs16-x64\\php.exe"
+}

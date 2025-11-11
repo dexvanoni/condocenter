@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Message;
+use App\Models\User;
+use App\Services\OneSignalNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class MessageController extends Controller
 {
@@ -87,6 +90,38 @@ class MessageController extends Controller
         // Se for alerta de pânico, notificar TODOS do condomínio
         if ($request->type === 'panic_alert') {
             // TODO: Disparar job para notificar todos via email/push
+        }
+
+        // Enviar push pelo OneSignal para mensagens do síndico/admin
+        if ($request->type === 'sindico_message' && $user->hasAnyRole(['Síndico', 'Administrador'])) {
+            /** @var OneSignalNotificationService $oneSignal */
+            $oneSignal = app(OneSignalNotificationService::class);
+
+            if ($oneSignal->isEnabled()) {
+                $recipientIds = [];
+
+                if ($message->to_user_id) {
+                    $recipientIds = [$message->to_user_id];
+                } else {
+                    $recipientIds = User::query()
+                        ->where('condominium_id', $user->condominium_id)
+                        ->where('is_active', true)
+                        ->where('id', '!=', $user->id)
+                        ->pluck('id')
+                        ->all();
+                }
+
+                if (!empty($recipientIds)) {
+                    $oneSignal->sendSindicoMessage($recipientIds, [
+                        'message_id' => $message->id,
+                        'subject' => $message->subject,
+                        'message' => $message->message,
+                        'excerpt' => Str::limit(strip_tags($message->message), 140),
+                        'from_user_id' => $user->id,
+                        'from_user_name' => $user->name,
+                    ]);
+                }
+            }
         }
 
         return response()->json([

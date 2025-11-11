@@ -7,6 +7,7 @@ use App\Models\PanicAlert;
 use App\Models\User;
 use App\Jobs\SendPanicAlert;
 use App\Services\FirebaseNotificationService;
+use App\Services\OneSignalNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -340,6 +341,22 @@ class PanicAlertController extends Controller
                 'alert_id' => $panicAlert->id,
                 'sent_count' => $sentCount
             ]);
+
+            $oneSignal = app(OneSignalNotificationService::class);
+            if ($oneSignal->isEnabled()) {
+                $userIds = User::query()
+                    ->where('condominium_id', $panicAlert->condominium_id)
+                    ->where('is_active', true)
+                    ->pluck('id')
+                    ->all();
+
+                $oneSignal->sendPanicResolved($userIds, [
+                    'alert_id' => $panicAlert->id,
+                    'alert_type' => $panicAlert->alert_type,
+                    'alert_title' => $panicAlert->title ?? $panicAlert->alert_type,
+                    'resolved_by' => $panicAlert->resolvedBy->name ?? 'Usuário',
+                ]);
+            }
             
         } catch (\Exception $e) {
             Log::error('Erro ao enviar notificação FCM de resolução', [

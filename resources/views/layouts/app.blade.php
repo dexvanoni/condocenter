@@ -1305,6 +1305,29 @@
 
     @stack('scripts')
 
+    @php
+        $oneSignalTags = [
+            'condominium_id' => optional($user)->condominium_id,
+            'role_admin' => optional($user)->hasRole('Administrador') ? '1' : '0',
+            'role_sindico' => optional($user)->hasRole('Síndico') ? '1' : '0',
+        ];
+
+        $oneSignalConfig = [
+            'enabled' => config('onesignal.enabled', false),
+            'userId' => optional($user)->id,
+            'tags' => array_filter($oneSignalTags, fn ($value) => !is_null($value)),
+            'meta' => [
+                'prompt' => [
+                    'force' => false,
+                ],
+            ],
+        ];
+    @endphp
+
+    <script>
+        window.AppOneSignal = @json($oneSignalConfig);
+    </script>
+
     <script>
         // Mobile sidebar já funciona com Bootstrap collapse
 
@@ -2573,5 +2596,17 @@
         };
     </script>
     @endif
+    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
+<script>
+  window.OneSignal = window.OneSignal || [];
+  OneSignal.push(function() {
+    OneSignal.init({
+      appId: "e44db475-4460-4545-8b3b-cdc31b6dd396",
+      safari_web_id: "SEU_SAFARI_WEB_ID_SE_EXISTIR",
+      notifyButton: { enable: true },
+      allowLocalhostAsSecureOrigin: true, // permite testes locais com HTTPS falso
+    });
+  });
+</script>
 </body>
 </html>

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Assembly\AssemblyMinutesService;
 use App\Services\Assembly\AssemblyService;
 use App\Services\Assembly\AssemblyVotingService;
+use App\Services\OneSignalNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -153,6 +154,8 @@ class AssemblyController extends Controller
         $payload['attachments'] = $request->file('attachments', []);
 
         $assembly = $this->assemblyService->createAssembly($payload, $user);
+
+        $this->notifyAssemblyUsers($assembly->fresh('allowedRoles'), 'scheduled');
 
         return response()->json([
             'message' => 'Assembleia criada com sucesso.',
@@ -346,6 +349,8 @@ class AssemblyController extends Controller
 
         $this->assemblyService->transitionStatus($assembly, 'in_progress', Auth::user(), $context);
 
+        $this->notifyAssemblyUsers($assembly->fresh('allowedRoles'), 'in_progress');
+
         return response()->json([
             'message' => 'Assembleia iniciada com sucesso.',
             'assembly' => $assembly->fresh(),
@@ -466,5 +471,46 @@ class AssemblyController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    protected function notifyAssemblyUsers(Assembly $assembly, string $status): void
+    {
+        /** @var OneSignalNotificationService $oneSignal */
+        $oneSignal = app(OneSignalNotificationService::class);
+        if (!$oneSignal->isEnabled()) {
+            return;
+        }
+
+        $assembly->loadMissing('allowedRoles');
+
+        $query = User::query()
+            ->where('condominium_id', $assembly->condominium_id)
+            ->where('is_active', true);
+
+        $roleNames = $assembly->allowedRoles->pluck('name')->filter()->unique()->values();
+
+        if ($roleNames->isNotEmpty()) {
+            $query->whereHas('roles', fn ($roles) => $roles->whereIn('name', $roleNames));
+        } else {
+            $query->whereHas('roles', fn ($roles) => $roles->whereIn('name', [
+                'Morador',
+                'Agregado',
+                'Síndico',
+                'Administrador',
+            ]));
+        }
+
+        $recipientIds = $query->pluck('id')->all();
+        if (empty($recipientIds)) {
+            return;
+        }
+
+        $oneSignal->sendAssemblyNotification($recipientIds, $status, [
+            'assembly_id' => $assembly->id,
+            'title' => $assembly->title,
+            'scheduled_at' => optional($assembly->scheduled_at)->toIso8601String(),
+            'scheduled_at_label' => optional($assembly->scheduled_at)->format('d/m/Y H:i'),
+            'status' => $status,
+        ]);
     }
 }

@@ -10,6 +10,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use App\Services\OneSignalNotificationService;
 
 class SendReservationNotification implements ShouldQueue
 {
@@ -51,6 +52,8 @@ class SendReservationNotification implements ShouldQueue
             $messageData = $messages[$this->type] ?? $messages['approved'];
 
             // Determinar destinatário
+            $sindicos = collect();
+
             if ($this->type === 'pending_approval') {
                 // Notificar síndico
                 $sindicos = \App\Models\User::role('Síndico')
@@ -97,6 +100,34 @@ class SendReservationNotification implements ShouldQueue
                 'reservation_id' => $this->reservation->id,
                 'type' => $this->type,
             ]);
+
+            /** @var OneSignalNotificationService $oneSignal */
+            $oneSignal = app(OneSignalNotificationService::class);
+            if ($oneSignal->isEnabled()) {
+                $payload = [
+                    'reservation_id' => $this->reservation->id,
+                    'space_name' => $this->reservation->space->name,
+                    'reservation_date' => $this->reservation->reservation_date,
+                    'reservation_date_label' => $this->reservation->reservation_date?->format('d/m/Y'),
+                    'start_time' => $this->reservation->start_time,
+                    'end_time' => $this->reservation->end_time,
+                    'message' => $messageData['message'],
+                ];
+
+                if ($this->type === 'pending_approval') {
+                    $oneSignal->sendReservationNotification(
+                        $sindicos->pluck('id')->all(),
+                        $this->type,
+                        $payload
+                    );
+                } else {
+                    $oneSignal->sendReservationNotification(
+                        [$this->reservation->user_id],
+                        $this->type,
+                        $payload
+                    );
+                }
+            }
 
         } catch (\Exception $e) {
             Log::error('Erro ao enviar notificação de reserva: ' . $e->getMessage());

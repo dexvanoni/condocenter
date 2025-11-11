@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Services\OneSignalNotificationService;
 
 class SendPanicAlert implements ShouldQueue
 {
@@ -72,6 +73,23 @@ class SendPanicAlert implements ShouldQueue
                 'alert_type' => $this->alertData['alert_type'],
                 'sender' => $this->alertData['user_name'],
             ]);
+
+            /** @var OneSignalNotificationService $oneSignal */
+            $oneSignal = app(OneSignalNotificationService::class);
+            if ($oneSignal->isEnabled()) {
+                $oneSignal->sendPanicAlert(
+                    $users->pluck('id')->all(),
+                    [
+                        'alert_id' => $this->alertData['alert_id'],
+                        'alert_type' => $this->alertData['alert_type'],
+                        'alert_title' => $this->alertData['alert_title'],
+                        'user_name' => $this->alertData['user_name'],
+                        'user_unit' => $this->alertData['user_unit'] ?? 'Condomínio',
+                        'severity' => $this->alertData['severity'] ?? 'high',
+                        'additional_info' => $this->alertData['additional_info'] ?? null,
+                    ]
+                );
+            }
 
         } catch (\Exception $e) {
             Log::error('Erro ao enviar alerta de pânico: ' . $e->getMessage(), [
