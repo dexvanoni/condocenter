@@ -240,6 +240,7 @@
     @php
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
+        $activeRoleName = session('active_role') ?? optional($user->roles->first())->name;
         $menuActive = [
             'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*'),
             'financeiro' => request()->routeIs('transactions.*')
@@ -295,11 +296,11 @@
                             <strong class="text-white" style="font-size: 0.8rem; line-height: 1.2;">{{ Str::limit($user->name, 15) }}</strong>
                             @if($user->hasMultipleRoles())
                                 <small class="text-white-50" style="font-size: 0.65rem; line-height: 1.1;">
-                                    {{ session('active_role_name', $user->roles->first()->name) }}
+                                    {{ $activeRoleName }}
                                 </small>
                             @else
                                 <small class="text-white-50" style="font-size: 0.65rem; line-height: 1.1;">
-                                    {{ $user->roles->first()->name }}
+                                    {{ $activeRoleName }}
                                 </small>
                             @endif
                         </div>
@@ -309,9 +310,9 @@
                             <li><h6 class="dropdown-header">Trocar Perfil</h6></li>
                             @foreach($user->roles as $role)
                                 <li>
-                                    <a class="dropdown-item {{ session('active_role_id') == $role->id ? 'active' : '' }}" 
+                                    <a class="dropdown-item {{ session('active_role') == $role->name ? 'active' : '' }}" 
                                        href="#" 
-                                       onclick="switchProfile({{ $role->id }}); return false;">
+                                       onclick="switchProfile('{{ addslashes($role->name) }}'); return false;">
                                         <i class="bi bi-shield-check"></i> {{ $role->name }}
                                     </a>
                                 </li>
@@ -840,7 +841,7 @@
                                     <span class="fw-bold" style="font-size: 0.9rem;">{{ $user->name }}</span>
                                     <small class="text-white-50" style="font-size: 0.75rem;">
                                         @if($user->hasMultipleRoles())
-                                            {{ session('active_role_name', $user->roles->first()->name) }}
+                                            {{ $activeRoleName }}
                                         @else
                                             {{ $user->roles->first()->name }}
                                         @endif
@@ -852,7 +853,7 @@
                                     <li><h6 class="dropdown-header">Trocar Perfil</h6></li>
                                     @foreach($user->roles as $role)
                                         <li>
-                                            <a class="dropdown-item {{ session('active_role') == $role->id ? 'active' : '' }}" href="#" onclick="switchProfile({{ $role->id }})">
+                                            <a class="dropdown-item {{ session('active_role') == $role->name ? 'active' : '' }}" href="#" onclick="switchProfile('{{ addslashes($role->name) }}')">
                                                 <i class="bi bi-person-circle me-2"></i>{{ $role->name }}
                                             </a>
                                         </li>
@@ -1308,26 +1309,38 @@
         // Mobile sidebar já funciona com Bootstrap collapse
 
         // Switch profile
-        function switchProfile(roleId) {
+        function switchProfile(roleName) {
             fetch('{{ route("profile.switch") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: JSON.stringify({ role_id: roleId })
+                body: JSON.stringify({ role: roleName }),
+                credentials: 'same-origin',
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(async response => {
+                const isJson = response.headers.get('content-type')?.includes('application/json');
+                const data = isJson ? await response.json() : {};
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erro ao trocar perfil');
+                }
+
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert('Erro ao trocar perfil');
+                    throw new Error(data.message || 'Erro ao trocar perfil');
                 }
+            })
+            .then(data => {
+                // handled above
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao trocar perfil');
+                alert(error.message || 'Erro ao trocar perfil');
             });
         }
 

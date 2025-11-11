@@ -20,6 +20,7 @@ class DashboardController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $condominium = $user->condominium;
+        $activeRole = session('active_role');
 
         // Admin da plataforma (sem condomínio)
         if ($user->isAdmin() && !$condominium) {
@@ -29,6 +30,14 @@ class DashboardController extends Controller
         // Verificar se usuário tem condomínio
         if (!$condominium) {
             return view('dashboard.no-condominium');
+        }
+
+        // Se usuário selecionou um perfil específico, respeitar a seleção
+        if ($activeRole && $user->hasRole($activeRole)) {
+            $dashboard = $this->dashboardByRole($user, $condominium, $activeRole);
+            if ($dashboard !== null) {
+                return $dashboard;
+            }
         }
 
         // Dashboard específico por role
@@ -46,6 +55,25 @@ class DashboardController extends Controller
 
         // Fallback para perfis não tratados
         return $this->defaultDashboard($user, $condominium);
+    }
+
+    protected function dashboardByRole(User $user, $condominium, string $roleName)
+    {
+        switch ($roleName) {
+            case 'Administrador':
+            case 'Síndico':
+                return $this->sindicoDashboard($user, $condominium);
+            case 'Morador':
+                return $this->moradorDashboard($user, $condominium);
+            case 'Agregado':
+                return $this->agregadoDashboard($user, $condominium);
+            case 'Porteiro':
+                return $this->porteiroDashboard($user, $condominium);
+            case 'Conselho Fiscal':
+                return $this->conselhoFiscalDashboard($user, $condominium);
+            default:
+                return null;
+        }
     }
 
     protected function sindicoDashboard(User $user, $condominium)
