@@ -48,5 +48,10 @@ class BankAccount extends Model implements Auditable
     {
         return $this->hasMany(BankAccountBalance::class);
     }
+
+    public function reconciliations()
+    {
+        return $this->hasMany(BankAccountReconciliation::class);
+    }
 }
 

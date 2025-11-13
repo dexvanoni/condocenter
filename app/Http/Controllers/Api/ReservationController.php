@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendReservationNotification;
+use App\Models\Charge;
+use App\Models\Notification;
 use App\Models\Reservation;
 use App\Models\Space;
-use App\Jobs\SendReservationNotification;
+use App\Services\OneSignalNotificationService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -232,6 +236,11 @@ class ReservationController extends Controller
 
         $reservation = Reservation::create($reservationData);
 
+        $generatedCharge = null;
+        if ($space->approval_type === 'automatic') {
+            $generatedCharge = $this->createImmediateApprovalCharge($reservation, $space);
+        }
+
         $paymentData = null;
         $creditUsed = false;
         $remainingAmount = $space->price_per_hour;
@@ -303,6 +312,10 @@ class ReservationController extends Controller
                 $message = 'Reserva confirmada automaticamente!';
             }
         }
+
+        if ($generatedCharge) {
+            $message .= ' Foi gerada uma cobrança para esta reserva.';
+        }
         
         if ($space->approval_type === 'prereservation' && $space->price_per_hour > 0) {
             if ($creditUsed) {
@@ -344,6 +357,15 @@ class ReservationController extends Controller
             'credit_amount' => $creditUsed ? ($space->price_per_hour - $remainingAmount) : 0,
             'total_user_credits' => $totalCredits
         ];
+
+        if ($generatedCharge) {
+            $response['reservation_charge'] = [
+                'id' => $generatedCharge->id,
+                'amount' => $generatedCharge->amount,
+                'due_date' => optional($generatedCharge->due_date)->format('Y-m-d'),
+                'status' => $generatedCharge->status,
+            ];
+        }
 
         // Adicionar dados específicos para pré-reservas
         if ($space->approval_type === 'prereservation') {
@@ -721,6 +743,131 @@ class ReservationController extends Controller
         ]);
     }
     
+    private function createImmediateApprovalCharge(Reservation $reservation, Space $space): ?Charge
+    {
+        if ($space->price_per_hour <= 0 || !$reservation->unit_id) {
+            return null;
+        }
+
+        $existingCharge = Charge::query()
+            ->where('condominium_id', $space->condominium_id)
+            ->where('unit_id', $reservation->unit_id)
+            ->where('metadata->reservation_id', $reservation->id)
+            ->first();
+
+        if ($existingCharge) {
+            return $existingCharge;
+        }
+
+        $amount = $this->calculateReservationAmount($reservation, $space);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $dueDate = now()->addHours(48);
+
+        $startLabel = $reservation->start_time ?? '--';
+        $endLabel = $reservation->end_time ?? '--';
+
+        $charge = Charge::create([
+            'condominium_id' => $space->condominium_id,
+            'unit_id' => $reservation->unit_id,
+            'title' => "Reserva de Espaço - {$space->name}",
+            'description' => "Cobrança referente à reserva do espaço {$space->name} em {$reservation->reservation_date->format('d/m/Y')} das {$startLabel} às {$endLabel}.",
+            'amount' => $amount,
+            'due_date' => $dueDate,
+            'recurrence_period' => null,
+            'fine_percentage' => 0,
+            'interest_rate' => 0,
+            'status' => 'pending',
+            'type' => 'extra',
+            'generated_by' => 'reservation',
+            'metadata' => [
+                'reservation_id' => $reservation->id,
+                'space_id' => $space->id,
+                'automatic_approval' => true,
+            ],
+        ]);
+
+        $this->notifyReservationCharge($reservation, $charge, $space);
+
+        return $charge;
+    }
+
+    private function calculateReservationAmount(Reservation $reservation, Space $space): float
+    {
+        $baseAmount = (float) $space->price_per_hour;
+
+        if ($baseAmount <= 0) {
+            return 0.0;
+        }
+
+        if ($space->reservation_mode === 'hourly' && $reservation->start_time && $reservation->end_time) {
+            try {
+                $start = Carbon::createFromFormat('H:i', $reservation->start_time);
+                $end = Carbon::createFromFormat('H:i', $reservation->end_time);
+                $minutes = max(0, $start->diffInMinutes($end));
+
+                if ($minutes > 0) {
+                    $hours = $minutes / 60;
+
+                    return round($baseAmount * max($hours, 1), 2);
+                }
+            } catch (\Exception $e) {
+                // Mantém valor base em caso de erro de parsing
+            }
+        }
+
+        return round($baseAmount, 2);
+    }
+
+    private function notifyReservationCharge(Reservation $reservation, Charge $charge, Space $space): void
+    {
+        try {
+            $dueDate = optional($charge->due_date)?->format('d/m/Y');
+            $amountLabel = 'R$ ' . number_format((float) $charge->amount, 2, ',', '.');
+
+            Notification::create([
+                'condominium_id' => $space->condominium_id,
+                'user_id' => $reservation->user_id,
+                'type' => 'reservation_charge_created',
+                'title' => 'Cobrança gerada para sua reserva',
+                'message' => "Foi gerada uma cobrança de {$amountLabel} referente à reserva do espaço {$space->name}. Vencimento em {$dueDate}.",
+                'data' => [
+                    'reservation_id' => $reservation->id,
+                    'charge_id' => $charge->id,
+                    'due_date' => $dueDate,
+                    'amount' => $charge->amount,
+                ],
+                'channel' => 'database',
+                'sent' => true,
+                'sent_at' => now(),
+            ]);
+
+            /** @var OneSignalNotificationService $oneSignal */
+            $oneSignal = app(OneSignalNotificationService::class);
+
+            if ($oneSignal->isEnabled()) {
+                $oneSignal->sendToUsers(
+                    [$reservation->user_id],
+                    "Foi gerada uma cobrança de {$amountLabel} para a reserva do espaço {$space->name}. Vencimento em {$dueDate}.",
+                    'Cobrança de reserva',
+                    [
+                        'type' => 'reservation_charge_created',
+                        'reservation_id' => $reservation->id,
+                        'charge_id' => $charge->id,
+                    ]
+                );
+            }
+        } catch (\Exception $e) {
+            Log::warning('Falha ao notificar cobrança de reserva: ' . $e->getMessage(), [
+                'reservation_id' => $reservation->id,
+                'charge_id' => $charge->id,
+            ]);
+        }
+    }
+
     /**
      * Envia notificações de cancelamento
      */

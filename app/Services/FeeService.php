@@ -202,7 +202,10 @@ class FeeService
                 ],
             ]);
 
-            if ($configuration->payment_channel === 'payroll') {
+            $shouldAutoSettle = $configuration->payment_channel === 'payroll'
+                && $fee->billing_type === 'condominium_fee';
+
+            if ($shouldAutoSettle) {
                 $this->autoSettlePayrollCharge($charge, $configuration, $dueDate, $amount);
             } else {
                 $chargesCreated++;

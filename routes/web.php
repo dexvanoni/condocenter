@@ -8,6 +8,7 @@ use App\Http\Controllers\Finance\CondominiumAccountController;
 use App\Http\Controllers\Finance\FinancialStatusController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\Finance\BankAccountController;
+use App\Http\Controllers\Finance\BankReconciliationController;
 use App\Http\Controllers\Finance\ChargeSettlementController;
 use Illuminate\Support\Facades\Route;
 
@@ -68,6 +69,18 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::resource('financial/bank-accounts', BankAccountController::class)
         ->parameters(['bank-accounts' => 'bankAccount'])
         ->names('financial.bank-accounts');
+
+    Route::middleware(['can:view_bank_statements'])->group(function () {
+        Route::get('/financial/reconciliations', [BankReconciliationController::class, 'index'])
+            ->name('bank-reconciliation.index');
+    });
+
+    Route::middleware(['can:manage_bank_statements'])->group(function () {
+        Route::post('/financial/reconciliations', [BankReconciliationController::class, 'store'])
+            ->name('bank-reconciliation.store');
+        Route::post('/financial/reconciliations/cancel', [BankReconciliationController::class, 'cancel'])
+            ->name('bank-reconciliation.cancel');
+    });
 
     Route::post('charges/{charge}/mark-paid', [ChargeSettlementController::class, 'markPaid'])
         ->name('charges.mark-paid');
@@ -197,7 +210,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/notifications', function() { return view('notifications.index'); })->name('notifications.index');
     
     // Alerta de Pânico (rota alternativa - removida duplicação)
-    Route::post('/panic-alert', [\App\Http\Controllers\PanicAlertController::class, 'send'])->name('panic.send');
+    //Route::post('/panic-alert', [\App\Http\Controllers\PanicAlertController::class, 'send'])->name('panic.send');
     
     // === NOVAS ROTAS ===
     

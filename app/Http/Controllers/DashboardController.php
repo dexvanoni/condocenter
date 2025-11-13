@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Assembly;
 use App\Models\Charge;
+use App\Models\BankAccount;
+use App\Models\BankAccountReconciliation;
+use App\Models\CondominiumAccount;
 use App\Models\Transaction;
 use App\Models\Reservation;
 use App\Models\Package;
@@ -81,13 +84,15 @@ class DashboardController extends Controller
         $currentMonth = now()->format('Y-m');
 
         // KPIs Financeiros do Mês Atual
-        $totalReceitas = Transaction::where('condominium_id', $condominium->id)
+        $totalReceitas = Transaction::withTrashed()
+            ->where('condominium_id', $condominium->id)
             ->where('type', 'income')
             ->whereMonth('transaction_date', now()->month)
             ->whereYear('transaction_date', now()->year)
             ->sum('amount');
 
-        $totalDespesas = Transaction::where('condominium_id', $condominium->id)
+        $totalDespesas = Transaction::withTrashed()
+            ->where('condominium_id', $condominium->id)
             ->where('type', 'expense')
             ->whereMonth('transaction_date', now()->month)
             ->whereYear('transaction_date', now()->year)
@@ -96,13 +101,15 @@ class DashboardController extends Controller
         $saldo = $totalReceitas - $totalDespesas;
 
         // Mês Anterior (para comparação)
-        $receitasMesAnterior = Transaction::where('condominium_id', $condominium->id)
+        $receitasMesAnterior = Transaction::withTrashed()
+            ->where('condominium_id', $condominium->id)
             ->where('type', 'income')
             ->whereMonth('transaction_date', now()->subMonth()->month)
             ->whereYear('transaction_date', now()->year)
             ->sum('amount');
 
-        $despesasMesAnterior = Transaction::where('condominium_id', $condominium->id)
+        $despesasMesAnterior = Transaction::withTrashed()
+            ->where('condominium_id', $condominium->id)
             ->where('type', 'expense')
             ->whereMonth('transaction_date', now()->subMonth()->month)
             ->whereYear('transaction_date', now()->year)
@@ -238,6 +245,39 @@ class DashboardController extends Controller
             ];
         }
 
+        $saldoConsolidado = BankAccount::where('condominium_id', $condominium->id)
+            ->sum('current_balance');
+
+        $entradasNaoConciliadas = Transaction::withTrashed()
+            ->where('condominium_id', $condominium->id)
+            ->where('status', 'paid')
+            ->whereNull('reconciliation_id')
+            ->where('type', 'income')
+            ->sum('amount')
+            + CondominiumAccount::where('condominium_id', $condominium->id)
+                ->whereNull('reconciliation_id')
+                ->where('type', 'income')
+                ->sum('amount');
+
+        $saidasNaoConciliadas = Transaction::withTrashed()
+            ->where('condominium_id', $condominium->id)
+            ->where('status', 'paid')
+            ->whereNull('reconciliation_id')
+            ->where('type', 'expense')
+            ->sum('amount')
+            + CondominiumAccount::where('condominium_id', $condominium->id)
+                ->whereNull('reconciliation_id')
+                ->where('type', 'expense')
+                ->sum('amount');
+
+        $ultimaConsolidacao = BankAccountReconciliation::where('condominium_id', $condominium->id)
+            ->latest('created_at')
+            ->first();
+
+        if ($ultimaConsolidacao) {
+            $ultimaConsolidacao->loadMissing('bankAccount');
+        }
+
         return view('dashboard.sindico', compact(
             'totalReceitas',
             'totalDespesas',
@@ -260,7 +300,11 @@ class DashboardController extends Controller
             'categoriasFinanceiras',
             'graficoAdimplencia',
             'ocupacaoPercentual',
-            'reservasMes'
+            'reservasMes',
+            'saldoConsolidado',
+            'entradasNaoConciliadas',
+            'saidasNaoConciliadas',
+            'ultimaConsolidacao'
         ));
     }
 

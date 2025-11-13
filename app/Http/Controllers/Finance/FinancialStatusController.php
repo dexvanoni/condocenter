@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
 use App\Models\Charge;
+use App\Models\CondominiumAccount;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 
 class FinancialStatusController extends Controller
 {
@@ -38,8 +38,9 @@ class FinancialStatusController extends Controller
                     ->where('status', 'overdue');
             }], 'amount')
             ->withSum(['charges as paid_total' => function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('due_date', [$startDate, $endDate])
-                    ->where('status', 'paid');
+                $query->where('status', 'paid')
+                    ->whereNotNull('paid_at')
+                    ->whereBetween('paid_at', [$startDate, $endDate]);
             }], 'amount')
             ->orderBy('block')
             ->orderBy('number')
@@ -53,14 +54,29 @@ class FinancialStatusController extends Controller
             return ($unit->pending_total ?? 0) == 0 && ($unit->overdue_total ?? 0) == 0;
         });
 
-        $chargesQuery = Charge::where('condominium_id', $condominiumId)
+        $chargesByDueDate = Charge::where('condominium_id', $condominiumId)
             ->whereBetween('due_date', [$startDate, $endDate]);
+
+        $paidChargesTotal = Charge::where('condominium_id', $condominiumId)
+            ->where('status', 'paid')
+            ->whereNotNull('paid_at')
+            ->whereBetween('paid_at', [$startDate, $endDate])
+            ->sum('amount');
+
+        $manualIncomeTotal = CondominiumAccount::byCondominium($condominiumId)
+            ->where('type', 'income')
+            ->whereBetween('transaction_date', [$startDate, $endDate])
+            ->where(function ($query) {
+                $query->whereNull('source_type')
+                    ->orWhere('source_type', '!=', 'charge');
+            })
+            ->sum('amount');
 
         $summary = [
             'total_units' => $units->count(),
-            'total_pending' => (clone $chargesQuery)->where('status', 'pending')->sum('amount'),
-            'total_overdue' => (clone $chargesQuery)->where('status', 'overdue')->sum('amount'),
-            'total_paid' => (clone $chargesQuery)->where('status', 'paid')->sum('amount'),
+            'total_pending' => (clone $chargesByDueDate)->where('status', 'pending')->sum('amount'),
+            'total_overdue' => (clone $chargesByDueDate)->where('status', 'overdue')->sum('amount'),
+            'total_paid' => $paidChargesTotal + $manualIncomeTotal,
             'inadimplentes' => $inadimplentes->count(),
             'adimplentes' => $adimplentes->count(),
         ];

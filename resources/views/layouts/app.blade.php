@@ -433,7 +433,7 @@
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
+                                @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_statements'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
                                         <i class="bi bi-bank"></i> Conciliação Bancária
@@ -975,7 +975,7 @@
                                             </a>
                                         </li>
                                         @endif
-                                        @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_reconciliation'))
+                                        @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_statements'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
                                                 <i class="bi bi-bank"></i> Conciliação Bancária

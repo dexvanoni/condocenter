@@ -31,6 +31,7 @@ class Transaction extends Model implements Auditable
         'parent_transaction_id',
         'tags',
         'notes',
+        'reconciliation_id',
     ];
 
     protected $casts = [
@@ -61,6 +62,11 @@ class Transaction extends Model implements Auditable
     public function receipts()
     {
         return $this->hasMany(Receipt::class);
+    }
+
+    public function bankReconciliation()
+    {
+        return $this->belongsTo(BankAccountReconciliation::class, 'reconciliation_id');
     }
 
     public function parentTransaction()
@@ -107,6 +113,11 @@ class Transaction extends Model implements Auditable
     public function scopeByCategory($query, $category)
     {
         return $query->where('category', $category);
+    }
+
+    public function scopeNotReconciled($query)
+    {
+        return $query->whereNull('reconciliation_id');
     }
 
     // Métodos auxiliares

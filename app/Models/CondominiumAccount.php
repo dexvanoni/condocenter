@@ -26,6 +26,7 @@ class CondominiumAccount extends Model implements Auditable
         'captured_image_path',
         'notes',
         'created_by',
+        'reconciliation_id',
     ];
 
     protected $casts = [
@@ -50,6 +51,11 @@ class CondominiumAccount extends Model implements Auditable
         return $this->morphTo(null, 'source_type', 'source_id');
     }
 
+    public function bankReconciliation()
+    {
+        return $this->belongsTo(BankAccountReconciliation::class, 'reconciliation_id');
+    }
+
     public function scopeIncome($query)
     {
         return $query->where('type', 'income');
@@ -63,6 +69,11 @@ class CondominiumAccount extends Model implements Auditable
     public function scopeByCondominium($query, int $condominiumId)
     {
         return $query->where('condominium_id', $condominiumId);
+    }
+
+    public function scopeNotReconciled($query)
+    {
+        return $query->whereNull('reconciliation_id');
     }
 }
 

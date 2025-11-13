@@ -100,6 +100,64 @@
         </div>
     </div>
 
+    <!-- KPIs de Conciliação -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Saldo consolidado</span>
+                    <h3 class="kpi-value text-primary">
+                        R$ {{ number_format($saldoConsolidado, 2, ',', '.') }}
+                    </h3>
+                    <span class="kpi-subtitle text-muted">Soma das contas bancárias</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Entradas a conciliar</span>
+                    <h3 class="kpi-value text-success">
+                        R$ {{ number_format($entradasNaoConciliadas, 2, ',', '.') }}
+                    </h3>
+                    <span class="kpi-subtitle text-muted">Receitas confirmadas aguardando conciliação</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Saídas a conciliar</span>
+                    <h3 class="kpi-value text-danger">
+                        R$ {{ number_format($saidasNaoConciliadas, 2, ',', '.') }}
+                    </h3>
+                    <span class="kpi-subtitle text-muted">Pagamentos efetuados aguardando conciliação</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-4 col-sm-6">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
+                <div class="card-body">
+                    <span class="kpi-label">Última conciliação</span>
+                    @if($ultimaConsolidacao)
+                        <h3 class="kpi-value text-secondary">
+                            {{ $ultimaConsolidacao->created_at->format('d/m/Y H:i') }}
+                        </h3>
+                        <span class="kpi-subtitle text-muted d-block">
+                            Conta: {{ $ultimaConsolidacao->bankAccount->name }}
+                        </span>
+                        <span class="kpi-subtitle text-muted">
+                            Saldo: R$ {{ number_format($ultimaConsolidacao->resulting_balance, 2, ',', '.') }}
+                        </span>
+                    @else
+                        <h3 class="kpi-value text-secondary">—</h3>
+                        <span class="kpi-subtitle text-muted">Nenhuma conciliação registrada</span>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Resumo Operacional -->
     <div class="row g-4 mb-4">
         <div class="col-lg-4 col-md-6">
@@ -280,7 +338,9 @@
                     </h5>
                 </div>
                 <div class="card-body dashboard-card-body">
-                    <canvas id="categoriasFinanceirasChart" height="120"></canvas>
+                    <div class="chart-container position-relative" style="height: 320px;">
+                        <canvas id="categoriasFinanceirasChart"></canvas>
+                    </div>
                     <div class="mt-4">
                         @forelse($categoriasFinanceiras as $categoria)
                         <div class="insight-item">
@@ -598,6 +658,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const categoriasCanvas = document.getElementById('categoriasFinanceirasChart');
     if (categoriasCanvas) {
         const categorias = @json($categoriasFinanceiras);
+        categoriasCanvas.style.height = '100%';
+        categoriasCanvas.style.width = '100%';
         if (categorias.length) {
             new Chart(categoriasCanvas, {
                 type: 'bar',

@@ -22,26 +22,26 @@
                 <label class="form-label">Tipo</label>
                 <select class="form-select" name="type">
                     <option value="">Todos</option>
-                    <option value="income">Receitas</option>
-                    <option value="expense">Despesas</option>
+                    <option value="income" @selected(request('type') === 'income')>Receitas</option>
+                    <option value="expense" @selected(request('type') === 'expense')>Despesas</option>
                 </select>
             </div>
             <div class="col-md-2">
                 <label class="form-label">Status</label>
                 <select class="form-select" name="status">
                     <option value="">Todos</option>
-                    <option value="pending">Pendente</option>
-                    <option value="paid">Pago</option>
-                    <option value="overdue">Atrasado</option>
+                    <option value="pending" @selected(request('status') === 'pending')>Pendente</option>
+                    <option value="paid" @selected(request('status') === 'paid')>Pago</option>
+                    <option value="overdue" @selected(request('status') === 'overdue')>Atrasado</option>
                 </select>
             </div>
             <div class="col-md-3">
                 <label class="form-label">Data Início</label>
-                <input type="date" class="form-control" name="start_date">
+                <input type="date" class="form-control" name="start_date" value="{{ request('start_date') }}">
             </div>
             <div class="col-md-3">
                 <label class="form-label">Data Fim</label>
-                <input type="date" class="form-control" name="end_date">
+                <input type="date" class="form-control" name="end_date" value="{{ request('end_date') }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label">&nbsp;</label>
@@ -56,7 +56,27 @@
 <!-- Tabela de Transações -->
 <div class="card">
     <div class="card-body">
-        <table id="transactionsTable" class="table table-hover">
+        @php
+            $typeLabels = [
+                'income' => 'Receita',
+                'expense' => 'Despesa',
+            ];
+            $statusLabels = [
+                'pending' => 'Pendente',
+                'paid' => 'Pago',
+                'overdue' => 'Atrasado',
+            ];
+            $methodLabels = [
+                'cash' => 'Dinheiro',
+                'pix' => 'PIX',
+                'bank_transfer' => 'Transferência',
+                'credit_card' => 'Cartão Crédito',
+                'debit_card' => 'Cartão Débito',
+                'check' => 'Cheque',
+                'boleto' => 'Boleto',
+            ];
+        @endphp
+        <table class="table table-hover">
             <thead>
                 <tr>
                     <th>Data</th>
@@ -71,7 +91,47 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- DataTables server-side -->
+                @forelse($transactions ?? [] as $transaction)
+                    <tr>
+                        <td>{{ optional($transaction->transaction_date)->format('d/m/Y') ?? '—' }}</td>
+                        <td>
+                            <span class="badge bg-{{ $transaction->type === 'income' ? 'success' : 'danger' }}">
+                                {{ $typeLabels[$transaction->type] ?? ucfirst($transaction->type ?? '—') }}
+                            </span>
+                        </td>
+                        <td>{{ $transaction->category ?? '—' }}</td>
+                        <td>{{ $transaction->description ?? '—' }}</td>
+                        <td>{{ $methodLabels[$transaction->payment_method] ?? '—' }}</td>
+                        <td>
+                            <span class="badge 
+                                @switch($transaction->status)
+                                    @case('paid') bg-success @break
+                                    @case('overdue') bg-danger @break
+                                    @default bg-warning text-dark
+                                @endswitch
+                            ">
+                                {{ $statusLabels[$transaction->status] ?? ucfirst($transaction->status ?? '—') }}
+                            </span>
+                        </td>
+                        <td>
+                            @if($transaction->receipts->isNotEmpty())
+                                <span class="badge bg-primary">{{ $transaction->receipts->count() }} arquivo(s)</span>
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="text-end {{ $transaction->type === 'expense' ? 'text-danger' : 'text-success' }} fw-semibold">
+                            {{ $transaction->type === 'expense' ? '-' : '' }}R$ {{ number_format(abs($transaction->amount), 2, ',', '.') }}
+                        </td>
+                        <td>—</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            Nenhuma transação encontrada para o filtro selecionado.
+                        </td>
+                    </tr>
+                @endforelse
             </tbody>
         </table>
     </div>
@@ -113,7 +173,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Categoria *</label>
-                                <input type="text" class="form-control" name="category" required 
+                <input type="text" class="form-control" name="category" required 
                                        placeholder="Ex: Manutenção, Limpeza, Salários">
                             </div>
                         </div>

@@ -32,7 +32,7 @@ class ChargeController extends Controller
         $baseQuery = Charge::with(['unit', 'payments'])
             ->where('condominium_id', $condominiumId);
 
-        if ($user->isMorador() && $user->unit_id) {
+        if ($user->isMorador() && !$user->isAdmin() && !$user->isSindico() && $user->unit_id) {
             $baseQuery->where('unit_id', $user->unit_id);
         }
 
