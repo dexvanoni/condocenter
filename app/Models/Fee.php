@@ -88,5 +88,37 @@ class Fee extends Model implements Auditable
 
         return true;
     }
+
+    /**
+     * Verifica se a taxa possui cobranças pagas
+     */
+    public function hasPaidCharges(): bool
+    {
+        return $this->charges()->where('status', 'paid')->exists();
+    }
+
+    /**
+     * Obtém todas as cobranças pagas desta taxa
+     */
+    public function paidCharges()
+    {
+        return $this->charges()->where('status', 'paid')->get();
+    }
+
+    /**
+     * Verifica se a taxa foi invalidada
+     */
+    public function isInvalidated(): bool
+    {
+        return (bool) ($this->metadata['invalidated'] ?? false);
+    }
+
+    /**
+     * Verifica se a taxa pode ser editada ou excluída
+     */
+    public function canBeModified(): bool
+    {
+        return !$this->hasPaidCharges() && !$this->isInvalidated();
+    }
 }
 

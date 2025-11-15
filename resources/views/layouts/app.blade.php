@@ -241,13 +241,14 @@
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
         $activeRoleName = session('active_role') ?? optional($user->roles->first())->name;
-        $menuActive = [
+            $menuActive = [
             'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*'),
             'financeiro' => request()->routeIs('transactions.*')
                 || request()->routeIs('fees.*')
                 || request()->routeIs('charges.*')
                 || request()->routeIs('financial.status.*')
                 || request()->routeIs('financial.accounts.*')
+                || request()->routeIs('financial.income-expense.*')
                 || request()->routeIs('revenue.*')
                 || request()->routeIs('expenses.*')
                 || request()->routeIs('bank-reconciliation.*')
@@ -383,6 +384,13 @@
                     </button>
                     <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="menuFinanceiro" data-bs-parent="#sidebarMenu">
                         <ul class="nav flex-column inner-nav">
+                            @if(Route::has('financial.income-expense.index') && ($isFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $isFinanceResident))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('financial.income-expense.*') ? 'active' : '' }}" href="{{ route('financial.income-expense.index') }}">
+                                    <i class="bi bi-arrow-left-right"></i> Entradas/Saídas
+                                </a>
+                            </li>
+                            @endif
                             @if($isFinanceAdmin)
                                 @if(Route::has('transactions.index') && $user->can('view_transactions'))
                                 <li class="nav-item">
@@ -469,7 +477,7 @@
                                     <i class="bi bi-bank"></i> Contas do Condomínio
                                 </a>
                             </li>
-                            @endif
+                            @endif                            
 
                             @if(!$isFinanceAdmin && Route::has('accountability-reports.index') && ($isFinanceResident || $user->can('view_accountability_reports') || $user->can('view_financial_reports')))
                             <li class="nav-item">
@@ -995,6 +1003,13 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
                                             <i class="bi bi-bank"></i> Contas do Condomínio
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('financial.income-expense.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('financial.income-expense.*') ? 'active' : '' }}" href="{{ route('financial.income-expense.index') }}">
+                                            <i class="bi bi-arrow-left-right"></i> Entradas/Saídas
                                         </a>
                                     </li>
                                     @endif

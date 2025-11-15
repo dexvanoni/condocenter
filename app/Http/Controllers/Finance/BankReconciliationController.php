@@ -98,6 +98,58 @@ class BankReconciliationController extends Controller
         $startDate = Carbon::parse($data['start_date'])->startOfDay();
         $endDate = Carbon::parse($data['end_date'])->endOfDay();
 
+        // Validação: Verifica se já existe conciliação com sobreposição de período
+        $existingReconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
+            ->where('condominium_id', $user->condominium_id)
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate, $endDate) {
+                        $q->where('start_date', '<=', $startDate)
+                            ->where('end_date', '>=', $endDate);
+                    });
+            })
+            ->first();
+
+        if ($existingReconciliation) {
+            return redirect()
+                ->route('bank-reconciliation.index', [
+                    'account_id' => $account->id,
+                    'start_date' => $startDate->format('Y-m-d'),
+                    'end_date' => $endDate->format('Y-m-d'),
+                ])
+                ->withErrors([
+                    'period' => sprintf(
+                        'Já existe uma conciliação para este período: %s a %s. Por favor, selecione um período diferente ou cancele a conciliação existente.',
+                        $existingReconciliation->start_date->format('d/m/Y'),
+                        $existingReconciliation->end_date->format('d/m/Y')
+                    ),
+                ]);
+        }
+
+        // Sugestão de período baseado na última conciliação
+        $latestReconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
+            ->where('condominium_id', $user->condominium_id)
+            ->latest('created_at')
+            ->first();
+
+        if ($latestReconciliation && $startDate->lessThanOrEqualTo($latestReconciliation->end_date)) {
+            $suggestedStart = $latestReconciliation->end_date->copy()->addDay();
+            return redirect()
+                ->route('bank-reconciliation.index', [
+                    'account_id' => $account->id,
+                    'start_date' => $startDate->format('Y-m-d'),
+                    'end_date' => $endDate->format('Y-m-d'),
+                ])
+                ->withErrors([
+                    'period' => sprintf(
+                        'O período selecionado sobrepõe ou antecede a última conciliação. Sugestão de período: %s a %s.',
+                        $suggestedStart->format('d/m/Y'),
+                        $endDate->format('d/m/Y')
+                    ),
+                ]);
+        }
+
         $this->service->reconcile($user, $account, $startDate, $endDate);
 
         return redirect()

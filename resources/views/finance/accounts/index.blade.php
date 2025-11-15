@@ -8,7 +8,13 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h2 class="mb-1">Contas do Condomínio</h2>
-                <p class="text-muted mb-0">Entradas e saídas registradas, com transparência para todos os moradores.</p>
+                <p class="text-muted mb-0">
+                    @if($isMorador)
+                        Suas contribuições e informações financeiras agregadas do condomínio.
+                    @else
+                        Entradas e saídas registradas, com transparência para todos os moradores.
+                    @endif
+                </p>
             </div>
             <form method="GET" class="row g-2 align-items-end">
                 <div class="col-auto">
@@ -93,8 +99,19 @@
     <div class="col-xl-6">
         <div class="card shadow-sm h-100">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Entradas (Taxas Recebidas)</h5>
-                <span class="badge bg-success">{{ $taxEntries->count() }}</span>
+                <h5 class="mb-0">
+                    @if($isMorador)
+                        Suas Contribuições
+                    @else
+                        Entradas (Taxas Recebidas)
+                    @endif
+                </h5>
+                <span class="badge bg-success">
+                    {{ $taxEntries->count() }}
+                    @if($isMorador && isset($otherUnitsSummary) && $otherUnitsSummary['count'] > 0)
+                        <span class="ms-1">({{ $otherUnitsSummary['count'] }} outras unidades)</span>
+                    @endif
+                </span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -103,7 +120,9 @@
                             <tr>
                                 <th>Data</th>
                                 <th>Título</th>
+                                @if(!$isMorador)
                                 <th>Unidade</th>
+                                @endif
                                 <th class="text-end">Valor</th>
                             </tr>
                         </thead>
@@ -112,18 +131,30 @@
                                 <tr>
                                     <td>{{ optional($entry['transaction_date'])->format('d/m/Y') }}</td>
                                     <td>{{ $entry['title'] }}</td>
+                                    @if(!$isMorador)
                                     <td>{{ $entry['unit'] ?? '—' }}</td>
+                                    @endif
                                     <td class="text-end text-success fw-semibold">
                                         R$ {{ number_format($entry['amount'], 2, ',', '.') }}
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted py-4">
+                                    <td colspan="{{ $isMorador ? 3 : 4 }}" class="text-center text-muted py-4">
                                         Nenhuma taxa recebida no período selecionado.
                                     </td>
                                 </tr>
                             @endforelse
+                            @if($isMorador && isset($otherUnitsSummary) && $otherUnitsSummary['count'] > 0)
+                                <tr class="table-secondary">
+                                    <td colspan="{{ $isMorador ? 2 : 3 }}" class="text-muted fst-italic">
+                                        <small>Contribuições de outras unidades (total agregado - dados individuais não disponíveis)</small>
+                                    </td>
+                                    <td class="text-end text-success fw-semibold">
+                                        <small>R$ {{ number_format($otherUnitsSummary['total'], 2, ',', '.') }}</small>
+                                    </td>
+                                </tr>
+                            @endif
                         </tbody>
                     </table>
                 </div>

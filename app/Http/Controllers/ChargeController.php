@@ -162,10 +162,18 @@ class ChargeController extends Controller
             abort(403);
         }
 
+        // Validação: motivo obrigatório
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:10'],
+        ], [
+            'reason.required' => 'O motivo do cancelamento é obrigatório.',
+            'reason.min' => 'O motivo do cancelamento deve ter no mínimo 10 caracteres.',
+        ]);
+
         try {
             $this->settlementService->cancelCharge(
                 $charge,
-                $request->input('reason') ?? null,
+                $validated['reason'],
                 $user->id
             );
         } catch (ValidationException $exception) {

@@ -18,23 +18,39 @@
                 </p>
             </div>
             <div class="col-md-4 text-end">
-                <a href="{{ route('transactions.index') }}" class="btn btn-modern btn-gradient-primary me-2">
+                <a href="{{ route('transactions.index') }}" class="btn btn-modern btn-gradient-primary">
                     <i class="bi bi-graph-up"></i> Financeiro Completo
                 </a>
             </div>
         </div>
     </div>
 
+    <!-- Botões de Ação Rápida -->
+    @can('manage_transactions')
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-success btn-lg shadow-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#modalRecebimento">
+                    <i class="bi bi-cash-coin"></i> RECEBER
+                </button>
+                <button type="button" class="btn btn-danger btn-lg shadow-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#modalPagamento">
+                    <i class="bi bi-cart-check"></i> COMPRAR/PAGAR
+                </button>
+            </div>
+        </div>
+    </div>
+    @endcan
+
     <!-- KPIs Principais -->
     <div class="row g-3 mb-4">
         <div class="col-xxl-2 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Saldo do mês</span>
-                    <h3 class="kpi-value {{ $saldo >= 0 ? 'text-success' : 'text-danger' }}">
+                    <h3 class="kpi-value {{ $saldo >= 0 ? 'text-success' : 'text-danger' }} flex-grow-1 mb-2">
                         R$ {{ number_format($saldo, 2, ',', '.') }}
                     </h3>
-                    <span class="kpi-subtitle text-muted">
+                    <span class="kpi-subtitle text-muted mt-auto">
                         {{ $saldo >= 0 ? 'Superávit' : 'Déficit' }}
                     </span>
                 </div>
@@ -42,11 +58,11 @@
         </div>
 
         <div class="col-xxl-2 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Receitas do mês</span>
-                    <h3 class="kpi-value">R$ {{ number_format($totalReceitas, 2, ',', '.') }}</h3>
-                    <span class="kpi-subtitle {{ $variacaoReceitas >= 0 ? 'text-success' : 'text-danger' }}">
+                    <h3 class="kpi-value flex-grow-1 mb-2">R$ {{ number_format($totalReceitas, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle {{ $variacaoReceitas >= 0 ? 'text-success' : 'text-danger' }} mt-auto">
                         {{ number_format($variacaoReceitas, 1) }}% vs mês anterior
                     </span>
                 </div>
@@ -54,11 +70,11 @@
         </div>
 
         <div class="col-xxl-2 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Despesas do mês</span>
-                    <h3 class="kpi-value">R$ {{ number_format($totalDespesas, 2, ',', '.') }}</h3>
-                    <span class="kpi-subtitle {{ $variacaoDespesas <= 0 ? 'text-success' : 'text-danger' }}">
+                    <h3 class="kpi-value flex-grow-1 mb-2">R$ {{ number_format($totalDespesas, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle {{ $variacaoDespesas <= 0 ? 'text-success' : 'text-danger' }} mt-auto">
                         {{ number_format($variacaoDespesas, 1) }}% vs mês anterior
                     </span>
                 </div>
@@ -66,13 +82,13 @@
         </div>
 
         <div class="col-xxl-2 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Taxa de adimplência</span>
-                    <h3 class="kpi-value {{ $taxaAdimplencia >= 90 ? 'text-success' : 'text-warning' }}">
+                    <h3 class="kpi-value {{ $taxaAdimplencia >= 90 ? 'text-success' : 'text-warning' }} flex-grow-1 mb-2">
                         {{ number_format($taxaAdimplencia, 1) }}%
                     </h3>
-                    <span class="kpi-subtitle text-muted">
+                    <span class="kpi-subtitle text-muted mt-auto">
                         {{ $inadimplentes }} {{ Str::plural('inadimplente', $inadimplentes) }}
                     </span>
                 </div>
@@ -80,21 +96,21 @@
         </div>
 
         <div class="col-xxl-2 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">A receber</span>
-                    <h3 class="kpi-value">R$ {{ number_format($totalAReceber, 2, ',', '.') }}</h3>
-                    <span class="kpi-subtitle text-muted">Cobranças pendentes</span>
+                    <h3 class="kpi-value flex-grow-1 mb-2">R$ {{ number_format($totalAReceber, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle text-muted mt-auto">Cobranças pendentes</span>
                 </div>
             </div>
         </div>
 
         <div class="col-xxl-2 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Em atraso</span>
-                    <h3 class="kpi-value text-danger">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</h3>
-                    <span class="kpi-subtitle text-muted">{{ $inadimplentes }} unidade(s)</span>
+                    <h3 class="kpi-value text-danger flex-grow-1 mb-2">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</h3>
+                    <span class="kpi-subtitle text-muted mt-auto">{{ $inadimplentes }} unidade(s)</span>
                 </div>
             </div>
         </div>
@@ -103,55 +119,57 @@
     <!-- KPIs de Conciliação -->
     <div class="row g-3 mb-4">
         <div class="col-xl-3 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Saldo consolidado</span>
-                    <h3 class="kpi-value text-primary">
+                    <h3 class="kpi-value text-primary flex-grow-1 mb-2">
                         R$ {{ number_format($saldoConsolidado, 2, ',', '.') }}
                     </h3>
-                    <span class="kpi-subtitle text-muted">Soma das contas bancárias</span>
+                    <span class="kpi-subtitle text-muted mt-auto">Soma das contas bancárias</span>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Entradas a conciliar</span>
-                    <h3 class="kpi-value text-success">
+                    <h3 class="kpi-value text-success flex-grow-1 mb-2">
                         R$ {{ number_format($entradasNaoConciliadas, 2, ',', '.') }}
                     </h3>
-                    <span class="kpi-subtitle text-muted">Receitas confirmadas aguardando conciliação</span>
+                    <span class="kpi-subtitle text-muted mt-auto">Receitas confirmadas aguardando conciliação</span>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Saídas a conciliar</span>
-                    <h3 class="kpi-value text-danger">
+                    <h3 class="kpi-value text-danger flex-grow-1 mb-2">
                         R$ {{ number_format($saidasNaoConciliadas, 2, ',', '.') }}
                     </h3>
-                    <span class="kpi-subtitle text-muted">Pagamentos efetuados aguardando conciliação</span>
+                    <span class="kpi-subtitle text-muted mt-auto">Pagamentos efetuados aguardando conciliação</span>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-4 col-sm-6">
-            <div class="dashboard-card kpi-card h-100" style="padding: 1.5rem !important;">
-                <div class="card-body">
+            <div class="dashboard-card kpi-card h-100" style="padding: 1.25rem !important;">
+                <div class="card-body p-0 d-flex flex-column h-100">
                     <span class="kpi-label">Última conciliação</span>
                     @if($ultimaConsolidacao)
-                        <h3 class="kpi-value text-secondary">
+                        <h3 class="kpi-value text-secondary flex-grow-1 mb-2">
                             {{ $ultimaConsolidacao->created_at->format('d/m/Y H:i') }}
                         </h3>
-                        <span class="kpi-subtitle text-muted d-block">
-                            Conta: {{ $ultimaConsolidacao->bankAccount->name }}
-                        </span>
-                        <span class="kpi-subtitle text-muted">
-                            Saldo: R$ {{ number_format($ultimaConsolidacao->resulting_balance, 2, ',', '.') }}
-                        </span>
+                        <div class="mt-auto">
+                            <span class="kpi-subtitle text-muted d-block">
+                                Conta: {{ $ultimaConsolidacao->bankAccount->name }}
+                            </span>
+                            <span class="kpi-subtitle text-muted">
+                                Saldo: R$ {{ number_format($ultimaConsolidacao->resulting_balance, 2, ',', '.') }}
+                            </span>
+                        </div>
                     @else
-                        <h3 class="kpi-value text-secondary">—</h3>
-                        <span class="kpi-subtitle text-muted">Nenhuma conciliação registrada</span>
+                        <h3 class="kpi-value text-secondary flex-grow-1 mb-2">—</h3>
+                        <span class="kpi-subtitle text-muted mt-auto">Nenhuma conciliação registrada</span>
                     @endif
                 </div>
             </div>
@@ -714,4 +732,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+
+@can('manage_transactions')
+@include('finance.accounts.modals')
+@endcan
 @endsection

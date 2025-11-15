@@ -19,11 +19,26 @@
     </div>
 @endif
 
-@if (session('preview_errors'))
+@if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @foreach (session('preview_errors')->all() as $message)
-            <div>{{ $message }}</div>
-        @endforeach
+        <strong>Atenção!</strong>
+        <ul class="mb-0 mt-2">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+@endif
+
+@if (session('preview_errors'))
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <strong>Atenção!</strong>
+        <ul class="mb-0 mt-2">
+            @foreach (session('preview_errors')->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
     </div>
 @endif
@@ -210,6 +225,7 @@
                         <tr>
                             <th>Conta</th>
                             <th>Período</th>
+                            <th class="text-end">Saldo anterior</th>
                             <th class="text-end">Entradas</th>
                             <th class="text-end">Saídas</th>
                             <th class="text-end">Resultado</th>
@@ -226,6 +242,7 @@
                             <tr>
                                 <td>{{ $reconciliation->bankAccount->name }}</td>
                                 <td>{{ $reconciliation->start_date->format('d/m/Y') }} – {{ $reconciliation->end_date->format('d/m/Y') }}</td>
+                                <td class="text-end text-muted">R$ {{ number_format($reconciliation->previous_balance ?? 0, 2, ',', '.') }}</td>
                                 <td class="text-end text-success">R$ {{ number_format($reconciliation->total_income, 2, ',', '.') }}</td>
                                 <td class="text-end text-danger">R$ {{ number_format($reconciliation->total_expense, 2, ',', '.') }}</td>
                                 <td class="text-end {{ $reconciliation->net_amount >= 0 ? 'text-success' : 'text-danger' }}">

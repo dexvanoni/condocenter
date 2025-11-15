@@ -9,6 +9,37 @@
 @endonce
 
 @section('content')
+@can('manage_charges')
+@if($fee->isInvalidated())
+<!-- Alert de Taxa Invalidada -->
+<div class="alert alert-danger mb-4">
+    <div class="d-flex align-items-start">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading mb-2">Taxa Invalidada</h5>
+            <p class="mb-2">Esta taxa foi invalidada e não pode mais ser editada ou excluída.</p>
+            <ul class="mb-2">
+                <li><strong>Invalidada em:</strong> {{ \Carbon\Carbon::parse($fee->metadata['invalidated_at'] ?? now())->format('d/m/Y H:i') }}</li>
+                <li><strong>Invalidada por:</strong> {{ $fee->metadata['invalidated_by_name'] ?? 'N/A' }}</li>
+                <li><strong>Motivo:</strong> {{ $fee->metadata['invalidation_reason'] ?? 'N/A' }}</li>
+                <li><strong>Total debitado:</strong> R$ {{ number_format($fee->metadata['total_debit'] ?? 0, 2, ',', '.') }}</li>
+                <li><strong>Cobranças pagas:</strong> {{ $fee->metadata['paid_charges_count'] ?? 0 }}</li>
+                @if(isset($fee->metadata['replaced_by_fee_id']))
+                    @php
+                        $newFee = \App\Models\Fee::find($fee->metadata['replaced_by_fee_id']);
+                    @endphp
+                    @if($newFee)
+                        <li><strong>Substituída por:</strong> <a href="{{ route('fees.show', $newFee) }}">{{ $newFee->name }}</a></li>
+                    @endif
+                @endif
+            </ul>
+            <p class="mb-0"><small class="text-muted">Os valores pagos foram debitados do caixa e informados na prestação de contas. Os moradores foram notificados.</small></p>
+        </div>
+    </div>
+</div>
+@endif
+@endcan
+
 <div class="row mb-4">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -16,28 +47,39 @@
                 <h2 class="mb-0">{{ $fee->name }}</h2>
                 <p class="text-muted mb-0">Resumo da taxa, unidades vinculadas e cobranças geradas.</p>
             </div>
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
                 <a href="{{ route('fees.index') }}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> Voltar
                 </a>
                 @can('manage_charges')
-                    <a href="{{ route('fees.edit', $fee) }}" class="btn btn-outline-primary">
-                        <i class="bi bi-pencil"></i> Editar
-                    </a>
-                    @if($fee->recurrence === 'monthly')
-                        <form action="{{ route('fees.clone', $fee) }}" method="POST" class="d-inline" onsubmit="return confirm('Deseja clonar esta taxa para o próximo mês?');">
+                    @if($fee->canBeModified())
+                        <a href="{{ route('fees.edit', $fee) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil"></i> Editar
+                        </a>
+                        @if($fee->recurrence === 'monthly')
+                            <form action="{{ route('fees.clone', $fee) }}" method="POST" class="d-inline" onsubmit="return confirm('Deseja clonar esta taxa para o próximo mês?');">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-success">
+                                    <i class="bi bi-files"></i> Clonar
+                                </button>
+                            </form>
+                        @endif
+                        <form action="{{ route('fees.generate', $fee) }}" method="POST" class="d-inline">
                             @csrf
-                            <button type="submit" class="btn btn-outline-success">
-                                <i class="bi bi-files"></i> Clonar
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-lightning-charge"></i> Gerar próxima cobrança
                             </button>
                         </form>
-                    @endif
-                    <form action="{{ route('fees.generate', $fee) }}" method="POST" class="d-inline">
-                        @csrf
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-lightning-charge"></i> Gerar próxima cobrança
+                    @else
+                        <button type="button" class="btn btn-outline-primary" disabled title="Esta taxa possui cobranças pagas e não pode ser editada">
+                            <i class="bi bi-pencil"></i> Editar
                         </button>
-                    </form>
+                        @if($fee->hasPaidCharges() && !$fee->isInvalidated())
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#invalidateFeeModal">
+                                <i class="bi bi-x-circle"></i> Invalidar Taxa
+                            </button>
+                        @endif
+                    @endif
                 @endcan
             </div>
         </div>
@@ -379,6 +421,75 @@
         </div>
     </div>
 </div>
+
+@can('manage_charges')
+@if($fee->hasPaidCharges() && !$fee->isInvalidated())
+<!-- Modal de Invalidação -->
+<div class="modal fade" id="invalidateFeeModal" tabindex="-1" aria-labelledby="invalidateFeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form method="POST" action="{{ route('fees.invalidate', $fee) }}">
+            @csrf
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="invalidateFeeModalLabel">
+                        <i class="bi bi-exclamation-triangle"></i> Invalidar Taxa
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>Atenção!</strong> Esta ação irá:
+                        <ul class="mb-0 mt-2">
+                            <li>Invalidar a taxa (não poderá mais ser editada)</li>
+                            <li>Debitar do caixa o valor total pago: <strong>R$ {{ number_format($fee->paidCharges()->sum('amount'), 2, ',', '.') }}</strong></li>
+                            <li>Criar despesas na prestação de contas para cada cobrança paga</li>
+                            <li>Notificar todos os moradores que pagaram esta taxa</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Motivo da Invalidação <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control" rows="4" placeholder="Descreva o motivo da invalidação desta taxa (mínimo 10 caracteres)" required minlength="10">{{ old('reason') }}</textarea>
+                        <small class="text-muted">Este motivo será incluído na prestação de contas e nas notificações enviadas aos moradores.</small>
+                        @error('reason')
+                            <div class="text-danger small">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nova Taxa (opcional)</label>
+                        <select name="new_fee_id" class="form-select">
+                            <option value="">Selecione uma nova taxa para substituir esta (opcional)</option>
+                            @foreach(\App\Models\Fee::where('condominium_id', $fee->condominium_id)
+                                ->where('id', '!=', $fee->id)
+                                ->where('active', true)
+                                ->orderBy('name')
+                                ->get() as $newFee)
+                                <option value="{{ $newFee->id }}">{{ $newFee->name }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Selecione uma nova taxa que substituirá esta taxa invalidada.</small>
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Informação:</strong> Após a invalidação, você poderá criar uma nova taxa com os valores corretos. 
+                        Os moradores serão notificados sobre a invalidação e os valores debitados serão registrados na prestação de contas.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja invalidar esta taxa? Esta ação não pode ser desfeita.');">
+                        <i class="bi bi-x-circle"></i> Confirmar Invalidação
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+@endcan
 @endsection
 
 @once

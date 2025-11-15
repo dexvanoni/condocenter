@@ -165,7 +165,7 @@ class ChargeSettlementService
         }
     }
 
-    public function cancelCharge(Charge $charge, ?string $reason = null, ?int $userId = null): void
+    public function cancelCharge(Charge $charge, string $reason, ?int $userId = null): void
     {
         if ($charge->status === 'paid') {
             throw ValidationException::withMessages([

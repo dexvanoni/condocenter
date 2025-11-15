@@ -130,8 +130,34 @@ class FeeService
         }
 
         $this->database->transaction(function () use ($fee) {
+            // Cancela todas as cobranças pendentes e remove entradas relacionadas do CondominiumAccount
+            $charges = $fee->charges()->get();
+            
+            foreach ($charges as $charge) {
+                // Apenas cancela cobranças que não foram pagas
+                if ($charge->status !== 'paid') {
+                    // Remove pagamentos pendentes
+                    Payment::where('charge_id', $charge->id)->delete();
+                    
+                    // Remove entradas do CondominiumAccount (se existirem)
+                    CondominiumAccount::where('condominium_id', $charge->condominium_id)
+                        ->where('type', 'income')
+                        ->where('source_type', 'charge')
+                        ->where('source_id', $charge->id)
+                        ->delete();
+                    
+                    $charge->update([
+                        'status' => 'cancelled',
+                        'metadata' => array_merge($charge->metadata ?? [], [
+                            'cancelled_at' => now()->format('Y-m-d H:i:s'),
+                            'cancelled_reason' => 'Taxa removida do sistema',
+                        ]),
+                    ]);
+                }
+                // Cobranças pagas permanecem como 'paid' para manter histórico financeiro
+            }
+            
             $fee->configurations()->delete();
-            $fee->charges()->update(['status' => 'cancelled']);
             $fee->delete();
         });
     }
@@ -549,6 +575,152 @@ class FeeService
             ->sort();
 
         return $dates->first();
+    }
+
+    /**
+     * Invalida uma taxa que possui cobranças pagas.
+     * Devolve os valores pagos através de despesas e notifica os moradores.
+     */
+    public function invalidateFee(Fee $fee, User $user, string $reason, ?int $newFeeId = null): void
+    {
+        if ($fee->condominium_id !== $user->condominium_id) {
+            throw ValidationException::withMessages([
+                'fee' => 'Taxa não pertence ao seu condomínio.',
+            ]);
+        }
+
+        if (!$fee->hasPaidCharges()) {
+            throw ValidationException::withMessages([
+                'fee' => 'Esta taxa não possui cobranças pagas e pode ser excluída diretamente.',
+            ]);
+        }
+
+        $this->database->transaction(function () use ($fee, $user, $reason, $newFeeId) {
+            // Obter todas as cobranças pagas
+            $paidCharges = $fee->paidCharges();
+            $totalDebit = 0;
+            $notifiedUsers = collect();
+
+            // Para cada cobrança paga, criar despesa e notificar morador
+            foreach ($paidCharges as $charge) {
+                $charge->load('unit.morador');
+                
+                // Criar despesa para debitar o valor pago
+                $expense = CondominiumAccount::create([
+                    'condominium_id' => $fee->condominium_id,
+                    'type' => 'expense',
+                    'description' => sprintf(
+                        'Devolução de pagamento - Taxa "%s" invalidada (Cobrança: %s)',
+                        $fee->name,
+                        $charge->title
+                    ),
+                    'amount' => $charge->amount,
+                    'transaction_date' => now()->toDateString(),
+                    'payment_method' => 'other',
+                    'notes' => sprintf(
+                        "Taxa invalidada por: %s\nMotivo: %s\nUnidade: %s",
+                        $user->name,
+                        $reason,
+                        $charge->unit->full_identifier ?? 'N/A'
+                    ),
+                    'created_by' => $user->id,
+                    'source_type' => 'fee_invalidation',
+                    'source_id' => $fee->id,
+                ]);
+
+                $totalDebit += $charge->amount;
+
+                // Notificar moradores da unidade
+                if ($charge->unit) {
+                    $charge->loadMissing('unit');
+                    
+                    // Buscar todos os usuários moradores da unidade
+                    $residentUsers = \App\Models\User::where('unit_id', $charge->unit_id)
+                        ->where('condominium_id', $fee->condominium_id)
+                        ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Morador', 'Agregado']))
+                        ->get();
+
+                    foreach ($residentUsers as $resident) {
+                        // Criar notificação no banco
+                        \App\Models\Notification::create([
+                            'condominium_id' => $fee->condominium_id,
+                            'user_id' => $resident->id,
+                            'type' => 'fee_invalidated',
+                            'title' => 'Taxa Invalidada - Reembolso',
+                            'message' => sprintf(
+                                'A taxa "%s" foi invalidada. O valor de R$ %s pago para a cobrança "%s" foi debitado do caixa e será informado na prestação de contas. Motivo: %s',
+                                $fee->name,
+                                number_format($charge->amount, 2, ',', '.'),
+                                $charge->title,
+                                $reason
+                            ),
+                            'data' => [
+                                'fee_id' => $fee->id,
+                                'fee_name' => $fee->name,
+                                'charge_id' => $charge->id,
+                                'charge_title' => $charge->title,
+                                'amount' => $charge->amount,
+                                'unit' => $charge->unit->full_identifier ?? 'N/A',
+                                'reason' => $reason,
+                                'invalidated_by' => $user->name,
+                                'invalidated_at' => now()->toIso8601String(),
+                            ],
+                            'channel' => 'database',
+                            'sent' => true,
+                            'sent_at' => now(),
+                        ]);
+
+                        $notifiedUsers->push($resident->id);
+                    }
+                }
+            }
+
+            // Atualizar metadata da taxa
+            $metadata = $fee->metadata ?? [];
+            $metadata['invalidated'] = true;
+            $metadata['invalidated_at'] = now()->format('Y-m-d H:i:s');
+            $metadata['invalidated_by'] = $user->id;
+            $metadata['invalidated_by_name'] = $user->name;
+            $metadata['invalidation_reason'] = $reason;
+            $metadata['total_debit'] = $totalDebit;
+            $metadata['paid_charges_count'] = $paidCharges->count();
+            if ($newFeeId) {
+                $metadata['replaced_by_fee_id'] = $newFeeId;
+            }
+
+            // Desativar a taxa
+            $fee->update([
+                'active' => false,
+                'metadata' => $metadata,
+            ]);
+
+            // Enviar notificações via OneSignal (se habilitado)
+            if ($notifiedUsers->isNotEmpty()) {
+                DB::afterCommit(function () use ($notifiedUsers, $fee, $reason) {
+                    try {
+                        /** @var \App\Services\OneSignalNotificationService $oneSignal */
+                        $oneSignal = app(\App\Services\OneSignalNotificationService::class);
+                        if ($oneSignal->isEnabled()) {
+                            $oneSignal->sendToUsers(
+                                $notifiedUsers->unique()->all(),
+                                sprintf(
+                                    'A taxa "%s" foi invalidada. O valor pago foi debitado do caixa.',
+                                    $fee->name
+                                ),
+                                'Taxa Invalidada - Reembolso',
+                                [
+                                    'fee_id' => $fee->id,
+                                    'type' => 'fee_invalidated',
+                                    'reason' => $reason,
+                                ]
+                            );
+                        }
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::warning('Erro ao enviar notificação OneSignal de invalidação de taxa: ' . $e->getMessage());
+                    }
+                });
+            }
+        });
     }
 }
 

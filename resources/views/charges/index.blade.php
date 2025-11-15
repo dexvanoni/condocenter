@@ -283,8 +283,9 @@
                     <div id="deleteChargeErrors" class="alert alert-danger d-none"></div>
                     <p class="mb-3">Tem certeza de que deseja cancelar esta cobrança? A unidade deixará de ser cobrada e o lançamento será removido da previsão de recebimentos.</p>
                     <div class="mb-3">
-                        <label for="deleteChargeReason" class="form-label">Motivo do cancelamento (opcional)</label>
-                        <textarea id="deleteChargeReason" class="form-control" rows="3" placeholder="Descreva o motivo, se necessário."></textarea>
+                        <label for="deleteChargeReason" class="form-label">Motivo do cancelamento <span class="text-danger">*</span></label>
+                        <textarea id="deleteChargeReason" class="form-control" rows="3" placeholder="Descreva o motivo do cancelamento (obrigatório)." required minlength="10"></textarea>
+                        <small class="text-muted">Mínimo de 10 caracteres. Este motivo será registrado para auditoria.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -760,9 +761,18 @@
             return;
         }
 
-        const reason = document.getElementById('deleteChargeReason').value;
+        const reasonInput = document.getElementById('deleteChargeReason');
+        const reason = reasonInput.value.trim();
         const errorsContainer = document.getElementById('deleteChargeErrors');
         clearErrors(errorsContainer);
+
+        // Validação: motivo obrigatório com mínimo de 10 caracteres
+        if (!reason || reason.length < 10) {
+            errorsContainer.classList.remove('d-none');
+            errorsContainer.innerHTML = '<ul class="mb-0"><li>O motivo do cancelamento é obrigatório e deve ter no mínimo 10 caracteres.</li></ul>';
+            reasonInput.focus();
+            return;
+        }
 
         fetch(`${chargeBaseUrl}/${selectedChargeId}`, {
             method: 'POST',

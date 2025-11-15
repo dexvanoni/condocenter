@@ -57,8 +57,23 @@ class CondominiumAccountController extends Controller
 
         $openingBalance = $this->calculateBalanceUntil($condominiumId, $startDate->copy()->subDay());
 
-        $taxIncomeTimeline = $chargeIncomeEntries->map(function (CondominiumAccount $entry) use ($chargesById) {
+        // Verifica se o usuário é morador (verificação robusta: é morador E não é admin/síndico)
+        // Moradores não podem ver dados de outras unidades (privacidade)
+        $isMorador = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
+        
+        $taxIncomeTimeline = $chargeIncomeEntries->map(function (CondominiumAccount $entry) use ($chargesById, $isMorador, $user) {
             $charge = $chargesById->get($entry->source_id);
+
+            // Para moradores, não expor informações de outras unidades
+            $unitIdentifier = null;
+            if (!$isMorador) {
+                // Admin/Síndico pode ver todas as unidades
+                $unitIdentifier = optional($charge?->unit)->full_identifier;
+            } elseif ($charge && $charge->unit_id === $user->unit_id) {
+                // Morador pode ver apenas sua própria unidade
+                $unitIdentifier = optional($charge?->unit)->full_identifier;
+            }
+            // Se for outra unidade e o usuário for morador, $unitIdentifier fica null
 
             return [
                 'id' => $entry->id,
@@ -67,9 +82,10 @@ class CondominiumAccountController extends Controller
                 'amount' => $entry->amount,
                 'transaction_date' => $entry->transaction_date,
                 'source' => 'charge',
-                'unit' => optional($charge?->unit)->full_identifier,
+                'unit' => $unitIdentifier, // Será null para outras unidades se for morador
                 'details' => $charge?->description,
                 'payment_channel' => data_get($charge?->metadata, 'payment_channel', $entry->payment_method),
+                'is_own_unit' => $charge && $charge->unit_id === $user->unit_id,
             ];
         });
 
@@ -106,8 +122,15 @@ class CondominiumAccountController extends Controller
             ];
         });
 
+        // Se for morador, filtrar taxEntries para mostrar apenas da própria unidade
+        // Moradores não podem ver detalhes de outras unidades para proteger privacidade
+        $filteredTaxEntries = $isMorador 
+            ? $taxIncomeTimeline->filter(fn($entry) => $entry['is_own_unit'] ?? false)
+            : $taxIncomeTimeline;
+
         return view('finance.accounts.index', [
             'canManage' => $user->can('manage_transactions'),
+            'isMorador' => $isMorador,
             'timelineIncomes' => $timelineIncomes,
             'timelineExpenses' => $timelineExpenses,
             'summary' => $summary,
@@ -115,7 +138,12 @@ class CondominiumAccountController extends Controller
             'endDate' => $endDate,
             'openingBalance' => $openingBalance,
             'closingBalance' => $openingBalance + $summary['balance'],
-            'taxEntries' => $taxIncomeTimeline,
+            'taxEntries' => $filteredTaxEntries,
+            // Para moradores, mostrar apenas total agregado de outras unidades (sem detalhes)
+            'otherUnitsSummary' => $isMorador ? [
+                'count' => $taxIncomeTimeline->filter(fn($entry) => !($entry['is_own_unit'] ?? false))->count(),
+                'total' => $taxIncomeTimeline->filter(fn($entry) => !($entry['is_own_unit'] ?? false))->sum('amount'),
+            ] : null,
         ]);
     }
 

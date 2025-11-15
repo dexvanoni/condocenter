@@ -30,9 +30,11 @@ class FeeController extends Controller
                 'configurations',
                 'charges as pending_charges_count' => fn ($query) => $query->where('status', 'pending'),
                 'charges as overdue_charges_count' => fn ($query) => $query->where('status', 'overdue'),
+                'charges as paid_charges_count' => fn ($query) => $query->where('status', 'paid'),
             ])
+            ->with('bankAccount')
             ->where('condominium_id', $condominiumId)
-            ->orderBy('name')
+            ->orderBy('created_at', 'desc') // Ordenar pelas mais recentes primeiro
             ->get();
 
         $summary = [
@@ -90,6 +92,9 @@ class FeeController extends Controller
         $fee->load([
             'bankAccount',
             'configurations.unit.morador',
+        ])
+        ->loadCount([
+            'charges as paid_charges_count' => fn ($query) => $query->where('status', 'paid'),
         ]);
 
         $orderedConfigurations = $fee->configurations->sortBy(function ($configuration) {
@@ -113,6 +118,15 @@ class FeeController extends Controller
     {
         $this->authorizeFee($fee);
 
+        // Verificar se a taxa possui cobranças pagas
+        if (!$fee->canBeModified()) {
+            return redirect()
+                ->route('fees.show', $fee)
+                ->withErrors([
+                    'fee' => 'Esta taxa não pode ser editada porque possui cobranças pagas. Crie uma nova taxa e invalide esta se necessário.',
+                ]);
+        }
+
         $condominiumId = Auth::user()->condominium_id;
 
         $units = Unit::with('morador')
@@ -133,6 +147,15 @@ class FeeController extends Controller
     public function update(UpdateFeeRequest $request, Fee $fee)
     {
         $this->authorizeFee($fee);
+
+        // Verificar se a taxa possui cobranças pagas
+        if (!$fee->canBeModified()) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'fee' => 'Esta taxa não pode ser editada porque possui cobranças pagas. Crie uma nova taxa e invalide esta se necessário.',
+                ]);
+        }
 
         $updatedFee = $this->feeService->updateFee($fee, $request->user(), $request->validated());
 
@@ -156,11 +179,54 @@ class FeeController extends Controller
     {
         $this->authorizeFee($fee);
 
+        // Verificar se a taxa possui cobranças pagas
+        if (!$fee->canBeModified()) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'fee' => 'Esta taxa não pode ser excluída porque possui cobranças pagas. Crie uma nova taxa e invalide esta se necessário.',
+                ]);
+        }
+
         $this->feeService->deleteFee($fee, $request->user());
 
         return redirect()
             ->route('fees.index')
             ->with('success', 'Taxa removida com sucesso!');
+    }
+
+    public function invalidate(Request $request, Fee $fee)
+    {
+        $this->authorizeFee($fee);
+
+        // Validar que a taxa possui cobranças pagas
+        if (!$fee->hasPaidCharges()) {
+            return redirect()
+                ->back()
+                ->withErrors([
+                    'fee' => 'Esta taxa não possui cobranças pagas e pode ser excluída diretamente.',
+                ]);
+        }
+
+        $request->validate([
+            'reason' => ['required', 'string', 'min:10'],
+            'new_fee_id' => ['nullable', 'integer', 'exists:fees,id'],
+        ], [
+            'reason.required' => 'O motivo da invalidação é obrigatório.',
+            'reason.min' => 'O motivo deve ter no mínimo 10 caracteres.',
+            'new_fee_id.exists' => 'A nova taxa selecionada não existe.',
+        ]);
+
+        $this->feeService->invalidateFee(
+            $fee,
+            $request->user(),
+            $request->input('reason'),
+            $request->input('new_fee_id')
+        );
+
+        return redirect()
+            ->route('fees.show', $fee)
+            ->with('success', 'Taxa invalidada com sucesso! Os valores pagos foram debitados do caixa e os moradores foram notificados.');
     }
 
     public function generateCharges(Fee $fee)

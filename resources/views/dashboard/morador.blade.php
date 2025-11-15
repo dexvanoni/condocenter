@@ -464,6 +464,83 @@
             </div>
         </div>
         @endif
+
+        <!-- Entradas Recentes (Taxas Recebidas) -->
+        @if(isset($filteredFinancialEntries) && $filteredFinancialEntries->count() > 0)
+        <div class="col-12">
+            <div class="dashboard-card fade-in">
+                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                    <h5 class="section-title mb-0">
+                        <i class="bi bi-cash-stack text-brand"></i>
+                        @if(isset($isMorador) && $isMorador)
+                            Suas Contribuições Recentes
+                        @else
+                            Entradas (Taxas Recebidas)
+                        @endif
+                    </h5>
+                    <span class="badge bg-success">
+                        {{ $filteredFinancialEntries->count() }}
+                        @if(isset($isMorador) && $isMorador && isset($otherUnitsSummary) && $otherUnitsSummary['count'] > 0)
+                            <span class="ms-1">({{ $otherUnitsSummary['count'] }} outras unidades)</span>
+                        @endif
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-modern mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Título</th>
+                                    {{-- Para moradores, NUNCA exibir coluna Unidade (privacidade) --}}
+                                    @php
+                                        // Garantir que isMorador está definido e é verdadeiro
+                                        $showUnitColumn = !(isset($isMorador) && $isMorador === true);
+                                    @endphp
+                                    @if($showUnitColumn)
+                                    <th>Unidade</th>
+                                    @endif
+                                    <th class="text-end">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($filteredFinancialEntries as $entry)
+                                <tr>
+                                    <td>{{ optional($entry['transaction_date'])->format('d/m/Y') }}</td>
+                                    <td>{{ $entry['title'] }}</td>
+                                    {{-- Para moradores, NUNCA exibir unidade (privacidade) --}}
+                                    @if($showUnitColumn)
+                                    <td>{{ $entry['unit'] ?? '—' }}</td>
+                                    @endif
+                                    <td class="text-end text-success fw-semibold">
+                                        R$ {{ number_format($entry['amount'], 2, ',', '.') }}
+                                    </td>
+                                </tr>
+                                @endforeach
+                                @if(isset($isMorador) && $isMorador && isset($otherUnitsSummary) && $otherUnitsSummary['count'] > 0)
+                                <tr class="table-secondary">
+                                    <td colspan="{{ (isset($isMorador) && $isMorador) ? 2 : 3 }}" class="text-muted fst-italic">
+                                        <small>Contribuições de outras unidades (total agregado - dados individuais não disponíveis)</small>
+                                    </td>
+                                    <td class="text-end text-success fw-semibold">
+                                        <small>R$ {{ number_format($otherUnitsSummary['total'], 2, ',', '.') }}</small>
+                                    </td>
+                                </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($isMorador || $filteredFinancialEntries->count() >= 10)
+                    <div class="card-footer bg-white border-top text-center">
+                        <a href="{{ route('financial.accounts.index') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-arrow-right"></i> Ver Todas as Transações
+                        </a>
+                    </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endsection

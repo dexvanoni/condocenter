@@ -248,15 +248,27 @@ class DashboardController extends Controller
         $saldoConsolidado = BankAccount::where('condominium_id', $condominium->id)
             ->sum('current_balance');
 
+        $ultimaConsolidacao = BankAccountReconciliation::where('condominium_id', $condominium->id)
+            ->latest('created_at')
+            ->first();
+
+        // Filtra entradas/saídas não conciliadas por período relevante (últimos 12 meses ou desde a última conciliação)
+        // Isso evita incluir valores muito antigos que podem nunca ter sido conciliados
+        $periodStart = $ultimaConsolidacao && $ultimaConsolidacao->end_date
+            ? $ultimaConsolidacao->end_date->copy()->addDay()
+            : now()->subMonths(12)->startOfDay();
+
         $entradasNaoConciliadas = Transaction::withTrashed()
             ->where('condominium_id', $condominium->id)
             ->where('status', 'paid')
             ->whereNull('reconciliation_id')
             ->where('type', 'income')
+            ->where('transaction_date', '>=', $periodStart)
             ->sum('amount')
             + CondominiumAccount::where('condominium_id', $condominium->id)
                 ->whereNull('reconciliation_id')
                 ->where('type', 'income')
+                ->where('transaction_date', '>=', $periodStart)
                 ->sum('amount');
 
         $saidasNaoConciliadas = Transaction::withTrashed()
@@ -264,15 +276,13 @@ class DashboardController extends Controller
             ->where('status', 'paid')
             ->whereNull('reconciliation_id')
             ->where('type', 'expense')
+            ->where('transaction_date', '>=', $periodStart)
             ->sum('amount')
             + CondominiumAccount::where('condominium_id', $condominium->id)
                 ->whereNull('reconciliation_id')
                 ->where('type', 'expense')
+                ->where('transaction_date', '>=', $periodStart)
                 ->sum('amount');
-
-        $ultimaConsolidacao = BankAccountReconciliation::where('condominium_id', $condominium->id)
-            ->latest('created_at')
-            ->first();
 
         if ($ultimaConsolidacao) {
             $ultimaConsolidacao->loadMissing('bankAccount');
@@ -412,6 +422,64 @@ class DashboardController extends Controller
         $possuiDividas = $user->possui_dividas;
         $statusCadastro = $user->is_active ? 'Ativo' : 'Inativo';
 
+        // Entradas financeiras recentes - apenas da própria unidade para moradores
+        // Moradores não podem ver detalhes de outras unidades (privacidade)
+        // Verifica se é morador (verificação robusta: é morador E não é admin/síndico)
+        $isMorador = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
+        
+        $recentFinancialEntries = CondominiumAccount::with('creator')
+            ->byCondominium($condominium->id)
+            ->where('type', 'income')
+            ->where('source_type', 'charge')
+            ->whereBetween('transaction_date', [now()->subDays(30)->startOfDay(), now()->endOfDay()])
+            ->orderByDesc('transaction_date')
+            ->limit(10)
+            ->get();
+
+        // Buscar as cobranças relacionadas para obter informações da unidade
+        $chargeIds = $recentFinancialEntries->pluck('source_id')->filter()->unique();
+        $chargesById = Charge::with('unit')
+            ->whereIn('id', $chargeIds)
+            ->get()
+            ->keyBy('id');
+
+        // Filtrar e mapear entradas: moradores veem apenas da própria unidade
+        $filteredFinancialEntries = $recentFinancialEntries->map(function ($entry) use ($chargesById, $isMorador, $user) {
+            $charge = $chargesById->get($entry->source_id);
+            
+            // Para moradores, mostrar apenas entradas da própria unidade
+            if ($isMorador && $charge && $charge->unit_id !== $user->unit_id) {
+                return null; // Filtrar fora
+            }
+
+            return [
+                'id' => $entry->id,
+                'transaction_date' => $entry->transaction_date,
+                'title' => $charge?->title ?? $entry->description,
+                'amount' => $entry->amount,
+                // Para moradores, nunca mostrar unidade (null)
+                // Para admin/síndico, mostrar unidade
+                'unit' => $isMorador ? null : ($charge?->unit?->full_identifier ?? null),
+                'is_own_unit' => $charge && $charge->unit_id === $user->unit_id,
+            ];
+        })->filter(); // Remove entradas null (de outras unidades para moradores)
+
+        // Para moradores, calcular total agregado de outras unidades (sem detalhes)
+        $otherUnitsSummary = null;
+        if ($isMorador) {
+            $otherUnitsEntries = $recentFinancialEntries->filter(function ($entry) use ($chargesById, $user) {
+                $charge = $chargesById->get($entry->source_id);
+                return $charge && $charge->unit_id !== $user->unit_id;
+            });
+            
+            if ($otherUnitsEntries->isNotEmpty()) {
+                $otherUnitsSummary = [
+                    'count' => $otherUnitsEntries->count(),
+                    'total' => $otherUnitsEntries->sum('amount'),
+                ];
+            }
+        }
+
         return view('dashboard.morador', compact(
             'chargesPendentes',
             'chargesAtrasadas',
@@ -426,7 +494,10 @@ class DashboardController extends Controller
             'notificacoes',
             'totalNotificacoes',
             'possuiDividas',
-            'statusCadastro'
+            'statusCadastro',
+            'filteredFinancialEntries',
+            'isMorador',
+            'otherUnitsSummary'
         ));
     }
 

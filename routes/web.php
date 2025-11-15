@@ -64,6 +64,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::resource('fees', FeeController::class);
         Route::post('fees/{fee}/generate', [FeeController::class, 'generateCharges'])->name('fees.generate');
         Route::post('fees/{fee}/clone', [FeeController::class, 'cloneFee'])->name('fees.clone');
+        Route::post('fees/{fee}/invalidate', [FeeController::class, 'invalidate'])
+            ->middleware('can:manage_charges')
+            ->name('fees.invalidate');
     });
 
     Route::resource('financial/bank-accounts', BankAccountController::class)
@@ -109,6 +112,18 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/financial/accountability/print', [AccountabilityReportController::class, 'print'])
         ->middleware('can:export_accountability_reports')
         ->name('accountability-reports.print');
+
+    // Entradas/Saídas
+    Route::get('/financial/income-expense', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'index'])
+        ->name('financial.income-expense.index');
+    Route::get('/financial/income-expense/export/income-pdf', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportIncomePdf'])
+        ->name('financial.income-expense.export.income-pdf');
+    Route::get('/financial/income-expense/export/income-excel', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportIncomeExcel'])
+        ->name('financial.income-expense.export.income-excel');
+    Route::get('/financial/income-expense/export/expense-pdf', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportExpensePdf'])
+        ->name('financial.income-expense.export.expense-pdf');
+    Route::get('/financial/income-expense/export/expense-excel', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportExpenseExcel'])
+        ->name('financial.income-expense.export.expense-excel');
 
     // Espaços (Síndico)
     Route::middleware(['can:manage_spaces'])->group(function () {
