@@ -1,16 +1,16 @@
 <!-- Modal Recebimento Avulso -->
 <div class="modal fade" id="modalRecebimento" tabindex="-1" aria-labelledby="modalRecebimentoLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header border-bottom">
+        <div class="modal-content d-flex flex-column" style="max-height: 95vh; margin: 0.5rem auto;">
+            <div class="modal-header border-bottom flex-shrink-0">
                 <h5 class="modal-title fw-bold" id="modalRecebimentoLabel">
                     <i class="bi bi-cash-coin text-success"></i> Registrar Recebimento Avulso
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <form action="{{ route('financial.accounts.income.store') }}" method="POST" enctype="multipart/form-data" id="formRecebimento">
+            <form action="{{ route('financial.accounts.income.store') }}" method="POST" enctype="multipart/form-data" id="formRecebimento" class="d-flex flex-column flex-grow-1" style="min-height: 0;">
                 @csrf
-                <div class="modal-body p-3 p-md-4">
+                <div class="modal-body p-3 p-md-4 overflow-auto flex-grow-1" style="min-height: 0;">
                     <div class="row g-3">
                         <div class="col-12 col-md-8">
                             <label class="form-label fw-semibold">Descrição <span class="text-danger">*</span></label>
@@ -66,13 +66,15 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top bg-light p-3">
-                    <button type="button" class="btn btn-outline-secondary btn-lg flex-fill flex-md-grow-0" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle"></i> Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-success btn-lg flex-fill flex-md-grow-0">
-                        <i class="bi bi-check-circle"></i> Salvar Recebimento
-                    </button>
+                <div class="modal-footer border-top bg-light p-3 flex-shrink-0">
+                    <div class="w-100 d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-lg flex-fill" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-success btn-lg flex-fill">
+                            <i class="bi bi-check-circle"></i> Salvar Recebimento
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -82,16 +84,16 @@
 <!-- Modal Novo Pagamento -->
 <div class="modal fade" id="modalPagamento" tabindex="-1" aria-labelledby="modalPagamentoLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header border-bottom">
+        <div class="modal-content d-flex flex-column" style="max-height: 95vh; margin: 0.5rem auto;">
+            <div class="modal-header border-bottom flex-shrink-0">
                 <h5 class="modal-title fw-bold" id="modalPagamentoLabel">
                     <i class="bi bi-cart-check text-danger"></i> Registrar Pagamento
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <form action="{{ route('financial.accounts.expense.store') }}" method="POST" enctype="multipart/form-data" id="formPagamento">
+            <form action="{{ route('financial.accounts.expense.store') }}" method="POST" enctype="multipart/form-data" id="formPagamento" class="d-flex flex-column flex-grow-1" style="min-height: 0;">
                 @csrf
-                <div class="modal-body p-3 p-md-4">
+                <div class="modal-body p-3 p-md-4 overflow-auto flex-grow-1" style="min-height: 0;">
                     <div class="row g-3">
                         <div class="col-12 col-md-8">
                             <label class="form-label fw-semibold">Descrição <span class="text-danger">*</span></label>
@@ -157,13 +159,15 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top bg-light p-3">
-                    <button type="button" class="btn btn-outline-secondary btn-lg flex-fill flex-md-grow-0" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle"></i> Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-danger btn-lg flex-fill flex-md-grow-0">
-                        <i class="bi bi-check-circle"></i> Salvar Pagamento
-                    </button>
+                <div class="modal-footer border-top bg-light p-3 flex-shrink-0">
+                    <div class="w-100 d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-lg flex-fill" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-danger btn-lg flex-fill">
+                            <i class="bi bi-check-circle"></i> Salvar Pagamento
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -287,21 +291,63 @@ document.addEventListener('DOMContentLoaded', function() {
 <style>
 /* Estilos mobile para modais */
 @media (max-width: 768px) {
+    .modal {
+        padding: 0 !important;
+    }
+    
     .modal-dialog {
-        margin: 0.5rem;
+        margin: 0.5rem auto;
+        max-width: calc(100% - 1rem);
+        height: calc(100vh - 1rem);
+        display: flex;
+        align-items: center;
+    }
+    
+    .modal-dialog-centered {
+        min-height: calc(100vh - 1rem);
     }
     
     .modal-content {
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
+        max-height: 95vh;
+        display: flex;
+        flex-direction: column;
+        margin: auto;
     }
     
-    .modal-header,
-    .modal-footer {
+    .modal-header {
         padding: 1rem !important;
+        border-bottom: 1px solid #dee2e6;
+        flex-shrink: 0;
+    }
+    
+    .modal-header .modal-title {
+        font-size: 1.1rem;
+        word-break: break-word;
     }
     
     .modal-body {
         padding: 1rem !important;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+    
+    .modal-footer {
+        padding: 1rem !important;
+        border-top: 1px solid #dee2e6;
+        flex-shrink: 0;
+        position: sticky;
+        bottom: 0;
+        background: white;
+        z-index: 10;
+    }
+    
+    .modal-footer .btn {
+        white-space: nowrap;
+        font-size: 0.95rem;
+        padding: 0.75rem 1rem;
     }
     
     .form-control-lg,
@@ -311,9 +357,37 @@ document.addEventListener('DOMContentLoaded', function() {
         padding: 0.75rem;
     }
     
+    .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+    
     .btn-lg {
-        padding: 0.75rem 1.5rem;
-        font-size: 1rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+    }
+    
+    /* Garantir que inputs não quebrem o layout */
+    .row.g-3 {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .row.g-3 > * {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+/* Desktop - manter comportamento normal */
+@media (min-width: 769px) {
+    .modal-content {
+        max-height: 90vh;
+    }
+    
+    .modal-body {
+        max-height: calc(90vh - 140px);
+        overflow-y: auto;
     }
 }
 
@@ -334,6 +408,17 @@ textarea {
     textarea {
         font-size: 1rem;
     }
+}
+
+/* Garantir que o modal fique visível e centralizado */
+.modal.show .modal-dialog {
+    transform: none;
+}
+
+/* Scroll suave no body do modal */
+.modal-body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 </style>
 
