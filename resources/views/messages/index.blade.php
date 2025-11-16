@@ -458,10 +458,30 @@
 		if (btnCreateMeeting) {
 			btnCreateMeeting.disabled = false;
 			btnCreateMeeting.onclick = async () => {
-				const resp = await fetch(`/api/conversations/${id}/meeting`, { method: 'POST', credentials: 'same-origin' });
-				if (!resp.ok) return alert('Falha ao criar reunião');
-				const meeting = await resp.json();
-				window.open(meeting.join_url, '_blank');
+				try {
+					const resp = await fetch(`/api/conversations/${id}/meeting`, {
+						method: 'POST',
+						headers: {
+							'Accept': 'application/json',
+							'X-Requested-With': 'XMLHttpRequest',
+							'X-CSRF-TOKEN': csrf,
+							'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+						},
+						credentials: 'same-origin'
+					});
+					if (!resp.ok) {
+						const errorData = await resp.json().catch(() => ({}));
+						const errorMsg = errorData?.message || 'Falha ao criar reunião';
+						alert(errorMsg);
+						return;
+					}
+					const meeting = await resp.json();
+					if (meeting.join_url) {
+						window.open(meeting.join_url, '_blank');
+					}
+				} catch (error) {
+					alert('Erro ao criar reunião: ' + (error.message || 'Erro desconhecido'));
+				}
 			};
 		}
 
@@ -748,32 +768,38 @@
 					a.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
 					a.innerHTML = `<span>${escapeHtml(u.name)} <small class="text-muted ms-2">${escapeHtml(u.email ?? '')}</small></span>`;
 					a.onclick = async () => {
-						const resCreate = await fetch('/api/conversations/direct', {
-							method: 'POST',
-							headers: {
-								'Accept': 'application/json',
-								'X-Requested-With': 'XMLHttpRequest',
-								'X-CSRF-TOKEN': csrf,
-							},
-							body: new URLSearchParams({ subject: '' }),
-							credentials: 'same-origin'
-						});
-						if (!resCreate.ok) { alert('Falha ao criar conversa'); return; }
-						const created = await resCreate.json();
-						await fetch(`/api/conversations/${created.conversation?.id}/participants`, {
-							method: 'POST',
-							headers: {
-								'Accept': 'application/json',
-								'X-Requested-With': 'XMLHttpRequest',
-								'X-CSRF-TOKEN': csrf,
-								'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-							},
-						body: new URLSearchParams({ user_id: String(u.id) }),
-						credentials: 'same-origin'
-					});
-					hideModal(newConvModalEl, newConvModal);
-					await loadConversations();
-					openConversation(created.conversation?.id);
+						try {
+							const resCreate = await fetch('/api/conversations/direct', {
+								method: 'POST',
+								headers: {
+									'Accept': 'application/json',
+									'X-Requested-With': 'XMLHttpRequest',
+									'X-CSRF-TOKEN': csrf,
+									'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+								},
+								body: new URLSearchParams({ 
+									subject: '',
+									user_id: String(u.id)
+								}),
+								credentials: 'same-origin'
+							});
+							
+							if (!resCreate.ok) {
+								const errorData = await resCreate.json();
+								const errorMsg = errorData?.errors?.message?.[0] || errorData?.message || 'Falha ao criar conversa';
+								alert(errorMsg);
+								return;
+							}
+							
+							const created = await resCreate.json();
+							hideModal(newConvModalEl, newConvModal);
+							await loadConversations();
+							if (created.conversation?.id) {
+								openConversation(created.conversation.id);
+							}
+						} catch (error) {
+							alert('Erro ao criar conversa: ' + (error.message || 'Erro desconhecido'));
+						}
 					};
 					searchUserResults.appendChild(a);
 				});

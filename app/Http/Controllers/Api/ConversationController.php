@@ -193,8 +193,9 @@ class ConversationController extends Controller
 
         $validator = Validator::make($request->all(), [
             'subject' => ['nullable', 'string', 'max:255'],
-            'message' => ['required', 'string'],
+            'message' => ['nullable', 'string'], // Opcional: pode criar conversa vazia
             'priority' => ['nullable', Rule::in(['low', 'normal', 'high', 'urgent'])],
+            'user_id' => ['nullable', 'integer', 'exists:users,id'], // ID do destinatário para conversa direta específica
         ]);
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
@@ -220,36 +221,54 @@ class ConversationController extends Controller
                 'joined_at' => now(),
             ]);
 
-            // Destinatários administrativos: Síndico/Admin do mesmo condomínio
-            $admins = User::query()
-                ->byCondominium($user->condominium_id)
-                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Síndico', 'Administrador']))
-                ->get(['id']);
+            // Se houver user_id específico, adicionar como participante
+            // Caso contrário, adicionar todos os Síndicos/Administradores
+            if ($request->filled('user_id')) {
+                $targetUser = User::find($request->get('user_id'));
+                if ($targetUser && $targetUser->condominium_id === $user->condominium_id) {
+                    ConversationParticipant::updateOrCreate(
+                        ['conversation_id' => $conversation->id, 'user_id' => $targetUser->id],
+                        ['role' => 'participant', 'joined_at' => now()]
+                    );
+                }
+            } else {
+                // Destinatários administrativos: Síndico/Admin do mesmo condomínio
+                $admins = User::query()
+                    ->byCondominium($user->condominium_id)
+                    ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Síndico', 'Administrador']))
+                    ->get(['id']);
 
-            foreach ($admins as $admin) {
-                ConversationParticipant::updateOrCreate(
-                    ['conversation_id' => $conversation->id, 'user_id' => $admin->id],
-                    ['role' => 'participant', 'joined_at' => now()]
-                );
+                foreach ($admins as $admin) {
+                    ConversationParticipant::updateOrCreate(
+                        ['conversation_id' => $conversation->id, 'user_id' => $admin->id],
+                        ['role' => 'participant', 'joined_at' => now()]
+                    );
+                }
             }
 
-            $message = Message::create([
-                'condominium_id' => $user->condominium_id,
-                'conversation_id' => $conversation->id,
-                'from_user_id' => $user->id,
-                'type' => 'sindico_message',
-                'subject' => $request->get('subject'),
-                'message' => $request->get('message'),
-                'priority' => $priority,
-            ]);
+            // Criar mensagem apenas se fornecida
+            $message = null;
+            if ($request->filled('message')) {
+                $message = Message::create([
+                    'condominium_id' => $user->condominium_id,
+                    'conversation_id' => $conversation->id,
+                    'from_user_id' => $user->id,
+                    'type' => 'sindico_message',
+                    'subject' => $request->get('subject'),
+                    'message' => $request->get('message'),
+                    'priority' => $priority,
+                ]);
+            }
 
             $response = response()->json([
                 'conversation' => $conversation->load('participants.user:id,name'),
                 'message' => $message,
             ], 201);
 
-            // Notificar participantes (Síndico/Admin) conforme prioridade - síncrono para refletir imediatamente
-            SendConversationNotifications::dispatchSync($conversation->id, $user->id, $request->get('message'), $priority);
+            // Notificar participantes apenas se houver mensagem inicial
+            if ($message) {
+                SendConversationNotifications::dispatchSync($conversation->id, $user->id, $request->get('message'), $priority);
+            }
 
             return $response;
         });
