@@ -25,6 +25,8 @@
         </div>
     </div>
 
+    <div id="announcementBannerContainer"></div>
+
     <!-- Botões de Ação Rápida -->
     @can('manage_transactions')
     <div class="row mb-4">
@@ -39,6 +41,169 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Aviso do Síndico -->
+    <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="announcementModalLabel">Aviso do Síndico</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="announcementModalBody">
+                        <div class="text-muted">Carregando...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" id="btnMarkAnnouncementRead" disabled>Marcar como lido</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const container = document.getElementById('announcementBannerContainer');
+        const modalEl = document.getElementById('announcementModal');
+        const modalBody = document.getElementById('announcementModalBody');
+        const btnMarkRead = document.getElementById('btnMarkAnnouncementRead');
+        let currentNotificationId = null;
+
+        const priorityClasses = {
+            urgent: 'border-danger bg-danger bg-opacity-10',
+            high: 'border-warning bg-warning bg-opacity-10',
+            normal: 'border-primary bg-primary bg-opacity-10',
+            low: 'border-secondary bg-secondary bg-opacity-10',
+        };
+        const badgeClasses = {
+            urgent: 'bg-danger',
+            high: 'bg-warning text-dark',
+            normal: 'bg-primary',
+            low: 'bg-secondary',
+        };
+
+        async function loadLatestAnnouncement() {
+            try {
+                const res = await fetch('/api/conversations/announcement/list', {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const list = data?.conversations ?? [];
+                if (list.length === 0) return;
+                list.forEach(conv => renderBannerFrom(conv, null));
+            } catch {}
+        }
+
+        async function getConversation(id) {
+            const convRes = await fetch(`/api/conversations/${id}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            if (!convRes.ok) return null;
+            return await convRes.json();
+        }
+
+        function renderBannerFrom(conversation, notification) {
+            currentNotificationId = notification?.id ?? null;
+            const priority = (conversation.priority || 'normal');
+            const latestMessage = (conversation.messages ?? [])[0] ?? null;
+            const brief = latestMessage ? (latestMessage.message ?? '').slice(0, 160) : (notification?.message ?? '');
+
+            const banner = document.createElement('div');
+            banner.className = `announcement-banner d-flex align-items-center p-3 mb-2 rounded border ${priorityClasses[priority] ?? 'border-primary bg-primary bg-opacity-10'}`;
+            banner.role = 'alert';
+            banner.style.cursor = 'pointer';
+            banner.innerHTML = `
+                <i class="bi bi-megaphone-fill me-3 fs-4"></i>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <strong>Aviso do Síndico</strong>
+                        <span class="badge ${badgeClasses[priority] ?? 'bg-primary'}">${priority.toUpperCase()}</span>
+                    </div>
+                    <div class="small text-muted">${escapeHtml(brief)}${(latestMessage && latestMessage.message && latestMessage.message.length > 160) ? '…' : ''}</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary ms-3">Ver detalhes</button>
+            `;
+            banner.addEventListener('click', async () => {
+                const conv = await getConversation(conversation.id);
+                if (conv) openModal(conv);
+            });
+            container.appendChild(banner);
+        }
+
+        function openModal(conversation) {
+            const messages = conversation.messages ?? [];
+            const first = messages[0] ?? null;
+            const attachments = (first?.attachments ?? []);
+            const subject = conversation.subject || 'Aviso do Síndico';
+
+            modalBody.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">${escapeHtml(subject)}</h5>
+                    <span class="badge ${ (conversation.priority === 'urgent') ? 'bg-danger' :
+                        (conversation.priority === 'high') ? 'bg-warning text-dark' :
+                        (conversation.priority === 'low') ? 'bg-secondary' : 'bg-primary' }">
+                        ${conversation.priority?.toUpperCase() ?? 'NORMAL'}
+                    </span>
+                </div>
+                <div class="mb-3">${escapeHtml(first?.message ?? '')}</div>
+                ${(attachments ?? []).length ? renderAttachments(attachments) : ''}
+            `;
+
+            btnMarkRead.disabled = false;
+            btnMarkRead.onclick = markNotificationRead;
+
+            const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            bsModal.show();
+        }
+
+        function renderAttachments(list) {
+            const links = list.map(a => {
+                const href = `/storage/${a.path}`;
+                const name = a.original_name ?? 'Anexo';
+                const isImage = (a.mime_type || '').startsWith('image/');
+                return isImage
+                    ? `<div class="mb-2"><a href="${href}" target="_blank"><img src="${href}" alt="${escapeHtml(name)}" style="max-width: 100%; border-radius: 6px;"></a></div>`
+                    : `<div class="mb-2"><a href="${href}" target="_blank" class="btn btn-outline-secondary btn-sm"><i class="bi bi-paperclip"></i> ${escapeHtml(name)}</a></div>`;
+            }).join('');
+            return `<div class="mt-3"><h6>Anexos</h6>${links}</div>`;
+        }
+
+        async function markNotificationRead() {
+            if (currentNotificationId) {
+                const res = await fetch(`/api/notifications/${currentNotificationId}/read`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrf,
+                    },
+                    credentials: 'same-origin'
+                });
+            }
+            const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            bsModal.hide();
+            container.innerHTML = '';
+        }
+
+        function escapeHtml(str) {
+            return (str ?? '').toString().replace(/[&<>"']/g, (m) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[m]);
+        }
+
+        loadLatestAnnouncement();
+    })();
+    </script>
     @endcan
 
     <!-- KPIs Principais -->

@@ -11,6 +11,7 @@ use App\Http\Controllers\Finance\BankAccountController;
 use App\Http\Controllers\Finance\BankReconciliationController;
 use App\Http\Controllers\Finance\ChargeSettlementController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ConversationWebController;
 
 // Rota de teste absoluta
 Route::get('/test-print-tag/{id}', function($id) {
@@ -218,6 +219,11 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::middleware(['can:view_assemblies'])->group(function () {
         Route::get('/assemblies', function() { return view('assemblies.index'); })->name('assemblies.index');
     });
+    
+    // Conversas - Formulário de Aviso (Síndico/Admin)
+    Route::get('/conversations/announcement', [ConversationWebController::class, 'announcementForm'])
+        ->middleware('can:send_announcements')
+        ->name('conversations.announcement');
     
     // Regimento Interno (todos os usuários podem ver, apenas admin/síndico pode editar)
     Route::prefix('internal-regulations')->name('internal-regulations.')->group(function () {

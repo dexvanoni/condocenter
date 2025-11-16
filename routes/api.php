@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\EntryController;
 use App\Http\Controllers\Api\AssemblyController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\MessageController;
+use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\UserSearchController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SpaceController;
 use App\Http\Controllers\Api\PetController;
@@ -132,6 +134,25 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy' => 'api.messages.destroy',
     ]);
     Route::post('messages/{message}/read', [MessageController::class, 'markAsRead'])->name('api.messages.read');
+
+    // Conversas (novo módulo de mensagens)
+    Route::get('conversations', [ConversationController::class, 'index'])->name('api.conversations.index');
+    Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
+    Route::post('conversations/announcement', [ConversationController::class, 'storeAnnouncement'])->name('api.conversations.announcement');
+    Route::post('conversations/direct', [ConversationController::class, 'storeDirect'])->name('api.conversations.direct');
+    Route::post('conversations/{conversation}/participants', [ConversationController::class, 'addParticipant'])->name('api.conversations.participants.add');
+    Route::post('conversations/{conversation}/messages', [ConversationController::class, 'storeMessage'])->name('api.conversations.messages.store');
+    Route::post('conversations/{conversation}/messages/{message}/attachments', [ConversationController::class, 'uploadAttachment'])->name('api.conversations.messages.attachments');
+    Route::post('conversations/{conversation}/meeting', [ConversationController::class, 'createMeeting'])->name('api.conversations.meeting.create');
+    Route::get('conversations/{conversation}/export.csv', [ConversationController::class, 'exportCsv'])->name('api.conversations.export.csv');
+    Route::get('conversations/{conversation}/export.pdf', [ConversationController::class, 'exportPdf'])->name('api.conversations.export.pdf');
+    Route::post('conversations/{conversation}/status', [ConversationController::class, 'updateStatus'])->name('api.conversations.status');
+    Route::delete('conversations/{conversation}', [ConversationController::class, 'destroy'])->name('api.conversations.destroy');
+    Route::get('conversations/announcement/latest', [ConversationController::class, 'latestAnnouncement'])->name('api.conversations.latest-announcement');
+    Route::get('conversations/announcement/list', [ConversationController::class, 'listAnnouncements'])->name('api.conversations.list-announcements');
+
+    // Busca de usuários (AJAX) com filtro de papéis
+    Route::get('users/search', [UserSearchController::class, 'search'])->name('api.users.search');
     
     // Notificações
     Route::get('notifications', [NotificationController::class, 'index'])->name('api.notifications.index');

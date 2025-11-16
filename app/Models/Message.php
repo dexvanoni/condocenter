@@ -11,7 +11,7 @@ class Message extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'condominium_id', 'from_user_id', 'to_user_id', 'type',
+        'condominium_id', 'conversation_id', 'from_user_id', 'to_user_id', 'type',
         'subject', 'message', 'priority', 'is_read', 'read_at',
         'related_item_id', 'related_item_type',
     ];
@@ -24,6 +24,11 @@ class Message extends Model
     public function condominium()
     {
         return $this->belongsTo(Condominium::class);
+    }
+
+    public function conversation()
+    {
+        return $this->belongsTo(Conversation::class);
     }
 
     public function fromUser()
@@ -47,5 +52,10 @@ class Message extends Model
             'is_read' => true,
             'read_at' => now(),
         ]);
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(MessageAttachment::class);
     }
 }

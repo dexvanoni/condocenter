@@ -713,6 +713,13 @@
                                 </a>
                             </li>
                             @endif
+                            @can('send_announcements')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('conversations.announcement') ? 'active' : '' }}" href="{{ route('conversations.announcement') }}">
+                                    <i class="bi bi-megaphone"></i> Enviar Aviso
+                                </a>
+                            </li>
+                            @endcan
                             @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
@@ -1248,6 +1255,13 @@
                                         </a>
                                     </li>
                                     @endif
+                                    @can('send_announcements')
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('conversations.announcement') ? 'active' : '' }}" href="{{ route('conversations.announcement') }}">
+                                            <i class="bi bi-megaphone"></i> Enviar Aviso
+                                        </a>
+                                    </li>
+                                    @endcan
                                     @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
