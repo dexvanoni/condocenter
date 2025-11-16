@@ -667,7 +667,8 @@
                 </li>
                 @endif
 
-                @if(Route::has('entries.index'))
+                {{-- Portaria oculta temporariamente --}}
+                {{-- @if(Route::has('entries.index'))
                     @can('register_entries')
                     <li class="nav-item nav-item-group">
                         <button class="nav-link-toggle {{ $menuActive['portaria'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuPortaria" aria-expanded="{{ $menuActive['portaria'] ? 'true' : 'false' }}">
@@ -685,7 +686,7 @@
                         </div>
                     </li>
                     @endcan
-                @endif
+                @endif --}}
 
                 @if(Route::has('messages.index'))
                 <li class="nav-item nav-item-group">
@@ -704,6 +705,11 @@
                                     @if($unreadCount > 0)
                                     <span class="badge bg-danger rounded-pill">{{ $unreadCount }}</span>
                                     @endif
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('conversations.direct.start') ? 'active' : '' }}" href="{{ route('conversations.direct.start') }}">
+                                    <i class="bi bi-chat-dots"></i> Fale com o Síndico
                                 </a>
                             </li>
                             @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
@@ -1209,7 +1215,8 @@
                         </li>
                         @endif
 
-                        @if(Route::has('entries.index'))
+                        {{-- Portaria oculta temporariamente --}}
+                        {{-- @if(Route::has('entries.index'))
                             @can('register_entries')
                             <li class="nav-item nav-item-group mt-2">
                                 <button class="nav-link-toggle {{ $menuActive['portaria'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuPortaria" aria-expanded="{{ $menuActive['portaria'] ? 'true' : 'false' }}">
@@ -1227,7 +1234,7 @@
                                 </div>
                             </li>
                             @endcan
-                        @endif
+                        @endif --}}
 
                         @if(Route::has('messages.index'))
                         <li class="nav-item nav-item-group mt-2">
@@ -1246,6 +1253,11 @@
                                             @if($unreadCount > 0)
                                             <span class="badge bg-danger rounded-pill">{{ $unreadCount }}</span>
                                             @endif
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('conversations.direct.start') ? 'active' : '' }}" href="{{ route('conversations.direct.start') }}">
+                                            <i class="bi bi-chat-dots"></i> Fale com o Síndico
                                         </a>
                                     </li>
                                     @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))

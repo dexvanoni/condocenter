@@ -20,12 +20,17 @@ class Conversation extends Model
         'type',
         'priority',
         'is_active',
+        'is_closed',
         'expires_at',
+        'closed_at',
+        'closed_by',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_closed' => 'boolean',
         'expires_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
 
     public function condominium(): BelongsTo

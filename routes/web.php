@@ -224,6 +224,10 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/conversations/announcement', [ConversationWebController::class, 'announcementForm'])
         ->middleware('can:send_announcements')
         ->name('conversations.announcement');
+
+    // Conversas - Iniciar chat direto com o Síndico
+    Route::get('/conversations/direct', [ConversationWebController::class, 'startDirect'])
+        ->name('conversations.direct.start');
     
     // Regimento Interno (todos os usuários podem ver, apenas admin/síndico pode editar)
     Route::prefix('internal-regulations')->name('internal-regulations.')->group(function () {

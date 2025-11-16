@@ -300,10 +300,39 @@ class ConversationController extends Controller
         if ($conversation->condominium_id !== $user->condominium_id) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
+        if ($conversation->is_closed) {
+            return response()->json(['error' => 'Conversa encerrada. Não é possível enviar novas mensagens.'], 400);
+        }
         if (!$user->isSindico() && !$user->isAdmin()) {
             $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
             if (!$isParticipant) {
-                return response()->json(['error' => 'Não autorizado'], 403);
+                // Permitir resposta quando o usuário for destinatário de um aviso (announcement)
+                if ($conversation->type === 'announcement') {
+                    $userRoleNames = $user->roles?->pluck('name')->all() ?? [];
+                    $isRecipient = $conversation->recipients()
+                        ->where(function ($q) use ($user, $userRoleNames) {
+                            $q->where('target_type', 'all')
+                              ->orWhere(function ($r) use ($userRoleNames) {
+                                  $r->where('target_type', 'role')->whereIn('target_value', $userRoleNames);
+                              })
+                              ->orWhere(function ($r) use ($user) {
+                                  $r->where('target_type', 'user')->where('target_value', (string) $user->id);
+                              });
+                        })
+                        ->exists();
+
+                    if ($isRecipient) {
+                        // Adiciona o usuário como participante para permitir o chat
+                        $conversation->participants()->updateOrCreate(
+                            ['user_id' => $user->id],
+                            ['role' => 'participant', 'joined_at' => now()]
+                        );
+                    } else {
+                        return response()->json(['error' => 'Não autorizado'], 403);
+                    }
+                } else {
+                    return response()->json(['error' => 'Não autorizado'], 403);
+                }
             }
         }
 
@@ -544,6 +573,32 @@ class ConversationController extends Controller
             ->get();
 
         return response()->json(['conversations' => $conversations]);
+    }
+
+    /**
+     * Encerra a conversa para novos envios (participantes ainda podem visualizar histórico).
+     */
+    public function close(Request $request, Conversation $conversation)
+    {
+        /** @var User $user */
+        $user = $request->user();
+        if ($conversation->condominium_id !== $user->condominium_id) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+        // Qualquer participante pode encerrar; ou síndico/admin
+        $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
+        if (!$isParticipant && !($user->isSindico() || $user->isAdmin())) {
+            return response()->json(['error' => 'Sem permissão'], 403);
+        }
+        if ($conversation->is_closed) {
+            return response()->json(['message' => 'Conversa já encerrada', 'conversation' => $conversation]);
+        }
+        $conversation->update([
+            'is_closed' => true,
+            'closed_at' => now(),
+            'closed_by' => $user->id,
+        ]);
+        return response()->json(['message' => 'Conversa encerrada com sucesso', 'conversation' => $conversation]);
     }
 }
 

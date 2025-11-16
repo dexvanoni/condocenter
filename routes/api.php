@@ -150,6 +150,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('conversations/{conversation}', [ConversationController::class, 'destroy'])->name('api.conversations.destroy');
     Route::get('conversations/announcement/latest', [ConversationController::class, 'latestAnnouncement'])->name('api.conversations.latest-announcement');
     Route::get('conversations/announcement/list', [ConversationController::class, 'listAnnouncements'])->name('api.conversations.list-announcements');
+    Route::post('conversations/{conversation}/close', [ConversationController::class, 'close'])->name('api.conversations.close');
 
     // Busca de usuários (AJAX) com filtro de papéis
     Route::get('users/search', [UserSearchController::class, 'search'])->name('api.users.search');
