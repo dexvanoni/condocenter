@@ -8,6 +8,7 @@ use App\Models\CondominiumAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -121,6 +122,8 @@ class IncomeExpenseController extends Controller
                 'source_type' => 'manual',
                 'created_by' => $entry->creator?->name,
                 'notes' => $entry->notes,
+                'document_path' => $entry->document_path,
+                'captured_image_path' => $entry->captured_image_path,
             ];
         });
 
@@ -141,6 +144,8 @@ class IncomeExpenseController extends Controller
                     : null,
                 'created_by' => $entry->creator?->name,
                 'notes' => $entry->notes,
+                'document_path' => $entry->document_path,
+                'captured_image_path' => $entry->captured_image_path,
             ];
         });
 
@@ -366,6 +371,8 @@ class IncomeExpenseController extends Controller
                 'source_type' => 'manual',
                 'created_by' => $entry->creator?->name,
                 'notes' => $entry->notes,
+                'document_path' => $entry->document_path,
+                'captured_image_path' => $entry->captured_image_path,
             ];
         });
 
@@ -410,6 +417,8 @@ class IncomeExpenseController extends Controller
                     : null,
                 'created_by' => $entry->creator?->name,
                 'notes' => $entry->notes,
+                'document_path' => $entry->document_path,
+                'captured_image_path' => $entry->captured_image_path,
             ];
         });
 
@@ -423,5 +432,46 @@ class IncomeExpenseController extends Controller
             'condominium' => $user->condominium,
             'user' => $user,
         ];
+    }
+
+    public function downloadReceipt($id)
+    {
+        $user = Auth::user();
+        
+        if (!$user->can('view_transactions') && !$user->can('view_own_financial')) {
+            abort(403);
+        }
+
+        $account = CondominiumAccount::findOrFail($id);
+
+        // Verificar se pertence ao mesmo condomínio
+        if ($account->condominium_id !== $user->condominium_id) {
+            abort(403);
+        }
+
+        // Verificar se é morador e se pode ver essa entrada
+        $isMorador = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
+        if ($isMorador && $account->type === 'income' && $account->source_type === 'charge') {
+            $charge = Charge::find($account->source_id);
+            if (!$charge || $charge->unit_id !== $user->unit_id) {
+                abort(403);
+            }
+        }
+
+        // Verificar qual arquivo existe
+        $filePath = null;
+        $fileName = null;
+
+        if ($account->document_path && Storage::disk('public')->exists($account->document_path)) {
+            $filePath = $account->document_path;
+            $fileName = basename($filePath);
+        } elseif ($account->captured_image_path && Storage::disk('public')->exists($account->captured_image_path)) {
+            $filePath = $account->captured_image_path;
+            $fileName = basename($filePath);
+        } else {
+            abort(404, 'Comprovante não encontrado');
+        }
+
+        return Storage::disk('public')->download($filePath, $fileName);
     }
 }

@@ -31,6 +31,80 @@
 @endphp
 
 @section('content')
+<style>
+    .marketplace-page .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .marketplace-page .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    .marketplace-page .card-img-top {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        object-position: center;
+    }
+    
+    .marketplace-page .card-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        line-height: 1.2;
+        min-height: 2rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin-bottom: 0.5rem;
+    }
+    
+    .marketplace-page .card-text {
+        font-size: 0.7rem;
+        line-height: 1.3;
+        min-height: 1.4rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    .marketplace-page .card-body {
+        padding: 0.6rem;
+    }
+    
+    .marketplace-page .card-footer {
+        padding: 0.4rem 0.6rem 0.6rem;
+    }
+    
+    .marketplace-page .btn-sm {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.4rem;
+        min-width: 32px;
+    }
+    
+    .marketplace-page .btn-sm i {
+        font-size: 0.85rem;
+    }
+    
+    .marketplace-page .badge {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .marketplace-page .card {
+        font-size: 0.85rem;
+    }
+    
+    .marketplace-page .card .fw-bold {
+        font-size: 0.95rem;
+    }
+    
+    .marketplace-page .card small {
+        font-size: 0.7rem;
+    }
+</style>
 <div class="container-fluid px-4 marketplace-page">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
             <div>
@@ -87,7 +161,7 @@
         </div>
     </div>
 
-    <div class="row g-4 d-none" id="marketplaceGrid"
+    <div class="row g-2 d-none" id="marketplaceGrid"
          data-storage-base="{{ asset('storage') }}"
          data-current-user-id="{{ $currentUser?->id }}"
          data-is-admin-sindico="{{ $isAdminSindico ? '1' : '0' }}"></div>
@@ -620,7 +694,7 @@
 
             items.forEach(item => {
                 const col = document.createElement('div');
-                col.className = 'col-xl-3 col-lg-4 col-md-6';
+                col.className = 'col-xl-2 col-lg-3 col-md-4 col-sm-6';
 
                 const categoryLabel = config.categories[item.category] || 'Outros';
                 const conditionLabel = config.conditions[item.condition] || 'Não informado';
@@ -644,47 +718,42 @@
                 const isOwner = sellerId === currentUserId;
                 const canManageItem = isOwner || isAdminSindico;
                 const manageButtons = canManageItem ? `
-                                <button class="btn btn-outline-warning btn-sm" data-action="edit-item" data-item-id="${item.id}">
-                                    <i class="bi bi-pencil me-1"></i> Editar
+                                <button class="btn btn-outline-warning btn-sm" data-action="edit-item" data-item-id="${item.id}" title="Editar" style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
+                                    <i class="bi bi-pencil" style="font-size: 0.85rem;"></i>
                                 </button>
-                                <button class="btn btn-outline-danger btn-sm" data-action="delete-item" data-item-id="${item.id}">
-                                    <i class="bi bi-trash me-1"></i> Excluir
+                                <button class="btn btn-outline-danger btn-sm" data-action="delete-item" data-item-id="${item.id}" title="Excluir" style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
+                                    <i class="bi bi-trash" style="font-size: 0.85rem;"></i>
                                 </button>
                 ` : '';
 
                 col.innerHTML = `
                     <div class="card h-100 shadow-sm border-0">
-                        <div class="position-relative">
+                        <div class="position-relative" style="height: 120px; overflow: hidden;">
                             <img src="${imageUrl}" class="card-img-top" alt="${escapeHtml(item.title || 'Anúncio')}">
-                            <span class="badge bg-primary bg-opacity-10 text-primary position-absolute top-0 start-0 m-3">
+                            <span class="badge bg-primary bg-opacity-10 text-primary position-absolute top-0 start-0 m-1" style="font-size: 0.6rem; padding: 0.15rem 0.35rem;">
                                 ${escapeHtml(categoryLabel)}
                             </span>
-                            <span class="${statusClass}">
+                            <span class="${statusClass}" style="font-size: 0.6rem; padding: 0.15rem 0.35rem; margin: 0.25rem !important;">
                                 ${escapeHtml(statusLabel)}
                             </span>
                         </div>
                         <div class="card-body d-flex flex-column">
-                            <h5 class="card-title mb-2">${escapeHtml(item.title)}</h5>
-                            <p class="card-text text-muted flex-grow-1">${escapeHtml(truncate(item.description))}</p>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
+                            <h5 class="card-title mb-1">${escapeHtml(item.title)}</h5>
+                            <p class="card-text text-muted flex-grow-1 mb-1" style="font-size: 0.7rem; line-height: 1.3; min-height: 1.4rem; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(truncate(item.description, 40))}</p>
+                            <div class="d-flex justify-content-between align-items-center mt-auto">
                                 <div>
-                                    <div class="fw-bold text-primary">${escapeHtml(priceLabel)}</div>
-                                    <small class="text-muted">${escapeHtml(sellerName)}</small>
-                                    ${hasWhatsapp ? `<small class="text-muted d-block">WhatsApp: +55 ${escapeHtml(whatsappFormatted)}</small>` : ''}
-                                </div>
-                                <div class="text-end">
-                                    <small class="text-muted d-block">${escapeHtml(unitLabel)}</small>
-                                    <small class="text-muted">${escapeHtml(viewsLabel)}</small>
+                                    <div class="fw-bold text-primary" style="font-size: 0.9rem;">${escapeHtml(priceLabel)}</div>
+                                    <small class="text-muted" style="font-size: 0.65rem;">${escapeHtml(sellerName)}</small>
                                 </div>
                             </div>
                         </div>
                         <div class="card-footer bg-white border-0 pt-0">
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-outline-primary btn-sm" data-action="view-details" data-item-id="${item.id}">
-                                    <i class="bi bi-eye me-1"></i> Ver Detalhes
+                            <div class="d-flex gap-1 justify-content-center">
+                                <button class="btn btn-outline-primary btn-sm" data-action="view-details" data-item-id="${item.id}" title="Ver Detalhes">
+                                    <i class="bi bi-eye"></i>
                                 </button>
-                                <button class="btn btn-outline-success btn-sm" data-action="contact-seller" data-item-id="${item.id}" data-whatsapp="${whatsappDigits}" ${hasWhatsapp ? '' : 'disabled'}>
-                                    <i class="bi bi-chat-dots me-1"></i> Contatar Vendedor
+                                <button class="btn btn-outline-success btn-sm" data-action="contact-seller" data-item-id="${item.id}" data-whatsapp="${whatsappDigits}" ${hasWhatsapp ? '' : 'disabled'} title="Contatar Vendedor">
+                                    <i class="bi bi-chat-dots"></i>
                                 </button>
                                 ${manageButtons}
                             </div>

@@ -21,6 +21,15 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+// Página de apresentação do sistema (pública)
+Route::get('/apresentacao', function () {
+    $file = public_path('apresentacao.php');
+    if (file_exists($file)) {
+        return response()->file($file, ['Content-Type' => 'text/html; charset=utf-8']);
+    }
+    abort(404);
+})->name('apresentacao');
+
 // Webhook routes (public, sem autenticação)
 Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webhooks.asaas');
 
@@ -109,6 +118,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/financial/accountability/export/excel', [AccountabilityReportController::class, 'exportExcel'])
         ->middleware('can:export_accountability_reports')
         ->name('accountability-reports.export.excel');
+    Route::get('/financial/accountability/download-receipts', [AccountabilityReportController::class, 'downloadReceipts'])
+        ->middleware('can:export_accountability_reports')
+        ->name('accountability-reports.download-receipts');
     Route::get('/financial/accountability/print', [AccountabilityReportController::class, 'print'])
         ->middleware('can:export_accountability_reports')
         ->name('accountability-reports.print');
@@ -116,6 +128,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     // Entradas/Saídas
     Route::get('/financial/income-expense', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'index'])
         ->name('financial.income-expense.index');
+    Route::get('/financial/income-expense/{id}/download-receipt', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'downloadReceipt'])
+        ->name('financial.income-expense.download-receipt');
     Route::get('/financial/income-expense/export/income-pdf', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportIncomePdf'])
         ->name('financial.income-expense.export.income-pdf');
     Route::get('/financial/income-expense/export/income-excel', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportIncomeExcel'])

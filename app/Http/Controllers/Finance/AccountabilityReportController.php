@@ -9,8 +9,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
+use ZipArchive;
 
 class AccountabilityReportController extends Controller
 {
@@ -119,6 +122,94 @@ class AccountabilityReportController extends Controller
             : now()->endOfMonth();
 
         return [$startDate, $endDate];
+    }
+
+    public function downloadReceipts(Request $request)
+    {
+        $user = Auth::user();
+
+        if (! $user->can('export_accountability_reports')) {
+            abort(403);
+        }
+
+        [$startDate, $endDate] = $this->resolvePeriod($request);
+
+        $data = $this->service->generate($user->condominium_id, $startDate, $endDate);
+
+        // Criar arquivo ZIP temporário
+        $zipFileName = 'comprovantes_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd') . '.zip';
+        $zipPath = storage_path('app/temp/' . $zipFileName);
+        
+        // Criar diretório temp se não existir
+        if (!file_exists(storage_path('app/temp'))) {
+            mkdir(storage_path('app/temp'), 0755, true);
+        }
+
+        $zip = new ZipArchive();
+        
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
+            abort(500, 'Não foi possível criar o arquivo ZIP');
+        }
+
+        $fileCount = 0;
+
+        // Adicionar comprovantes de entradas manuais
+        foreach ($data['manual_incomes'] as $income) {
+            $this->addFileToZip($zip, $income, 'ENTRADAS', $fileCount);
+        }
+
+        // Adicionar comprovantes de saídas
+        foreach ($data['manual_expenses'] as $expense) {
+            $this->addFileToZip($zip, $expense, 'SAIDAS', $fileCount);
+        }
+
+        $zip->close();
+
+        if ($fileCount === 0) {
+            // Se não houver arquivos, deletar o ZIP vazio e retornar erro
+            if (file_exists($zipPath)) {
+                unlink($zipPath);
+            }
+            return redirect()->back()->with('error', 'Nenhum comprovante encontrado para o período selecionado.');
+        }
+
+        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+    }
+
+    protected function addFileToZip(ZipArchive $zip, $account, string $folder, int &$fileCount): void
+    {
+        $disk = Storage::disk('public');
+        
+        // Verificar document_path
+        if (!empty($account->document_path) && $disk->exists($account->document_path)) {
+            $filePath = storage_path('app/public/' . $account->document_path);
+            if (file_exists($filePath)) {
+                $fileName = $this->generateFileName($account, $account->document_path, 'documento');
+                $zip->addFile($filePath, $folder . '/' . $fileName);
+                $fileCount++;
+            }
+        }
+        
+        // Verificar captured_image_path
+        if (!empty($account->captured_image_path) && $disk->exists($account->captured_image_path)) {
+            $filePath = storage_path('app/public/' . $account->captured_image_path);
+            if (file_exists($filePath)) {
+                $fileName = $this->generateFileName($account, $account->captured_image_path, 'imagem');
+                $zip->addFile($filePath, $folder . '/' . $fileName);
+                $fileCount++;
+            }
+        }
+    }
+
+    protected function generateFileName($account, string $originalPath, string $type): string
+    {
+        $date = $account->transaction_date->format('Y-m-d');
+        $description = Str::slug($account->description, '_');
+        $description = Str::limit($description, 50, '');
+        $extension = pathinfo($originalPath, PATHINFO_EXTENSION);
+        $id = $account->id;
+        
+        return sprintf('%s_%s_%s_%d.%s', $date, $description, $type, $id, $extension);
     }
 }
 

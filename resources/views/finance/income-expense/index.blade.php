@@ -96,6 +96,7 @@
                                         <th>Descrição</th>
                                         <th>Método</th>
                                         <th class="text-end">Valor</th>
+                                        <th class="text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -118,10 +119,29 @@
                                             <td class="text-end text-success fw-semibold">
                                                 R$ {{ number_format($income['amount'], 2, ',', '.') }}
                                             </td>
+                                            <td class="text-center">
+                                                @if(isset($income['id']) && (!isset($income['source_type']) || $income['source_type'] === 'manual'))
+                                                    @if(!empty($income['document_path']) || !empty($income['captured_image_path']))
+                                                        <a href="{{ route('financial.income-expense.download-receipt', $income['id']) }}" 
+                                                           class="btn btn-sm btn-outline-primary" 
+                                                           title="Download do comprovante">
+                                                            <i class="bi bi-download"></i>
+                                                        </a>
+                                                    @else
+                                                        <span class="text-muted" title="Sem comprovante">
+                                                            <i class="bi bi-file-x"></i>
+                                                        </span>
+                                                    @endif
+                                                @else
+                                                    <span class="text-muted" title="Comprovante não disponível para entradas agrupadas">
+                                                        <i class="bi bi-dash"></i>
+                                                    </span>
+                                                @endif
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="4" class="text-center text-muted py-4">
+                                            <td colspan="5" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox display-4 d-block mb-2"></i>
                                                 Nenhuma entrada registrada no período selecionado.
                                             </td>
@@ -131,7 +151,7 @@
                                 @if($incomeCollection->isNotEmpty())
                                 <tfoot class="table-success">
                                     <tr>
-                                        <th colspan="3" class="text-end">Total:</th>
+                                        <th colspan="4" class="text-end">Total:</th>
                                         <th class="text-end">R$ {{ number_format($incomeTotal, 2, ',', '.') }}</th>
                                     </tr>
                                 </tfoot>
@@ -226,6 +246,7 @@
                                         <th>Método</th>
                                         <th>Parcelas</th>
                                         <th class="text-end">Valor</th>
+                                        <th class="text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -248,10 +269,23 @@
                                             <td class="text-end text-danger fw-semibold">
                                                 R$ {{ number_format($expense['amount'], 2, ',', '.') }}
                                             </td>
+                                            <td class="text-center">
+                                                @if(!empty($expense['document_path']) || !empty($expense['captured_image_path']))
+                                                    <a href="{{ route('financial.income-expense.download-receipt', $expense['id']) }}" 
+                                                       class="btn btn-sm btn-outline-primary" 
+                                                       title="Download do comprovante">
+                                                        <i class="bi bi-download"></i>
+                                                    </a>
+                                                @else
+                                                    <span class="text-muted" title="Sem comprovante">
+                                                        <i class="bi bi-file-x"></i>
+                                                    </span>
+                                                @endif
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="text-center text-muted py-4">
+                                            <td colspan="6" class="text-center text-muted py-4">
                                                 <i class="bi bi-inbox display-4 d-block mb-2"></i>
                                                 Nenhuma saída registrada no período selecionado.
                                             </td>
@@ -261,7 +295,7 @@
                                 @if($expenseCollection->isNotEmpty())
                                 <tfoot class="table-danger">
                                     <tr>
-                                        <th colspan="4" class="text-end">Total:</th>
+                                        <th colspan="5" class="text-end">Total:</th>
                                         <th class="text-end">R$ {{ number_format($expenseTotal, 2, ',', '.') }}</th>
                                     </tr>
                                 </tfoot>
