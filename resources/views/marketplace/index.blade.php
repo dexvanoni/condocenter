@@ -314,7 +314,7 @@
                     </div>
 
                     <div>
-                        <h6 class="text-muted text-uppercase small fw-semibold mb-2">Imagens</h6>
+                        <h6 class="text-muted text-uppercase small fw-semibold mb-2">Imagens (clique na foto para ampliar)</h6>
                         <div id="modalItemImages" class="d-flex flex-wrap gap-2" data-storage-base="{{ asset('storage') }}">
                             <span class="text-muted">Nenhuma imagem enviada.</span>
                         </div>

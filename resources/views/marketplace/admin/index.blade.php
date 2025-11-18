@@ -321,7 +321,7 @@ $queryString = request()->getQueryString();
                     <p class="text-muted" id="viewItemDescription"></p>
                 </div>
                 <div>
-                    <h6 class="text-muted text-uppercase small fw-semibold mb-2">Imagens</h6>
+                    <h6 class="text-muted text-uppercase small fw-semibold mb-2">Imagens (clique na foto para ampliar)</h6>
                     <div id="viewItemImages" class="d-flex flex-wrap gap-2" data-storage-base="{{ asset('storage') }}">
                         <span class="text-muted">Nenhuma imagem enviada.</span>
                     </div>
