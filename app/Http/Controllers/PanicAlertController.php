@@ -154,17 +154,82 @@ class PanicAlertController extends Controller
     {
         $user = Auth::user();
         
-        $activeAlerts = PanicAlert::active()
-            ->forCondominium($user->condominium_id)
+        if (!$user) {
+            Log::warning('Tentativa de verificar alertas sem usuário autenticado');
+            return response()->json([
+                'has_active_alerts' => false,
+                'alerts' => [],
+                'alert_count' => 0,
+                'error' => 'Usuário não autenticado'
+            ], 401);
+        }
+        
+        Log::info('Verificando alertas ativos', [
+            'user_id' => $user->id,
+            'condominium_id' => $user->condominium_id,
+            'user_name' => $user->name
+        ]);
+        
+        // Verificar todos os alertas com status 'active' primeiro (para debug)
+        $allActiveAlerts = PanicAlert::where('status', 'active')->get();
+        Log::info('Total de alertas ativos no sistema', [
+            'count' => $allActiveAlerts->count(),
+            'alerts' => $allActiveAlerts->map(function($alert) {
+                return [
+                    'id' => $alert->id,
+                    'condominium_id' => $alert->condominium_id,
+                    'status' => $alert->status
+                ];
+            })->toArray()
+        ]);
+        
+        // Buscar alertas ativos do condomínio do usuário
+        $activeAlerts = PanicAlert::where('status', 'active')
+            ->where('condominium_id', $user->condominium_id)
             ->with(['user', 'condominium'])
             ->orderBy('created_at', 'desc')
             ->get();
+        
+        // Debug: Verificar se o alerta id=4 está sendo encontrado
+        $alert4 = PanicAlert::find(4);
+        if ($alert4) {
+            Log::info('Alerta ID=4 encontrado', [
+                'id' => $alert4->id,
+                'status' => $alert4->status,
+                'condominium_id' => $alert4->condominium_id,
+                'user_condominium_id' => $user->condominium_id,
+                'matches' => $alert4->condominium_id == $user->condominium_id && $alert4->status == 'active'
+            ]);
+        } else {
+            Log::warning('Alerta ID=4 não encontrado no banco de dados');
+        }
+        
+        Log::info('Alertas ativos encontrados para o condomínio', [
+            'condominium_id' => $user->condominium_id,
+            'count' => $activeAlerts->count(),
+            'alerts' => $activeAlerts->map(function($alert) {
+                return [
+                    'id' => $alert->id,
+                    'title' => $alert->title,
+                    'status' => $alert->status,
+                    'condominium_id' => $alert->condominium_id
+                ];
+            })->toArray()
+        ]);
 
-        return response()->json([
+        $response = [
             'has_active_alerts' => $activeAlerts->count() > 0,
             'alerts' => $activeAlerts,
-            'alert_count' => $activeAlerts->count()
-        ]);
+            'alert_count' => $activeAlerts->count(),
+            'debug' => [
+                'user_condominium_id' => $user->condominium_id,
+                'total_active_in_system' => $allActiveAlerts->count()
+            ]
+        ];
+        
+        Log::info('Resposta da verificação de alertas', $response);
+
+        return response()->json($response);
     }
 
     /**
@@ -417,5 +482,101 @@ class PanicAlertController extends Controller
         $html = view('panic-alerts.details', compact('alert'))->render();
         
         return response()->json(['html' => $html]);
+    }
+
+    /**
+     * Exibe a tela de alerta de pânico ativo
+     */
+    public function activeAlert()
+    {
+        $user = Auth::user();
+        
+        if (!$user) {
+            Log::warning('Tentativa de acessar tela de alerta ativo sem usuário autenticado');
+            return redirect()->route('login');
+        }
+        
+        Log::info('Buscando alerta ativo para exibir', [
+            'user_id' => $user->id,
+            'condominium_id' => $user->condominium_id,
+            'user_name' => $user->name
+        ]);
+        
+        // Verificar todos os alertas com status 'active' primeiro (para debug)
+        $allActiveAlerts = PanicAlert::where('status', 'active')->get();
+        Log::info('Total de alertas ativos no sistema', [
+            'count' => $allActiveAlerts->count(),
+            'alerts' => $allActiveAlerts->map(function($alert) {
+                return [
+                    'id' => $alert->id,
+                    'condominium_id' => $alert->condominium_id,
+                    'status' => $alert->status,
+                    'title' => $alert->title
+                ];
+            })->toArray()
+        ]);
+        
+        $activeAlert = PanicAlert::active()
+            ->forCondominium($user->condominium_id)
+            ->with(['user', 'condominium'])
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        Log::info('Alerta ativo encontrado para o condomínio', [
+            'condominium_id' => $user->condominium_id,
+            'alert_found' => $activeAlert ? true : false,
+            'alert_id' => $activeAlert ? $activeAlert->id : null,
+            'alert_status' => $activeAlert ? $activeAlert->status : null
+        ]);
+
+        // Se não houver alerta ativo, redirecionar para dashboard
+        if (!$activeAlert) {
+            Log::warning('Nenhum alerta ativo encontrado para o condomínio', [
+                'condominium_id' => $user->condominium_id,
+                'total_active_in_system' => $allActiveAlerts->count()
+            ]);
+            return redirect()->route('dashboard')->with('info', 'Não há alertas de pânico ativos no momento.');
+        }
+
+        Log::info('Exibindo tela de alerta ativo', [
+            'alert_id' => $activeAlert->id,
+            'alert_title' => $activeAlert->title,
+            'alert_status' => $activeAlert->status
+        ]);
+
+        return view('panic-alerts.active', compact('activeAlert'));
+    }
+
+    /**
+     * Confirma que o usuário está ciente do alerta
+     */
+    public function confirmAware($id)
+    {
+        $user = Auth::user();
+        
+        $alert = PanicAlert::findOrFail($id);
+        
+        // Verificar se o alerta pertence ao condomínio do usuário
+        if ($alert->condominium_id !== $user->condominium_id) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        // Verificar se o alerta ainda está ativo
+        if (!$alert->isActive()) {
+            return response()->json(['error' => 'Este alerta já foi resolvido'], 400);
+        }
+
+        // Apenas registrar que o usuário está ciente (não resolve o alerta)
+        // O alerta continua ativo para outros usuários
+        Log::info('Usuário confirmou estar ciente do alerta', [
+            'alert_id' => $alert->id,
+            'user_id' => $user->id,
+            'user_name' => $user->name
+        ]);
+
+        return response()->json([
+            'message' => 'Você confirmou estar ciente do alerta. O alerta continua ativo para outros moradores.',
+            'alert_id' => $alert->id
+        ]);
     }
 }

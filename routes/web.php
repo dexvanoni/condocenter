@@ -51,7 +51,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::prefix('panic')->name('panic.')->group(function () {
         Route::post('/send', [\App\Http\Controllers\PanicAlertController::class, 'send'])->name('send');
         Route::get('/check', [\App\Http\Controllers\PanicAlertController::class, 'checkActiveAlerts'])->name('check');
+        Route::get('/active', [\App\Http\Controllers\PanicAlertController::class, 'activeAlert'])->name('active');
         Route::post('/resolve/{id}', [\App\Http\Controllers\PanicAlertController::class, 'resolve'])->name('resolve');
+        Route::post('/confirm/{id}', [\App\Http\Controllers\PanicAlertController::class, 'confirmAware'])->name('confirm');
     });
     
     // Financeiro

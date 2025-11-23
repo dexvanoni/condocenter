@@ -22,6 +22,475 @@
 
     @stack('styles')
     
+    <!-- Função openPanicModal - Deve estar disponível imediatamente -->
+    <script>
+        // Definir openPanicModal no escopo global ANTES de qualquer outro script
+        window.openPanicModal = function() {
+            const modalElement = document.getElementById('panicModal');
+            if (!modalElement) {
+                console.error('Modal panicModal não encontrado');
+                alert('Erro: Modal de pânico não encontrado. Por favor, recarregue a página.');
+                return;
+            }
+            
+            // Função auxiliar para resetar o modal
+            function resetModal() {
+                const step1 = document.getElementById('panicStep1');
+                const step2 = document.getElementById('panicStep2');
+                const backButton = document.getElementById('backButton');
+                
+                if (step1) step1.style.display = 'block';
+                if (step2) step2.style.display = 'none';
+                if (backButton) backButton.style.display = 'none';
+                
+                // Resetar tipo selecionado se a variável existir
+                if (typeof window.selectedEmergencyType !== 'undefined') {
+                    window.selectedEmergencyType = '';
+                }
+                if (typeof window.isSendingPanicAlert !== 'undefined') {
+                    window.isSendingPanicAlert = false;
+                }
+                
+                // Anexar event listeners aos botões de emergência quando o modal for aberto
+                setTimeout(function() {
+                    const emergencyButtons = document.querySelectorAll('.emergency-btn');
+                    console.log('Anexando listeners a', emergencyButtons.length, 'botões de emergência');
+                    console.log('window.selectEmergencyType disponível?', typeof window.selectEmergencyType);
+                    
+                    emergencyButtons.forEach(button => {
+                        // Remover listeners anteriores para evitar duplicação
+                        const newButton = button.cloneNode(true);
+                        button.parentNode.replaceChild(newButton, button);
+                        
+                        // Adicionar novo listener
+                        newButton.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const type = this.getAttribute('data-type');
+                            console.log('Botão clicado no resetModal, tipo:', type);
+                            console.log('window.selectEmergencyType:', typeof window.selectEmergencyType);
+                            
+                            if (type) {
+                                if (typeof window.selectEmergencyType === 'function') {
+                                    console.log('Chamando window.selectEmergencyType');
+                                    window.selectEmergencyType(type);
+                                } else if (typeof selectEmergencyType === 'function') {
+                                    console.log('Chamando selectEmergencyType (sem window)');
+                                    selectEmergencyType(type);
+                                } else {
+                                    console.error('Função selectEmergencyType não encontrada');
+                                    console.error('Tentando recarregar...');
+                                    // Tentar novamente após um pequeno delay
+                                    setTimeout(function() {
+                                        if (typeof window.selectEmergencyType === 'function') {
+                                            window.selectEmergencyType(type);
+                                        } else {
+                                            alert('Erro: Função não encontrada. Recarregue a página.');
+                                        }
+                                    }, 100);
+                                }
+                            }
+                        });
+                    });
+                }, 200);
+            }
+            
+            try {
+                // Aguardar um pouco para garantir que o Bootstrap esteja carregado
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const modal = new bootstrap.Modal(modalElement);
+                    modal.show();
+                    // Resetar modal após um pequeno delay
+                    setTimeout(resetModal, 100);
+                } else {
+                    // Fallback se Bootstrap não estiver carregado ainda
+                    setTimeout(function() {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                            const modal = new bootstrap.Modal(modalElement);
+                            modal.show();
+                            resetModal();
+                        } else {
+                            // Fallback manual
+                            modalElement.style.display = 'block';
+                            modalElement.classList.add('show');
+                            document.body.classList.add('modal-open');
+                            resetModal();
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Erro ao abrir modal de pânico:', error);
+                alert('Erro ao abrir modal de pânico. Por favor, recarregue a página.');
+            }
+        };
+        
+        // Também definir como função global direta para compatibilidade
+        function openPanicModal() {
+            if (typeof window.openPanicModal === 'function') {
+                window.openPanicModal();
+            } else {
+                console.error('window.openPanicModal não está disponível');
+                alert('Erro: Função de pânico não carregada. Por favor, recarregue a página.');
+            }
+        }
+        
+        // Garantir que esteja disponível no escopo global também
+        window.openPanicModal = window.openPanicModal || function() {
+            console.error('openPanicModal não foi carregado corretamente');
+            alert('Erro: Função de pânico não carregada. Por favor, recarregue a página.');
+        };
+        
+        // Definir selectEmergencyType no escopo global ANTES de qualquer outro script
+        window.selectEmergencyType = function(type) {
+            if (!type) {
+                console.error('Tipo de emergência não fornecido');
+                return;
+            }
+            
+            console.log('selectEmergencyType chamado com tipo:', type);
+            
+            // Atualizar variável global
+            window.selectedEmergencyType = type;
+            
+            // Mapear tipos para exibição
+            const typeMap = {
+                'fire': '🔥 INCÊNDIO',
+                'robbery': '🚨 ROUBO/FURTO',
+                'police': '🚓 CHAMEM A POLÍCIA',
+                'ambulance': '🚑 CHAMEM UMA AMBULÂNCIA',
+                'domestic_violence': '⚠️ VIOLÊNCIA DOMÉSTICA',
+                'lost_child': '👶 CRIANÇA PERDIDA',
+                'flood': '🌊 ENCHENTE'
+            };
+            
+            const selectedTypeElement = document.getElementById('selectedEmergencyType');
+            const step1 = document.getElementById('panicStep1');
+            const step2 = document.getElementById('panicStep2');
+            const backButton = document.getElementById('backButton');
+            
+            if (selectedTypeElement) {
+                selectedTypeElement.textContent = typeMap[type] || type.toUpperCase();
+            } else {
+                console.error('Elemento selectedEmergencyType não encontrado');
+            }
+            
+            if (step1) step1.style.display = 'none';
+            if (step2) step2.style.display = 'block';
+            if (backButton) backButton.style.display = 'inline-block';
+            
+            // Gerar código de confirmação quando o step2 for mostrado
+            generatePanicConfirmationCode();
+            
+            // Configurar input e botão
+            setTimeout(function() {
+                const codeInput = document.getElementById('panicCodeInput');
+                const confirmButton = document.getElementById('confirmPanicButton');
+                const errorMessage = document.getElementById('panicCodeError');
+                
+                if (codeInput) {
+                    codeInput.value = '';
+                    codeInput.classList.remove('is-invalid');
+                    codeInput.focus();
+                    
+                    // Adicionar listener para habilitar botão quando código for digitado
+                    codeInput.addEventListener('input', function() {
+                        const code = this.value.trim();
+                        if (code.length === 2 && /^\d{2}$/.test(code)) {
+                            if (confirmButton) confirmButton.disabled = false;
+                            if (errorMessage) errorMessage.style.display = 'none';
+                        } else {
+                            if (confirmButton) confirmButton.disabled = true;
+                        }
+                    });
+                    
+                    // Permitir Enter para confirmar
+                    codeInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter' && confirmButton && !confirmButton.disabled) {
+                            validateAndSendPanicAlert();
+                        }
+                    });
+                }
+                
+                if (confirmButton) {
+                    confirmButton.disabled = true;
+                }
+                if (errorMessage) {
+                    errorMessage.style.display = 'none';
+                }
+            }, 200);
+        };
+        
+        // Função wrapper para compatibilidade
+        function selectEmergencyType(type) {
+            if (typeof window.selectEmergencyType === 'function') {
+                window.selectEmergencyType(type);
+            } else {
+                console.error('window.selectEmergencyType não está disponível');
+                alert('Erro: Função de seleção não carregada. Recarregue a página.');
+            }
+        }
+        
+        // Variáveis globais para o sistema de pânico
+        window.panicConfirmationCode = null;
+        window.selectedEmergencyType = '';
+        window.isSendingPanicAlert = false;
+        
+        // Função para gerar código de confirmação do pânico
+        window.generatePanicConfirmationCode = function() {
+            // Gerar código aleatório de 2 números (00-99)
+            window.panicConfirmationCode = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+            const codeDisplay = document.getElementById('panicCodeDisplay');
+            const codeContainer = document.querySelector('.panic-confirmation-code-container');
+            
+            if (codeDisplay) {
+                codeDisplay.textContent = window.panicConfirmationCode;
+                codeDisplay.style.display = 'inline-block';
+            }
+            
+            if (codeContainer) {
+                codeContainer.style.display = 'block';
+                codeContainer.style.visibility = 'visible';
+                codeContainer.style.opacity = '1';
+            }
+            
+            console.log('Código de confirmação de pânico gerado:', window.panicConfirmationCode);
+        };
+        
+        // Função para validar código e enviar alerta de pânico
+        window.validateAndSendPanicAlert = function() {
+            const codeInput = document.getElementById('panicCodeInput');
+            const errorMessage = document.getElementById('panicCodeError');
+            const confirmButton = document.getElementById('confirmPanicButton');
+            const codeContainer = document.querySelector('.panic-confirmation-code-container');
+            
+            if (!codeInput || !window.panicConfirmationCode) {
+                console.error('Elementos não encontrados ou código não gerado');
+                return;
+            }
+            
+            const enteredCode = codeInput.value.trim();
+            
+            if (enteredCode !== window.panicConfirmationCode) {
+                // Código incorreto
+                if (errorMessage) {
+                    errorMessage.style.display = 'block';
+                }
+                if (codeInput) {
+                    codeInput.classList.add('is-invalid');
+                    codeInput.value = '';
+                    codeInput.focus();
+                }
+                if (confirmButton) {
+                    confirmButton.disabled = true;
+                }
+                
+                // Gerar novo código após erro
+                window.generatePanicConfirmationCode();
+                return;
+            }
+            
+            // Código correto - ocultar código e input, enviar alerta
+            if (codeInput) {
+                codeInput.classList.remove('is-invalid');
+                codeInput.disabled = true; // Desabilitar input durante envio
+            }
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
+            if (confirmButton) {
+                confirmButton.disabled = true;
+                confirmButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+            }
+            
+            // Ocultar código e input após confirmação correta
+            setTimeout(function() {
+                if (codeContainer) {
+                    codeContainer.style.display = 'none';
+                    codeContainer.style.visibility = 'hidden';
+                    codeContainer.style.opacity = '0';
+                }
+                if (codeInput) {
+                    codeInput.style.display = 'none';
+                    codeInput.style.visibility = 'hidden';
+                    codeInput.style.opacity = '0';
+                }
+                const codeDisplay = document.getElementById('panicCodeDisplay');
+                if (codeDisplay) {
+                    codeDisplay.style.display = 'none';
+                    codeDisplay.style.visibility = 'hidden';
+                    codeDisplay.style.opacity = '0';
+                }
+            }, 100);
+            
+            // Enviar alerta
+            if (typeof window.confirmPanicAlert === 'function') {
+                window.confirmPanicAlert();
+            } else {
+                console.error('window.confirmPanicAlert não está disponível');
+                alert('Erro: Função de confirmação não carregada. Recarregue a página.');
+            }
+        };
+        
+        // Função para confirmar e enviar alerta de pânico - Definida no <head> para disponibilidade global
+        window.confirmPanicAlert = function() {
+            console.log('window.confirmPanicAlert chamada');
+            // Verificar se já está enviando um alerta
+            if (window.isSendingPanicAlert) {
+                console.log('Alerta de pânico já está sendo enviado, ignorando...');
+                return;
+            }
+
+            window.isSendingPanicAlert = true; // Marcar como enviando
+            const additionalInfo = document.getElementById('additionalInfo') ? document.getElementById('additionalInfo').value : '';
+            
+            // Usar a variável global selectedEmergencyType
+            const alertType = window.selectedEmergencyType || selectedEmergencyType;
+            
+            if (!alertType) {
+                alert('Erro: Tipo de emergência não selecionado');
+                window.isSendingPanicAlert = false;
+                return;
+            }
+
+            fetch('{{ route("panic.send") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    alert_type: alertType,
+                    additional_info: additionalInfo
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert('Alerta de pânico enviado! Todos os moradores foram notificados.');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('panicModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    // Verificar alertas ativos após envio
+                    try {
+                        if (typeof checkForActiveAlerts === 'function') {
+                            checkForActiveAlerts();
+                        } else {
+                            // Fallback: redirecionar diretamente para a página de alertas ativos
+                            window.location.href = '{{ route("panic.active") }}';
+                        }
+                    } catch (e) {
+                        console.error('Erro ao verificar alertas ativos:', e);
+                        // Fallback: redirecionar diretamente
+                        window.location.href = '{{ route("panic.active") }}';
+                    }
+                } else {
+                    alert('Erro ao enviar alerta: ' + (data.error || 'Erro desconhecido'));
+                }
+                
+                // Resetar flag após processamento (sucesso ou erro)
+                window.isSendingPanicAlert = false;
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                alert('Erro ao enviar alerta de pânico');
+                
+                // Resetar flag em caso de erro
+                window.isSendingPanicAlert = false;
+            });
+        };
+        
+        // Debug: Verificar se a função está disponível
+        console.log('window.confirmPanicAlert definida?', typeof window.confirmPanicAlert);
+        
+        // Função para verificar alertas ativos - Definida no <head> para disponibilidade global
+        window.checkForActiveAlerts = function() {
+            // Não verificar se já estamos na página de alerta ativo
+            const currentPath = window.location.pathname;
+            const activeAlertPath = '{{ route("panic.active") }}';
+            
+            if (currentPath === activeAlertPath || currentPath.includes('/panic/active')) {
+                console.log('Já está na página de alerta ativo, não verificar');
+                return;
+            }
+
+            console.log('Verificando alertas ativos...', {
+                'current_path': currentPath,
+                'active_alert_path': activeAlertPath,
+                'timestamp': new Date().toISOString()
+            });
+            
+            fetch('{{ route("panic.check") }}', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                console.log('Resposta recebida da rota check:', response.status, response.statusText);
+                if (!response.ok) {
+                    throw new Error('Erro na resposta do servidor: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Resposta da verificação de alertas:', data);
+                if (data.has_active_alerts) {
+                    console.log('Alerta ativo detectado! Redirecionando para:', '{{ route("panic.active") }}');
+                    // Redirecionar para a tela de alerta ativo ao invés de mostrar modal
+                    window.location.href = '{{ route("panic.active") }}';
+                } else {
+                    // Não há alertas ativos, não fazer nada
+                    console.log('Nenhum alerta ativo encontrado');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao verificar alertas:', error);
+                console.error('Stack trace:', error.stack);
+            });
+        };
+        
+        // Executar verificação imediatamente após definir a função (se já estiver no dashboard)
+        if (window.location.pathname === '/dashboard' || window.location.pathname.includes('/dashboard')) {
+            console.log('Página do dashboard detectada, executando verificação imediata...');
+            setTimeout(function() {
+                if (typeof window.checkForActiveAlerts === 'function') {
+                    window.checkForActiveAlerts();
+                }
+            }, 100);
+        }
+        
+        // Função wrapper para compatibilidade
+        function generatePanicConfirmationCode() {
+            if (typeof window.generatePanicConfirmationCode === 'function') {
+                window.generatePanicConfirmationCode();
+            }
+        }
+        
+        function validateAndSendPanicAlert() {
+            if (typeof window.validateAndSendPanicAlert === 'function') {
+                window.validateAndSendPanicAlert();
+            }
+        }
+        
+        // Função wrapper para compatibilidade
+        function confirmPanicAlert() {
+            if (typeof window.confirmPanicAlert === 'function') {
+                window.confirmPanicAlert();
+            } else {
+                console.error('window.confirmPanicAlert não está disponível');
+                alert('Erro: Função de confirmação não carregada. Recarregue a página.');
+            }
+        }
+        
+        console.log('openPanicModal definido:', typeof window.openPanicModal, typeof openPanicModal);
+        console.log('selectEmergencyType definido:', typeof window.selectEmergencyType, typeof selectEmergencyType);
+        console.log('generatePanicConfirmationCode definido:', typeof window.generatePanicConfirmationCode);
+    </script>
+    
     <!-- Custom Styles -->
     <style>
         /* User Profile Hover Effects */
@@ -1371,6 +1840,7 @@
 
     <script>
         // Mobile sidebar já funciona com Bootstrap collapse
+        // openPanicModal já está definido no <head> para garantir disponibilidade imediata
 
         // Switch profile
         function switchProfile(roleName) {
@@ -1422,49 +1892,98 @@
         let selectedEmergencyType = '';
         let isSendingPanicAlert = false; // Flag para prevenir múltiplos envios
         
-        function openPanicModal() {
-            const modal = new bootstrap.Modal(document.getElementById('panicModal'));
-            modal.show();
-            resetPanicModal();
-        }
+        // openPanicModal já está definido no <head> - não redefinir aqui
+        // Apenas garantir que resetPanicModal esteja disponível
         
         function resetPanicModal() {
             document.getElementById('panicStep1').style.display = 'block';
             document.getElementById('panicStep2').style.display = 'none';
             document.getElementById('backButton').style.display = 'none';
+            
+            // Resetar variáveis globais
+            if (typeof window.selectedEmergencyType !== 'undefined') {
+                window.selectedEmergencyType = '';
+            }
             selectedEmergencyType = '';
-            isSendingPanicAlert = false; // Resetar flag de envio
-            // resetSlideButton(); // Removido temporariamente para evitar erro
+            
+            if (typeof window.isSendingPanicAlert !== 'undefined') {
+                window.isSendingPanicAlert = false;
+            }
+            isSendingPanicAlert = false;
+            
+            // Limpar código de confirmação
+            window.panicConfirmationCode = null;
+            
+            // Mostrar novamente o código e input (caso tenham sido ocultados)
+            const codeContainer = document.querySelector('.panic-confirmation-code-container');
+            const codeInput = document.getElementById('panicCodeInput');
+            const codeDisplay = document.getElementById('panicCodeDisplay');
+            
+            if (codeContainer) {
+                codeContainer.style.display = 'block';
+            }
+            if (codeInput) {
+                codeInput.style.display = 'block';
+                codeInput.value = '';
+                codeInput.classList.remove('is-invalid');
+            }
+            if (codeDisplay) {
+                codeDisplay.style.display = 'inline-block';
+            }
         }
         
         function goBackToStep1() {
             document.getElementById('panicStep1').style.display = 'block';
             document.getElementById('panicStep2').style.display = 'none';
             document.getElementById('backButton').style.display = 'none';
-            // resetSlideButton(); // Removido temporariamente para evitar erro
+            
+            // Limpar código de confirmação
+            window.panicConfirmationCode = null;
+            
+            // Mostrar novamente o código e input (caso tenham sido ocultados)
+            const codeContainer = document.querySelector('.panic-confirmation-code-container');
+            const codeInput = document.getElementById('panicCodeInput');
+            const codeDisplay = document.getElementById('panicCodeDisplay');
+            const confirmButton = document.getElementById('confirmPanicButton');
+            const errorMessage = document.getElementById('panicCodeError');
+            
+            if (codeContainer) {
+                codeContainer.style.display = 'block';
+                codeContainer.style.visibility = 'visible';
+                codeContainer.style.opacity = '1';
+            }
+            if (codeInput) {
+                codeInput.style.display = 'block';
+                codeInput.style.visibility = 'visible';
+                codeInput.style.opacity = '1';
+                codeInput.value = '';
+                codeInput.disabled = false;
+                codeInput.classList.remove('is-invalid');
+            }
+            if (codeDisplay) {
+                codeDisplay.style.display = 'inline-block';
+                codeDisplay.style.visibility = 'visible';
+                codeDisplay.style.opacity = '1';
+            }
+            if (confirmButton) {
+                confirmButton.disabled = true;
+                confirmButton.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar Alerta';
+            }
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
         }
         
-        function selectEmergencyType(type) {
-            selectedEmergencyType = type;
-            
-            // Mapear tipos para exibição
-            const typeMap = {
-                'fire': '🔥 INCÊNDIO',
-                'robbery': '🚨 ROUBO/FURTO',
-                'police': '🚓 CHAMEM A POLÍCIA',
-                'ambulance': '🚑 CHAMEM UMA AMBULÂNCIA',
-                'domestic_violence': '⚠️ VIOLÊNCIA DOMÉSTICA',
-                'lost_child': '👶 CRIANÇA PERDIDA',
-                'flood': '🌊 ENCHENTE'
-            };
-            
-            document.getElementById('selectedEmergencyType').textContent = typeMap[type];
-            document.getElementById('panicStep1').style.display = 'none';
-            document.getElementById('panicStep2').style.display = 'block';
-            document.getElementById('backButton').style.display = 'inline-block';
-            
-            // Inicializar slide button
-            initSlideButton();
+        // selectEmergencyType já está definido no <head> - não redefinir aqui
+        // Apenas garantir que a função wrapper esteja disponível
+        if (typeof selectEmergencyType === 'undefined') {
+            function selectEmergencyType(type) {
+                if (typeof window.selectEmergencyType === 'function') {
+                    window.selectEmergencyType(type);
+                } else {
+                    console.error('window.selectEmergencyType não está disponível');
+                }
+            }
         }
         
         function initSlideButton() {
@@ -1516,7 +2035,13 @@
                     
                     // Confirmar automaticamente após um pequeno delay
                     setTimeout(() => {
-                    confirmPanicAlert();
+                        if (typeof window.confirmPanicAlert === 'function') {
+                            window.confirmPanicAlert();
+                        } else if (typeof confirmPanicAlert === 'function') {
+                            confirmPanicAlert();
+                        } else {
+                            console.error('confirmPanicAlert não está disponível');
+                        }
                     }, 500);
                 } else {
                     slideText.textContent = 'Deslize para confirmar o envio';
@@ -1561,71 +2086,35 @@
             document.addEventListener('touchend', endDrag);
         }
 
-        function confirmPanicAlert() {
-            // Verificar se já está enviando um alerta
-            if (isSendingPanicAlert) {
-                console.log('Alerta de pânico já está sendo enviado, ignorando...');
-                return;
-            }
-
-            isSendingPanicAlert = true; // Marcar como enviando
-            const additionalInfo = document.getElementById('additionalInfo').value;
-
-            fetch('{{ route("panic.send") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({
-                    alert_type: selectedEmergencyType,
-                    additional_info: additionalInfo
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message) {
-                    alert('Alerta de pânico enviado! Todos os moradores foram notificados.');
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('panicModal'));
-                    modal.hide();
-                    checkForActiveAlerts();
+        // confirmPanicAlert já está definida no <head>, não precisa redefinir aqui
+        // Apenas garantir que a função wrapper esteja disponível
+        if (typeof confirmPanicAlert === 'undefined') {
+            function confirmPanicAlert() {
+                if (typeof window.confirmPanicAlert === 'function') {
+                    window.confirmPanicAlert();
                 } else {
-                    alert('Erro ao enviar alerta: ' + (data.error || 'Erro desconhecido'));
+                    console.error('window.confirmPanicAlert não está disponível');
+                    alert('Erro: Função de confirmação não carregada. Recarregue a página.');
                 }
-                
-                // Resetar flag após processamento (sucesso ou erro)
-                isSendingPanicAlert = false;
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao enviar alerta de pânico');
-                
-                // Resetar flag em caso de erro
-                isSendingPanicAlert = false;
-            });
+            }
         }
         
-        function checkForActiveAlerts() {
-            fetch('{{ route("panic.check") }}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.has_active_alerts) {
-                    showPanicAlert(data.alerts[0]);
+        // checkForActiveAlerts já está definida no <head>, não precisa redefinir aqui
+        // Apenas garantir que a função wrapper esteja disponível no escopo do DOMContentLoaded
+        if (typeof checkForActiveAlerts === 'undefined') {
+            function checkForActiveAlerts() {
+                if (typeof window.checkForActiveAlerts === 'function') {
+                    window.checkForActiveAlerts();
                 } else {
-                    hidePanicAlert();
+                    console.error('window.checkForActiveAlerts não está disponível');
                 }
-            })
-            .catch(error => {
-                console.error('Erro ao verificar alertas:', error);
-            });
+            }
         }
         
         function showPanicAlert(alert) {
-            // Ativar modo de pânico no dashboard
-            document.body.classList.add('panic-mode');
-            
-            // Mostrar modal de notificação global
-            showGlobalPanicNotification(alert);
+            // Esta função não é mais usada, mas mantida para compatibilidade
+            // Redirecionar para a tela de alerta ativo
+            window.location.href = '{{ route("panic.active") }}';
         }
         
         function closePanicModals() {
@@ -1844,7 +2333,6 @@
             // Atualizar texto do modal baseado na ação com verificações de segurança
             const title = document.getElementById('confirmationTitle');
             const description = document.getElementById('confirmationDescription');
-            const slideText = document.getElementById('confirmationSlideText');
             
             if (title) {
                 if (action === 'ciente') {
@@ -1866,24 +2354,153 @@
                 console.error('Elemento confirmationDescription não encontrado');
             }
             
-            if (slideText) {
-                if (action === 'ciente') {
-                    slideText.textContent = 'Deslize para confirmar que está CIENTE';
-                } else {
-                    slideText.textContent = 'Deslize para TOMAR PROVIDÊNCIA';
-                }
-            } else {
-                console.error('Elemento confirmationSlideText não encontrado');
+            // Garantir que os elementos de código estejam visíveis
+            const codeContainer = document.querySelector('.confirmation-code-container');
+            const codeDisplay = document.getElementById('confirmationCodeDisplay');
+            const codeInput = document.getElementById('confirmationCodeInput');
+            const confirmButton = document.getElementById('confirmActionButton');
+            const errorMessage = document.getElementById('confirmationCodeError');
+            
+            // Forçar visibilidade dos elementos
+            if (codeContainer) {
+                codeContainer.style.display = 'block';
+                codeContainer.style.visibility = 'visible';
+                codeContainer.style.opacity = '1';
             }
             
-            // Resetar slide button
-            resetConfirmationSlideButton();
+            if (codeDisplay) {
+                codeDisplay.style.display = 'inline-block';
+                codeDisplay.style.visibility = 'visible';
+                codeDisplay.style.opacity = '1';
+            }
+            
+            if (codeInput) {
+                codeInput.style.display = 'block';
+                codeInput.style.visibility = 'visible';
+                codeInput.style.opacity = '1';
+            }
+            
+            // Gerar código aleatório de 2 números
+            generateConfirmationCode();
+            
+            // Resetar input e botão
+            if (codeInput) {
+                codeInput.value = '';
+                codeInput.classList.remove('is-invalid');
+                
+                // Remover listeners anteriores para evitar duplicação
+                const newInput = codeInput.cloneNode(true);
+                codeInput.parentNode.replaceChild(newInput, codeInput);
+                
+                // Garantir visibilidade do novo input
+                newInput.style.display = 'block';
+                newInput.style.visibility = 'visible';
+                newInput.style.opacity = '1';
+                
+                // Adicionar listener para habilitar botão quando código for digitado
+                newInput.addEventListener('input', function() {
+                    const code = this.value.trim();
+                    if (code.length === 2 && /^\d{2}$/.test(code)) {
+                        if (confirmButton) confirmButton.disabled = false;
+                        if (errorMessage) errorMessage.style.display = 'none';
+                    } else {
+                        if (confirmButton) confirmButton.disabled = true;
+                    }
+                });
+                
+                // Permitir Enter para confirmar
+                newInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && confirmButton && !confirmButton.disabled) {
+                        validateAndConfirmAction();
+                    }
+                });
+                
+                // Focar no input após o modal aparecer
+                setTimeout(() => {
+                    newInput.focus();
+                    // Garantir visibilidade novamente após o foco
+                    newInput.style.display = 'block';
+                    newInput.style.visibility = 'visible';
+                    newInput.style.opacity = '1';
+                }, 300);
+            }
+            
+            if (confirmButton) {
+                confirmButton.disabled = true;
+                confirmButton.style.display = 'block';
+                confirmButton.style.visibility = 'visible';
+            }
+            
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
+            
+            // Função para garantir visibilidade dos elementos
+            function ensureCodeElementsVisible() {
+                const codeContainer = document.querySelector('.confirmation-code-container');
+                const codeDisplay = document.getElementById('confirmationCodeDisplay');
+                const codeInput = document.getElementById('confirmationCodeInput');
+                const alertInfo = codeContainer ? codeContainer.querySelector('.alert-info') : null;
+                
+                if (codeContainer) {
+                    codeContainer.style.setProperty('display', 'block', 'important');
+                    codeContainer.style.setProperty('visibility', 'visible', 'important');
+                    codeContainer.style.setProperty('opacity', '1', 'important');
+                }
+                
+                if (alertInfo) {
+                    alertInfo.style.setProperty('display', 'block', 'important');
+                    alertInfo.style.setProperty('visibility', 'visible', 'important');
+                    alertInfo.style.setProperty('opacity', '1', 'important');
+                }
+                
+                if (codeDisplay) {
+                    codeDisplay.style.setProperty('display', 'inline-block', 'important');
+                    codeDisplay.style.setProperty('visibility', 'visible', 'important');
+                    codeDisplay.style.setProperty('opacity', '1', 'important');
+                }
+                
+                if (codeInput) {
+                    codeInput.style.setProperty('display', 'block', 'important');
+                    codeInput.style.setProperty('visibility', 'visible', 'important');
+                    codeInput.style.setProperty('opacity', '1', 'important');
+                }
+            }
+            
+            // Observer para monitorar mudanças e garantir visibilidade
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && 
+                        (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+                        ensureCodeElementsVisible();
+                    }
+                });
+            });
+            
+            // Observar mudanças no container e nos elementos
+            const codeContainer = document.querySelector('.confirmation-code-container');
+            if (codeContainer) {
+                observer.observe(codeContainer, {
+                    attributes: true,
+                    attributeFilter: ['style', 'class']
+                });
+            }
+            
+            // Garantir visibilidade após o modal ser exibido
+            modal.addEventListener('shown.bs.modal', function() {
+                ensureCodeElementsVisible();
+            });
             
             // Mostrar modal - com fallback
             try {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                     const bsModal = new bootstrap.Modal(modal);
                     bsModal.show();
+                    
+                    // Garantir visibilidade após um pequeno delay
+                    setTimeout(ensureCodeElementsVisible, 100);
+                    setTimeout(ensureCodeElementsVisible, 300);
+                    setTimeout(ensureCodeElementsVisible, 500);
                 } else {
                     // Fallback: mostrar modal manualmente
                     modal.style.display = 'block';
@@ -1914,8 +2531,118 @@
             }
         }
         
-        function confirmAction() {
+        // Variável global para armazenar o código de confirmação
+        let confirmationCode = null;
+        
+        function generateConfirmationCode() {
+            // Gerar código aleatório de 2 números (00-99)
+            confirmationCode = Math.floor(Math.random() * 100).toString().padStart(2, '0');
+            const codeDisplay = document.getElementById('confirmationCodeDisplay');
+            const codeContainer = document.querySelector('.confirmation-code-container');
+            
+            if (codeDisplay) {
+                codeDisplay.textContent = confirmationCode;
+                codeDisplay.style.display = 'inline-block'; // Garantir que está visível
+            }
+            
+            if (codeContainer) {
+                codeContainer.style.display = 'block'; // Garantir que o container está visível
+                codeContainer.style.visibility = 'visible';
+                codeContainer.style.opacity = '1';
+            }
+            
+            console.log('Código de confirmação gerado:', confirmationCode);
+        }
+        
+        function validateAndConfirmAction() {
+            const codeInput = document.getElementById('confirmationCodeInput');
+            const errorMessage = document.getElementById('confirmationCodeError');
+            const confirmButton = document.getElementById('confirmActionButton');
+            
+            if (!codeInput || !confirmationCode) {
+                console.error('Elementos não encontrados ou código não gerado');
+                return;
+            }
+            
+            const enteredCode = codeInput.value.trim();
+            
+            if (enteredCode !== confirmationCode) {
+                // Código incorreto
+                if (errorMessage) {
+                    errorMessage.style.display = 'block';
+                }
+                if (codeInput) {
+                    codeInput.classList.add('is-invalid');
+                    codeInput.value = '';
+                    codeInput.focus();
+                }
+                if (confirmButton) {
+                    confirmButton.disabled = true;
+                }
+                
+                // Gerar novo código após erro
+                generateConfirmationCode();
+                return;
+            }
+            
+            // Código correto - executar ação
+            if (codeInput) {
+                codeInput.classList.remove('is-invalid');
+            }
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
+            
+            // Executar a ação confirmada
+            confirmAction();
+        }
+        
+        function closeConfirmationModal() {
             const modal = document.getElementById('panicConfirmationModal');
+            if (!modal) return;
+            
+            try {
+                if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                    const bsModal = bootstrap.Modal.getInstance(modal);
+                    if (bsModal) {
+                        bsModal.hide();
+                    }
+                } else {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                    document.body.classList.remove('modal-open');
+                }
+            } catch (error) {
+                console.error('Erro ao fechar modal:', error);
+            }
+            
+            // Limpar código
+            confirmationCode = null;
+        }
+        
+        function confirmAction() {
+            // Verificar se estamos na página de alerta ativo
+            const currentPath = window.location.pathname;
+            const activeAlertPath = '{{ route("panic.active") }}';
+            
+            if (currentPath === activeAlertPath || currentPath.includes('/panic/active')) {
+                // Se estiver na página de alerta ativo, verificar qual ação
+                const modal = document.getElementById('panicConfirmationModal');
+                if (!modal) {
+                    // Se não houver modal, assumir que é "tomarei providência" (já que o slide foi deslizado)
+                    if (typeof handleTomareiProvidencia === 'function') {
+                        handleTomareiProvidencia();
+                        return;
+                    }
+                }
+            }
+            
+            const modal = document.getElementById('panicConfirmationModal');
+            if (!modal) {
+                console.error('Modal panicConfirmationModal não encontrado');
+                return;
+            }
+            
             const action = modal.dataset.action;
             
             if (action === 'ciente') {
@@ -1958,134 +2685,35 @@
             }
         }
         
-        function resetConfirmationSlideButton() {
-            const slideButton = document.getElementById('confirmationSlideButton');
-            const slideTrack = document.getElementById('confirmationSlideTrack');
-            const slideText = document.getElementById('confirmationSlideText');
-            
-            if (slideButton && slideTrack && slideText) {
-                slideButton.style.transform = 'translateX(0)';
-                slideButton.style.background = '#dc3545';
-                slideButton.innerHTML = '<i class="bi bi-arrow-right"></i>';
-                
-                // Resetar flag de processamento
-                slideButton.dataset.isProcessing = 'false';
-                
-                // Inicializar slide button
-                initConfirmationSlideButton();
-            } else {
-                console.error('Elementos do slide button não encontrados:', {
-                    slideButton: !!slideButton,
-                    slideTrack: !!slideTrack,
-                    slideText: !!slideText
-                });
-            }
-        }
+        // Funções do slide button removidas - agora usamos código de confirmação de 2 números
         
-        function initConfirmationSlideButton() {
-            const slideButton = document.getElementById('confirmationSlideButton');
-            const slideTrack = document.getElementById('confirmationSlideTrack');
-            const slideText = document.getElementById('confirmationSlideText');
+        function resolvePanicAlert() {
+            // Verificar se estamos na página de alerta ativo
+            const currentPath = window.location.pathname;
+            const activeAlertPath = '{{ route("panic.active") }}';
             
-            if (!slideButton || !slideTrack || !slideText) {
-                console.error('Elementos do slide button de confirmação não encontrados');
+            if (currentPath === activeAlertPath || currentPath.includes('/panic/active')) {
+                // Se estiver na página de alerta ativo, usar a função da página
+                if (typeof handleTomareiProvidencia === 'function') {
+                    handleTomareiProvidencia();
+                    return;
+                } else {
+                    console.error('Função handleTomareiProvidencia não encontrada na página de alerta ativo');
+                    return;
+                }
+            }
+            
+            const globalModal = document.getElementById('globalPanicNotificationModal');
+            if (!globalModal) {
+                console.error('Modal globalPanicNotificationModal não encontrado');
                 return;
             }
             
-            let isDragging = false;
-            let startX = 0;
-            let currentX = 0;
-
-            // Inicializar flag de processamento se não existir
-            if (!slideButton.dataset.isProcessing) {
-                slideButton.dataset.isProcessing = 'false';
-            }
-
-            function startDrag(e) {
-                isDragging = true;
-                startX = e.type === 'mousedown' ? e.clientX : e.touches[0].clientX;
-                slideButton.style.transition = 'none';
-                e.preventDefault();
-            }
-
-            function drag(e) {
-                if (!isDragging) return;
-                
-                // Prevenir scroll durante o drag no mobile
-                e.preventDefault();
-                
-                const clientX = e.type === 'mousemove' ? e.clientX : e.touches[0].clientX;
-                currentX = clientX - startX;
-                
-                const maxSlide = slideTrack.offsetWidth - slideButton.offsetWidth;
-                currentX = Math.max(0, Math.min(currentX, maxSlide));
-                
-                slideButton.style.transform = `translateX(${currentX}px)`;
-
-                // Verificar se chegou em 85% do slide (reduzido para facilitar no mobile)
-                if (currentX >= maxSlide * 0.85 && slideButton.dataset.isProcessing !== 'true') {
-                    slideButton.dataset.isProcessing = 'true'; // Marcar como processando
-                    slideText.textContent = 'Confirmação detectada!';
-                    slideButton.innerHTML = '<i class="bi bi-check"></i>';
-                    slideButton.style.background = '#28a745';
-                    
-                    // Confirmar automaticamente após um pequeno delay
-                    setTimeout(() => {
-                        confirmAction();
-                    }, 500);
-                } else {
-                    const action = document.getElementById('panicConfirmationModal').dataset.action;
-                    if (action === 'ciente') {
-                        slideText.textContent = 'Deslize para confirmar que está CIENTE';
-                    } else {
-                        slideText.textContent = 'Deslize para TOMAR PROVIDÊNCIA';
-                    }
-                    slideButton.innerHTML = '<i class="bi bi-arrow-right"></i>';
-                    slideButton.style.background = '#dc3545';
-                }
-            }
-            
-            function endDrag() {
-                if (!isDragging) return;
-                isDragging = false;
-                
-                const maxSlide = slideTrack.offsetWidth - slideButton.offsetWidth;
-                
-                if (currentX < maxSlide * 0.9) {
-                    // Voltar para o início
-                    slideButton.style.transition = 'transform 0.3s ease';
-                    slideButton.style.transform = 'translateX(0)';
-                    const action = document.getElementById('panicConfirmationModal').dataset.action;
-                    if (action === 'ciente') {
-                        slideText.textContent = 'Deslize para confirmar que está CIENTE';
-                    } else {
-                        slideText.textContent = 'Deslize para TOMAR PROVIDÊNCIA';
-                    }
-                    slideButton.innerHTML = '<i class="bi bi-arrow-right"></i>';
-                    slideButton.style.background = '#dc3545';
-                }
-            }
-            
-            // Remover event listeners anteriores
-            slideButton.removeEventListener('mousedown', startDrag);
-            slideButton.removeEventListener('touchstart', startDrag);
-            document.removeEventListener('mousemove', drag);
-            document.removeEventListener('touchmove', drag);
-            document.removeEventListener('mouseup', endDrag);
-            document.removeEventListener('touchend', endDrag);
-            
-            // Adicionar novos event listeners
-            slideButton.addEventListener('mousedown', startDrag);
-            slideButton.addEventListener('touchstart', startDrag);
-            document.addEventListener('mousemove', drag);
-            document.addEventListener('touchmove', drag);
-            document.addEventListener('mouseup', endDrag);
-            document.addEventListener('touchend', endDrag);
-        }
-        
-        function resolvePanicAlert() {
-            const globalModal = document.getElementById('globalPanicNotificationModal');
             const alertId = globalModal.dataset.alertId;
+            if (!alertId) {
+                console.error('Alert ID não encontrado no modal');
+                return;
+            }
             
             fetch(`{{ url('panic/resolve') }}/${alertId}`, {
                 method: 'POST',
@@ -2160,23 +2788,173 @@
         
         // Event listeners para botões de emergência
         document.addEventListener('DOMContentLoaded', function() {
-            const emergencyButtons = document.querySelectorAll('.emergency-btn');
-            emergencyButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const type = this.getAttribute('data-type');
-                    selectEmergencyType(type);
+            // openPanicModal já está definido no <head> - não precisa redefinir aqui
+            
+            // Função para anexar listeners aos botões de emergência
+            function attachEmergencyButtonListeners() {
+                const emergencyButtons = document.querySelectorAll('.emergency-btn');
+                console.log('Encontrados', emergencyButtons.length, 'botões de emergência');
+                
+                emergencyButtons.forEach(button => {
+                    // Remover listeners anteriores
+                    const newButton = button.cloneNode(true);
+                    button.parentNode.replaceChild(newButton, button);
+                    
+                    // Adicionar novo listener
+                    newButton.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const type = this.getAttribute('data-type');
+                        console.log('Botão de emergência clicado, tipo:', type);
+                        console.log('window.selectEmergencyType disponível?', typeof window.selectEmergencyType);
+                        
+                        if (type) {
+                            // Tentar usar window.selectEmergencyType primeiro
+                            if (typeof window.selectEmergencyType === 'function') {
+                                console.log('Chamando window.selectEmergencyType com tipo:', type);
+                                window.selectEmergencyType(type);
+                            } else if (typeof selectEmergencyType === 'function') {
+                                console.log('Chamando selectEmergencyType (sem window) com tipo:', type);
+                                selectEmergencyType(type);
+                            } else {
+                                console.error('Função selectEmergencyType não encontrada');
+                                console.error('window.selectEmergencyType:', typeof window.selectEmergencyType);
+                                console.error('selectEmergencyType:', typeof selectEmergencyType);
+                                alert('Erro: Função de seleção não encontrada. Recarregue a página.');
+                            }
+                        } else {
+                            console.error('Tipo de emergência não encontrado no botão');
+                        }
+                    });
                 });
-            });
+            }
+            
+            // Anexar listeners imediatamente
+            attachEmergencyButtonListeners();
+            
+            // Também anexar quando o modal for mostrado (caso seja aberto dinamicamente)
+            const panicModal = document.getElementById('panicModal');
+            if (panicModal) {
+                panicModal.addEventListener('shown.bs.modal', function() {
+                    console.log('Modal de pânico aberto, anexando listeners');
+                    setTimeout(attachEmergencyButtonListeners, 100);
+                });
+            }
         });
         
-        // Verificar alertas a cada 30 segundos
-        checkForActiveAlerts();
-        panicCheckInterval = setInterval(checkForActiveAlerts, 30000);
+        // Função para iniciar verificação de alertas ativos
+        function startPanicAlertCheck() {
+            const currentPath = window.location.pathname;
+            const activeAlertPath = '{{ route("panic.active") }}';
+            
+            // Não verificar se já estamos na página de alerta ativo
+            if (currentPath === activeAlertPath || currentPath.includes('/panic/active')) {
+                console.log('Já está na página de alerta ativo, não verificar');
+                return;
+            }
+            
+            // Verificar imediatamente usando a função global
+            if (typeof window.checkForActiveAlerts === 'function') {
+                console.log('Iniciando verificação de alertas ativos...');
+                window.checkForActiveAlerts();
+            } else {
+                console.error('window.checkForActiveAlerts não está disponível');
+            }
+            
+            // Verificar a cada 30 segundos
+            if (typeof window.panicCheckInterval === 'undefined' || !window.panicCheckInterval) {
+                window.panicCheckInterval = setInterval(function() {
+                    const currentPath = window.location.pathname;
+                    if (currentPath !== activeAlertPath && !currentPath.includes('/panic/active')) {
+                        if (typeof window.checkForActiveAlerts === 'function') {
+                            window.checkForActiveAlerts();
+                        }
+                    }
+                }, 30000);
+                console.log('Intervalo de verificação de alertas iniciado (30s)');
+            }
+        }
+        
+        // Verificar alertas imediatamente quando o script carregar (antes do DOMContentLoaded)
+        // Isso garante que a verificação seja feita mesmo após redirecionamentos de login
+        (function() {
+            console.log('Script de verificação de alertas carregado, estado do documento:', document.readyState);
+            
+            function executeCheck() {
+                console.log('Executando verificação de alertas ativos...');
+                if (typeof window.checkForActiveAlerts === 'function') {
+                    window.checkForActiveAlerts();
+                } else {
+                    console.error('window.checkForActiveAlerts não está disponível ainda, tentando novamente...');
+                    setTimeout(executeCheck, 100);
+                }
+            }
+            
+            // Executar imediatamente se o script já carregou
+            if (document.readyState === 'loading') {
+                // DOM ainda não carregou, aguardar
+                document.addEventListener('DOMContentLoaded', function() {
+                    console.log('DOMContentLoaded - executando verificação');
+                    executeCheck();
+                    startPanicAlertCheck();
+                });
+            } else {
+                // DOM já carregou, executar imediatamente
+                console.log('DOM já carregado - executando verificação imediatamente');
+                executeCheck();
+                startPanicAlertCheck();
+            }
+            
+            // Também verificar quando a página estiver totalmente carregada (após login, etc)
+            window.addEventListener('load', function() {
+                console.log('Evento load disparado - verificando alertas...');
+                setTimeout(function() {
+                    executeCheck();
+                    startPanicAlertCheck();
+                }, 300); // Pequeno delay para garantir que tudo está pronto
+            });
+            
+            // Verificação adicional após um pequeno delay (para casos de redirecionamento rápido)
+            setTimeout(function() {
+                console.log('Verificação de segurança após delay inicial');
+                if (typeof window.checkForActiveAlerts === 'function') {
+                    window.checkForActiveAlerts();
+                }
+            }, 1000);
+        })();
+        
+        // Verificação especial para quando a página é carregada após redirecionamento (login)
+        // Isso garante que a verificação seja feita mesmo se o script já estava carregado
+        if (window.performance && window.performance.navigation) {
+            const navigationType = window.performance.navigation.type;
+            // type 1 = reload, type 2 = back/forward, type 0 = normal navigation (incluindo redirect)
+            if (navigationType === 0 || navigationType === 1) {
+                console.log('Navegação detectada (possível redirecionamento de login), verificando alertas...');
+                setTimeout(function() {
+                    if (typeof window.checkForActiveAlerts === 'function') {
+                        window.checkForActiveAlerts();
+                    }
+                }, 200);
+            }
+        }
+        
+        // Verificação adicional usando pageshow (funciona mesmo com cache do navegador)
+        window.addEventListener('pageshow', function(event) {
+            console.log('Evento pageshow disparado, persisted:', event.persisted);
+            if (event.persisted || window.location.pathname === '/dashboard' || window.location.pathname.includes('/dashboard')) {
+                console.log('Página mostrada (possível cache ou redirecionamento), verificando alertas...');
+                setTimeout(function() {
+                    if (typeof window.checkForActiveAlerts === 'function') {
+                        window.checkForActiveAlerts();
+                    }
+                }, 300);
+            }
+        });
         
         // Limpar intervalo quando a página for fechada
         window.addEventListener('beforeunload', () => {
-            if (panicCheckInterval) {
-                clearInterval(panicCheckInterval);
+            if (window.panicCheckInterval) {
+                clearInterval(window.panicCheckInterval);
             }
         });
     </script>
@@ -2185,7 +2963,7 @@
     
     <!-- Modal para Enviar Alerta de Pânico -->
     <div class="modal fade" id="panicModal" tabindex="-1" aria-labelledby="panicModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-sm-down">
+        <div class="modal-dialog modal-dialog-centered panic-modal-custom modal-fullscreen-sm-down">
             <div class="modal-content border-danger">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title" id="panicModalLabel">
@@ -2238,12 +3016,12 @@
                                 <span class="emergency-text">CRIANÇA PERDIDA</span>
                                 </button>
                             </div>
-                            <div class="col-12 col-md-12">
+                            <!--<div class="col-12 col-md-12">
                             <button class="btn btn-outline-danger w-100 emergency-btn" data-type="flood">
                                 <i class="bi bi-droplet emergency-icon"></i>
                                 <span class="emergency-text">ENCHENTE</span>
                                 </button>
-                            </div>
+                            </div>-->
                         </div>
                     </div>
 
@@ -2263,7 +3041,7 @@
                         <textarea class="form-control" id="additionalInfo" rows="3" placeholder="Descreva brevemente a situação..."></textarea>
                     </div>
                     
-                    <div class="mb-4">
+                    <!--<div class="mb-4">
                         <p class="text-muted small">Este alerta será enviado imediatamente para:</p>
                         <ul class="list-unstyled small">
                             <li>• Administração do condomínio</li>
@@ -2273,18 +3051,39 @@
                         </ul>
                         </div>
 
-                        <!-- Slide to Confirm -->
-                    <div class="slide-container">
-                        <div class="slide-track" id="slideTrack">
-                            <div class="slide-button" id="slideButton">
-                                <i class="bi bi-arrow-right"></i>
+                        <!-- Código de Confirmação -->
+                    <div class="panic-confirmation-code-container mb-4">
+                        <div class="alert alert-warning">
+                            <p class="mb-2"><strong>Digite o código de confirmação para enviar o alerta:</strong></p>
+                            <div class="panic-code-display mb-3">
+                                <span class="badge bg-danger fs-2 px-4 py-3" id="panicCodeDisplay">--</span>
                             </div>
-                                <div class="slide-text">
-                                <span id="slideText">Deslize para confirmar o envio</span>
-                                </div>
-                                </div>
+                            <div class="panic-code-input">
+                                <input type="text" 
+                                       class="form-control form-control-lg text-center fs-3" 
+                                       id="panicCodeInput" 
+                                       maxlength="2" 
+                                       pattern="[0-9]{2}" 
+                                       placeholder="00"
+                                       autocomplete="off"
+                                       style="letter-spacing: 0.5em; font-weight: bold;">
+                                <small class="text-muted d-block mt-2">Digite os 2 números acima para confirmar</small>
+                            </div>
+                            <div id="panicCodeError" class="text-danger mt-2" style="display: none;">
+                                <i class="bi bi-exclamation-circle me-1"></i>Código incorreto. Tente novamente.
                             </div>
                         </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" 
+                                class="btn btn-danger btn-lg" 
+                                id="confirmPanicButton"
+                                onclick="validateAndSendPanicAlert()"
+                                disabled>
+                            <i class="bi bi-send-fill me-2"></i>Enviar Alerta
+                        </button>
+                    </div>
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -2363,7 +3162,7 @@
 
     <!-- Modal de Confirmação de Pânico -->
     <div class="modal fade" id="panicConfirmationModal" tabindex="-1" aria-labelledby="panicConfirmationModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="panicConfirmationModalLabel">
@@ -2374,13 +3173,43 @@
                     <h4 id="confirmationTitle" class="mb-3">Confirmar ação?</h4>
                     <p id="confirmationDescription" class="mb-4"></p>
                     
-                    <div class="slide-container">
-                        <div class="slide-track" id="confirmationSlideTrack">
-                            <div class="slide-button" id="confirmationSlideButton">
-                                <i class="bi bi-arrow-right"></i>
+                    <!-- Código de Confirmação -->
+                    <div class="confirmation-code-container mb-4">
+                        <div class="alert alert-info">
+                            <p class="mb-2"><strong>Digite o código de confirmação:</strong></p>
+                            <div class="confirmation-code-display mb-3">
+                                <span class="badge bg-primary fs-2 px-4 py-3" id="confirmationCodeDisplay">--</span>
                             </div>
-                            <div class="slide-text" id="confirmationSlideText">Deslize para confirmar</div>
+                            <div class="confirmation-code-input">
+                                <input type="text" 
+                                       class="form-control form-control-lg text-center fs-3" 
+                                       id="confirmationCodeInput" 
+                                       maxlength="2" 
+                                       pattern="[0-9]{2}" 
+                                       placeholder="00"
+                                       autocomplete="off"
+                                       style="letter-spacing: 0.5em; font-weight: bold;">
+                                <small class="text-muted d-block mt-2">Digite os 2 números acima</small>
+                            </div>
+                            <div id="confirmationCodeError" class="text-danger mt-2" style="display: none;">
+                                <i class="bi bi-exclamation-circle me-1"></i>Código incorreto. Tente novamente.
+                            </div>
                         </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" 
+                                class="btn btn-primary btn-lg" 
+                                id="confirmActionButton"
+                                onclick="validateAndConfirmAction()"
+                                disabled>
+                            <i class="bi bi-check-circle me-2"></i>Confirmar
+                        </button>
+                        <button type="button" 
+                                class="btn btn-secondary" 
+                                onclick="closeConfirmationModal()">
+                            Cancelar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -2422,63 +3251,174 @@
             100% { transform: scale(1); }
         }
         
-        /* CSS para Slide Button - Melhorado para Mobile */
-        .slide-container {
-            margin: 20px 0;
-            padding: 0 10px;
-        }
-
-        .slide-track {
-            position: relative;
-            width: 100%;
-            height: 60px; /* Aumentado para mobile */
-            background: #f8f9fa;
-            border: 2px solid #dee2e6;
-            border-radius: 30px;
-            overflow: hidden;
-            cursor: pointer;
-            touch-action: none; /* Melhora o touch no mobile */
-        }
-
-        .slide-button {
-            position: absolute;
-            top: 3px;
-            left: 3px;
-            width: 54px; /* Aumentado para mobile */
-            height: 54px; /* Aumentado para mobile */
-            background: #dc3545;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 20px; /* Aumentado */
-            cursor: grab;
-            transition: transform 0.3s ease, background 0.3s ease;
-            z-index: 2;
-            user-select: none; /* Evita seleção de texto */
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
+        /* CSS para Código de Confirmação - FORÇAR VISIBILIDADE */
+        #panicConfirmationModal .confirmation-code-container {
+            margin: 20px 0 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            height: auto !important;
+            min-height: 200px !important;
         }
         
-        .slide-button:active {
-            cursor: grabbing;
+        #panicConfirmationModal .confirmation-code-display {
+            margin: 15px 0 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            height: auto !important;
         }
         
-        .slide-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #6c757d;
-            font-weight: 500;
-            font-size: 16px; /* Aumentado para mobile */
-            pointer-events: none;
-            z-index: 1;
+        #panicConfirmationModal .confirmation-code-display .badge {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.2em;
+            min-width: 80px;
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            height: auto !important;
+        }
+        
+        #panicConfirmationModal .confirmation-code-input {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            margin-top: 15px !important;
+            height: auto !important;
+        }
+        
+        #panicConfirmationModal .confirmation-code-input input {
+            font-family: 'Courier New', monospace;
             text-align: center;
-            width: 100%;
-            padding: 0 60px; /* Espaço para o botão */
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 50px !important;
+        }
+        
+        #panicConfirmationModal .confirmation-code-input input:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        #panicConfirmationModal .confirmation-code-input input.is-invalid {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+        
+        #panicConfirmationModal #confirmationCodeError {
+            animation: shake 0.5s;
+        }
+        
+        /* Garantir que o alert-info dentro do container fique visível */
+        #panicConfirmationModal .confirmation-code-container .alert {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            height: auto !important;
+            min-height: 150px !important;
+        }
+        
+        #panicConfirmationModal .confirmation-code-container .alert p {
+            display: block !important;
+            visibility: visible !important;
+        }
+        
+        #panicConfirmationModal .confirmation-code-container .alert small {
+            display: block !important;
+            visibility: visible !important;
+        }
+        
+        /* CSS para Código de Confirmação do Modal de Pânico */
+        #panicModal .panic-confirmation-code-container {
+            margin: 20px 0 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+        }
+        
+        #panicModal .panic-code-display {
+            margin: 15px 0 !important;
+            display: block !important;
+            visibility: visible !important;
+        }
+        
+        #panicModal .panic-code-display .badge {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.2em;
+            min-width: 80px;
+            display: inline-block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        #panicModal .panic-code-input {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            margin-top: 15px;
+        }
+        
+        #panicModal .panic-code-input input {
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 100% !important;
+        }
+        
+        #panicModal .panic-code-input input:focus {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+        
+        #panicModal .panic-code-input input.is-invalid {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+        }
+        
+        #panicModal #panicCodeError {
+            animation: shake 0.5s;
+        }
+        
+        #panicModal .panic-confirmation-code-container .alert {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        /* Reduzir tamanho do modal de pânico para metade */
+        #panicModal .panic-modal-custom {
+            max-width: 400px !important;
+            width: 90% !important;
+        }
+        
+        @media (min-width: 576px) {
+            #panicModal .panic-modal-custom {
+                max-width: 400px !important;
+            }
+        }
+        
+        @media (max-width: 575.98px) {
+            #panicModal .panic-modal-custom {
+                max-width: 95% !important;
+                width: 95% !important;
+            }
         }
         
         /* Botões de Emergência - Responsivos */
@@ -2520,10 +3460,71 @@
             font-weight: bold;
         }
         
+        /* Estilos específicos para modais de pânico - Centralização */
+        #panicConfirmationModal.modal.show,
+        #globalPanicNotificationModal.modal.show {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+        }
+        
+        #panicConfirmationModal .modal-dialog {
+            margin: auto !important;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+        }
+        
+        #globalPanicNotificationModal .modal-dialog {
+            margin: auto !important;
+            position: relative;
+        }
+        
+        /* Garantir que o modal fique visível e centralizado */
+        #panicConfirmationModal.modal {
+            z-index: 1055;
+        }
+        
+        #panicConfirmationModal.modal-backdrop {
+            z-index: 1054;
+        }
+        
         /* Responsividade específica para mobile */
         @media (max-width: 576px) {
             .modal-dialog {
                 margin: 10px;
+            }
+            
+            /* Modais de pânico - Mobile */
+            #panicConfirmationModal.modal.show,
+            #globalPanicNotificationModal.modal.show {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 1rem !important;
+            }
+            
+            #panicConfirmationModal .modal-dialog {
+                margin: auto !important;
+                max-width: 95%;
+                width: 95%;
+                max-height: 90vh;
+            }
+            
+            #panicConfirmationModal .modal-content {
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            
+            #globalPanicNotificationModal .modal-dialog {
+                margin: auto !important;
+                max-height: 95vh;
+            }
+            
+            #globalPanicNotificationModal .modal-content {
+                max-height: 95vh;
+                overflow-y: auto;
             }
             
             .emergency-btn {
@@ -2539,19 +3540,14 @@
                 font-size: 13px; /* Texto menor para caber */
             }
             
-            .slide-track {
-                height: 70px; /* Track maior no mobile */
+            .confirmation-code-display .badge {
+                font-size: 2.5rem;
+                padding: 1rem 1.5rem;
             }
             
-            .slide-button {
-                width: 64px; /* Botão maior no mobile */
-                height: 64px;
-                font-size: 24px;
-            }
-            
-            .slide-text {
-                font-size: 18px; /* Texto maior no mobile */
-                padding: 0 70px;
+            .confirmation-code-input input {
+                font-size: 2rem !important;
+                padding: 1rem;
             }
             
             .response-btn {
