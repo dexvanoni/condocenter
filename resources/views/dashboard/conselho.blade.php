@@ -33,6 +33,8 @@
 
     <div id="announcementBannerContainer"></div>
 
+    @include('dashboard.partials.ride-alerts')
+
     <!-- Alertas Importantes -->
     @if($semComprovante > 0)
     <div class="row mb-4">

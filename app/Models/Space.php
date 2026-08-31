@@ -24,8 +24,6 @@ class Space extends Model
         'price_per_hour' => 'decimal:2',
         'requires_approval' => 'boolean',
         'is_active' => 'boolean',
-        'available_from' => 'datetime',
-        'available_until' => 'datetime',
         'prereservation_auto_cancel' => 'boolean',
         'prereservation_payment_hours' => 'integer',
     ];

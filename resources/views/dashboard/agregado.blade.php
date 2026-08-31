@@ -27,6 +27,10 @@
 
     <div id="announcementBannerContainer"></div>
 
+    @include('dashboard.partials.ride-alerts')
+
+    @include('dashboard.partials.access-alerts')
+
     <!-- Informação sobre Perfil -->
     <div class="row mb-4">
         <div class="col-12">

@@ -9,10 +9,22 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Models\Concerns\HasActiveProfileRole;
 
 class User extends Authenticatable implements Auditable
 {
-    use HasFactory, Notifiable, HasApiTokens, HasRoles, SoftDeletes, \OwenIt\Auditing\Auditable;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes, \OwenIt\Auditing\Auditable;
+
+    use HasRoles, HasActiveProfileRole {
+        HasRoles::hasRole as protected spatieHasRole;
+        HasRoles::hasAnyRole as protected spatieHasAnyRole;
+        HasRoles::hasAllRoles as protected spatieHasAllRoles;
+        HasRoles::hasPermissionTo as protected spatieHasPermissionTo;
+        HasActiveProfileRole::hasRole insteadof HasRoles;
+        HasActiveProfileRole::hasAnyRole insteadof HasRoles;
+        HasActiveProfileRole::hasAllRoles insteadof HasRoles;
+        HasActiveProfileRole::hasPermissionTo insteadof HasRoles;
+    }
 
     protected $fillable = [
         'condominium_id',
@@ -38,7 +50,9 @@ class User extends Authenticatable implements Auditable
         'qr_code',
         'senha_temporaria',
         'is_active',
+        'registration_status',
         'possui_dividas',
+        'agregado_can_authorize_access',
         'fcm_token',
         'fcm_enabled',
         'fcm_topics',
@@ -62,6 +76,7 @@ class User extends Authenticatable implements Auditable
             'necessita_cuidados_especiais' => 'boolean',
             'senha_temporaria' => 'boolean',
             'possui_dividas' => 'boolean',
+            'agregado_can_authorize_access' => 'boolean',
             'fcm_enabled' => 'boolean',
             'fcm_topics' => 'array',
             'fcm_token_updated_at' => 'datetime',
@@ -72,6 +87,34 @@ class User extends Authenticatable implements Auditable
     public function condominium()
     {
         return $this->belongsTo(Condominium::class);
+    }
+
+    public function managedCondominiums()
+    {
+        return $this->belongsToMany(Condominium::class, 'condominium_user')
+            ->withTimestamps();
+    }
+
+    public function getActiveCondominiumId(): ?int
+    {
+        return app(\App\Services\ActiveCondominiumService::class)->getActiveCondominiumId($this);
+    }
+
+    public function tenantCondominiumId(): ?int
+    {
+        return $this->getActiveCondominiumId();
+    }
+
+    public function belongsToTenant(int $condominiumId): bool
+    {
+        $tenantId = $this->tenantCondominiumId();
+
+        return $tenantId !== null && $tenantId === $condominiumId;
+    }
+
+    public function activeCondominium(): ?Condominium
+    {
+        return app(\App\Services\ActiveCondominiumService::class)->getActiveCondominium($this);
     }
 
     public function unit()
@@ -225,6 +268,38 @@ class User extends Authenticatable implements Auditable
         return $this->hasRole('Agregado');
     }
 
+    /**
+     * Alertas de entrada/negação na portaria: moradores, agregados e staff
+     * que também residem na unidade (liberações próprias). Síndico puro usa o relatório.
+     */
+    public function receivesAccessMovementAlerts(): bool
+    {
+        if (!$this->can('create_access_authorizations') && !$this->can('manage_access_lists')) {
+            return false;
+        }
+
+        if ($this->isSindico() || $this->isAdmin()) {
+            return $this->isMorador() || $this->isAgregado();
+        }
+
+        return true;
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return $this->registration_status === 'pending';
+    }
+
+    public function isRegistrationRejected(): bool
+    {
+        return $this->registration_status === 'rejected';
+    }
+
+    public function isRegistrationApproved(): bool
+    {
+        return $this->registration_status === 'approved';
+    }
+
     public function hasAgregadoPermission(string $permissionKey, string $permissionLevel = null): bool
     {
         if (!$this->isAgregado()) {
@@ -317,7 +392,7 @@ class User extends Authenticatable implements Auditable
     public function logActivity(string $action, string $module, string $description, array $metadata = []): void
     {
         $this->activityLogs()->create([
-            'condominium_id' => $this->condominium_id,
+            'condominium_id' => $this->tenantCondominiumId() ?? $this->condominium_id,
             'action' => $action,
             'module' => $module,
             'description' => $description,

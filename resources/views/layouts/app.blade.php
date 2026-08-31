@@ -489,6 +489,119 @@
         console.log('openPanicModal definido:', typeof window.openPanicModal, typeof openPanicModal);
         console.log('selectEmergencyType definido:', typeof window.selectEmergencyType, typeof selectEmergencyType);
         console.log('generatePanicConfirmationCode definido:', typeof window.generatePanicConfirmationCode);
+
+        // Troca de perfil — URL relativa para funcionar em qualquer host/porta local
+        window.switchProfile = function(roleName) {
+            if (!roleName) {
+                return;
+            }
+
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+            if (!csrfToken) {
+                alert('Sessão expirada. Recarregue a página e tente novamente.');
+                return;
+            }
+
+            fetch(@json(route('profile.switch', [], false)), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ role: roleName }),
+                credentials: 'same-origin',
+            })
+            .then(async response => {
+                const isJson = response.headers.get('content-type')?.includes('application/json');
+                const data = isJson ? await response.json() : {};
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erro ao trocar perfil');
+                }
+
+                if (data.success) {
+                    window.location.href = data.redirect || @json(route('dashboard', [], false));
+                    return;
+                }
+
+                throw new Error(data.message || 'Erro ao trocar perfil');
+            })
+            .catch(error => {
+                console.error('Erro ao trocar perfil:', error);
+                alert(error.message || 'Erro ao trocar perfil');
+            });
+        };
+
+        document.addEventListener('click', function(event) {
+            const trigger = event.target.closest('[data-profile-role]');
+
+            if (!trigger) {
+                return;
+            }
+
+            event.preventDefault();
+            window.switchProfile(trigger.getAttribute('data-profile-role'));
+        });
+
+        window.switchCondominium = function(condominiumId) {
+            if (!condominiumId) {
+                return;
+            }
+
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+            if (!csrfToken) {
+                alert('Sessão expirada. Recarregue a página e tente novamente.');
+                return;
+            }
+
+            fetch(@json(route('condominium.switch', [], false)), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ condominium_id: parseInt(condominiumId, 10) }),
+                credentials: 'same-origin',
+            })
+            .then(async response => {
+                const isJson = response.headers.get('content-type')?.includes('application/json');
+                const data = isJson ? await response.json() : {};
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Erro ao trocar condomínio');
+                }
+
+                if (data.success) {
+                    window.location.href = data.redirect || @json(route('dashboard', [], false));
+                    return;
+                }
+
+                throw new Error(data.message || 'Erro ao trocar condomínio');
+            })
+            .catch(error => {
+                console.error('Erro ao trocar condomínio:', error);
+                alert(error.message || 'Erro ao trocar condomínio');
+            });
+        };
+
+        document.addEventListener('click', function(event) {
+            const trigger = event.target.closest('[data-condominium-id]');
+
+            if (!trigger) {
+                return;
+            }
+
+            event.preventDefault();
+            window.switchCondominium(trigger.getAttribute('data-condominium-id'));
+        });
     </script>
     
     <!-- Custom Styles -->
@@ -524,6 +637,67 @@
             min-width: 0;
             flex: 1;
         }
+
+        .condominium-selector {
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .condominium-selector .dropdown-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            max-width: 100%;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .condominium-selector .dropdown-toggle::after {
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .condominium-selector .condominium-selector-label {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .condominium-selector .dropdown-menu {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            z-index: 1055;
+        }
+
+        .condominium-selector .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: 0;
+        }
+
+        .condominium-selector .dropdown-item .condominium-selector-label {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sidebar-brand-block {
+            min-width: 0;
+            overflow: visible;
+            position: relative;
+            z-index: 30;
+        }
+
+        .condominium-selector.show,
+        .condominium-selector .dropdown-menu.show {
+            z-index: 1055;
+        }
         
         /* Mobile Sidebar Styles */
         #mobileSidebar {
@@ -532,10 +706,11 @@
         
         #mobileSidebar .nav-link {
             color: rgba(255,255,255,0.8) !important;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
             border-radius: 0.375rem;
-            margin: 0.125rem 0;
-            transition: all 0.3s ease;
+            margin: 0;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
         }
         
         #mobileSidebar .nav-link:hover {
@@ -598,7 +773,7 @@
         }
 
         .sidebar .nav-item-group {
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.125rem;
         }
 
         .nav-link-toggle {
@@ -608,13 +783,22 @@
             border: none;
             background: transparent;
             color: inherit;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
             border-radius: 0.375rem;
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             font-weight: 600;
             gap: 0.5rem;
             cursor: pointer;
-            transition: background 0.3s ease, color 0.3s ease;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .nav-link-toggle > span:first-child {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
         }
 
         .nav-link-toggle:focus {
@@ -652,15 +836,15 @@
         }
 
         .inner-nav {
-            margin-top: 0.25rem;
+            margin-top: 0.125rem;
         }
 
         .inner-nav .nav-link {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.5rem 1rem 0.5rem 1.75rem;
-            font-size: 0.85rem;
+            padding: 0.4rem 0.75rem 0.4rem 1.5rem;
+            font-size: 0.8125rem;
             border-radius: 0.375rem;
             transition: background 0.2s ease, color 0.2s ease;
         }
@@ -700,8 +884,52 @@
             font-weight: bold;
             animation: pulse 2s infinite;
         }
-        .mb-0, .mb-4 {
-            padding: 10px;
+
+        /* Perfil Administrador — verde escuro (inline para não depender do build Vite) */
+        .sidebar.sidebar-admin {
+            background: linear-gradient(180deg, #1a5c45 0%, #0b2e1f 100%) !important;
+            color: #fff;
+        }
+
+        .sidebar.sidebar-admin .nav-link,
+        .sidebar.sidebar-admin .nav-link-toggle {
+            color: rgba(255, 255, 255, 0.88);
+        }
+
+        .sidebar.sidebar-admin .inner-nav .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        .sidebar.sidebar-admin .nav-link:hover,
+        .sidebar.sidebar-admin .nav-link.active,
+        .sidebar.sidebar-admin .nav-link-toggle:hover,
+        .sidebar.sidebar-admin .nav-link-toggle.active,
+        .sidebar.sidebar-admin .inner-nav .nav-link:hover,
+        .sidebar.sidebar-admin .inner-nav .nav-link.active {
+            color: #fff !important;
+            background-color: rgba(255, 255, 255, 0.14) !important;
+        }
+
+        .sidebar.sidebar-admin hr {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .mobile-sidebar.mobile-sidebar-admin {
+            background: linear-gradient(180deg, #1a5c45 0%, #0b2e1f 100%) !important;
+            color: #fff;
+        }
+
+        .mobile-sidebar.mobile-sidebar-admin .nav-link,
+        .mobile-sidebar.mobile-sidebar-admin .nav-link-toggle {
+            color: rgba(255, 255, 255, 0.88) !important;
+        }
+
+        .mobile-sidebar.mobile-sidebar-admin .nav-link:hover,
+        .mobile-sidebar.mobile-sidebar-admin .nav-link.active,
+        .mobile-sidebar.mobile-sidebar-admin .nav-link-toggle:hover,
+        .mobile-sidebar.mobile-sidebar-admin .nav-link-toggle.active {
+            color: #fff !important;
+            background: rgba(255, 255, 255, 0.14) !important;
         }
     </style>
 </head>
@@ -709,9 +937,22 @@
     @php
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
-        $activeRoleName = session('active_role') ?? optional($user->roles->first())->name;
+        $activeRoleName = $user->getActiveRoleName() ?? session('active_role') ?? optional($user->roles->first())->name;
+        $isAdminProfile = $activeRoleName === 'Administrador';
+        $hasAccessControlMenu = (Route::has('access-control.porteiro') && $user->can('process_access'))
+            || (Route::has('access-control.index') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
+            || (Route::has('access-control.reports') && $user->can('view_access_movements'));
+        $activeCondominiumContext = $activeCondominiumContext ?? [
+            'id' => null,
+            'condominium' => null,
+            'accessible' => collect(),
+            'can_switch' => false,
+            'show_selector' => false,
+        ];
             $menuActive = [
-            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*'),
+            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show'),
+            'plataforma' => request()->routeIs('condominiums.index') || request()->routeIs('condominiums.create') || request()->routeIs('condominiums.edit'),
+            'configuracoes_globais' => request()->routeIs('platform.*'),
             'financeiro' => request()->routeIs('transactions.*')
                 || request()->routeIs('fees.*')
                 || request()->routeIs('charges.*')
@@ -723,6 +964,8 @@
                 || request()->routeIs('bank-reconciliation.*')
                 || request()->routeIs('financial-reports.*')
                 || request()->routeIs('accountability-reports.*')
+                || request()->routeIs('accountability-uploads.*')
+                || request()->routeIs('financial.settings.*')
                 || request()->routeIs('balance.*')
                 || request()->routeIs('my-finances'),
             'espacos' => request()->routeIs('reservations.*')
@@ -730,31 +973,59 @@
                 || request()->routeIs('recurring-reservations.*')
                 || request()->routeIs('reservations.manage'),
             'marketplace' => request()->routeIs('marketplace.*'),
+            'caronas' => request()->routeIs('rides.*'),
             'pets' => request()->routeIs('pets.*'),
             'assemblies' => request()->routeIs('assemblies.*'),
             'documents' => request()->routeIs('internal-regulations.*'),
             'packages' => request()->routeIs('packages.*'),
-            'portaria' => request()->routeIs('entries.*'),
-            'comunicacao' => request()->routeIs('messages.*') || request()->routeIs('notifications.*'),
+            'access_control' => request()->routeIs('access-control.*'),
+            'portaria' => request()->routeIs('entries.*') || request()->routeIs('access-control.porteiro'),
+            'comunicacao' => request()->routeIs('messages.*') || request()->routeIs('notifications.*') || request()->routeIs('syndic-conversations.*'),
         ];
     @endphp
 
     <div class="d-flex">
         <!-- Sidebar (Desktop) -->
-        <nav class="sidebar p-3 d-none d-lg-block" id="sidebar" style="width: 250px;">
-            <div class="mb-4">
+        <nav class="sidebar d-none d-lg-block{{ $isAdminProfile ? ' sidebar-admin' : '' }}" id="sidebar" style="width: 250px;">
+            <div class="sidebar-brand-block">
                 <h4 class="mb-0">
                     <i class="bi bi-building"></i> CondoManager
                 </h4>
-                <small class="text-white-50">{{ $user->condominium->name ?? 'Sistema' }}</small>
+                @php
+                    $displayCondominium = $activeCondominiumContext['condominium'] ?? $user->condominium;
+                @endphp
+                @if(!empty($activeCondominiumContext['show_selector']))
+                    <div class="dropdown mt-2 condominium-selector">
+                        <button class="btn btn-sm btn-outline-light dropdown-toggle w-100 text-start" type="button" id="condominiumSelectorDesktop" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" title="{{ $displayCondominium?->name ?? 'Selecionar condomínio' }}">
+                            <i class="bi bi-buildings flex-shrink-0"></i>
+                            <span class="condominium-selector-label">{{ $displayCondominium?->name ?? 'Selecionar condomínio' }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-dark w-100 shadow" aria-labelledby="condominiumSelectorDesktop" data-bs-popper="static">
+                            <li><h6 class="dropdown-header">Condomínio ativo</h6></li>
+                            @foreach($activeCondominiumContext['accessible'] as $accessibleCondominium)
+                                <li>
+                                    <a class="dropdown-item {{ (int) ($activeCondominiumContext['id'] ?? 0) === (int) $accessibleCondominium->id ? 'active' : '' }}"
+                                       href="#"
+                                       data-condominium-id="{{ $accessibleCondominium->id }}"
+                                       title="{{ $accessibleCondominium->name }}">
+                                        <i class="bi bi-building flex-shrink-0"></i>
+                                        <span class="condominium-selector-label">{{ $accessibleCondominium->name }}</span>
+                                    </a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @else
+                    <small class="text-white-50 text-truncate d-block" title="{{ $displayCondominium?->name ?? 'Sistema' }}">{{ $displayCondominium?->name ?? 'Sistema' }}</small>
+                @endif
             </div>
 
             <hr class="bg-white opacity-25">
 
             <!-- User Profile Section -->
-            <div class="mb-4">
+            <div class="sidebar-profile">
                 <div class="dropdown">
-                    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle p-2 rounded" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false" style="background: rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle py-2 px-2 rounded" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false" style="background: rgba(255,255,255,0.1); transition: all 0.3s ease;">
                         @if($user->photo)
                             <img src="{{ Storage::url($user->photo) }}" alt="{{ $user->name }}" class="rounded-circle me-2" width="32" height="32" style="border: 2px solid rgba(255,255,255,0.3);">
                         @else
@@ -782,7 +1053,7 @@
                                 <li>
                                     <a class="dropdown-item {{ session('active_role') == $role->name ? 'active' : '' }}" 
                                        href="#" 
-                                       onclick="switchProfile('{{ addslashes($role->name) }}'); return false;">
+                                       data-profile-role="{{ $role->name }}">
                                         <i class="bi bi-shield-check"></i> {{ $role->name }}
                                     </a>
                                 </li>
@@ -804,12 +1075,52 @@
                 </div>
             </div>
 
+            @if(SidebarHelper::canManageCondominiums($user))
+            <ul class="nav flex-column mb-0" id="sidebarConfigSection">
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('condominiums.index') ? 'active' : '' }}" href="{{ route('condominiums.index') }}">
+                        <i class="bi bi-buildings"></i> Condomínios
+                    </a>
+                </li>
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['configuracoes_globais'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuConfigGlobais" aria-expanded="{{ $menuActive['configuracoes_globais'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-sliders me-2"></i>Configurações globais</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['configuracoes_globais'] ? 'show' : '' }}" id="menuConfigGlobais" data-bs-parent="#sidebarConfigSection">
+                        <ul class="nav flex-column inner-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.dashboard') ? 'active' : '' }}" href="{{ route('platform.dashboard') }}">
+                                    <i class="bi bi-graph-up-arrow"></i> Dashboard SaaS
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.plans.*') ? 'active' : '' }}" href="{{ route('platform.plans.index') }}">
+                                    <i class="bi bi-tags"></i> Planos de assinatura
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.settings.*') ? 'active' : '' }}" href="{{ route('platform.settings.asaas') }}">
+                                    <i class="bi bi-credit-card-2-front"></i> Asaas (SaaS)
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </li>
+            </ul>
+            @endif
+
             <hr class="bg-white opacity-25">
 
             <ul class="nav flex-column" id="sidebarMenu">
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
-                        <i class="bi bi-speedometer2"></i> Dashboard
+                        <i class="bi bi-speedometer2"></i>
+                        @if(SidebarHelper::canManageCondominiums($user))
+                            Dashboard do Administrador
+                        @else
+                            Dashboard
+                        @endif
                     </a>
                 </li>
 
@@ -835,6 +1146,20 @@
                                 </a>
                             </li>
                             @endcan
+                            @if(SidebarHelper::canViewOwnCondominium($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('condominiums.show') ? 'active' : '' }}" href="{{ route('condominiums.show', $activeCondominiumContext['id'] ?? $user->condominium_id) }}">
+                                    <i class="bi bi-building"></i> Meu Condomínio
+                                </a>
+                            </li>
+                            @endif
+                            @if($user->isSindico() && Route::has('syndic-subscription.show'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('syndic-subscription.*') ? 'active' : '' }}" href="{{ route('syndic-subscription.show') }}">
+                                    <i class="bi bi-receipt-cutoff"></i> Assinatura SaaS
+                                </a>
+                            </li>
+                            @endif
                         </ul>
                     </div>
                 </li>
@@ -843,6 +1168,7 @@
                 @php
                     $isFinanceAdmin = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
                     $isFinanceResident = $user->isMorador();
+                    $isFinancialSimplified = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
                     $canViewFinance = !$user->isAgregado() && ($isFinanceAdmin || $isFinanceResident);
                 @endphp
                 @if($canViewFinance)
@@ -853,7 +1179,7 @@
                     </button>
                     <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="menuFinanceiro" data-bs-parent="#sidebarMenu">
                         <ul class="nav flex-column inner-nav">
-                            @if(Route::has('financial.income-expense.index') && ($isFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $isFinanceResident))
+                            @if(!$isFinancialSimplified && Route::has('financial.income-expense.index') && ($isFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $isFinanceResident))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('financial.income-expense.*') ? 'active' : '' }}" href="{{ route('financial.income-expense.index') }}">
                                     <i class="bi bi-arrow-left-right"></i> Entradas/Saídas
@@ -861,7 +1187,7 @@
                             </li>
                             @endif
                             @if($isFinanceAdmin)
-                                @if(Route::has('transactions.index') && $user->can('view_transactions'))
+                                @if(!$isFinancialSimplified && Route::has('transactions.index') && $user->can('view_transactions'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
                                         <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
@@ -882,65 +1208,79 @@
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('financial.status.index') && $user->can('view_financial_reports'))
+                                @if(!$isFinancialSimplified && Route::has('financial.status.index') && $user->can('view_financial_reports'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
                                         <i class="bi bi-graph-up"></i> Painel de Adimplência
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('financial.bank-accounts.index') && $user->can('manage_transactions'))
+                                @if(!$isFinancialSimplified && Route::has('financial.bank-accounts.index') && $user->can('manage_transactions'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
                                         <i class="bi bi-building-check"></i> Contas Bancárias
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('revenue.index') && $user->can('view_revenue'))
+                                @if(!$isFinancialSimplified && Route::has('revenue.index') && $user->can('view_revenue'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
                                         <i class="bi bi-graph-up-arrow"></i> Receitas
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('expenses.index') && $user->can('view_expenses'))
+                                @if(!$isFinancialSimplified && Route::has('expenses.index') && $user->can('view_expenses'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
                                         <i class="bi bi-graph-down-arrow"></i> Despesas
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_statements'))
+                                @if(!$isFinancialSimplified && Route::has('bank-reconciliation.index') && $user->can('view_bank_statements'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
                                         <i class="bi bi-bank"></i> Conciliação Bancária
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
+                                @if(!$isFinancialSimplified && Route::has('financial-reports.index') && $user->can('view_financial_reports'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
                                         <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('accountability-reports.index') && ($user->can('view_accountability_reports') || $user->can('view_financial_reports')))
+                                @if(!$isFinancialSimplified && Route::has('accountability-reports.index') && ($user->can('view_accountability_reports') || $user->can('view_financial_reports')))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
                                         <i class="bi bi-file-earmark-text"></i> Prestação de Contas
                                     </a>
                                 </li>
                                 @endif
-                                @if(Route::has('balance.index') && $user->can('view_balance'))
+                                @if(!$isFinancialSimplified && Route::has('balance.index') && $user->can('view_balance'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('balance.*') ? 'active' : '' }}" href="{{ route('balance.index') }}">
                                         <i class="bi bi-pie-chart"></i> Balanço Patrimonial
                                     </a>
                                 </li>
                                 @endif
+                                @if($isFinancialSimplified && Route::has('accountability-uploads.index'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('accountability-uploads.*') ? 'active' : '' }}" href="{{ route('accountability-uploads.index') }}">
+                                        <i class="bi bi-file-earmark-arrow-up"></i> Prestação de Contas
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('financial.settings.index') && \App\Helpers\SidebarHelper::canManageFinancialSettings($user))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('financial.settings.*') ? 'active' : '' }}" href="{{ route('financial.settings.index') }}">
+                                        <i class="bi bi-sliders"></i> Ambiente Financeiro
+                                    </a>
+                                </li>
+                                @endif
                             @endif
 
-                            @if(Route::has('financial.accounts.index') && ($isFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $isFinanceResident))
+                            @if(!$isFinancialSimplified && Route::has('financial.accounts.index') && ($isFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $isFinanceResident))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
                                     <i class="bi bi-bank"></i> Contas do Condomínio
@@ -948,7 +1288,7 @@
                             </li>
                             @endif                            
 
-                            @if(!$isFinanceAdmin && Route::has('accountability-reports.index') && ($isFinanceResident || $user->can('view_accountability_reports') || $user->can('view_financial_reports')))
+                            @if(!$isFinanceAdmin && !$isFinancialSimplified && Route::has('accountability-reports.index') && ($isFinanceResident || $user->can('view_accountability_reports') || $user->can('view_financial_reports')))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
                                     <i class="bi bi-journal-check"></i> Prestação de Contas
@@ -956,7 +1296,15 @@
                             </li>
                             @endif
 
-                            @if(Route::has('my-finances') && $isFinanceResident)
+                            @if($isFinancialSimplified && !$isFinanceAdmin && Route::has('accountability-uploads.index'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('accountability-uploads.*') ? 'active' : '' }}" href="{{ route('accountability-uploads.index') }}">
+                                    <i class="bi bi-journal-check"></i> Prestação de Contas
+                                </a>
+                            </li>
+                            @endif
+
+                            @if(!$isFinancialSimplified && Route::has('my-finances') && $isFinanceResident)
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                     <i class="bi bi-wallet2"></i> Minhas Finanças
@@ -1038,6 +1386,14 @@
                             @endif
                         </ul>
                     </div>
+                </li>
+                @endif
+
+                @if(Route::has('rides.index') && SidebarHelper::canAccessRides($user))
+                <li class="nav-item">
+                    <a class="nav-link {{ $menuActive['caronas'] ? 'active' : '' }}" href="{{ route('rides.index') }}">
+                        <i class="bi bi-car-front"></i> Caronas
+                    </a>
                 </li>
                 @endif
 
@@ -1136,6 +1492,40 @@
                 </li>
                 @endif
 
+                @if($hasAccessControlMenu)
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['access_control'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuControleAcesso" aria-expanded="{{ $menuActive['access_control'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-shield-lock me-2"></i>Controle de Acesso</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['access_control'] ? 'show' : '' }}" id="menuControleAcesso" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            @if(Route::has('access-control.porteiro') && $user->can('process_access'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('access-control.porteiro') ? 'active' : '' }}" href="{{ route('access-control.porteiro') }}">
+                                    <i class="bi bi-shield-check"></i> Painel de Acesso
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('access-control.index') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('access-control.index') ? 'active' : '' }}" href="{{ route('access-control.index') }}">
+                                    <i class="bi bi-person-badge"></i> Liberações
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('access-control.reports') && $user->can('view_access_movements'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('access-control.reports*') ? 'active' : '' }}" href="{{ route('access-control.reports') }}">
+                                    <i class="bi bi-file-earmark-bar-graph"></i> Relatório de Acesso
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
+                </li>
+                @endif
+
                 {{-- Portaria oculta temporariamente --}}
                 {{-- @if(Route::has('entries.index'))
                     @can('register_entries')
@@ -1176,11 +1566,22 @@
                                     @endif
                                 </a>
                             </li>
+                            @can('contact_sindico')
+                            @if(!($user->isAdmin() && !$user->isSindico()))
                             <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('conversations.direct.start') ? 'active' : '' }}" href="{{ route('conversations.direct.start') }}">
-                                    <i class="bi bi-chat-dots"></i> Fale com o Síndico
+                                <a class="nav-link {{ request()->routeIs('syndic-conversations.*') && !request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.start') }}">
+                                    <i class="bi bi-shield-lock"></i> Fale com o Síndico
                                 </a>
                             </li>
+                            @endif
+                            @endcan
+                            @if($user->isSindico())
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.manage') }}">
+                                    <i class="bi bi-clipboard-data"></i> Atendimento Sigiloso
+                                </a>
+                            </li>
+                            @endif
                             @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('messages.create') ? 'active' : '' }}" href="{{ route('messages.create') }}">
@@ -1274,9 +1675,11 @@
                                     $notifCount = $user->notifications()->where('is_read', false)->count();
                                 @endphp
                                 @if($notifCount > 0)
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" data-unread-notifications>
                                     {{ $notifCount > 9 ? '9+' : $notifCount }}
                                 </span>
+                                @else
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" data-unread-notifications>0</span>
                                 @endif
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="notificationDropdown" style="min-width: 300px;">
@@ -1315,11 +1718,11 @@
             
             <!-- Mobile Sidebar (Collapsible) -->
             <div class="collapse d-lg-none" id="mobileSidebar">
-                <div class="bg-dark text-white p-3 mobile-sidebar">
+                <div class="text-white mobile-sidebar{{ $isAdminProfile ? ' mobile-sidebar-admin' : ' bg-dark' }}">
                     <!-- User Profile Section -->
-                    <div class="mb-4">
+                    <div class="sidebar-profile">
                         <div class="dropdown">
-                            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle p-2 rounded" id="dropdownUserMobile" data-bs-toggle="dropdown" aria-expanded="false" style="background: rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                            <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle py-2 px-2 rounded" id="dropdownUserMobile" data-bs-toggle="dropdown" aria-expanded="false" style="background: rgba(255,255,255,0.1); transition: all 0.3s ease;">
                                 @if($user->photo)
                                     <img src="{{ Storage::url($user->photo) }}" alt="{{ $user->name }}" class="rounded-circle me-2" width="32" height="32" style="border: 2px solid rgba(255,255,255,0.3);">
                                 @else
@@ -1343,7 +1746,7 @@
                                     <li><h6 class="dropdown-header">Trocar Perfil</h6></li>
                                     @foreach($user->roles as $role)
                                         <li>
-                                            <a class="dropdown-item {{ session('active_role') == $role->name ? 'active' : '' }}" href="#" onclick="switchProfile('{{ addslashes($role->name) }}')">
+                                            <a class="dropdown-item {{ session('active_role') == $role->name ? 'active' : '' }}" href="#" data-profile-role="{{ $role->name }}">
                                                 <i class="bi bi-person-circle me-2"></i>{{ $role->name }}
                                             </a>
                                         </li>
@@ -1365,13 +1768,53 @@
                         </div>
                     </div>
 
+                    @if(SidebarHelper::canManageCondominiums($user))
+                    <ul class="nav flex-column mb-0" id="mobileSidebarConfigSection">
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('condominiums.index') ? 'active' : '' }}" href="{{ route('condominiums.index') }}">
+                                <i class="bi bi-buildings"></i> Condomínios
+                            </a>
+                        </li>
+                        <li class="nav-item nav-item-group">
+                            <button class="nav-link-toggle {{ $menuActive['configuracoes_globais'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuConfigGlobais" aria-expanded="{{ $menuActive['configuracoes_globais'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-sliders me-2"></i>Configurações globais</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['configuracoes_globais'] ? 'show' : '' }}" id="mobileMenuConfigGlobais" data-bs-parent="#mobileSidebarConfigSection">
+                                <ul class="nav flex-column inner-nav">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.dashboard') ? 'active' : '' }}" href="{{ route('platform.dashboard') }}">
+                                            <i class="bi bi-graph-up-arrow"></i> Dashboard SaaS
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.plans.*') ? 'active' : '' }}" href="{{ route('platform.plans.index') }}">
+                                            <i class="bi bi-tags"></i> Planos de assinatura
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.settings.*') ? 'active' : '' }}" href="{{ route('platform.settings.asaas') }}">
+                                            <i class="bi bi-credit-card-2-front"></i> Asaas (SaaS)
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+                    </ul>
+                    @endif
+
                     <hr class="bg-white opacity-25">
 
                     <!-- Mobile Navigation Menu -->
                     <ul class="nav flex-column" id="mobileSidebarMenu">
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
-                                <i class="bi bi-speedometer2"></i> Dashboard
+                                <i class="bi bi-speedometer2"></i>
+                                @if(SidebarHelper::canManageCondominiums($user))
+                                    Dashboard do Administrador
+                                @else
+                                    Dashboard
+                                @endif
                             </a>
                         </li>
 
@@ -1397,6 +1840,20 @@
                                         </a>
                                     </li>
                                     @endcan
+                                    @if(SidebarHelper::canViewOwnCondominium($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('condominiums.show') ? 'active' : '' }}" href="{{ route('condominiums.show', $activeCondominiumContext['id'] ?? $user->condominium_id) }}">
+                                            <i class="bi bi-building"></i> Meu Condomínio
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if($user->isSindico() && Route::has('syndic-subscription.show'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('syndic-subscription.*') ? 'active' : '' }}" href="{{ route('syndic-subscription.show') }}">
+                                            <i class="bi bi-receipt-cutoff"></i> Assinatura SaaS
+                                        </a>
+                                    </li>
+                                    @endif
                                 </ul>
                             </div>
                         </li>
@@ -1405,6 +1862,7 @@
                         @php
                             $mobileFinanceAdmin = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
                             $mobileFinanceResident = $user->isMorador();
+                            $mobileFinancialSimplified = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
                             $mobileCanSeeFinance = !$user->isAgregado() && ($mobileFinanceAdmin || $mobileFinanceResident);
                         @endphp
                         @if($mobileCanSeeFinance)
@@ -1416,7 +1874,7 @@
                             <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="mobileMenuFinanceiro" data-bs-parent="#mobileSidebarMenu">
                                 <ul class="nav flex-column inner-nav">
                                     @if($mobileFinanceAdmin)
-                                        @if(Route::has('transactions.index') && $user->can('view_transactions'))
+                                        @if(!$mobileFinancialSimplified && Route::has('transactions.index') && $user->can('view_transactions'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
                                                 <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
@@ -1437,58 +1895,72 @@
                                             </a>
                                         </li>
                                         @endif
-                                        @if(Route::has('financial.status.index') && $user->can('view_financial_reports'))
+                                        @if(!$mobileFinancialSimplified && Route::has('financial.status.index') && $user->can('view_financial_reports'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
                                                 <i class="bi bi-graph-up"></i> Painel de Adimplência
                                             </a>
                                         </li>
                                         @endif
-                                        @if(Route::has('financial.bank-accounts.index') && $user->can('manage_transactions'))
+                                        @if(!$mobileFinancialSimplified && Route::has('financial.bank-accounts.index') && $user->can('manage_transactions'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('financial.bank-accounts.*') ? 'active' : '' }}" href="{{ route('financial.bank-accounts.index') }}">
                                                 <i class="bi bi-building-check"></i> Contas Bancárias
                                             </a>
                                         </li>
                                         @endif
-                                        @if(Route::has('revenue.index') && $user->can('view_revenue'))
+                                        @if(!$mobileFinancialSimplified && Route::has('revenue.index') && $user->can('view_revenue'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('revenue.*') ? 'active' : '' }}" href="{{ route('revenue.index') }}">
                                                 <i class="bi bi-graph-up-arrow"></i> Receitas
                                             </a>
                                         </li>
                                         @endif
-                                        @if(Route::has('expenses.index') && $user->can('view_expenses'))
+                                        @if(!$mobileFinancialSimplified && Route::has('expenses.index') && $user->can('view_expenses'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
                                                 <i class="bi bi-graph-down-arrow"></i> Despesas
                                             </a>
                                         </li>
                                         @endif
-                                        @if(Route::has('bank-reconciliation.index') && $user->can('view_bank_statements'))
+                                        @if(!$mobileFinancialSimplified && Route::has('bank-reconciliation.index') && $user->can('view_bank_statements'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('bank-reconciliation.*') ? 'active' : '' }}" href="{{ route('bank-reconciliation.index') }}">
                                                 <i class="bi bi-bank"></i> Conciliação Bancária
                                             </a>
                                         </li>
                                         @endif
-                                        @if(Route::has('financial-reports.index') && $user->can('view_financial_reports'))
+                                        @if(!$mobileFinancialSimplified && Route::has('financial-reports.index') && $user->can('view_financial_reports'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('financial-reports.*') ? 'active' : '' }}" href="{{ route('financial-reports.index') }}">
                                                 <i class="bi bi-file-earmark-bar-graph"></i> Relatórios Financeiros
                                             </a>
                                         </li>
                                         @endif
+                                        @if($mobileFinancialSimplified && Route::has('accountability-uploads.index'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('accountability-uploads.*') ? 'active' : '' }}" href="{{ route('accountability-uploads.index') }}">
+                                                <i class="bi bi-file-earmark-arrow-up"></i> Prestação de Contas
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('financial.settings.index') && \App\Helpers\SidebarHelper::canManageFinancialSettings($user))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('financial.settings.*') ? 'active' : '' }}" href="{{ route('financial.settings.index') }}">
+                                                <i class="bi bi-sliders"></i> Ambiente Financeiro
+                                            </a>
+                                        </li>
+                                        @endif
                                     @endif
 
-                                    @if(Route::has('financial.accounts.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
+                                    @if(!$mobileFinancialSimplified && Route::has('financial.accounts.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}">
                                             <i class="bi bi-bank"></i> Contas do Condomínio
                                         </a>
                                     </li>
                                     @endif
-                                    @if(Route::has('financial.income-expense.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
+                                    @if(!$mobileFinancialSimplified && Route::has('financial.income-expense.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('financial.income-expense.*') ? 'active' : '' }}" href="{{ route('financial.income-expense.index') }}">
                                             <i class="bi bi-arrow-left-right"></i> Entradas/Saídas
@@ -1496,7 +1968,7 @@
                                     </li>
                                     @endif
 
-                                    @if(!$mobileFinanceAdmin && Route::has('accountability-reports.index') && ($mobileFinanceResident || $user->can('view_accountability_reports') || $user->can('view_financial_reports')))
+                                    @if(!$mobileFinanceAdmin && !$mobileFinancialSimplified && Route::has('accountability-reports.index') && ($mobileFinanceResident || $user->can('view_accountability_reports') || $user->can('view_financial_reports')))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('accountability-reports.*') ? 'active' : '' }}" href="{{ route('accountability-reports.index') }}">
                                             <i class="bi bi-journal-check"></i> Prestação de Contas
@@ -1504,7 +1976,15 @@
                                     </li>
                                     @endif
 
-                                    @if(Route::has('my-finances') && $mobileFinanceResident)
+                                    @if($mobileFinancialSimplified && !$mobileFinanceAdmin && Route::has('accountability-uploads.index'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('accountability-uploads.*') ? 'active' : '' }}" href="{{ route('accountability-uploads.index') }}">
+                                            <i class="bi bi-journal-check"></i> Prestação de Contas
+                                        </a>
+                                    </li>
+                                    @endif
+
+                                    @if(!$mobileFinancialSimplified && Route::has('my-finances') && $mobileFinanceResident)
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                             <i class="bi bi-wallet2"></i> Minhas Finanças
@@ -1586,6 +2066,14 @@
                                     @endif
                                 </ul>
                             </div>
+                        </li>
+                        @endif
+
+                        @if(Route::has('rides.index') && SidebarHelper::canAccessRides($user))
+                        <li class="nav-item mt-2">
+                            <a class="nav-link {{ $menuActive['caronas'] ? 'active' : '' }}" href="{{ route('rides.index') }}">
+                                <i class="bi bi-car-front"></i> Caronas
+                            </a>
                         </li>
                         @endif
 
@@ -1684,6 +2172,40 @@
                         </li>
                         @endif
 
+                        @if($hasAccessControlMenu)
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['access_control'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuControleAcesso" aria-expanded="{{ $menuActive['access_control'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-shield-lock me-2"></i>Controle de Acesso</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['access_control'] ? 'show' : '' }}" id="mobileMenuControleAcesso" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    @if(Route::has('access-control.porteiro') && $user->can('process_access'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('access-control.porteiro') ? 'active' : '' }}" href="{{ route('access-control.porteiro') }}">
+                                            <i class="bi bi-shield-check"></i> Painel de Acesso
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('access-control.index') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('access-control.index') ? 'active' : '' }}" href="{{ route('access-control.index') }}">
+                                            <i class="bi bi-person-badge"></i> Liberações
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('access-control.reports') && $user->can('view_access_movements'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('access-control.reports*') ? 'active' : '' }}" href="{{ route('access-control.reports') }}">
+                                            <i class="bi bi-file-earmark-bar-graph"></i> Relatório de Acesso
+                                        </a>
+                                    </li>
+                                    @endif
+                                </ul>
+                            </div>
+                        </li>
+                        @endif
+
                         {{-- Portaria oculta temporariamente --}}
                         {{-- @if(Route::has('entries.index'))
                             @can('register_entries')
@@ -1724,11 +2246,22 @@
                                             @endif
                                         </a>
                                     </li>
+                                    @can('contact_sindico')
+                                    @if(!($user->isAdmin() && !$user->isSindico()))
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('conversations.direct.start') ? 'active' : '' }}" href="{{ route('conversations.direct.start') }}">
-                                            <i class="bi bi-chat-dots"></i> Fale com o Síndico
+                                        <a class="nav-link {{ request()->routeIs('syndic-conversations.*') && !request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.start') }}">
+                                            <i class="bi bi-shield-lock"></i> Fale com o Síndico
                                         </a>
                                     </li>
+                                    @endif
+                                    @endcan
+                                    @if($user->isSindico())
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.manage') }}">
+                                            <i class="bi bi-clipboard-data"></i> Atendimento Sigiloso
+                                        </a>
+                                    </li>
+                                    @endif
                                     @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('messages.create') ? 'active' : '' }}" href="{{ route('messages.create') }}">
@@ -1815,11 +2348,13 @@
 
     @stack('scripts')
 
+    @include('layouts.partials.access-notifications-poll')
+
     @php
         $oneSignalTags = [
-            'condominium_id' => optional($user)->condominium_id,
-            'role_admin' => optional($user)->hasRole('Administrador') ? '1' : '0',
-            'role_sindico' => optional($user)->hasRole('Síndico') ? '1' : '0',
+            'condominium_id' => optional($user)->getActiveCondominiumId() ?? optional($user)->condominium_id,
+            'role_admin' => optional($user)->getActiveRoleName() === 'Administrador' ? '1' : '0',
+            'role_sindico' => optional($user)->getActiveRoleName() === 'Síndico' ? '1' : '0',
         ];
 
         $oneSignalConfig = [
@@ -1841,42 +2376,6 @@
     <script>
         // Mobile sidebar já funciona com Bootstrap collapse
         // openPanicModal já está definido no <head> para garantir disponibilidade imediata
-
-        // Switch profile
-        function switchProfile(roleName) {
-            fetch('{{ route("profile.switch") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({ role: roleName }),
-                credentials: 'same-origin',
-            })
-            .then(async response => {
-                const isJson = response.headers.get('content-type')?.includes('application/json');
-                const data = isJson ? await response.json() : {};
-
-                if (!response.ok) {
-                    throw new Error(data.message || 'Erro ao trocar perfil');
-                }
-
-                if (data.success) {
-                    location.reload();
-                } else {
-                    throw new Error(data.message || 'Erro ao trocar perfil');
-                }
-            })
-            .then(data => {
-                // handled above
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert(error.message || 'Erro ao trocar perfil');
-            });
-        }
 
         // Auto-hide alerts after 5 seconds (exceto alertas de pânico)
         setTimeout(() => {

@@ -13,17 +13,23 @@ class Conversation extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const CHANNEL_PEER = 'peer';
+    public const CHANNEL_SYNDIC = 'syndic';
+
     protected $fillable = [
         'condominium_id',
         'created_by',
         'subject',
         'type',
+        'channel',
         'priority',
         'is_active',
         'is_closed',
         'expires_at',
         'closed_at',
         'closed_by',
+        'resident_first_message_at',
+        'syndic_first_response_at',
     ];
 
     protected $casts = [
@@ -31,7 +37,19 @@ class Conversation extends Model
         'is_closed' => 'boolean',
         'expires_at' => 'datetime',
         'closed_at' => 'datetime',
+        'resident_first_message_at' => 'datetime',
+        'syndic_first_response_at' => 'datetime',
     ];
+
+    public function isSyndicChannel(): bool
+    {
+        return $this->channel === self::CHANNEL_SYNDIC;
+    }
+
+    public function isPeerChannel(): bool
+    {
+        return $this->channel === self::CHANNEL_PEER || ($this->type === 'direct' && $this->channel === null);
+    }
 
     public function condominium(): BelongsTo
     {

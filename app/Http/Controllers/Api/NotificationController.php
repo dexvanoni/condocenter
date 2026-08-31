@@ -4,11 +4,37 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
+use App\Services\AccessAlertService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
+    /**
+     * Alertas dinâmicos de liberações de acesso (entrada/negado na portaria).
+     */
+    public function accessAlerts(Request $request)
+    {
+        $user = Auth::user();
+        $alerts = app(AccessAlertService::class)->unreadAccessAlerts($user, 10);
+
+        return response()->json([
+            'data' => $alerts,
+            'count' => $alerts->count(),
+        ]);
+    }
+
+    /**
+     * Marca alerta de acesso como lido.
+     */
+    public function markAccessAlertAsRead(int $id)
+    {
+        $user = Auth::user();
+        app(AccessAlertService::class)->markAccessAlertAsRead($user, $id);
+
+        return response()->json(['message' => 'Alerta marcado como lido']);
+    }
+
     /**
      * Lista notificações do usuário
      */

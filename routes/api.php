@@ -42,7 +42,7 @@ Route::middleware(['auth:sanctum'])->get('/user/credits', function (Request $req
 });
 
 // API Routes com autenticação Sanctum (aceita sessão web também)
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
     // Financeiro
     Route::apiResource('transactions', TransactionController::class)->names([
         'index' => 'api.transactions.index',
@@ -140,6 +140,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
     Route::post('conversations/announcement', [ConversationController::class, 'storeAnnouncement'])->name('api.conversations.announcement');
     Route::post('conversations/direct', [ConversationController::class, 'storeDirect'])->name('api.conversations.direct');
+    Route::get('conversations/syndic/stats', [\App\Http\Controllers\Api\SyndicConversationController::class, 'stats'])->name('api.conversations.syndic.stats');
+    Route::post('conversations/syndic', [\App\Http\Controllers\Api\SyndicConversationController::class, 'store'])->name('api.conversations.syndic.store');
     Route::post('conversations/{conversation}/participants', [ConversationController::class, 'addParticipant'])->name('api.conversations.participants.add');
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'storeMessage'])->name('api.conversations.messages.store');
     Route::post('conversations/{conversation}/messages/{message}/attachments', [ConversationController::class, 'uploadAttachment'])->name('api.conversations.messages.attachments');
@@ -160,6 +162,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('api.notifications.read');
     Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('api.notifications.mark-all-read');
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('api.notifications.unread-count');
+    Route::get('notifications/access-alerts', [NotificationController::class, 'accessAlerts'])->name('api.notifications.access-alerts');
+    Route::post('notifications/access-alerts/{id}/read', [NotificationController::class, 'markAccessAlertAsRead'])->name('api.notifications.access-alerts.read');
     
     // Espaços
     Route::apiResource('spaces', SpaceController::class)->names([
@@ -179,6 +183,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         'destroy' => 'api.pets.destroy',
     ]);
     
+    Route::get('rides', [\App\Http\Controllers\Api\RideController::class, 'index'])->name('api.rides.index');
+    Route::post('rides', [\App\Http\Controllers\Api\RideController::class, 'store'])->name('api.rides.store');
+    Route::get('rides/{ride}', [\App\Http\Controllers\Api\RideController::class, 'show'])->name('api.rides.show');
+    Route::delete('rides/{ride}', [\App\Http\Controllers\Api\RideController::class, 'destroy'])->name('api.rides.destroy');
+    Route::post('rides/{ride}/bookings', [\App\Http\Controllers\Api\RideController::class, 'book'])->name('api.rides.bookings.store');
+    Route::delete('ride-bookings/{rideBooking}', [\App\Http\Controllers\Api\RideBookingController::class, 'destroy'])->name('api.ride-bookings.destroy');
+
     // Relatórios
     Route::get('reports/financial', [ReportController::class, 'financial'])->name('api.reports.financial');
     Route::get('reports/defaulters', [ReportController::class, 'defaulters'])->name('api.reports.defaulters');
@@ -194,6 +205,29 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('status', [FcmTokenController::class, 'status'])->name('api.fcm.status');
         Route::put('topics', [FcmTokenController::class, 'updateTopics'])->name('api.fcm.topics.update');
         Route::post('test', [FcmTokenController::class, 'test'])->name('api.fcm.test');
+    });
+
+    // Controle de Acesso
+    Route::prefix('access-control')->name('api.access-control.')->group(function () {
+        Route::get('porteiro/panel', [\App\Http\Controllers\Api\AccessControlController::class, 'porteiroPanel'])->name('porteiro.panel');
+        Route::get('authorizations', [\App\Http\Controllers\Api\AccessControlController::class, 'myAuthorizations'])->name('authorizations.index');
+        Route::post('authorizations', [\App\Http\Controllers\Api\AccessControlController::class, 'storeAuthorization'])->name('authorizations.store');
+        Route::post('prohibitions', [\App\Http\Controllers\Api\AccessControlController::class, 'storeProhibition'])->name('prohibitions.store');
+        Route::post('authorizations/{authorization}/cancel', [\App\Http\Controllers\Api\AccessControlController::class, 'cancelAuthorization'])->name('authorizations.cancel');
+        Route::post('authorizations/{authorization}/process', [\App\Http\Controllers\Api\AccessControlController::class, 'processAuthorization'])->name('authorizations.process');
+        Route::post('authorizations/{authorization}/alert-resident', [\App\Http\Controllers\Api\AccessControlController::class, 'alertProhibitionAttempt'])->name('authorizations.alert-resident');
+        Route::get('lists', [\App\Http\Controllers\Api\AccessControlController::class, 'myLists'])->name('lists.index');
+        Route::post('lists', [\App\Http\Controllers\Api\AccessControlController::class, 'storeList'])->name('lists.store');
+        Route::put('lists/{list}', [\App\Http\Controllers\Api\AccessControlController::class, 'updateList'])->name('lists.update');
+        Route::post('lists/{list}/cancel', [\App\Http\Controllers\Api\AccessControlController::class, 'cancelList'])->name('lists.cancel');
+        Route::post('list-items/{listItem}/process', [\App\Http\Controllers\Api\AccessControlController::class, 'processListItem'])->name('list-items.process');
+        Route::get('providers', [\App\Http\Controllers\Api\AccessControlController::class, 'myProviders'])->name('providers.index');
+        Route::post('providers', [\App\Http\Controllers\Api\AccessControlController::class, 'storeProvider'])->name('providers.store');
+        Route::put('providers/{provider}', [\App\Http\Controllers\Api\AccessControlController::class, 'updateProvider'])->name('providers.update');
+        Route::post('providers/{provider}/deactivate', [\App\Http\Controllers\Api\AccessControlController::class, 'deactivateProvider'])->name('providers.deactivate');
+        Route::post('providers/{provider}/enter', [\App\Http\Controllers\Api\AccessControlController::class, 'processProviderEntry'])->name('providers.enter');
+        Route::get('movements', [\App\Http\Controllers\Api\AccessControlController::class, 'movements'])->name('movements.index');
+        Route::post('settings/agregado-access', [\App\Http\Controllers\Api\AccessControlController::class, 'updateAgregadoSetting'])->name('settings.agregado');
     });
 });
 

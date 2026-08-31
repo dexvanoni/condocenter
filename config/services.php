@@ -39,6 +39,7 @@ return [
         'api_key' => env('ASAAS_API_KEY'),
         'sandbox' => env('ASAAS_SANDBOX', true),
         'webhook_email' => env('ASAAS_WEBHOOK_EMAIL', 'admin@condomanager.com'),
+        'webhook_token' => env('ASAAS_WEBHOOK_TOKEN'),
     ],
 
 ];

@@ -9,6 +9,7 @@ use App\Models\AgregadoPermission;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Services\ActiveCondominiumService;
 use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -24,9 +25,29 @@ class UserController extends Controller
 
     protected FileUploadService $fileUploadService;
 
-    public function __construct(FileUploadService $fileUploadService)
-    {
+    public function __construct(
+        FileUploadService $fileUploadService,
+        private ActiveCondominiumService $activeCondominiumService
+    ) {
         $this->fileUploadService = $fileUploadService;
+    }
+
+    private function activeCondominiumId(): int
+    {
+        $id = $this->activeCondominiumService->getActiveCondominiumId($this->authUser());
+
+        if (!$id) {
+            abort(403, 'Selecione um condomínio para continuar.');
+        }
+
+        return $id;
+    }
+
+    private function ensureSameActiveCondominium(User $model): void
+    {
+        if ((int) $model->condominium_id !== $this->activeCondominiumId()) {
+            abort(403, 'Usuário não pertence ao condomínio selecionado.');
+        }
     }
 
     /**
@@ -49,8 +70,11 @@ class UserController extends Controller
         
         /** @var \App\Models\User $authUser */
         $authUser = $request->user();
+        $condominiumId = $this->activeCondominiumId();
+        $activeCondominium = $this->activeCondominiumService->getActiveCondominium($authUser);
+
         $query = User::with(['unit', 'roles', 'condominium'])
-            ->byCondominium($authUser->condominium_id);
+            ->byCondominium($condominiumId);
 
         // Filtros
         if ($request->filled('search')) {
@@ -71,6 +95,10 @@ class UserController extends Controller
             $query->where('is_active', $request->boolean('is_active'));
         }
 
+        if ($request->get('status') === 'pending') {
+            $query->where('registration_status', 'pending');
+        }
+
         if ($request->filled('possui_dividas')) {
             $query->where('possui_dividas', $request->boolean('possui_dividas'));
         }
@@ -87,7 +115,7 @@ class UserController extends Controller
         // Para filtros
         $roles = Role::all();
         $units = Unit::active()
-            ->byCondominium($authUser->condominium_id)
+            ->byCondominium($condominiumId)
             ->orderBy('number')
             ->get();
 
@@ -97,7 +125,7 @@ class UserController extends Controller
             Log::info('Users Query Bindings: ' . json_encode($query->getBindings()));
         }
 
-        return view('users.index', compact('users', 'roles', 'units'));
+        return view('users.index', compact('users', 'roles', 'units', 'activeCondominium'));
     }
 
     /**
@@ -108,16 +136,17 @@ class UserController extends Controller
         $this->authorize('create', User::class);
         
         $authUser = $this->authUser();
-        $condominiums = Condominium::active()->get();
+        $condominiumId = $this->activeCondominiumId();
+        $condominiums = Condominium::where('id', $condominiumId)->get();
         $units = Unit::active()
-            ->byCondominium($authUser->condominium_id)
+            ->byCondominium($condominiumId)
             ->orderBy('number')
             ->get();
         $roles = Role::all();
         
         // Moradores para vincular agregados
         $moradores = User::active()
-            ->byCondominium($authUser->condominium_id)
+            ->byCondominium($condominiumId)
             ->moradores()
             ->orderBy('name')
             ->get();
@@ -136,6 +165,7 @@ class UserController extends Controller
         $this->authorize('create', User::class);
         
         $data = $request->validated();
+        $data['condominium_id'] = $this->activeCondominiumId();
 
         // Senha padrão
         $data['password'] = Hash::make('12345678');
@@ -183,6 +213,7 @@ class UserController extends Controller
     public function show(User $user)
     {
         $this->authorize('view', $user);
+        $this->ensureSameActiveCondominium($user);
         
         $user->load([
             'unit.charges',
@@ -217,16 +248,17 @@ class UserController extends Controller
             return view('users.profile-edit', compact('user'));
         } else {
             // Admin/Síndico editando qualquer usuário - usar view completa
-            $condominiums = Condominium::active()->get();
+            $condominiumId = $this->activeCondominiumId();
+            $condominiums = Condominium::where('id', $condominiumId)->get();
             $units = Unit::active()
-                ->byCondominium($user->condominium_id)
+                ->byCondominium($condominiumId)
                 ->orderBy('number')
                 ->get();
             $roles = Role::all();
             
             // Moradores para vincular agregados
             $moradores = User::active()
-                ->byCondominium($user->condominium_id)
+                ->byCondominium($condominiumId)
                 ->moradores()
                 ->where('id', '!=', $user->id)
                 ->orderBy('name')
@@ -266,6 +298,7 @@ class UserController extends Controller
                 'local_trabalho' => ['nullable', 'string', 'max:255'],
                 'contato_comercial' => ['nullable', 'string', 'max:20'],
                 'photo' => ['nullable', 'image', 'max:2048'],
+                'agregado_can_authorize_access' => ['nullable', 'boolean'],
             ]);
             
             // Upload de nova foto se fornecida
@@ -281,6 +314,10 @@ class UserController extends Controller
                 );
             }
             
+            if ($user->isMorador()) {
+                $validatedData['agregado_can_authorize_access'] = $request->boolean('agregado_can_authorize_access');
+            }
+
             $user->update($validatedData);
             
             // Log da atividade
@@ -295,9 +332,10 @@ class UserController extends Controller
                 ->with('success', 'Perfil atualizado com sucesso!');
                 
         } else {
+            $this->ensureSameActiveCondominium($user);
+
             // Admin/Síndico editando qualquer usuário - usar validação completa
             $data = $request->validate([
-                'condominium_id' => ['sometimes', 'required', 'exists:condominiums,id'],
                 'unit_id' => ['nullable', 'exists:units,id'],
                 'morador_vinculado_id' => ['nullable', 'exists:users,id'],
                 'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -365,9 +403,10 @@ class UserController extends Controller
                 $data['password'] = Hash::make($request->password);
                 $data['senha_temporaria'] = false;
             } else {
-                // Remove senha do array se não foi fornecida
                 unset($data['password']);
             }
+
+            $data['condominium_id'] = $this->activeCondominiumId();
 
             // Extrai roles antes de atualizar
             $roles = $data['roles'] ?? null;
@@ -399,6 +438,147 @@ class UserController extends Controller
             return redirect()->route('users.show', $user)
                 ->with('success', 'Usuário atualizado com sucesso!');
         }
+    }
+
+    /**
+     * Aprova cadastro pendente de autocadastro.
+     */
+    public function approve(User $user)
+    {
+        $this->authorize('update', $user);
+
+        $this->ensureSameActiveCondominium($user);
+
+        if ($user->is_active) {
+            return back()->with('info', 'Este usuário já está ativo.');
+        }
+
+        if (!$user->isPendingApproval()) {
+            return back()->with('info', 'Este usuário não está pendente de aprovação.');
+        }
+
+        $user->update([
+            'is_active' => true,
+            'registration_status' => 'approved',
+        ]);
+
+        \App\Models\Notification::create([
+            'condominium_id' => $user->condominium_id,
+            'user_id' => $user->id,
+            'type' => 'registration_approved',
+            'title' => 'Cadastro aprovado',
+            'message' => 'Seu cadastro foi aprovado. Você já pode acessar o sistema.',
+            'data' => ['approved_by' => $this->authUser()->id],
+            'channel' => 'database',
+            'sent' => true,
+            'sent_at' => now(),
+        ]);
+
+        $this->authUser()->logActivity(
+            'update',
+            'users',
+            "Aprovou o cadastro de {$user->name}",
+            ['user_id' => $user->id]
+        );
+
+        return back()->with('success', "Cadastro de {$user->name} aprovado com sucesso!");
+    }
+
+    public function reject(User $user)
+    {
+        $this->authorize('update', $user);
+
+        $this->ensureSameActiveCondominium($user);
+
+        if (!$user->isPendingApproval()) {
+            return back()->with('info', 'Somente cadastros pendentes podem ser rejeitados.');
+        }
+
+        $user->update([
+            'is_active' => false,
+            'registration_status' => 'rejected',
+        ]);
+
+        \App\Models\Notification::create([
+            'condominium_id' => $user->condominium_id,
+            'user_id' => $user->id,
+            'type' => 'registration_rejected',
+            'title' => 'Cadastro não aprovado',
+            'message' => 'Seu cadastro não foi aprovado pela administração. Entre em contato com a portaria para mais informações.',
+            'data' => ['rejected_by' => $this->authUser()->id],
+            'channel' => 'database',
+            'sent' => true,
+            'sent_at' => now(),
+        ]);
+
+        $this->authUser()->logActivity(
+            'update',
+            'users',
+            "Rejeitou o cadastro de {$user->name}",
+            ['user_id' => $user->id]
+        );
+
+        return back()->with('success', "Cadastro de {$user->name} rejeitado.");
+    }
+
+    public function activate(User $user)
+    {
+        $this->authorize('update', $user);
+
+        $this->ensureSameActiveCondominium($user);
+
+        if ($user->isPendingApproval()) {
+            return back()->with('warning', 'Cadastro pendente deve ser aprovado antes de ser ativado.');
+        }
+
+        if ($user->isRegistrationRejected()) {
+            return back()->with('warning', 'Cadastro rejeitado não pode ser reativado por aqui.');
+        }
+
+        if ($user->is_active) {
+            return back()->with('info', 'Este usuário já está ativo.');
+        }
+
+        $user->update(['is_active' => true]);
+
+        $this->authUser()->logActivity(
+            'update',
+            'users',
+            "Ativou o usuário {$user->name}",
+            ['user_id' => $user->id]
+        );
+
+        return back()->with('success', "Usuário {$user->name} ativado com sucesso!");
+    }
+
+    public function deactivate(User $user)
+    {
+        $this->authorize('update', $user);
+
+        $this->ensureSameActiveCondominium($user);
+
+        if ($user->id === $this->authUser()->id) {
+            return back()->with('error', 'Você não pode desativar o próprio usuário.');
+        }
+
+        if ($user->isPendingApproval()) {
+            return back()->with('warning', 'Use rejeitar para cadastros pendentes de aprovação.');
+        }
+
+        if (!$user->is_active) {
+            return back()->with('info', 'Este usuário já está inativo.');
+        }
+
+        $user->update(['is_active' => false]);
+
+        $this->authUser()->logActivity(
+            'update',
+            'users',
+            "Desativou o usuário {$user->name}",
+            ['user_id' => $user->id]
+        );
+
+        return back()->with('success', "Usuário {$user->name} desativado com sucesso!");
     }
 
     /**
@@ -440,7 +620,7 @@ class UserController extends Controller
         $authUser = $request->user();
 
         $query = User::active()
-            ->byCondominium($authUser->condominium_id)
+            ->byCondominium($this->activeCondominiumId())
             ->where(function($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                   ->orWhere('cpf', 'like', "%{$term}%")

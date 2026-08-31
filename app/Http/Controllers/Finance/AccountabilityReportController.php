@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Finance;
 
 use App\Exports\AccountabilityExport;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Services\AccountabilityReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,6 +18,8 @@ use ZipArchive;
 
 class AccountabilityReportController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function __construct(
         private readonly AccountabilityReportService $service
     ) {
@@ -37,7 +40,7 @@ class AccountabilityReportController extends Controller
             ? Carbon::parse($request->input('end_date'))->endOfDay()
             : now()->endOfMonth();
 
-        $data = $this->service->generate($user->condominium_id, $startDate, $endDate);
+        $data = $this->service->generate($this->activeCondominiumId($user), $startDate, $endDate);
 
         $canViewDetails = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
 
@@ -60,13 +63,13 @@ class AccountabilityReportController extends Controller
 
         [$startDate, $endDate] = $this->resolvePeriod($request);
 
-        $data = $this->service->generate($user->condominium_id, $startDate, $endDate);
+        $data = $this->service->generate($this->activeCondominiumId($user), $startDate, $endDate);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('finance.accountability.pdf', [
             'data' => $data,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'condominium' => $user->condominium,
+            'condominium' => $this->activeCondominium($user),
         ]);
 
         $pdf->setPaper('a4', 'landscape');
@@ -84,10 +87,10 @@ class AccountabilityReportController extends Controller
 
         [$startDate, $endDate] = $this->resolvePeriod($request);
 
-        $data = $this->service->generate($user->condominium_id, $startDate, $endDate);
+        $data = $this->service->generate($this->activeCondominiumId($user), $startDate, $endDate);
 
         return Excel::download(
-            new AccountabilityExport($user->condominium, $data, $startDate, $endDate),
+            new AccountabilityExport($this->activeCondominium($user), $data, $startDate, $endDate),
             'prestacao_contas_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd') . '.xlsx'
         );
     }
@@ -101,13 +104,13 @@ class AccountabilityReportController extends Controller
         }
 
         [$startDate, $endDate] = $this->resolvePeriod($request);
-        $data = $this->service->generate($user->condominium_id, $startDate, $endDate);
+        $data = $this->service->generate($this->activeCondominiumId($user), $startDate, $endDate);
 
         return view('finance.accountability.print', [
             'data' => $data,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'condominium' => $user->condominium,
+            'condominium' => $this->activeCondominium($user),
         ]);
     }
 
@@ -134,7 +137,7 @@ class AccountabilityReportController extends Controller
 
         [$startDate, $endDate] = $this->resolvePeriod($request);
 
-        $data = $this->service->generate($user->condominium_id, $startDate, $endDate);
+        $data = $this->service->generate($this->activeCondominiumId($user), $startDate, $endDate);
 
         // Criar arquivo ZIP temporário
         $zipFileName = 'comprovantes_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd') . '.zip';

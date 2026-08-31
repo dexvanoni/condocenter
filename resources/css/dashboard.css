@@ -655,6 +655,24 @@
     background: rgba(10, 27, 103, 0.08);
 }
 
+.widget-notification.critical {
+    border-left-color: #7f1d1d;
+    background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%);
+    color: #fecaca;
+    box-shadow: 0 8px 24px rgba(69, 10, 10, 0.25);
+}
+
+.widget-notification.critical h6,
+.widget-notification.critical p,
+.widget-notification.critical small {
+    color: #fecaca !important;
+}
+
+.widget-notification.critical .btn-outline-secondary {
+    color: #fecaca;
+    border-color: rgba(254, 202, 202, 0.45);
+}
+
 .widget-notification.warning {
     border-left-color: rgba(56, 102, 210, 0.7);
     background: rgba(56, 102, 210, 0.06);

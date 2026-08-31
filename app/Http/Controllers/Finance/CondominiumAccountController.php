@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
 use App\Models\CondominiumAccount;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Rule;
 
 class CondominiumAccountController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -21,7 +24,7 @@ class CondominiumAccountController extends Controller
             abort(403);
         }
 
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $this->activeCondominiumId($user);
         $startDate = $request->filled('start_date')
             ? Carbon::parse($request->input('start_date'))->startOfDay()
             : now()->startOfMonth();
@@ -171,7 +174,7 @@ class CondominiumAccountController extends Controller
         $capturedImagePath = $this->storeFile($request->file('captured_image'));
 
         CondominiumAccount::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $this->activeCondominiumId($user),
             'type' => 'expense',
             'description' => $validated['description'],
             'amount' => $validated['amount'],
@@ -210,7 +213,7 @@ class CondominiumAccountController extends Controller
         $documentPath = $this->storeFile($request->file('document'));
 
         CondominiumAccount::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $this->activeCondominiumId($user),
             'type' => 'income',
             'source_type' => 'manual_income',
             'description' => $validated['description'],

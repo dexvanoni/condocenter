@@ -18,7 +18,7 @@ class ReportController extends Controller
     public function financial(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
 
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
@@ -79,7 +79,7 @@ class ReportController extends Controller
     public function defaulters(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
 
         $overdueCharges = Charge::with(['unit'])
             ->where('condominium_id', $condominiumId)
@@ -124,7 +124,7 @@ class ReportController extends Controller
     public function balance(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
 
         $month = $request->get('month', now()->month);
         $year = $request->get('year', now()->year);
@@ -158,7 +158,7 @@ class ReportController extends Controller
     public function cashFlow(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
 
         $months = $request->get('months', 6);
         $cashFlow = [];

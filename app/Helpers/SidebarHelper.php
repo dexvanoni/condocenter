@@ -25,6 +25,7 @@ class SidebarHelper
             'notifications' => $user->can('view_notifications'),
             'packages' => $user->can('view_packages'),
             'messages' => $user->can('send_messages'),
+            'rides' => $user->can('view_rides'),
             'financial' => $user->can('view_own_financial') || $user->can('view_transactions'),
             default => false,
         };
@@ -50,6 +51,7 @@ class SidebarHelper
                 'pets' => $user->can('manage_pets'),
                 'packages' => $user->can('register_packages'),
                 'messages' => $user->can('send_messages'),
+                'rides' => $user->can('create_rides') && $user->can('book_rides'),
                 default => false,
             };
         }
@@ -172,6 +174,33 @@ class SidebarHelper
         return $user->can('send_messages') || $user->can('view_messages');
     }
 
+    public static function canAccessRides(User $user): bool
+    {
+        if (!$user->tenantCondominiumId()) {
+            return false;
+        }
+
+        return self::canAccessModule($user, 'rides');
+    }
+
+    public static function canOfferRides(User $user): bool
+    {
+        if ($user->isAgregado()) {
+            return self::canCrudModule($user, 'rides');
+        }
+
+        return $user->can('create_rides');
+    }
+
+    public static function canBookRides(User $user): bool
+    {
+        if ($user->isAgregado()) {
+            return self::canCrudModule($user, 'rides');
+        }
+
+        return $user->can('book_rides');
+    }
+
     /**
      * Verifica se pode visualizar encomendas
      */
@@ -205,6 +234,45 @@ class SidebarHelper
         return $user->hasAnyRole(['Administrador', 'Síndico']);
     }
 
+    public static function getActiveCondominium(User $user): ?\App\Models\Condominium
+    {
+        if ($user->isAdmin()) {
+            return $user->activeCondominium();
+        }
+
+        return $user->condominium;
+    }
+
+    public static function getFinancialMode(User $user): string
+    {
+        return self::getActiveCondominium($user)?->financial_mode ?? 'full';
+    }
+
+    public static function isFinancialSimplified(User $user): bool
+    {
+        return self::getFinancialMode($user) === 'simplified';
+    }
+
+    public static function canManageFinancialSettings(User $user): bool
+    {
+        return self::isAdminOrSindico($user) && (bool) $user->getActiveCondominiumId();
+    }
+
+    public static function canManageCondominiums(User $user): bool
+    {
+        return $user->isAdmin();
+    }
+
+    public static function canViewOwnCondominium(User $user): bool
+    {
+        return $user->isSindico() && (bool) $user->condominium_id;
+    }
+
+    public static function canEditOwnCondominium(User $user): bool
+    {
+        return self::canViewOwnCondominium($user);
+    }
+
     /**
      * Obtém o texto do botão de ação baseado nas permissões
      */
@@ -216,6 +284,7 @@ class SidebarHelper
                 'marketplace' => 'Criar Anúncio',
                 'pets' => 'Cadastrar Pet',
                 'messages' => 'Nova Mensagem',
+                'rides' => 'Oferecer Carona',
                 default => 'Novo',
             };
         }

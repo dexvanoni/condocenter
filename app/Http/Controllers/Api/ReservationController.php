@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SendReservationNotification;
 use App\Models\Charge;
 use App\Models\Notification;
+use App\Models\RecurringReservation;
 use App\Models\Reservation;
 use App\Models\Space;
 use App\Services\OneSignalNotificationService;
@@ -29,7 +30,7 @@ class ReservationController extends Controller
 
         // Filtrar por condomínio através do space
         $query->whereHas('space', function ($q) use ($user) {
-            $q->where('condominium_id', $user->condominium_id);
+            $q->where('condominium_id', $user->tenantCondominiumId());
         });
 
         // Mostrar apenas as reservas do usuário logado (não por unidade)
@@ -106,7 +107,7 @@ class ReservationController extends Controller
         $space = Space::findOrFail($request->space_id);
 
         // Verificar se o espaço pertence ao condomínio do usuário
-        if ($space->condominium_id !== $user->condominium_id) {
+        if ($space->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Espaço não pertence ao seu condomínio'], 403);
         }
 
@@ -117,23 +118,16 @@ class ReservationController extends Controller
 
         // Validação de conflitos baseada no modo de reserva
         if ($space->reservation_mode === 'full_day') {
-            // MODO DIA INTEIRO: Não permitir mais de uma reserva no mesmo dia
-            $conflictSameDayAndPlace = Reservation::where('space_id', $request->space_id)
-                ->where('reservation_date', $request->reservation_date)
-                ->whereIn('status', ['pending', 'approved'])
-                ->exists();
-
-            if ($conflictSameDayAndPlace) {
+            if ($this->isDayBlocked($space->id, $request->reservation_date)) {
                 return response()->json([
                     'error' => 'Este espaço já está reservado para esta data. Por favor, escolha outra data.',
                     'conflict' => true
                 ], 400);
             }
-            
-            // Usar horários do espaço
-            $startTime = $space->available_from;
-            $endTime = $space->available_until;
-            
+
+            $startTime = $this->formatTimeValue($space->available_from);
+            $endTime = $this->formatTimeValue($space->available_until);
+
         } else {
             // MODO POR HORÁRIO: Validar conflitos de horário específico
             if (!$request->start_time || !$request->end_time) {
@@ -141,41 +135,17 @@ class ReservationController extends Controller
                     'error' => 'Para este espaço, você deve informar horário de início e término'
                 ], 400);
             }
-            
-            $startTime = $request->start_time;
-            $endTime = $request->end_time;
-            
-            // Verificar sobreposição de horários
-            $hasConflict = Reservation::where('space_id', $request->space_id)
-                ->where('reservation_date', $request->reservation_date)
-                ->whereIn('status', ['pending', 'approved'])
-                ->where(function($q) use ($startTime, $endTime) {
-                    // Verifica se há sobreposição de horários
-                    $q->where(function($query) use ($startTime, $endTime) {
-                        // Novo horário começa durante reserva existente
-                        $query->where('start_time', '<=', $startTime)
-                              ->where('end_time', '>', $startTime);
-                    })
-                    ->orWhere(function($query) use ($startTime, $endTime) {
-                        // Novo horário termina durante reserva existente
-                        $query->where('start_time', '<', $endTime)
-                              ->where('end_time', '>=', $endTime);
-                    })
-                    ->orWhere(function($query) use ($startTime, $endTime) {
-                        // Novo horário engloba reserva existente
-                        $query->where('start_time', '>=', $startTime)
-                              ->where('end_time', '<=', $endTime);
-                    });
-                })
-                ->exists();
-            
-            if ($hasConflict) {
+
+            $startTime = $this->formatTimeValue($request->start_time);
+            $endTime = $this->formatTimeValue($request->end_time);
+
+            if ($this->hasSchedulingConflict($space->id, $request->reservation_date, $startTime, $endTime)) {
                 return response()->json([
                     'error' => 'Há um conflito de horário. Por favor, escolha outro horário.',
                     'conflict' => true
                 ], 400);
             }
-            
+
             // Validar duração
             $duration = (strtotime($endTime) - strtotime($startTime)) / 3600;
             
@@ -249,7 +219,7 @@ class ReservationController extends Controller
         if ($space->approval_type === 'prereservation' && $space->price_per_hour > 0) {
             // Buscar créditos disponíveis do usuário
             $availableCredits = \App\Models\UserCredit::where('user_id', $user->id)
-                ->where('condominium_id', $user->condominium_id)
+                ->where('condominium_id', $user->tenantCondominiumId())
                 ->available()
                 ->orderBy('created_at', 'asc') // FIFO - First In, First Out
                 ->get();
@@ -406,7 +376,7 @@ class ReservationController extends Controller
         $space = Space::findOrFail($spaceId);
         
         // Verificar se pertence ao condomínio
-        if ($space->condominium_id !== $user->condominium_id) {
+        if ($space->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
         
@@ -430,6 +400,8 @@ class ReservationController extends Controller
         $reservations = $reservations->map(function($reservation) {
                 // Adicionar informações de pré-reserva se existir
                 $data = $reservation->toArray();
+                $data['start_time'] = $this->formatTimeValue($reservation->start_time);
+                $data['end_time'] = $this->formatTimeValue($reservation->end_time);
                 
                 // Verificar se é pré-reserva pendente de pagamento
                 if ($reservation->prereservation_status === 'pending_payment') {
@@ -468,8 +440,8 @@ class ReservationController extends Controller
                         'id' => 'recurring_' . $recurring->id . '_' . $current->toDateString(),
                         'space_id' => $spaceId,
                         'reservation_date' => $current->toDateString(),
-                        'start_time' => $recurring->start_time,
-                        'end_time' => $recurring->end_time,
+                        'start_time' => $this->formatTimeValue($recurring->start_time),
+                        'end_time' => $this->formatTimeValue($recurring->end_time),
                         'status' => 'approved',
                         'title' => $recurring->title,
                         'is_recurring' => true,
@@ -502,7 +474,7 @@ class ReservationController extends Controller
         // Verificar permissão
         /** @var \App\Models\User $user */
         $user = Auth::user();
-        if ($reservation->space->condominium_id !== $user->condominium_id) {
+        if ($reservation->space->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -539,7 +511,7 @@ class ReservationController extends Controller
         // Verificar permissão
         /** @var \App\Models\User $user */
         $user = Auth::user();
-        if ($reservation->space->condominium_id !== $user->condominium_id) {
+        if ($reservation->space->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -566,7 +538,7 @@ class ReservationController extends Controller
         $user = Auth::user();
         
         // Verificar permissão
-        if ($reservation->space->condominium_id !== $user->condominium_id) {
+        if ($reservation->space->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -1012,5 +984,80 @@ class ReservationController extends Controller
             'boleto_url' => $payment['bankSlipUrl'] ?? null,
             'charge_id' => $charge->id,
         ];
+    }
+
+    private function formatTimeValue(?string $time): string
+    {
+        if (!$time) {
+            return '00:00';
+        }
+
+        return substr((string) $time, 0, 5);
+    }
+
+    private function timesOverlap(string $startA, string $endA, string $startB, string $endB): bool
+    {
+        $startA = $this->formatTimeValue($startA);
+        $endA = $this->formatTimeValue($endA);
+        $startB = $this->formatTimeValue($startB);
+        $endB = $this->formatTimeValue($endB);
+
+        return $startA < $endB && $endA > $startB;
+    }
+
+    private function hasSchedulingConflict(int $spaceId, string $date, string $startTime, string $endTime): bool
+    {
+        $reservations = Reservation::where('space_id', $spaceId)
+            ->where('reservation_date', $date)
+            ->whereIn('status', ['pending', 'approved'])
+            ->get(['start_time', 'end_time']);
+
+        foreach ($reservations as $reservation) {
+            if ($this->timesOverlap($startTime, $endTime, $reservation->start_time, $reservation->end_time)) {
+                return true;
+            }
+        }
+
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+        $recurringReservations = RecurringReservation::where('space_id', $spaceId)
+            ->where('status', 'active')
+            ->where('start_date', '<=', $date)
+            ->where('end_date', '>=', $date)
+            ->get();
+
+        foreach ($recurringReservations as $recurring) {
+            if (!in_array($dayOfWeek, array_map('intval', $recurring->days_of_week ?? []), true)) {
+                continue;
+            }
+
+            if ($this->timesOverlap($startTime, $endTime, $recurring->start_time, $recurring->end_time)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isDayBlocked(int $spaceId, string $date): bool
+    {
+        $hasReservation = Reservation::where('space_id', $spaceId)
+            ->where('reservation_date', $date)
+            ->whereIn('status', ['pending', 'approved'])
+            ->exists();
+
+        if ($hasReservation) {
+            return true;
+        }
+
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+
+        return RecurringReservation::where('space_id', $spaceId)
+            ->where('status', 'active')
+            ->where('start_date', '<=', $date)
+            ->where('end_date', '>=', $date)
+            ->get()
+            ->contains(function (RecurringReservation $recurring) use ($dayOfWeek) {
+                return in_array($dayOfWeek, array_map('intval', $recurring->days_of_week ?? []), true);
+            });
     }
 }

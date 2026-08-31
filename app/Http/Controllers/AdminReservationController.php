@@ -28,7 +28,7 @@ class AdminReservationController extends Controller
         if ($request->ajax()) {
             $query = Reservation::with(['space', 'user', 'unit'])
                 ->whereHas('space', function ($query) {
-                    $query->where('condominium_id', Auth::user()->condominium_id);
+                    $query->where('condominium_id', Auth::user()->tenantCondominiumId());
                 })
                 ->select('reservations.*');
 
@@ -194,7 +194,7 @@ class AdminReservationController extends Controller
         }
         $reservation = Reservation::with(['space', 'user', 'unit', 'recurringReservation'])
             ->whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
@@ -212,11 +212,11 @@ class AdminReservationController extends Controller
         }
         $reservation = Reservation::with(['space', 'user', 'unit'])
             ->whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
-        $spaces = Space::where('condominium_id', Auth::user()->condominium_id)
+        $spaces = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->where('is_active', true)
             ->get();
 
@@ -236,7 +236,7 @@ class AdminReservationController extends Controller
             abort(403, 'Acesso negado. Apenas administradores e síndicos podem acessar esta área.');
         }
         $reservation = Reservation::whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
@@ -292,7 +292,7 @@ class AdminReservationController extends Controller
             abort(403, 'Acesso negado. Apenas administradores e síndicos podem acessar esta área.');
         }
         $reservation = Reservation::whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
@@ -337,7 +337,7 @@ class AdminReservationController extends Controller
 
         $reservations = Reservation::whereIn('id', $validated['reservation_ids'])
             ->whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->get();
 
@@ -384,7 +384,7 @@ class AdminReservationController extends Controller
             abort(403, 'Acesso negado. Apenas administradores e síndicos podem acessar esta área.');
         }
 
-        $spaces = Space::where('condominium_id', Auth::user()->condominium_id)
+        $spaces = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->where('is_active', true)
             ->select('id', 'name')
             ->orderBy('name')

@@ -93,6 +93,13 @@
                                     Esqueceu sua senha?
                                 </a>
                             </div>
+
+                            <div class="text-center mt-3 pt-2 border-top">
+                                <span class="text-muted">Ainda não tem conta?</span>
+                                <a href="{{ route('register') }}" class="text-decoration-none fw-semibold ms-1">
+                                    Criar cadastro
+                                </a>
+                            </div>
                         </form>
 
 

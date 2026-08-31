@@ -13,7 +13,7 @@ class SpaceController extends Controller
      */
     public function index()
     {
-        $spaces = Space::where('condominium_id', Auth::user()->condominium_id)
+        $spaces = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->withCount('reservations')
             ->orderBy('name')
             ->get();
@@ -61,7 +61,7 @@ class SpaceController extends Controller
         }
 
         $space = Space::create([
-            'condominium_id' => Auth::user()->condominium_id,
+            'condominium_id' => Auth::user()->tenantCondominiumId(),
             'name' => $validated['name'],
             'description' => $validated['description'],
             'photo_path' => $photoPath,
@@ -92,7 +92,7 @@ class SpaceController extends Controller
      */
     public function edit($id)
     {
-        $space = Space::where('condominium_id', Auth::user()->condominium_id)
+        $space = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->findOrFail($id);
 
         return view('spaces.edit', compact('space'));
@@ -103,7 +103,7 @@ class SpaceController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $space = Space::where('condominium_id', Auth::user()->condominium_id)
+        $space = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->findOrFail($id);
 
         $validated = $request->validate([
@@ -170,7 +170,7 @@ class SpaceController extends Controller
      */
     public function destroy($id)
     {
-        $space = Space::where('condominium_id', Auth::user()->condominium_id)
+        $space = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->findOrFail($id);
 
         // Verificar se tem reservas futuras

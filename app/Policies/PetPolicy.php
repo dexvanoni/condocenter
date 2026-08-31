@@ -4,11 +4,13 @@ namespace App\Policies;
 
 use App\Models\Pet;
 use App\Models\User;
+use App\Policies\Concerns\ChecksActiveCondominium;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class PetPolicy
 {
     use HandlesAuthorization;
+    use ChecksActiveCondominium;
 
     /**
      * Determine whether the user can view any pets.
@@ -24,8 +26,7 @@ class PetPolicy
      */
     public function view(User $user, Pet $pet): bool
     {
-        // Todos podem ver um pet específico
-        return true;
+        return $this->belongsToActiveCondominium($user, (int) $pet->condominium_id);
     }
 
     /**
@@ -42,10 +43,13 @@ class PetPolicy
      */
     public function update(User $user, Pet $pet): bool
     {
-        // Administrador, Síndico ou o próprio dono
-        return $user->isAdmin() || 
-               $user->isSindico() || 
-               $pet->owner_id === $user->id;
+        if (!$this->belongsToActiveCondominium($user, (int) $pet->condominium_id)) {
+            return false;
+        }
+
+        return $user->isAdmin()
+            || $user->isSindico()
+            || $pet->owner_id === $user->id;
     }
 
     /**
@@ -53,10 +57,13 @@ class PetPolicy
      */
     public function delete(User $user, Pet $pet): bool
     {
-        // Administrador, Síndico ou o próprio dono
-        return $user->isAdmin() || 
-               $user->isSindico() || 
-               $pet->owner_id === $user->id;
+        if (!$this->belongsToActiveCondominium($user, (int) $pet->condominium_id)) {
+            return false;
+        }
+
+        return $user->isAdmin()
+            || $user->isSindico()
+            || $pet->owner_id === $user->id;
     }
 
     /**

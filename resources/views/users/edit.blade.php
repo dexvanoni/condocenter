@@ -716,7 +716,12 @@
                 @endcan
             </div>
 
-            <input type="hidden" name="condominium_id" value="{{ $user->condominium_id }}">
+            @php
+                $tenantCondominiumId = $activeCondominiumContext['id'] ?? auth()->user()->getActiveCondominiumId();
+            @endphp
+            @if($tenantCondominiumId)
+            <input type="hidden" name="condominium_id" value="{{ $tenantCondominiumId }}">
+            @endif
         </div>
 
         <!-- Sidebar Direita -->

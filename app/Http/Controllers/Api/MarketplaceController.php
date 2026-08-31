@@ -20,7 +20,7 @@ class MarketplaceController extends Controller
         $user = Auth::user();
         
         $query = MarketplaceItem::with(['seller', 'unit'])
-            ->where('condominium_id', $user->condominium_id);
+            ->where('condominium_id', $user->tenantCondominiumId());
 
         // Filtros
         if ($request->has('category')) {
@@ -81,7 +81,7 @@ class MarketplaceController extends Controller
         $imagesPaths = [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
-                $path = $image->store('marketplace/' . $user->condominium_id, 'public');
+                $path = $image->store('marketplace/' . $user->tenantCondominiumId(), 'public');
                 $imagesPaths[] = $path;
             }
         }
@@ -89,7 +89,7 @@ class MarketplaceController extends Controller
         $sanitizedWhatsapp = preg_replace('/\D/', '', $request->whatsapp ?? '');
 
         $item = MarketplaceItem::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'seller_id' => $user->id,
             'unit_id' => $user->unit_id,
             'title' => $request->title,
@@ -117,7 +117,7 @@ class MarketplaceController extends Controller
             ->findOrFail($id);
 
         // Verificar se pertence ao condomínio
-        if ($item->condominium_id !== Auth::user()->condominium_id) {
+        if ($item->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

@@ -201,7 +201,7 @@
 					</div>
 					<label class="btn btn-outline-secondary mb-0" title="Anexar arquivo" style="cursor: pointer;">
 						<i class="bi bi-paperclip"></i>
-						<input type="file" id="messageFile" class="d-none" accept="image/*,application/pdf" capture="environment">
+						<input type="file" id="messageFile" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt">
 					</label>
 					<span id="fileSelected" class="small text-muted d-none"></span>
 					<button class="btn btn-primary" id="btnSend" disabled>
@@ -339,6 +339,7 @@
 
 	async function loadConversations() {
 		const url = new URL('/api/conversations', window.location.origin);
+		url.searchParams.set('channel', 'peer');
 		const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
 		if (!res.ok) return;
 		const data = await res.json();
@@ -599,10 +600,11 @@
 					${!isSent ? `<div class="fw-semibold mb-1" style="font-size: 12px; opacity: 0.8;">${escapeHtml(m.from_user?.name ?? m.fromUser?.name ?? 'Usuário')}</div>` : ''}
 					<div>${escapeHtml(m.message ?? '').replace(/\n/g, '<br>')}</div>
 					${(m.attachments ?? []).length ? '<div class="mt-2">' + m.attachments.map(a => {
-						const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(a.original_name ?? '');
-						return isImage 
-							? `<a href="/storage/${a.path}" target="_blank" class="text-white text-decoration-underline"><i class="bi bi-image me-1"></i>${escapeHtml(a.original_name ?? 'Imagem')}</a>`
-							: `<a href="/storage/${a.path}" target="_blank" class="text-white text-decoration-underline"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(a.original_name ?? 'Anexo')}</a>`;
+						const isImage = (a.mime_type ?? '').startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(a.original_name ?? '');
+						const linkClass = isSent ? 'text-white' : 'text-primary';
+						return isImage
+							? `<a href="/storage/${a.path}" target="_blank" class="${linkClass} text-decoration-underline"><i class="bi bi-image me-1"></i>${escapeHtml(a.original_name ?? 'Imagem')}</a>`
+							: `<a href="/storage/${a.path}" target="_blank" class="${linkClass} text-decoration-underline"><i class="bi bi-file-earmark me-1"></i>${escapeHtml(a.original_name ?? 'Anexo')}</a>`;
 					}).join('<br>') + '</div>' : ''}
 					<div class="message-timestamp text-end mt-1" style="font-size: 11px; opacity: 0.7;">
 						${formatDateTime(m.created_at)}
@@ -644,11 +646,36 @@
 		}
 	});
 
+	async function uploadMessageAttachment(conversationId, messageId, file) {
+		const fd = new FormData();
+		fd.append('file', file);
+		const upRes = await fetch(`/api/conversations/${conversationId}/messages/${messageId}/attachments`, {
+			method: 'POST',
+			body: fd,
+			headers: {
+				'Accept': 'application/json',
+				'X-Requested-With': 'XMLHttpRequest',
+				'X-CSRF-TOKEN': csrf,
+			},
+			credentials: 'same-origin'
+		});
+		if (!upRes.ok) {
+			const err = await upRes.json().catch(() => ({}));
+			const detail = err.error || err.errors?.file?.[0] || 'Falha ao enviar anexo.';
+			alert(detail);
+			return false;
+		}
+		return true;
+	}
+
 	messageForm.addEventListener('submit', async (e) => {
 		e.preventDefault();
 		if (!currentConversationId) return;
 		const text = messageInput.value.trim();
-		if (!text) return;
+		const hasFile = messageFile.files.length > 0;
+		if (!text && !hasFile) return;
+
+		const messageText = text || `[Anexo: ${messageFile.files[0].name}]`;
 
 		const res = await fetch(`/api/conversations/${currentConversationId}/messages`, {
 			method: 'POST',
@@ -657,24 +684,18 @@
 				'X-Requested-With': 'XMLHttpRequest',
 				'X-CSRF-TOKEN': csrf,
 			},
-			body: buildFormData({ message: text }),
+			body: buildFormData({ message: messageText }),
 			credentials: 'same-origin'
 		});
-		if (!res.ok) { alert('Falha ao enviar.'); return; }
+		if (!res.ok) {
+			const err = await res.json().catch(() => ({}));
+			alert(err.error || 'Falha ao enviar mensagem.');
+			return;
+		}
 		const msg = await res.json();
 
-		if (messageFile.files.length) {
-			const fd = new FormData();
-			fd.append('file', messageFile.files[0]);
-			await fetch(`/api/conversations/${currentConversationId}/messages/${msg.id}/attachments`, {
-				method: 'POST',
-				body: fd,
-				headers: {
-					'X-Requested-With': 'XMLHttpRequest',
-					'X-CSRF-TOKEN': csrf,
-				},
-				credentials: 'same-origin'
-			});
+		if (hasFile) {
+			await uploadMessageAttachment(currentConversationId, msg.id, messageFile.files[0]);
 			messageFile.value = '';
 			fileSelected.classList.add('d-none');
 		}
@@ -704,6 +725,7 @@
 	listPollingId = setInterval(async () => {
 		try {
 			const url = new URL('/api/conversations', window.location.origin);
+			url.searchParams.set('channel', 'peer');
 			const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
 			if (!res.ok) return;
 			const data = await res.json();

@@ -18,7 +18,7 @@ class UserSearchController extends Controller
 
         $query = User::query()
             ->select('id', 'name', 'cpf', 'email', 'unit_id')
-            ->byCondominium($authUser->condominium_id)
+            ->byCondominium($authUser->tenantCondominiumId())
             ->where(function (Builder $q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                     ->orWhere('cpf', 'like', "%{$term}%")

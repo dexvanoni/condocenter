@@ -22,7 +22,7 @@ class PetController extends Controller
     public function index(Request $request)
     {
         $query = Pet::with(['owner', 'unit', 'condominium'])
-            ->byCondominium(Auth::user()->condominium_id)
+            ->byCondominium(Auth::user()->tenantCondominiumId())
             ->active();
 
         // Filtros
@@ -50,7 +50,7 @@ class PetController extends Controller
     {
         $this->authorize('create', Pet::class);
 
-        $units = Unit::byCondominium(Auth::user()->condominium_id)
+        $units = Unit::byCondominium(Auth::user()->tenantCondominiumId())
             ->active()
             ->orderBy('number')
             ->get();
@@ -65,9 +65,27 @@ class PetController extends Controller
     {
         $this->authorize('create', Pet::class);
 
+        $tenantId = Auth::user()->tenantCondominiumId();
+
         $validated = $request->validate([
-            'unit_id' => 'required|exists:units,id',
-            'owner_id' => 'required|exists:users,id',
+            'unit_id' => [
+                'required',
+                'exists:units,id',
+                function ($attribute, $value, $fail) use ($tenantId) {
+                    if (!Unit::query()->where('id', $value)->where('condominium_id', $tenantId)->exists()) {
+                        $fail('Selecione uma unidade válida deste condomínio.');
+                    }
+                },
+            ],
+            'owner_id' => [
+                'required',
+                'exists:users,id',
+                function ($attribute, $value, $fail) use ($tenantId) {
+                    if (!User::query()->where('id', $value)->where('condominium_id', $tenantId)->exists()) {
+                        $fail('Selecione um morador válido deste condomínio.');
+                    }
+                },
+            ],
             'name' => 'required|string|max:255',
             'type' => 'required|in:dog,cat,bird,other',
             'breed' => 'nullable|string|max:255',
@@ -89,7 +107,7 @@ class PetController extends Controller
             return back()->withErrors(['owner_id' => 'Agregados não podem ser donos de pets.']);
         }
 
-        $validated['condominium_id'] = Auth::user()->condominium_id;
+        $validated['condominium_id'] = $tenantId;
 
         // Upload da foto
         if ($request->hasFile('photo')) {
@@ -121,7 +139,7 @@ class PetController extends Controller
     {
         $this->authorize('update', $pet);
 
-        $units = Unit::byCondominium(Auth::user()->condominium_id)
+        $units = Unit::byCondominium(Auth::user()->tenantCondominiumId())
             ->active()
             ->orderBy('number')
             ->get();

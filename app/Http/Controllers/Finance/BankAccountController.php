@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Http\Requests\StoreBankAccountRequest;
 use App\Http\Requests\UpdateBankAccountRequest;
 use App\Models\BankAccount;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 
 class BankAccountController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function __construct()
     {
         $this->middleware(['can:view_bank_statements'])->only(['index', 'show']);
@@ -20,7 +23,7 @@ class BankAccountController extends Controller
 
     public function index(Request $request)
     {
-        $condominiumId = Auth::user()->condominium_id;
+        $condominiumId = $this->activeCondominiumId(Auth::user());
 
         $accounts = BankAccount::with('balances')
             ->where('condominium_id', $condominiumId)
@@ -39,7 +42,7 @@ class BankAccountController extends Controller
     public function store(StoreBankAccountRequest $request)
     {
         $data = $request->validated();
-        $data['condominium_id'] = $request->user()->condominium_id;
+        $data['condominium_id'] = $this->activeCondominiumId($request->user());
 
         $account = BankAccount::create($data);
 
@@ -115,9 +118,7 @@ class BankAccountController extends Controller
 
     private function authorizeAccount(BankAccount $bankAccount): void
     {
-        if ($bankAccount->condominium_id !== Auth::user()->condominium_id) {
-            abort(403);
-        }
+        $this->ensureResourceBelongsToActiveCondominium(Auth::user(), (int) $bankAccount->condominium_id);
     }
 }
 

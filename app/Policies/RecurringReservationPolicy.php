@@ -23,7 +23,7 @@ class RecurringReservationPolicy
      */
     public function view(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->condominium_id === $recurringReservation->condominium_id &&
+        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
                $user->hasRole(['admin', 'syndic']);
     }
 
@@ -40,7 +40,7 @@ class RecurringReservationPolicy
      */
     public function update(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->condominium_id === $recurringReservation->condominium_id &&
+        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
                $user->hasRole(['admin', 'syndic']);
     }
 
@@ -49,7 +49,7 @@ class RecurringReservationPolicy
      */
     public function delete(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->condominium_id === $recurringReservation->condominium_id &&
+        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
                $user->hasRole(['admin', 'syndic']);
     }
 
@@ -58,7 +58,7 @@ class RecurringReservationPolicy
      */
     public function restore(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->condominium_id === $recurringReservation->condominium_id &&
+        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
                $user->hasRole(['admin', 'syndic']);
     }
 
@@ -67,7 +67,7 @@ class RecurringReservationPolicy
      */
     public function forceDelete(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->condominium_id === $recurringReservation->condominium_id &&
+        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
                $user->hasRole(['admin', 'syndic']);
     }
 }

@@ -288,6 +288,24 @@
                     </div>
                 </div>
 
+                @if($user->isMorador())
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="form-section">
+                            <h5 class="section-title"><i class="bi bi-shield-lock"></i> Controle de Acesso</h5>
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="agregado_can_authorize_access" value="0">
+                                <input class="form-check-input" type="checkbox" name="agregado_can_authorize_access" value="1" id="agregadoAccessProfile"
+                                    {{ old('agregado_can_authorize_access', $user->agregado_can_authorize_access) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="agregadoAccessProfile">
+                                    Permitir que agregados da minha unidade criem liberações de visitantes
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
                 <div class="row mt-4">
                     <div class="col-12">
                         <div class="d-flex justify-content-between">

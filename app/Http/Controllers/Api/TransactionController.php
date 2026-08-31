@@ -18,7 +18,7 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
 
         if (!$condominiumId) {
             return response()->json(['error' => 'Usuário não vinculado a um condomínio'], 403);
@@ -85,7 +85,7 @@ class TransactionController extends Controller
         $user = Auth::user();
         
         $transaction = Transaction::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'unit_id' => $request->unit_id,
             'user_id' => $user->id,
             'type' => $request->type,
@@ -120,7 +120,7 @@ class TransactionController extends Controller
             ->findOrFail($id);
 
         // Verificar se pertence ao condomínio do usuário
-        if ($transaction->condominium_id !== Auth::user()->condominium_id) {
+        if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -135,7 +135,7 @@ class TransactionController extends Controller
         $transaction = Transaction::findOrFail($id);
 
         // Verificar permissão
-        if ($transaction->condominium_id !== Auth::user()->condominium_id) {
+        if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -173,7 +173,7 @@ class TransactionController extends Controller
         $transaction = Transaction::findOrFail($id);
 
         // Verificar permissão
-        if ($transaction->condominium_id !== Auth::user()->condominium_id) {
+        if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -192,7 +192,7 @@ class TransactionController extends Controller
         $transaction = Transaction::findOrFail($id);
 
         // Verificar permissão
-        if ($transaction->condominium_id !== Auth::user()->condominium_id) {
+        if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -234,7 +234,7 @@ class TransactionController extends Controller
         $transaction = Transaction::findOrFail($id);
 
         // Verificar permissão
-        if ($transaction->condominium_id !== Auth::user()->condominium_id) {
+        if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

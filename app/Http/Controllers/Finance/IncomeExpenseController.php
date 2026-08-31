@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
 use App\Models\CondominiumAccount;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class IncomeExpenseController extends Controller
 {
+    use ResolvesActiveCondominium;
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -23,7 +25,7 @@ class IncomeExpenseController extends Controller
             abort(403);
         }
 
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $this->activeCondominiumId($user);
         
         // Período padrão: mês atual
         $startDate = $request->filled('start_date')
@@ -293,7 +295,7 @@ class IncomeExpenseController extends Controller
 
     protected function getIncomeData($user, $startDate, $endDate)
     {
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $this->activeCondominiumId($user);
         $isMorador = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
 
         $incomeQuery = CondominiumAccount::with('creator')
@@ -388,14 +390,14 @@ class IncomeExpenseController extends Controller
             'total' => $total,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'condominium' => $user->condominium,
+            'condominium' => $this->activeCondominium($user),
             'user' => $user,
         ];
     }
 
     protected function getExpenseData($user, $startDate, $endDate)
     {
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $this->activeCondominiumId($user);
 
         $expenses = CondominiumAccount::with('creator')
             ->byCondominium($condominiumId)
@@ -429,7 +431,7 @@ class IncomeExpenseController extends Controller
             'total' => $total,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'condominium' => $user->condominium,
+            'condominium' => $this->activeCondominium($user),
             'user' => $user,
         ];
     }
@@ -445,9 +447,7 @@ class IncomeExpenseController extends Controller
         $account = CondominiumAccount::findOrFail($id);
 
         // Verificar se pertence ao mesmo condomínio
-        if ($account->condominium_id !== $user->condominium_id) {
-            abort(403);
-        }
+        $this->ensureResourceBelongsToActiveCondominium($user, (int) $account->condominium_id);
 
         // Verificar se é morador e se pode ver essa entrada
         $isMorador = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();

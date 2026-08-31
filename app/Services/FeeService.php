@@ -31,10 +31,10 @@ class FeeService
             $unitConfigurations = collect($data['unit_configurations'] ?? []);
             unset($data['unit_configurations']);
 
-            $data['condominium_id'] = $user->condominium_id;
+            $data['condominium_id'] = $user->tenantCondominiumId();
 
-            $this->validateBankAccount($data['bank_account_id'] ?? null, $user->condominium_id);
-            $this->validateUnits($unitConfigurations, $user->condominium_id);
+            $this->validateBankAccount($data['bank_account_id'] ?? null, $user->tenantCondominiumId());
+            $this->validateUnits($unitConfigurations, $user->tenantCondominiumId());
 
             $fee = Fee::create($this->normalizeFeePayload($data));
 
@@ -55,7 +55,7 @@ class FeeService
     public function updateFee(Fee $fee, User $user, array $data): Fee
     {
         return $this->database->transaction(function () use ($fee, $user, $data) {
-            if ($fee->condominium_id !== $user->condominium_id) {
+            if ($fee->condominium_id !== $user->tenantCondominiumId()) {
                 throw ValidationException::withMessages([
                     'fee' => 'Taxa não pertence ao seu condomínio.',
                 ]);
@@ -67,8 +67,8 @@ class FeeService
             $unitConfigurations = collect($data['unit_configurations'] ?? []);
             unset($data['unit_configurations']);
 
-            $this->validateBankAccount($data['bank_account_id'] ?? null, $user->condominium_id);
-            $this->validateUnits($unitConfigurations, $user->condominium_id);
+            $this->validateBankAccount($data['bank_account_id'] ?? null, $user->tenantCondominiumId());
+            $this->validateUnits($unitConfigurations, $user->tenantCondominiumId());
 
             $fee->update($this->normalizeFeePayload($data));
 
@@ -88,7 +88,7 @@ class FeeService
 
     public function cloneMonthlyFee(Fee $fee, User $user): Fee
     {
-        if ($fee->condominium_id !== $user->condominium_id) {
+        if ($fee->condominium_id !== $user->tenantCondominiumId()) {
             throw ValidationException::withMessages([
                 'fee' => 'Taxa não pertence ao seu condomínio.',
             ]);
@@ -123,7 +123,7 @@ class FeeService
 
     public function deleteFee(Fee $fee, User $user): void
     {
-        if ($fee->condominium_id !== $user->condominium_id) {
+        if ($fee->condominium_id !== $user->tenantCondominiumId()) {
             throw ValidationException::withMessages([
                 'fee' => 'Taxa não pertence ao seu condomínio.',
             ]);
@@ -583,7 +583,7 @@ class FeeService
      */
     public function invalidateFee(Fee $fee, User $user, string $reason, ?int $newFeeId = null): void
     {
-        if ($fee->condominium_id !== $user->condominium_id) {
+        if ($fee->condominium_id !== $user->tenantCondominiumId()) {
             throw ValidationException::withMessages([
                 'fee' => 'Taxa não pertence ao seu condomínio.',
             ]);

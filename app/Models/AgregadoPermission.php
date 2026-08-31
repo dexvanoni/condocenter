@@ -114,6 +114,10 @@ class AgregadoPermission extends Model
                 'name' => 'Mensagens',
                 'description' => 'Enviar mensagens para outros moradores'
             ],
+            'rides' => [
+                'name' => 'Caronas',
+                'description' => 'Oferecer e reservar caronas no condomínio'
+            ],
             'financial' => [
                 'name' => 'Financeiro',
                 'description' => 'Visualizar informações financeiras limitadas'

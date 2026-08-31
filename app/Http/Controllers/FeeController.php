@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Http\Requests\StoreFeeRequest;
 use App\Http\Requests\UpdateFeeRequest;
 use App\Models\BankAccount;
@@ -15,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 class FeeController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function __construct(
         private readonly FeeService $feeService
     ) {
@@ -24,7 +27,7 @@ class FeeController extends Controller
 
     public function index()
     {
-        $condominiumId = Auth::user()->condominium_id;
+        $condominiumId = $this->activeCondominiumId(Auth::user());
 
         $fees = Fee::withCount([
                 'configurations',
@@ -50,7 +53,7 @@ class FeeController extends Controller
 
     public function create()
     {
-        $condominiumId = Auth::user()->condominium_id;
+        $condominiumId = $this->activeCondominiumId(Auth::user());
 
         $units = Unit::with('morador')
             ->where('condominium_id', $condominiumId)
@@ -127,7 +130,7 @@ class FeeController extends Controller
                 ]);
         }
 
-        $condominiumId = Auth::user()->condominium_id;
+        $condominiumId = $this->activeCondominiumId(Auth::user());
 
         $units = Unit::with('morador')
             ->where('condominium_id', $condominiumId)
@@ -244,9 +247,9 @@ class FeeController extends Controller
 
     private function authorizeFee(Fee $fee): void
     {
-        if ($fee->condominium_id !== Auth::user()->condominium_id) {
+        if ($this->activeCondominiumId(Auth::user()) !== (int) $fee->condominium_id) {
             throw ValidationException::withMessages([
-                'fee' => 'Taxa não pertence ao seu condomínio.',
+                'fee' => 'Taxa não pertence ao condomínio selecionado.',
             ]);
         }
     }

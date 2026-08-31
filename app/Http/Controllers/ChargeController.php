@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
 use App\Models\Unit;
 use App\Services\ChargeSettlementService;
@@ -14,6 +15,8 @@ use Illuminate\Support\Collection;
 
 class ChargeController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function __construct(
         private readonly ChargeSettlementService $settlementService,
     ) {
@@ -27,7 +30,7 @@ class ChargeController extends Controller
     public function data(Request $request): JsonResponse
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $this->activeCondominiumId($user);
 
         $baseQuery = Charge::with(['unit', 'payments'])
             ->where('condominium_id', $condominiumId);
@@ -120,9 +123,7 @@ class ChargeController extends Controller
     {
         $user = $request->user();
 
-        if ($charge->condominium_id !== $user->condominium_id) {
-            abort(403);
-        }
+        $this->ensureResourceBelongsToActiveCondominium($user, (int) $charge->condominium_id);
 
         if ($user->isMorador() && $user->unit_id && $charge->unit_id !== $user->unit_id) {
             abort(403);
@@ -158,9 +159,7 @@ class ChargeController extends Controller
             abort(403);
         }
 
-        if ($charge->condominium_id !== $user->condominium_id) {
-            abort(403);
-        }
+        $this->ensureResourceBelongsToActiveCondominium($user, (int) $charge->condominium_id);
 
         // Validação: motivo obrigatório
         $validated = $request->validate([

@@ -59,53 +59,6 @@
     .section-body {
         padding: 2rem;
     }
-    .photo-preview-container {
-        position: relative;
-        width: 100%;
-        height: 250px;
-        border: 3px dashed #ddd;
-        border-radius: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8f9fa;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        overflow: hidden;
-    }
-    .photo-preview-container:hover {
-        border-color: #f59e0b;
-        background: #fffbeb;
-    }
-    .photo-preview-container.has-image {
-        border-style: solid;
-        border-color: #f59e0b;
-    }
-    .photo-preview {
-        max-width: 100%;
-        max-height: 100%;
-        display: none;
-        border-radius: 10px;
-    }
-    .photo-preview.show {
-        display: block;
-    }
-    .upload-placeholder {
-        text-align: center;
-        color: #adb5bd;
-    }
-    .upload-placeholder i {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        display: block;
-    }
-    .cep-loading {
-        display: none;
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-    }
     .form-control:focus, .form-select:focus {
         border-color: #f59e0b;
         box-shadow: 0 0 0 0.2rem rgba(245, 158, 11, 0.25);
@@ -195,17 +148,6 @@
         margin-bottom: 0.5rem;
         display: block;
     }
-    .address-preview {
-        background: #fffbeb;
-        border-left: 4px solid #f59e0b;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-top: 1rem;
-        display: none;
-    }
-    .address-preview.show {
-        display: block;
-    }
     .tooltip-icon {
         cursor: help;
         color: #6c757d;
@@ -253,7 +195,7 @@
 <!-- Progress Steps -->
 <div class="step-wizard">
     <div class="row">
-        <div class="col-md-3">
+        <div class="col-md-6">
             <div class="step-item active" data-step="1">
                 <div class="step-number">1</div>
                 <div>
@@ -262,37 +204,19 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-6">
             <div class="step-item" data-step="2">
                 <div class="step-number">2</div>
                 <div>
-                    <strong>Localização</strong>
-                    <br><small style="opacity: 0.8;">Endereço completo</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="step-item" data-step="3">
-                <div class="step-number">3</div>
-                <div>
-                    <strong>Características</strong>
-                    <br><small style="opacity: 0.8;">Detalhes físicos</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="step-item" data-step="4">
-                <div class="step-number">4</div>
-                <div>
                     <strong>Finalizar</strong>
-                    <br><small style="opacity: 0.8;">Revisar e salvar</small>
+                    <br><small style="opacity: 0.8;">Status e confirmação</small>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<form action="{{ route('units.update', $unit) }}" method="POST" enctype="multipart/form-data" id="unitForm">
+<form action="{{ route('units.update', $unit) }}" method="POST" id="unitForm">
     @csrf
     @method('PUT')
     <div class="row">
@@ -306,6 +230,22 @@
                     <h4 class="mb-0">Identificação da Unidade</h4>
                 </div>
                 <div class="section-body">
+                    @if($unit->condominium?->address)
+                    <div class="alert alert-warning border-0 mb-4">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        <strong>Endereço:</strong> o endereço da unidade é herdado do condomínio
+                        <strong>{{ $unit->condominium->name }}</strong>.
+                        <div class="mt-2 mb-0">
+                            {{ $unit->condominium->address }}
+                            @if($unit->condominium->city && $unit->condominium->state)
+                                — {{ $unit->condominium->city }}/{{ $unit->condominium->state }}
+                            @endif
+                            @if($unit->condominium->zip_code)
+                                — CEP: {{ $unit->condominium->zip_code }}
+                            @endif
+                        </div>
+                    </div>
+                    @endif
                     <div class="row g-4">
                         <div class="col-md-4">
                             <label class="form-label fw-bold">
@@ -408,171 +348,14 @@
                             <div class="text-danger mt-2"><small>{{ $message }}</small></div>
                             @enderror
                         </div>
+
+                        @include('units.partials.morador-search', ['selectedMorador' => $selectedMorador ?? null])
                     </div>
                 </div>
             </div>
 
-            <!-- STEP 2: Endereço -->
+            <!-- STEP 2: Status e Finalizar -->
             <div class="section-card" id="step2">
-                <div class="section-header">
-                    <i class="bi bi-geo-alt-fill"></i>
-                    <h4 class="mb-0">Localização e Endereço</h4>
-                </div>
-                <div class="section-body">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <div class="alert alert-warning border-0">
-                                <i class="bi bi-lightbulb-fill"></i>
-                                <strong>Dica:</strong> Digite o CEP e o endereço será preenchido automaticamente!
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-mailbox"></i> CEP
-                            </label>
-                            <div class="position-relative">
-                                <input type="text" name="cep" id="cep" 
-                                       class="form-control form-control-lg @error('cep') is-invalid @enderror" 
-                                       value="{{ old('cep', $unit->cep) }}" maxlength="9" placeholder="00000-000">
-                                <div class="cep-loading">
-                                    <div class="spinner-border spinner-border-sm text-warning" role="status">
-                                        <span class="visually-hidden">Buscando...</span>
-                                    </div>
-                                </div>
-                            </div>
-                            @error('cep')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-signpost"></i> Logradouro
-                            </label>
-                            <input type="text" name="logradouro" id="logradouro" 
-                                   class="form-control form-control-lg @error('logradouro') is-invalid @enderror" 
-                                   value="{{ old('logradouro', $unit->logradouro) }}" placeholder="Rua, Avenida...">
-                            @error('logradouro')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-hash"></i> Nº
-                            </label>
-                            <input type="text" name="numero" id="numero" 
-                                   class="form-control form-control-lg @error('numero') is-invalid @enderror" 
-                                   value="{{ old('numero', $unit->numero) }}" placeholder="123">
-                            @error('numero')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="col-md-5">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-info-square"></i> Complemento
-                            </label>
-                            <input type="text" name="complemento" 
-                                   class="form-control form-control-lg @error('complemento') is-invalid @enderror" 
-                                   value="{{ old('complemento', $unit->complemento) }}" placeholder="Apto, Casa, Sala...">
-                            @error('complemento')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-pin-map"></i> Bairro
-                            </label>
-                            <input type="text" name="bairro" id="bairro" 
-                                   class="form-control form-control-lg @error('bairro') is-invalid @enderror" 
-                                   value="{{ old('bairro', $unit->bairro) }}" placeholder="Centro, Jardins...">
-                            @error('bairro')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="col-md-3">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-geo"></i> UF
-                            </label>
-                            <input type="text" name="estado" id="estado" 
-                                   class="form-control form-control-lg text-uppercase @error('estado') is-invalid @enderror" 
-                                   value="{{ old('estado', $unit->estado) }}" maxlength="2" placeholder="SP">
-                            @error('estado')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-building"></i> Cidade
-                            </label>
-                            <input type="text" name="cidade" id="cidade" 
-                                   class="form-control form-control-lg @error('cidade') is-invalid @enderror" 
-                                   value="{{ old('cidade', $unit->cidade) }}" placeholder="São Paulo">
-                            @error('cidade')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <!-- Preview do Endereço -->
-                        <div class="col-12">
-                            <div class="address-preview {{ $unit->logradouro ? 'show' : '' }}" id="addressPreview">
-                                <strong><i class="bi bi-map"></i> Endereço Completo:</strong>
-                                <p class="mb-0 mt-2" id="fullAddressText">{{ $unit->full_address }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- STEP 3: Características -->
-            <div class="section-card" id="step3">
-                <div class="section-header">
-                    <i class="bi bi-rulers"></i>
-                    <h4 class="mb-0">Características da Unidade</h4>
-                </div>
-                <div class="section-body">
-                    <div class="row g-4">
-                        <div class="col-12">
-                            <div class="char-counter">
-                                <div class="char-item">
-                                    <i class="bi bi-door-closed"></i>
-                                    <input type="number" name="num_quartos" id="num_quartos"
-                                           class="form-control form-control-lg text-center fw-bold border-0 bg-transparent @error('num_quartos') is-invalid @enderror" 
-                                           value="{{ old('num_quartos', $unit->num_quartos ?? 0) }}" min="0" max="20"
-                                           style="font-size: 2rem; color: #495057;">
-                                    <div class="label">Quartos</div>
-                                    @error('num_quartos')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                </div>
-
-                                <div class="char-item">
-                                    <i class="bi bi-droplet"></i>
-                                    <input type="number" name="num_banheiros" id="num_banheiros"
-                                           class="form-control form-control-lg text-center fw-bold border-0 bg-transparent @error('num_banheiros') is-invalid @enderror" 
-                                           value="{{ old('num_banheiros', $unit->num_banheiros ?? 0) }}" min="0" max="20"
-                                           style="font-size: 2rem; color: #495057;">
-                                    <div class="label">Banheiros</div>
-                                    @error('num_banheiros')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-arrows-angle-expand"></i> Área Total (m²)
-                            </label>
-                            <div class="input-group input-group-lg">
-                                <input type="number" name="area" class="form-control @error('area') is-invalid @enderror" 
-                                       value="{{ old('area', $unit->area) }}" step="0.01" min="0" placeholder="Ex: 85.50">
-                                <span class="input-group-text">m²</span>
-                            </div>
-                            @error('area')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="col-12">
-                            <label class="form-label fw-bold">
-                                <i class="bi bi-chat-left-text"></i> Observações Adicionais
-                            </label>
-                            <textarea name="notes" class="form-control @error('notes') is-invalid @enderror" 
-                                      rows="4" placeholder="Informações extras sobre a unidade...">{{ old('notes', $unit->notes) }}</textarea>
-                            @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- STEP 4: Status e Finalizar -->
-            <div class="section-card" id="step4">
                 <div class="section-header">
                     <i class="bi bi-gear-fill"></i>
                     <h4 class="mb-0">Configurações e Status</h4>
@@ -632,40 +415,18 @@
                 </a>
             </div>
 
-            <input type="hidden" name="condominium_id" value="{{ $unit->condominium_id }}">
+            @php
+                $tenantCondominiumId = $activeCondominiumContext['id'] ?? auth()->user()->getActiveCondominiumId();
+            @endphp
+            @if($tenantCondominiumId)
+            <input type="hidden" name="condominium_id" value="{{ $tenantCondominiumId }}">
+            @endif
         </div>
 
         <!-- Sidebar Direita -->
         <div class="col-lg-4">
-            <!-- Upload de Foto -->
-            <div class="section-card sticky-top" style="top: 20px;">
-                <div class="section-header">
-                    <i class="bi bi-camera-fill"></i>
-                    <h5 class="mb-0">Foto da Unidade</h5>
-                </div>
-                <div class="section-body">
-                    <label for="fotoInput" class="photo-preview-container {{ $unit->foto ? 'has-image' : '' }}" id="photoContainer">
-                        <div class="upload-placeholder" id="uploadPlaceholder" style="{{ $unit->foto ? 'display: none;' : '' }}">
-                            <i class="bi bi-cloud-upload"></i>
-                            <div><strong>Clique para fazer upload</strong></div>
-                            <small class="text-muted">JPG, PNG ou GIF - Máx 2MB</small>
-                        </div>
-                        <img id="photoPreview" class="photo-preview {{ $unit->foto ? 'show' : '' }}" 
-                             src="{{ $unit->foto ? Storage::url($unit->foto) : '' }}" alt="Preview">
-                    </label>
-                    <input type="file" name="foto" id="fotoInput" 
-                           class="d-none @error('foto') is-invalid @enderror" accept="image/*">
-                    @error('foto')<div class="text-danger mt-2"><small>{{ $message }}</small></div>@enderror
-                    
-                    <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-2 {{ $unit->foto ? '' : 'd-none' }}" 
-                            id="removePhotoBtn" onclick="removePhoto()">
-                        <i class="bi bi-trash"></i> Remover Foto
-                    </button>
-                </div>
-            </div>
-
             <!-- Card de Info -->
-            <div class="card border-0 mt-3" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+            <div class="card border-0 sticky-top" style="top: 20px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
                 <div class="card-body">
                     <h6 class="fw-bold mb-3">
                         <i class="bi bi-info-circle"></i> Informações
@@ -719,109 +480,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (selectedSituacao) {
         selectedSituacao.closest('.situacao-option').classList.add('selected');
     }
-
-    // Atualizar preview do endereço se tiver dados
-    updateAddressPreview();
-});
-
-// Preview de foto
-document.getElementById('fotoInput')?.addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('photoPreview').src = e.target.result;
-            document.getElementById('photoPreview').classList.add('show');
-            document.getElementById('uploadPlaceholder').style.display = 'none';
-            document.getElementById('photoContainer').classList.add('has-image');
-            document.getElementById('removePhotoBtn').classList.remove('d-none');
-        }
-        reader.readAsDataURL(file);
-    }
-});
-
-// Remover foto
-function removePhoto() {
-    document.getElementById('fotoInput').value = '';
-    document.getElementById('photoPreview').classList.remove('show');
-    document.getElementById('uploadPlaceholder').style.display = 'block';
-    document.getElementById('photoContainer').classList.remove('has-image');
-    document.getElementById('removePhotoBtn').classList.add('d-none');
-}
-
-// Busca CEP com loading
-document.getElementById('cep')?.addEventListener('blur', function() {
-    const cep = this.value.replace(/\D/g, '');
-    const loading = document.querySelector('.cep-loading');
-    
-    if (cep.length === 8) {
-        loading.style.display = 'block';
-        
-        fetch(`{{ route('cep.search') }}?cep=${cep}`)
-            .then(response => response.json())
-            .then(data => {
-                loading.style.display = 'none';
-                
-                if (data.success) {
-                    document.getElementById('logradouro').value = data.data.logradouro || '';
-                    document.getElementById('bairro').value = data.data.bairro || '';
-                    document.getElementById('cidade').value = data.data.cidade || '';
-                    document.getElementById('estado').value = data.data.estado || '';
-                    
-                    updateAddressPreview();
-                    document.getElementById('numero').focus();
-                    this.classList.add('is-valid');
-                } else {
-                    this.classList.add('is-invalid');
-                }
-            })
-            .catch(error => {
-                loading.style.display = 'none';
-                console.error('Erro ao buscar CEP:', error);
-            });
-    }
-});
-
-// Atualizar preview do endereço
-function updateAddressPreview() {
-    const logradouro = document.getElementById('logradouro').value;
-    const numero = document.getElementById('numero').value;
-    const complemento = document.querySelector('input[name="complemento"]').value;
-    const bairro = document.getElementById('bairro').value;
-    const cidade = document.getElementById('cidade').value;
-    const estado = document.getElementById('estado').value;
-    const cep = document.getElementById('cep').value;
-    
-    if (logradouro) {
-        let fullAddress = logradouro;
-        if (numero) fullAddress += ', ' + numero;
-        if (complemento) fullAddress += ' - ' + complemento;
-        if (bairro) fullAddress += ', ' + bairro;
-        if (cidade && estado) fullAddress += ' - ' + cidade + '/' + estado;
-        if (cep) fullAddress += ' - CEP: ' + cep;
-        
-        document.getElementById('fullAddressText').textContent = fullAddress;
-        document.getElementById('addressPreview').classList.add('show');
-    } else {
-        document.getElementById('addressPreview').classList.remove('show');
-    }
-}
-
-// Atualizar preview quando campos de endereço mudarem
-['logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep'].forEach(fieldId => {
-    const field = document.getElementById(fieldId) || document.querySelector(`input[name="${fieldId}"]`);
-    if (field) {
-        field.addEventListener('input', updateAddressPreview);
-    }
-});
-
-// Máscara de CEP
-document.getElementById('cep')?.addEventListener('input', function(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 5) {
-        value = value.substring(0, 5) + '-' + value.substring(5, 8);
-    }
-    e.target.value = value;
 });
 
 // Animação dos steps baseado no scroll

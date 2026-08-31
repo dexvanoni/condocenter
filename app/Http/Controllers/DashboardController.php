@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AccessMovement;
 use App\Models\Assembly;
 use App\Models\Charge;
 use App\Models\BankAccount;
@@ -13,6 +14,8 @@ use App\Models\Package;
 use App\Models\Entry;
 use App\Models\User;
 use App\Models\Condominium;
+use App\Services\ActiveCondominiumService;
+use App\Services\SyndicConversationStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -22,11 +25,12 @@ class DashboardController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        $condominium = $user->condominium;
+        $activeCondominiumService = app(ActiveCondominiumService::class);
+        $condominium = $activeCondominiumService->getActiveCondominium($user) ?? $user->condominium;
         $activeRole = session('active_role');
 
-        // Admin da plataforma (sem condomínio)
-        if ($user->isAdmin() && !$condominium) {
+        // Admin da plataforma (sem condomínio selecionado na sessão)
+        if ($user->isAdmin() && !$activeCondominiumService->hasActiveCondominium($user)) {
             return $this->adminPlatformDashboard($user);
         }
 
@@ -36,14 +40,20 @@ class DashboardController extends Controller
         }
 
         // Se usuário selecionou um perfil específico, respeitar a seleção
-        if ($activeRole && $user->hasRole($activeRole)) {
+        if ($activeRole && $user->hasAssignedRole($activeRole)) {
             $dashboard = $this->dashboardByRole($user, $condominium, $activeRole);
             if ($dashboard !== null) {
                 return $dashboard;
             }
         }
 
-        // Dashboard específico por role
+        // Dashboard específico pelo perfil ativo (granularidade real)
+        if ($user->shouldUseActiveRoleOnly()) {
+            return $this->dashboardByRole($user, $condominium, $user->getActiveRoleName())
+                ?? $this->defaultDashboard($user, $condominium);
+        }
+
+        // Dashboard específico por role (usuário com perfil único)
         if ($user->isSindico() || $user->isAdmin()) {
             return $this->sindicoDashboard($user, $condominium);
         } elseif ($user->isMorador()) {
@@ -81,7 +91,135 @@ class DashboardController extends Controller
 
     protected function sindicoDashboard(User $user, $condominium)
     {
-        $currentMonth = now()->format('Y-m');
+        $isFinancialFull = $condominium->isFinancialFull();
+
+        $totalUnidades = $condominium->units()->count();
+
+        $proximasReservas = Reservation::with(['space', 'unit', 'user'])
+            ->whereHas('space', function ($q) use ($condominium) {
+                $q->where('condominium_id', $condominium->id);
+            })
+            ->where('status', 'approved')
+            ->where('reservation_date', '>=', now())
+            ->orderBy('reservation_date')
+            ->limit(5)
+            ->get();
+
+        $reservasPendentes = Reservation::whereHas('space', function ($q) use ($condominium) {
+                $q->where('condominium_id', $condominium->id);
+            })
+            ->where('status', 'pending')
+            ->count();
+
+        $reservasMes = Reservation::whereHas('space', function ($q) use ($condominium) {
+                $q->where('condominium_id', $condominium->id);
+            })
+            ->whereMonth('reservation_date', now()->month)
+            ->whereYear('reservation_date', now()->year)
+            ->count();
+
+        $encombendasPendentes = Package::byCondominium($condominium->id)
+            ->pending()
+            ->count();
+
+        $encombendasHoje = Package::byCondominium($condominium->id)
+            ->whereDate('received_at', today())
+            ->count();
+
+        $moradoresAtivos = User::where('condominium_id', $condominium->id)
+            ->where('is_active', true)
+            ->whereHas('roles', function ($q) {
+                $q->whereIn('name', ['Morador', 'Síndico']);
+            })
+            ->count();
+
+        $ocupacaoPercentual = $totalUnidades > 0
+            ? ($moradoresAtivos / $totalUnidades) * 100
+            : 0;
+
+        $entradasHoje = Entry::where('condominium_id', $condominium->id)
+            ->whereDate('entry_time', today())
+            ->count();
+
+        $accessMovementsHoje = AccessMovement::query()
+            ->where('condominium_id', $condominium->id)
+            ->whereDate('occurred_at', today())
+            ->count();
+
+        $pendingUsersCount = User::query()
+            ->where('condominium_id', $condominium->id)
+            ->where('registration_status', 'pending')
+            ->count();
+
+        $pendingUsers = User::query()
+            ->where('condominium_id', $condominium->id)
+            ->where('registration_status', 'pending')
+            ->with('unit')
+            ->orderByDesc('created_at')
+            ->limit(6)
+            ->get();
+
+        $syndicConversationStats = app(SyndicConversationStatsService::class)
+            ->forCondominium($condominium->id);
+
+        $syndicPendingConversations = collect($syndicConversationStats['conversations'])
+            ->filter(fn (array $conversation) => (bool) ($conversation['pending_response'] ?? false))
+            ->take(6)
+            ->values();
+
+        $financialMetrics = $this->buildSindicoFinancialMetrics($condominium, $isFinancialFull);
+
+        return view('dashboard.sindico', array_merge(
+            compact(
+                'condominium',
+                'isFinancialFull',
+                'totalUnidades',
+                'proximasReservas',
+                'reservasPendentes',
+                'reservasMes',
+                'encombendasPendentes',
+                'encombendasHoje',
+                'moradoresAtivos',
+                'ocupacaoPercentual',
+                'entradasHoje',
+                'accessMovementsHoje',
+                'pendingUsersCount',
+                'pendingUsers',
+                'syndicConversationStats',
+                'syndicPendingConversations',
+            ),
+            $financialMetrics
+        ));
+    }
+
+    protected function buildSindicoFinancialMetrics(Condominium $condominium, bool $isFinancialFull): array
+    {
+        $empty = [
+            'totalReceitas' => 0,
+            'totalDespesas' => 0,
+            'saldo' => 0,
+            'variacaoReceitas' => 0,
+            'variacaoDespesas' => 0,
+            'totalAReceber' => 0,
+            'totalEmAtraso' => 0,
+            'inadimplentes' => 0,
+            'taxaAdimplencia' => 100,
+            'ultimasTransacoes' => collect(),
+            'categoriasFinanceiras' => collect(),
+            'graficoAdimplencia' => ['adimplentes' => 0, 'inadimplentes' => 0],
+            'graficoFinanceiro' => [],
+            'saldoConsolidado' => 0,
+            'entradasNaoConciliadas' => 0,
+            'saidasNaoConciliadas' => 0,
+            'ultimaConsolidacao' => null,
+            'inadimplentesDetalhe' => collect(),
+        ];
+
+        if (!$isFinancialFull) {
+            return $empty;
+        }
+
+        $totalUnidades = $condominium->units()->count();
 
         // KPIs Financeiros do Mês Atual
         $totalReceitas = Transaction::withTrashed()
@@ -138,45 +276,16 @@ class DashboardController extends Controller
             ->distinct('unit_id')
             ->count('unit_id');
 
-        $totalUnidades = $condominium->units()->count();
-        $taxaAdimplencia = $totalUnidades > 0 
-            ? (($totalUnidades - $inadimplentes) / $totalUnidades) * 100 
+        $taxaAdimplencia = $totalUnidades > 0
+            ? (($totalUnidades - $inadimplentes) / $totalUnidades) * 100
             : 100;
 
-        // Próximas Reservas
-        $proximasReservas = Reservation::with(['space', 'unit', 'user'])
-            ->whereHas('space', function ($q) use ($condominium) {
-                $q->where('condominium_id', $condominium->id);
-            })
-            ->where('status', 'approved')
-            ->where('reservation_date', '>=', now())
-            ->orderBy('reservation_date')
-            ->limit(5)
-            ->get();
-
-        // Reservas Pendentes de Aprovação
-        $reservasPendentes = Reservation::whereHas('space', function ($q) use ($condominium) {
-                $q->where('condominium_id', $condominium->id);
-            })
-            ->where('status', 'pending')
-            ->count();
-
-        // Reservas do mês
-        $reservasMes = Reservation::whereHas('space', function ($q) use ($condominium) {
-                $q->where('condominium_id', $condominium->id);
-            })
-            ->whereMonth('reservation_date', now()->month)
-            ->whereYear('reservation_date', now()->year)
-            ->count();
-
-        // Últimas Transações
         $ultimasTransacoes = Transaction::with(['user'])
             ->where('condominium_id', $condominium->id)
             ->orderBy('transaction_date', 'desc')
             ->limit(10)
             ->get();
 
-        // Categorias financeiras (ano em curso)
         $categoriasFinanceiras = Transaction::where('condominium_id', $condominium->id)
             ->whereYear('transaction_date', now()->year)
             ->selectRaw("
@@ -195,33 +304,27 @@ class DashboardController extends Controller
             'inadimplentes' => $inadimplentes,
         ];
 
-        // Encomendas Pendentes
-        $encombendasPendentes = Package::byCondominium($condominium->id)
-            ->pending()
-            ->count();
+        $inadimplentesDetalhe = Charge::query()
+            ->where('condominium_id', $condominium->id)
+            ->where('status', 'overdue')
+            ->with('unit')
+            ->orderBy('due_date')
+            ->get()
+            ->groupBy('unit_id')
+            ->map(function ($charges) {
+                $first = $charges->first();
 
-        // Encomendas de Hoje
-        $encombendasHoje = Package::byCondominium($condominium->id)
-            ->whereDate('received_at', today())
-            ->count();
-
-        // Total de Moradores Ativos
-        $moradoresAtivos = User::where('condominium_id', $condominium->id)
-            ->where('is_active', true)
-            ->whereHas('roles', function ($q) {
-                $q->whereIn('name', ['Morador', 'Síndico']);
+                return [
+                    'unit' => $first?->unit,
+                    'total' => $charges->sum('amount'),
+                    'count' => $charges->count(),
+                    'oldest_due' => $charges->min('due_date'),
+                ];
             })
-            ->count();
-        $ocupacaoPercentual = $totalUnidades > 0
-            ? ($moradoresAtivos / $totalUnidades) * 100
-            : 0;
+            ->sortByDesc('total')
+            ->take(8)
+            ->values();
 
-        // Entradas de Hoje
-        $entradasHoje = Entry::where('condominium_id', $condominium->id)
-            ->whereDate('entry_time', today())
-            ->count();
-
-        // Gráfico de Receitas vs Despesas (últimos 6 meses)
         $graficoFinanceiro = [];
         for ($i = 5; $i >= 0; $i--) {
             $mes = now()->subMonths($i);
@@ -230,7 +333,7 @@ class DashboardController extends Controller
                 ->whereMonth('transaction_date', $mes->month)
                 ->whereYear('transaction_date', $mes->year)
                 ->sum('amount');
-            
+
             $despesas = Transaction::where('condominium_id', $condominium->id)
                 ->where('type', 'expense')
                 ->whereMonth('transaction_date', $mes->month)
@@ -241,7 +344,7 @@ class DashboardController extends Controller
                 'mes' => $mes->format('M/Y'),
                 'receitas' => $receitas,
                 'despesas' => $despesas,
-                'saldo' => $receitas - $despesas
+                'saldo' => $receitas - $despesas,
             ];
         }
 
@@ -252,8 +355,6 @@ class DashboardController extends Controller
             ->latest('created_at')
             ->first();
 
-        // Filtra entradas/saídas não conciliadas por período relevante (últimos 12 meses ou desde a última conciliação)
-        // Isso evita incluir valores muito antigos que podem nunca ter sido conciliados
         $periodStart = $ultimaConsolidacao && $ultimaConsolidacao->end_date
             ? $ultimaConsolidacao->end_date->copy()->addDay()
             : now()->subMonths(12)->startOfDay();
@@ -288,34 +389,26 @@ class DashboardController extends Controller
             $ultimaConsolidacao->loadMissing('bankAccount');
         }
 
-        return view('dashboard.sindico', compact(
-            'totalReceitas',
-            'totalDespesas',
-            'saldo',
-            'variacaoReceitas',
-            'variacaoDespesas',
-            'totalAReceber',
-            'totalEmAtraso',
-            'inadimplentes',
-            'taxaAdimplencia',
-            'proximasReservas',
-            'reservasPendentes',
-            'ultimasTransacoes',
-            'encombendasPendentes',
-            'encombendasHoje',
-            'moradoresAtivos',
-            'entradasHoje',
-            'totalUnidades',
-            'graficoFinanceiro',
-            'categoriasFinanceiras',
-            'graficoAdimplencia',
-            'ocupacaoPercentual',
-            'reservasMes',
-            'saldoConsolidado',
-            'entradasNaoConciliadas',
-            'saidasNaoConciliadas',
-            'ultimaConsolidacao'
-        ));
+        return [
+            'totalReceitas' => $totalReceitas,
+            'totalDespesas' => $totalDespesas,
+            'saldo' => $saldo,
+            'variacaoReceitas' => $variacaoReceitas,
+            'variacaoDespesas' => $variacaoDespesas,
+            'totalAReceber' => $totalAReceber,
+            'totalEmAtraso' => $totalEmAtraso,
+            'inadimplentes' => $inadimplentes,
+            'taxaAdimplencia' => $taxaAdimplencia,
+            'ultimasTransacoes' => $ultimasTransacoes,
+            'categoriasFinanceiras' => $categoriasFinanceiras,
+            'graficoAdimplencia' => $graficoAdimplencia,
+            'graficoFinanceiro' => $graficoFinanceiro,
+            'saldoConsolidado' => $saldoConsolidado,
+            'entradasNaoConciliadas' => $entradasNaoConciliadas,
+            'saidasNaoConciliadas' => $saidasNaoConciliadas,
+            'ultimaConsolidacao' => $ultimaConsolidacao,
+            'inadimplentesDetalhe' => $inadimplentesDetalhe,
+        ];
     }
 
     protected function moradorDashboard(User $user, $condominium)
@@ -383,7 +476,7 @@ class DashboardController extends Controller
                 },
             ])
             ->withCount('items')
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->whereIn('status', ['scheduled', 'in_progress'])
             ->get()
             ->filter(function (Assembly $assembly) use ($user) {

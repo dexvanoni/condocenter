@@ -59,7 +59,7 @@ class MarketplaceAdminController extends Controller
         ];
 
         $query = MarketplaceItem::with(['seller', 'unit'])
-            ->where('condominium_id', $user->condominium_id);
+            ->where('condominium_id', $user->tenantCondominiumId());
 
         if ($filters['status']) {
             $query->where('status', $filters['status']);
@@ -189,7 +189,7 @@ class MarketplaceAdminController extends Controller
 
     private function ensureSameCondominium($user, MarketplaceItem $item): void
     {
-        if ($item->condominium_id !== $user->condominium_id) {
+        if ($item->condominium_id !== $user->tenantCondominiumId()) {
             abort(403, 'Você não tem permissão para gerenciar este anúncio.');
         }
     }

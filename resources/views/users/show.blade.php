@@ -324,6 +324,42 @@
         </div>
         <div class="col-md-3 text-center text-md-end mt-3 mt-md-0">
             <div class="d-flex flex-column gap-2">
+                @can('update', $user)
+                    @if($user->isPendingApproval())
+                        <form action="{{ route('users.approve', $user) }}" method="POST"
+                              onsubmit="return confirm('Aprovar o cadastro de {{ $user->name }}?')">
+                            @csrf
+                            <button type="submit" class="btn btn-success btn-action w-100">
+                                <i class="bi bi-check2-circle"></i> Aprovar
+                            </button>
+                        </form>
+                        <form action="{{ route('users.reject', $user) }}" method="POST"
+                              onsubmit="return confirm('Rejeitar o cadastro de {{ $user->name }}?')">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-light btn-action w-100">
+                                <i class="bi bi-x-circle"></i> Rejeitar
+                            </button>
+                        </form>
+                    @elseif($user->isRegistrationApproved())
+                        @if($user->is_active)
+                            <form action="{{ route('users.deactivate', $user) }}" method="POST"
+                                  onsubmit="return confirm('Desativar o usuário {{ $user->name }}?')">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-light btn-action w-100">
+                                    <i class="bi bi-person-dash"></i> Desativar
+                                </button>
+                            </form>
+                        @else
+                            <form action="{{ route('users.activate', $user) }}" method="POST"
+                                  onsubmit="return confirm('Ativar o usuário {{ $user->name }}?')">
+                                @csrf
+                                <button type="submit" class="btn btn-success btn-action w-100">
+                                    <i class="bi bi-person-check"></i> Ativar
+                                </button>
+                            </form>
+                        @endif
+                    @endif
+                @endcan
                 @can('viewHistory', $user)
                 <a href="{{ route('users.history', $user) }}" class="btn btn-light btn-action">
                     <i class="bi bi-clock-history"></i> Histórico
@@ -581,10 +617,22 @@
                 <h5><i class="bi bi-activity"></i> Status Atual</h5>
             </div>
             <div class="card-body p-4">
+                @if($user->isPendingApproval())
+                <div class="d-flex align-items-center mb-3 p-3" style="background: #fef3c7; border-radius: 10px;">
+                    <span class="status-indicator" style="background: #f59e0b;"></span>
+                    <strong>Pendente de aprovação</strong>
+                </div>
+                @elseif($user->isRegistrationRejected())
+                <div class="d-flex align-items-center mb-3 p-3" style="background: #fee2e2; border-radius: 10px;">
+                    <span class="status-indicator" style="background: #ef4444;"></span>
+                    <strong>Cadastro rejeitado</strong>
+                </div>
+                @else
                 <div class="d-flex align-items-center mb-3 p-3" style="background: #f8f9fa; border-radius: 10px;">
                     <span class="status-indicator" style="background: {{ $user->is_active ? '#10b981' : '#6b7280' }};"></span>
                     <strong>{{ $user->is_active ? 'Ativo' : 'Inativo' }}</strong>
                 </div>
+                @endif
                 <div class="d-flex align-items-center mb-3 p-3" style="background: #f8f9fa; border-radius: 10px;">
                     <span class="status-indicator" style="background: {{ $user->possui_dividas ? '#ef4444' : '#10b981' }};"></span>
                     <strong>{{ $user->possui_dividas ? 'Com Dívidas' : 'Sem Dívidas' }}</strong>

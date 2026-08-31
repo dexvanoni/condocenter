@@ -3,9 +3,23 @@
 namespace App\Policies;
 
 use App\Models\User;
+use App\Services\ActiveCondominiumService;
 
 class UserPolicy
 {
+    protected function belongsToActiveCondominium(User $user, User $model): bool
+    {
+        $service = app(ActiveCondominiumService::class);
+
+        if ($user->isAdmin()) {
+            $activeId = $service->getActiveCondominiumId($user);
+
+            return $activeId !== null && (int) $model->condominium_id === (int) $activeId;
+        }
+
+        return (int) $user->condominium_id === (int) $model->condominium_id;
+    }
+
     /**
      * Determine whether the user can view any models.
      */
@@ -19,8 +33,15 @@ class UserPolicy
      */
     public function view(User $user, User $model): bool
     {
-        // Usuário pode ver a si mesmo ou ter permissão
-        return $user->id === $model->id || $user->can('view_users');
+        if ($user->id === $model->id) {
+            return true;
+        }
+
+        if (!$user->can('view_users')) {
+            return false;
+        }
+
+        return $this->belongsToActiveCondominium($user, $model);
     }
 
     /**
@@ -36,12 +57,15 @@ class UserPolicy
      */
     public function update(User $user, User $model): bool
     {
-        // Usuário pode editar a si mesmo ou ter permissão
         if ($user->id === $model->id) {
             return true;
         }
 
-        return $user->can('manage_users');
+        if (!$user->can('manage_users')) {
+            return false;
+        }
+
+        return $this->belongsToActiveCondominium($user, $model);
     }
 
     /**
@@ -49,12 +73,15 @@ class UserPolicy
      */
     public function delete(User $user, User $model): bool
     {
-        // Não pode deletar a si mesmo
         if ($user->id === $model->id) {
             return false;
         }
 
-        return $user->can('manage_users');
+        if (!$user->can('manage_users')) {
+            return false;
+        }
+
+        return $this->belongsToActiveCondominium($user, $model);
     }
 
     /**

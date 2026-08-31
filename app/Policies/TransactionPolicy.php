@@ -21,7 +21,7 @@ class TransactionPolicy
     public function view(User $user, Transaction $transaction): bool
     {
         // Verificar se pertence ao mesmo condomínio
-        if ($transaction->condominium_id !== $user->condominium_id) {
+        if ($transaction->condominium_id !== $user->tenantCondominiumId()) {
             return false;
         }
 
@@ -42,7 +42,7 @@ class TransactionPolicy
     public function update(User $user, Transaction $transaction): bool
     {
         // Verificar se pertence ao mesmo condomínio
-        if ($transaction->condominium_id !== $user->condominium_id) {
+        if ($transaction->condominium_id !== $user->tenantCondominiumId()) {
             return false;
         }
 
@@ -58,7 +58,7 @@ class TransactionPolicy
     public function delete(User $user, Transaction $transaction): bool
     {
         // Verificar se pertence ao mesmo condomínio
-        if ($transaction->condominium_id !== $user->condominium_id) {
+        if ($transaction->condominium_id !== $user->tenantCondominiumId()) {
             return false;
         }
 

@@ -4,9 +4,11 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Models\Unit;
+use App\Policies\Concerns\ChecksActiveCondominium;
 
 class UnitPolicy
 {
+    use ChecksActiveCondominium;
     /**
      * Determine whether the user can view any models.
      */
@@ -20,7 +22,8 @@ class UnitPolicy
      */
     public function view(User $user, Unit $unit): bool
     {
-        return $user->can('view_units');
+        return $user->can('view_units')
+            && $this->belongsToActiveCondominium($user, (int) $unit->condominium_id);
     }
 
     /**
@@ -36,7 +39,8 @@ class UnitPolicy
      */
     public function update(User $user, Unit $unit): bool
     {
-        return $user->can('edit_units');
+        return $user->can('edit_units')
+            && $this->belongsToActiveCondominium($user, (int) $unit->condominium_id);
     }
 
     /**
@@ -44,7 +48,8 @@ class UnitPolicy
      */
     public function delete(User $user, Unit $unit): bool
     {
-        return $user->can('delete_units');
+        return $user->can('delete_units')
+            && $this->belongsToActiveCondominium($user, (int) $unit->condominium_id);
     }
 
     /**

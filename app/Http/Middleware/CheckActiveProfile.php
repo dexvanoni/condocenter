@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\ProfileSelection;
 
 class CheckActiveProfile
 {
@@ -22,12 +21,21 @@ class CheckActiveProfile
             return $next($request);
         }
 
+        if (!$user->hasMultipleRoles()) {
+            $singleRole = $user->roles->first()?->name;
+
+            if ($singleRole && session('active_role') !== $singleRole) {
+                session(['active_role' => $singleRole]);
+            }
+        }
+
         // Se usuário tem múltiplos perfis e não selecionou ainda
         if ($user->hasMultipleRoles() && !session('active_role')) {
             // Permite acesso apenas às rotas de seleção de perfil e logout
             $allowedRoutes = [
                 'profile.select',
                 'profile.set',
+                'profile.switch',
                 'logout',
                 'password.change',
                 'password.update',
@@ -48,18 +56,18 @@ class CheckActiveProfile
         if (session('active_role')) {
             $roleName = session('active_role');
             
-            if (!$user->hasRole($roleName)) {
+            if (!$user->hasAssignedRole($roleName)) {
                 session()->forget('active_role');
+                $user->refreshActiveProfileCache();
                 
                 return redirect()->route('profile.select')
                     ->with('error', 'O perfil selecionado não está mais disponível.');
             }
 
-            // Atualiza o perfil ativo do usuário (para uso em policies e lógica)
+            // Disponibiliza o perfil ativo para policies, sidebar e helpers
             $user->current_role = $roleName;
         }
 
         return $next($request);
     }
 }
-

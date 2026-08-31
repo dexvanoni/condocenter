@@ -51,7 +51,7 @@ class AssemblyController extends Controller
         $query = Assembly::query()
             ->with($relationships)
             ->withCount('votes')
-            ->where('condominium_id', $user->condominium_id);
+            ->where('condominium_id', $user->tenantCondominiumId());
 
         if ($status = $request->input('status')) {
             if ($status === 'scheduled') {
@@ -422,7 +422,7 @@ class AssemblyController extends Controller
     {
         /** @var User $user */
         $user = Auth::user();
-        if ($assembly->condominium_id !== $user->condominium_id) {
+        if ($assembly->condominium_id !== $user->tenantCondominiumId()) {
             abort(403, 'Não autorizado.');
         }
     }

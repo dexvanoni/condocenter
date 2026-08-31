@@ -18,7 +18,7 @@ class SpaceController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
         
-        $query = Space::where('condominium_id', $user->condominium_id);
+        $query = Space::where('condominium_id', $user->tenantCondominiumId());
 
         // Filtros
         if ($request->has('type')) {
@@ -68,7 +68,7 @@ class SpaceController extends Controller
         }
 
         $space = Space::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'name' => $request->name,
             'description' => $request->description,
             'type' => $request->type,
@@ -103,7 +103,7 @@ class SpaceController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        if ($space->condominium_id !== $user->condominium_id) {
+        if ($space->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

@@ -37,6 +37,8 @@
         </div>
     </div>
 
+    @include('dashboard.partials.ride-alerts')
+
     <div class="row">
         <!-- Notificações -->
         <div class="col-lg-6 mb-4">

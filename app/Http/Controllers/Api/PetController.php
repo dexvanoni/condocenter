@@ -21,7 +21,7 @@ class PetController extends Controller
         
         $query = Pet::with(['unit', 'owner'])
             ->whereHas('unit', function ($q) use ($user) {
-                $q->where('condominium_id', $user->condominium_id);
+                $q->where('condominium_id', $user->tenantCondominiumId());
             });
 
         // Se for morador, mostrar apenas seus pets
@@ -68,7 +68,7 @@ class PetController extends Controller
         // Upload de foto
         $photoPath = null;
         if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('pets/' . $user->condominium_id, 'public');
+            $photoPath = $request->file('photo')->store('pets/' . $user->tenantCondominiumId(), 'public');
         }
 
         $pet = Pet::create([
@@ -101,7 +101,7 @@ class PetController extends Controller
         $user = Auth::user();
 
         // Verificar se pertence ao condomínio
-        if ($pet->unit->condominium_id !== $user->condominium_id) {
+        if ($pet->unit->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -140,7 +140,7 @@ class PetController extends Controller
                 Storage::disk('public')->delete($pet->photo);
             }
             
-            $photoPath = $request->file('photo')->store('pets/' . $user->condominium_id, 'public');
+            $photoPath = $request->file('photo')->store('pets/' . $user->tenantCondominiumId(), 'public');
             $pet->photo = $photoPath;
         }
 

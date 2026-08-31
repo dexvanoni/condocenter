@@ -26,7 +26,7 @@ class ChargeController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
 
         if (!$condominiumId) {
             return response()->json(['error' => 'Usuário não vinculado a um condomínio'], 403);
@@ -132,7 +132,7 @@ class ChargeController extends Controller
         $user = Auth::user();
 
         $charge = Charge::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'unit_id' => $request->unit_id,
             'title' => $request->title,
             'description' => $request->description,
@@ -175,7 +175,7 @@ class ChargeController extends Controller
         }
 
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
 
         // Buscar unidades
         if ($request->boolean('apply_to_all_units')) {
@@ -224,7 +224,7 @@ class ChargeController extends Controller
         $charge = Charge::with('unit.users')->findOrFail($id);
 
         // Verificar permissão
-        if ($charge->condominium_id !== Auth::user()->condominium_id) {
+        if ($charge->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -263,7 +263,7 @@ class ChargeController extends Controller
 
         // Verificar permissão
         $user = Auth::user();
-        if ($charge->condominium_id !== $user->condominium_id) {
+        if ($charge->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -283,7 +283,7 @@ class ChargeController extends Controller
         $charge = Charge::findOrFail($id);
 
         // Verificar permissão
-        if ($charge->condominium_id !== Auth::user()->condominium_id) {
+        if ($charge->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -314,7 +314,7 @@ class ChargeController extends Controller
         $charge = Charge::findOrFail($id);
 
         // Verificar permissão
-        if ($charge->condominium_id !== Auth::user()->condominium_id) {
+        if ($charge->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

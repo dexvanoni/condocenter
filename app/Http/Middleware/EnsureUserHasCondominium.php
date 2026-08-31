@@ -16,14 +16,14 @@ class EnsureUserHasCondominium
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+        $activeCondominiumService = app(\App\Services\ActiveCondominiumService::class);
 
-        // Se for admin da plataforma, permitir acesso
-        if ($user && $user->isAdmin() && !$user->condominium_id) {
+        // Admin da plataforma sem condomínio selecionado
+        if ($user && $user->isAdmin() && !$activeCondominiumService->hasActiveCondominium($user)) {
             return $next($request);
         }
 
-        // Para outros usuários, verificar se tem condomínio
-        if ($user && !$user->condominium_id) {
+        if ($user && !$user->tenantCondominiumId()) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'error' => 'Usuário não vinculado a um condomínio'

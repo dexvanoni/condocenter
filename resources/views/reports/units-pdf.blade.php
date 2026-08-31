@@ -32,7 +32,6 @@
                 <th>Tipo</th>
                 <th>Situação</th>
                 <th>Endereço</th>
-                <th>Quartos</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -43,8 +42,7 @@
                 <td>{{ $unit->block ?? '-' }}</td>
                 <td>{{ $unit->type === 'residential' ? 'Resid.' : 'Comerc.' }}</td>
                 <td>{{ $unit->situacao_label }}</td>
-                <td>{{ $unit->logradouro ? $unit->logradouro . ', ' . $unit->numero : '-' }}</td>
-                <td>{{ $unit->num_quartos ?? '-' }}</td>
+                <td>{{ $unit->full_address ?? '-' }}</td>
                 <td>{{ $unit->possui_dividas ? 'Dívidas' : 'OK' }}</td>
             </tr>
             @endforeach

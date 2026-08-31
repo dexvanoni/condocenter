@@ -785,6 +785,50 @@
     let loadingSteps = 0;
     let totalSteps = 4; // espaços, reservas, créditos, calendário
 
+    function normalizeTime(timeStr) {
+        if (!timeStr) {
+            return '';
+        }
+
+        const raw = String(timeStr).trim();
+
+        if (raw.includes('T')) {
+            return raw.split('T')[1].substring(0, 5);
+        }
+
+        if (raw.includes(' ')) {
+            const parts = raw.split(' ');
+            const timePart = parts.length > 1 ? parts[1] : parts[0];
+            return timePart.substring(0, 5);
+        }
+
+        return raw.substring(0, 5);
+    }
+
+    function timeToMinutes(timeStr) {
+        const normalized = normalizeTime(timeStr);
+        const [hours, minutes] = normalized.split(':').map(Number);
+
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+            return 0;
+        }
+
+        return (hours * 60) + minutes;
+    }
+
+    function timesOverlap(startA, endA, startB, endB) {
+        const aStart = timeToMinutes(startA);
+        const aEnd = timeToMinutes(endA);
+        const bStart = timeToMinutes(startB);
+        const bEnd = timeToMinutes(endB);
+
+        return aStart < bEnd && aEnd > bStart;
+    }
+
+    function getOccupiedSlotsForDate(dateOnly) {
+        return reservations.filter(r => r.reservation_date.split('T')[0] === dateOnly);
+    }
+
     // Função para atualizar progresso
     function updateProgress(step, message) {
         loadingSteps = step;
@@ -917,13 +961,8 @@
         
         // Formatar horários para pt-BR
         const formatTime = (timeStr) => {
-            if (!timeStr) return 'Não informado';
-            // Se for datetime, extrair apenas a parte do tempo
-            if (timeStr.includes('T')) {
-                return timeStr.split('T')[1].substring(0, 5);
-            }
-            // Se já for apenas hora:minuto, usar como está
-            return timeStr.substring(0, 5);
+            const normalized = normalizeTime(timeStr);
+            return normalized || 'Não informado';
         };
         
         const spaceHours = document.getElementById('spaceHours');
@@ -1131,8 +1170,8 @@
                         // Primeiro: adicionar reservas recorrentes (máximo 1 por data)
                         if (dateReservations.recurring.length > 0) {
                             const recurringReservation = dateReservations.recurring[0]; // Pegar apenas a primeira
-                            const startTime = recurringReservation.start_time.substring(0, 5);
-                            const endTime = recurringReservation.end_time.substring(0, 5);
+                            const startTime = normalizeTime(recurringReservation.start_time);
+                            const endTime = normalizeTime(recurringReservation.end_time);
                             
                             events.push({
                                 title: `${recurringReservation.title || 'Recorrente'} (${startTime}-${endTime})`,
@@ -1154,8 +1193,8 @@
                         
                         // Segundo: adicionar reservas normais (máximo 2 por data)
                         dateReservations.normal.slice(0, 2).forEach(reservation => {
-                            const startTime = reservation.start_time.substring(0, 5);
-                            const endTime = reservation.end_time.substring(0, 5);
+                            const startTime = normalizeTime(reservation.start_time);
+                            const endTime = normalizeTime(reservation.end_time);
                             
                             // Verificar se é pré-reserva
                             const isPrereservation = reservation.is_prereservation === true || 
@@ -1313,11 +1352,8 @@
         
         // Formatar horários para pt-BR
         const formatTime = (timeStr) => {
-            if (!timeStr) return 'Não informado';
-            if (timeStr.includes('T')) {
-                return timeStr.split('T')[1].substring(0, 5);
-            }
-            return timeStr.substring(0, 5);
+            const normalized = normalizeTime(timeStr);
+            return normalized || 'Não informado';
         };
         
         document.getElementById('confirmSpaceName').textContent = selectedSpace.name;
@@ -1685,42 +1721,68 @@
     function generateTimeOptions() {
         const startSelect = document.getElementById('startTime');
         const endSelect = document.getElementById('endTime');
-        
+        const messageDiv = document.getElementById('hourlyConflictMessage');
+
+        if (!startSelect || !endSelect || !selectedSpace) {
+            return;
+        }
+
         startSelect.innerHTML = '<option value="">Selecione...</option>';
         endSelect.innerHTML = '<option value="">Selecione...</option>';
-        
-        // Formatar horários para extrair apenas HH:MM
-        const formatTime = (timeStr) => {
-            if (!timeStr) return '08:00';
-            if (timeStr.includes('T')) {
-                return timeStr.split('T')[1].substring(0, 5);
-            }
-            return timeStr.substring(0, 5);
-        };
-        
-        const availableFrom = formatTime(selectedSpace.available_from);
-        const availableUntil = formatTime(selectedSpace.available_until);
-        
-        const [startHour, startMin] = availableFrom.split(':').map(Number);
-        const [endHour, endMin] = availableUntil.split(':').map(Number);
-        
-        // Gerar opções de 30 em 30 minutos
-        for (let h = startHour; h <= endHour; h++) {
-            for (let m = 0; m < 60; m += 30) {
-                const totalMinutes = h * 60 + m;
-                const limitMinutes = endHour * 60 + endMin;
-                
-                if (totalMinutes >= startHour * 60 + startMin && totalMinutes < limitMinutes) {
-                    const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                    startSelect.innerHTML += `<option value="${timeStr}">${timeStr}</option>`;
-                    endSelect.innerHTML += `<option value="${timeStr}">${timeStr}</option>`;
-                }
-            }
+
+        if (messageDiv) {
+            messageDiv.innerHTML = '';
         }
-        
-        // Adicionar horário de fim também
-        const endTimeStr = availableUntil;
-        endSelect.innerHTML += `<option value="${endTimeStr}">${endTimeStr}</option>`;
+
+        const availableFrom = normalizeTime(selectedSpace.available_from);
+        const availableUntil = normalizeTime(selectedSpace.available_until);
+        const openMinutes = timeToMinutes(availableFrom);
+        const closeMinutes = timeToMinutes(availableUntil);
+
+        if (!availableFrom || !availableUntil || closeMinutes <= openMinutes) {
+            if (messageDiv) {
+                messageDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Horário de funcionamento inválido para este espaço (${availableFrom || '?'} às ${availableUntil || '?'}).
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        const dateOnly = selectedDate.split('T')[0];
+        const occupiedSlots = getOccupiedSlotsForDate(dateOnly);
+
+        for (let minutes = openMinutes; minutes < closeMinutes; minutes += 30) {
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+            const timeMin = timeToMinutes(timeStr);
+            const isStartOccupied = occupiedSlots.some(slot => {
+                const slotStart = timeToMinutes(slot.start_time);
+                const slotEnd = timeToMinutes(slot.end_time);
+                return timeMin >= slotStart && timeMin < slotEnd;
+            });
+
+            if (!isStartOccupied) {
+                startSelect.innerHTML += `<option value="${timeStr}">${timeStr}</option>`;
+            }
+
+            endSelect.innerHTML += `<option value="${timeStr}">${timeStr}</option>`;
+        }
+
+        endSelect.innerHTML += `<option value="${availableUntil}">${availableUntil}</option>`;
+
+        if (startSelect.options.length <= 1 && messageDiv) {
+            messageDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Não há horários livres neste dia. Verifique as reservas recorrentes ou individuais abaixo.
+                </div>
+            `;
+        }
     }
 
     // Calcular horário de término baseado no máximo permitido
@@ -1791,23 +1853,14 @@
             return;
         }
         
-        // Verificar conflito com outras reservas
+        // Verificar conflito com outras reservas (incluindo recorrentes)
         const dateOnly = selectedDate.split('T')[0];
-        const conflicts = reservations.filter(r => {
-            const reservDate = r.reservation_date.split('T')[0];
-            if (reservDate !== dateOnly) return false;
-            
-            // Verificar sobreposição de horários
-            const rStart = r.start_time;
-            const rEnd = r.end_time;
-            
-            return (startTime >= rStart && startTime < rEnd) || 
-                   (endTime > rStart && endTime <= rEnd) ||
-                   (startTime <= rStart && endTime >= rEnd);
-        });
+        const conflicts = getOccupiedSlotsForDate(dateOnly).filter(slot =>
+            timesOverlap(startTime, endTime, slot.start_time, slot.end_time)
+        );
         
         if (conflicts.length > 0) {
-            let conflictHours = conflicts.map(c => `${c.start_time}-${c.end_time}`).join(', ');
+            let conflictHours = conflicts.map(c => `${normalizeTime(c.start_time)}-${normalizeTime(c.end_time)}`).join(', ');
             messageDiv.innerHTML = `
                 <div class="alert alert-danger">
                     <i class="bi bi-x-circle"></i> <strong>Conflito de horário!</strong><br>
@@ -1861,7 +1914,7 @@
             recurringReservations.forEach(r => {
                 html += `
                     <div class="list-group-item list-group-item-success d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-arrow-repeat"></i> ${r.title || 'Reserva Recorrente'} (${r.start_time} - ${r.end_time})</span>
+                        <span><i class="bi bi-arrow-repeat"></i> ${r.title || 'Reserva Recorrente'} (${normalizeTime(r.start_time)} - ${normalizeTime(r.end_time)})</span>
                         <span class="badge bg-success">Recorrente</span>
                     </div>
                 `;
@@ -1892,7 +1945,7 @@
                 
                 html += `
                     <div class="list-group-item list-group-item-danger d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-clock"></i> ${r.start_time} - ${r.end_time}</span>
+                        <span><i class="bi bi-clock"></i> ${normalizeTime(r.start_time)} - ${normalizeTime(r.end_time)}</span>
                         <span class="badge ${badgeClass}" style="${cursorStyle}" ${clickEvent} 
                               ${isPrereservation ? 'title="Clique para mais informações"' : ''}>
                             ${badgeText}

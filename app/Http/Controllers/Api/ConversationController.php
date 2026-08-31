@@ -18,24 +18,41 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Jobs\SendConversationNotifications;
+use App\Services\ConversationAuthorization;
+use App\Services\SyndicConversationStatsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ConversationController extends Controller
 {
+    public function __construct(
+        private SyndicConversationStatsService $statsService
+    ) {}
+
     public function index(Request $request)
     {
         /** @var User $user */
         $user = $request->user();
 
         $query = Conversation::query()
-            ->with(['participants.user:id,name', 'meeting'])
-            ->where('condominium_id', $user->condominium_id)
-            ->when(!$user->isSindico() && !$user->isAdmin(), function ($q) use ($user) {
-                $q->where(function ($sub) use ($user) {
-                    $sub->whereHas('participants', fn ($p) => $p->where('user_id', $user->id))
-                        ->orWhere('type', 'announcement');
+            ->with(['participants.user:id,name', 'meeting']);
+
+        ConversationAuthorization::applyVisibilityScope($query, $user);
+
+        if ($request->filled('channel')) {
+            if ($request->get('channel') === Conversation::CHANNEL_PEER) {
+                $query->where(function ($sub) {
+                    $sub->where('channel', Conversation::CHANNEL_PEER)
+                        ->orWhereNull('channel');
                 });
+            } else {
+                $query->where('channel', $request->get('channel'));
+            }
+        } else {
+            $query->where(function ($sub) {
+                $sub->whereNull('channel')
+                    ->orWhere('channel', '!=', Conversation::CHANNEL_SYNDIC);
             });
+        }
 
         if ($request->filled('type')) {
             $query->where('type', $request->get('type'));
@@ -60,9 +77,10 @@ class ConversationController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        if ($conversation->condominium_id !== $user->condominium_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
+        if ($denied = ConversationAuthorization::denyIfUnauthorized($user, $conversation)) {
+            return response()->json(['error' => $denied['error']], $denied['status']);
         }
+
         if (!$user->isSindico() && !$user->isAdmin() && $conversation->type !== 'announcement') {
             $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
             if (!$isParticipant) {
@@ -104,7 +122,7 @@ class ConversationController extends Controller
 
         return DB::transaction(function () use ($user, $request, $priority) {
             $conversation = Conversation::create([
-                'condominium_id' => $user->condominium_id,
+                'condominium_id' => $user->tenantCondominiumId(),
                 'created_by' => $user->id,
                 'subject' => $request->get('subject'),
                 'type' => 'announcement',
@@ -129,7 +147,7 @@ class ConversationController extends Controller
             }
 
             $message = Message::create([
-                'condominium_id' => $user->condominium_id,
+                'condominium_id' => $user->tenantCondominiumId(),
                 'conversation_id' => $conversation->id,
                 'from_user_id' => $user->id,
                 'type' => 'announcement',
@@ -157,7 +175,7 @@ class ConversationController extends Controller
         if (!($user->isSindico() || $user->isAdmin())) {
             return response()->json(['error' => 'Sem permissão'], 403);
         }
-        if ($conversation->condominium_id !== $user->condominium_id || $conversation->type !== 'announcement') {
+        if ($conversation->condominium_id !== $user->tenantCondominiumId() || $conversation->type !== 'announcement') {
             return response()->json(['error' => 'Operação inválida'], 422);
         }
 
@@ -179,7 +197,7 @@ class ConversationController extends Controller
         if (!($user->isSindico() || $user->isAdmin())) {
             return response()->json(['error' => 'Sem permissão'], 403);
         }
-        if ($conversation->condominium_id !== $user->condominium_id || $conversation->type !== 'announcement') {
+        if ($conversation->condominium_id !== $user->tenantCondominiumId() || $conversation->type !== 'announcement') {
             return response()->json(['error' => 'Operação inválida'], 422);
         }
         $conversation->delete();
@@ -201,19 +219,30 @@ class ConversationController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Moradores/Agregados enviam ao Síndico/Admin; Síndico/Admin pode abrir direct também
+        // Conversas diretas entre usuários (canal peer)
         return DB::transaction(function () use ($user, $request) {
             $priority = $request->get('priority', 'normal');
 
+            if (!$request->filled('user_id')) {
+                return response()->json([
+                    'error' => 'Informe o destinatário. Para falar com o síndico, use o canal sigiloso.',
+                ], 422);
+            }
+
+            $targetUser = User::find($request->get('user_id'));
+            if (!$targetUser || $targetUser->condominium_id !== $user->tenantCondominiumId()) {
+                return response()->json(['error' => 'Usuário inválido'], 422);
+            }
+
             $conversation = Conversation::create([
-                'condominium_id' => $user->condominium_id,
+                'condominium_id' => $user->tenantCondominiumId(),
                 'created_by' => $user->id,
                 'subject' => $request->get('subject'),
                 'type' => 'direct',
+                'channel' => Conversation::CHANNEL_PEER,
                 'priority' => $priority,
             ]);
 
-            // Participante: remetente (owner)
             ConversationParticipant::create([
                 'conversation_id' => $conversation->id,
                 'user_id' => $user->id,
@@ -221,39 +250,19 @@ class ConversationController extends Controller
                 'joined_at' => now(),
             ]);
 
-            // Se houver user_id específico, adicionar como participante
-            // Caso contrário, adicionar todos os Síndicos/Administradores
-            if ($request->filled('user_id')) {
-                $targetUser = User::find($request->get('user_id'));
-                if ($targetUser && $targetUser->condominium_id === $user->condominium_id) {
-                    ConversationParticipant::updateOrCreate(
-                        ['conversation_id' => $conversation->id, 'user_id' => $targetUser->id],
-                        ['role' => 'participant', 'joined_at' => now()]
-                    );
-                }
-            } else {
-                // Destinatários administrativos: Síndico/Admin do mesmo condomínio
-                $admins = User::query()
-                    ->byCondominium($user->condominium_id)
-                    ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Síndico', 'Administrador']))
-                    ->get(['id']);
-
-                foreach ($admins as $admin) {
-                    ConversationParticipant::updateOrCreate(
-                        ['conversation_id' => $conversation->id, 'user_id' => $admin->id],
-                        ['role' => 'participant', 'joined_at' => now()]
-                    );
-                }
-            }
+            ConversationParticipant::updateOrCreate(
+                ['conversation_id' => $conversation->id, 'user_id' => $targetUser->id],
+                ['role' => 'participant', 'joined_at' => now()]
+            );
 
             // Criar mensagem apenas se fornecida
             $message = null;
             if ($request->filled('message')) {
                 $message = Message::create([
-                    'condominium_id' => $user->condominium_id,
+                    'condominium_id' => $user->tenantCondominiumId(),
                     'conversation_id' => $conversation->id,
                     'from_user_id' => $user->id,
-                    'type' => 'sindico_message',
+                    'type' => 'direct_message',
                     'subject' => $request->get('subject'),
                     'message' => $request->get('message'),
                     'priority' => $priority,
@@ -265,7 +274,6 @@ class ConversationController extends Controller
                 'message' => $message,
             ], 201);
 
-            // Notificar participantes apenas se houver mensagem inicial
             if ($message) {
                 SendConversationNotifications::dispatchSync($conversation->id, $user->id, $request->get('message'), $priority);
             }
@@ -278,18 +286,13 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        if ($conversation->condominium_id !== $user->condominium_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
+
+        if ($denied = ConversationAuthorization::denyIfUnauthorized($user, $conversation)) {
+            return response()->json(['error' => $denied['error']], $denied['status']);
         }
-        if (!($user->isSindico() || $user->isAdmin())) {
-            // Apenas owner pode incluir
-            $isOwner = $conversation->participants()
-                ->where('user_id', $user->id)
-                ->where('role', 'owner')
-                ->exists();
-            if (!$isOwner) {
-                return response()->json(['error' => 'Sem permissão'], 403);
-            }
+
+        if (!ConversationAuthorization::canAddParticipant($user, $conversation)) {
+            return response()->json(['error' => 'Sem permissão'], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -300,7 +303,7 @@ class ConversationController extends Controller
         }
 
         $target = User::findOrFail($request->get('user_id'));
-        if ($target->condominium_id !== $user->condominium_id) {
+        if ($target->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Usuário de outro condomínio'], 422);
         }
 
@@ -316,12 +319,15 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        if ($conversation->condominium_id !== $user->condominium_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
+
+        if ($denied = ConversationAuthorization::denyIfUnauthorized($user, $conversation)) {
+            return response()->json(['error' => $denied['error']], $denied['status']);
         }
+
         if ($conversation->is_closed) {
             return response()->json(['error' => 'Conversa encerrada. Não é possível enviar novas mensagens.'], 400);
         }
+
         if (!$user->isSindico() && !$user->isAdmin()) {
             $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
             if (!$isParticipant) {
@@ -363,14 +369,22 @@ class ConversationController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $messageType = match (true) {
+            $conversation->type === 'announcement' => 'announcement',
+            $conversation->isSyndicChannel() => 'syndic_channel_message',
+            default => 'direct_message',
+        };
+
         $msg = Message::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'conversation_id' => $conversation->id,
             'from_user_id' => $user->id,
-            'type' => $conversation->type === 'announcement' ? 'announcement' : 'sindico_message',
+            'type' => $messageType,
             'message' => $request->get('message'),
             'priority' => $request->get('priority', $conversation->priority),
         ]);
+
+        $this->statsService->trackMessageTimestamps($conversation->fresh(), $user);
 
         // Notificar demais participantes com base na prioridade - síncrono para refletir imediatamente
         SendConversationNotifications::dispatchSync($conversation->id, $user->id, $request->get('message'), $msg->priority);
@@ -382,18 +396,32 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        if ($conversation->id !== $message->conversation_id || $conversation->condominium_id !== $user->condominium_id) {
+
+        if ($conversation->id !== $message->conversation_id) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
-        if ($message->from_user_id !== $user->id && !$user->isSindico() && !$user->isAdmin()) {
+
+        if ($denied = ConversationAuthorization::denyIfUnauthorized($user, $conversation)) {
+            return response()->json(['error' => $denied['error']], $denied['status']);
+        }
+
+        if ($message->from_user_id !== $user->id && !$user->isSindico() && !($user->isAdmin() && !$conversation->isSyndicChannel())) {
             return response()->json(['error' => 'Sem permissão'], 403);
         }
 
         $validator = Validator::make($request->all(), [
-            'file' => ['required', 'file', 'max:10240', 'mimetypes:image/jpeg,image/png,application/pdf'],
+            'file' => [
+                'required',
+                'file',
+                'max:10240',
+                'mimes:jpg,jpeg,png,gif,webp,pdf,heic,heif,doc,docx,xls,xlsx,txt',
+            ],
         ]);
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json([
+                'error' => 'Arquivo inválido. Envie imagens (JPG, PNG, GIF, WEBP), PDF ou documentos (DOC, DOCX, XLS, XLSX, TXT) de até 10 MB.',
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $uploaded = $request->file('file');
@@ -417,7 +445,7 @@ class ConversationController extends Controller
         if (!($user->isSindico() || $user->isAdmin())) {
             return response()->json(['error' => 'Somente administração pode criar reunião'], 403);
         }
-        if ($conversation->condominium_id !== $user->condominium_id) {
+        if ($conversation->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -451,19 +479,14 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        if ($conversation->condominium_id !== $user->condominium_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
-        if (!$user->isSindico() && !$user->isAdmin()) {
-            $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
-            if (!$isParticipant) {
-                return response()->json(['error' => 'Não autorizado'], 403);
-            }
+
+        if ($denied = ConversationAuthorization::denyIfUnauthorized($user, $conversation)) {
+            return response()->json(['error' => $denied['error']], $denied['status']);
         }
 
         $conversation->load([
-            'participants.user:id,name',
-            'messages' => fn ($q) => $q->with(['fromUser:id,name'])->orderBy('created_at'),
+            'participants.user:id,name,email',
+            'messages' => fn ($q) => $q->with(['fromUser:id,name,email'])->orderBy('created_at'),
         ]);
 
         $headers = [
@@ -476,12 +499,13 @@ class ConversationController extends Controller
             // BOM UTF-8
             fwrite($output, "\xEF\xBB\xBF");
 
-            fputcsv($output, ['ID', 'Data/Hora', 'Autor', 'Prioridade', 'Mensagem']);
+            fputcsv($output, ['ID', 'Data/Hora', 'Autor', 'E-mail', 'Prioridade', 'Mensagem']);
             foreach ($conversation->messages as $m) {
                 fputcsv($output, [
                     $m->id,
                     $m->created_at?->format('Y-m-d H:i:s'),
                     $m->fromUser?->name ?? 'N/D',
+                    $m->fromUser?->email ?? 'N/D',
                     $m->priority,
                     $m->message,
                 ]);
@@ -496,19 +520,14 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        if ($conversation->condominium_id !== $user->condominium_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
-        if (!$user->isSindico() && !$user->isAdmin()) {
-            $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
-            if (!$isParticipant) {
-                return response()->json(['error' => 'Não autorizado'], 403);
-            }
+
+        if ($denied = ConversationAuthorization::denyIfUnauthorized($user, $conversation)) {
+            return response()->json(['error' => $denied['error']], $denied['status']);
         }
 
         $conversation->load([
-            'participants.user:id,name',
-            'messages' => fn ($q) => $q->with(['fromUser:id,name'])->orderBy('created_at'),
+            'participants.user:id,name,email',
+            'messages' => fn ($q) => $q->with(['fromUser:id,name,email'])->orderBy('created_at'),
         ]);
 
         $pdf = Pdf::loadView('conversations.export-pdf', [
@@ -532,7 +551,7 @@ class ConversationController extends Controller
 
         $conversation = Conversation::query()
             ->with(['messages' => fn ($q) => $q->with(['fromUser:id,name', 'attachments'])->orderBy('created_at')])
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->where('type', 'announcement')
             ->where('is_active', true)
             ->where(function ($q) use ($now) {
@@ -577,7 +596,7 @@ class ConversationController extends Controller
 
         $conversations = Conversation::query()
             ->with(['messages' => fn ($q) => $q->with(['fromUser:id,name', 'attachments'])->orderBy('created_at')])
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->where('type', 'announcement')
             ->where('is_active', true)
             ->where(function ($q) use ($now) {
@@ -601,12 +620,15 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        if ($conversation->condominium_id !== $user->condominium_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
+
+        if ($denied = ConversationAuthorization::denyIfUnauthorized($user, $conversation)) {
+            return response()->json(['error' => $denied['error']], $denied['status']);
         }
-        // Qualquer participante pode encerrar; ou síndico/admin
+
         $isParticipant = $conversation->participants()->where('user_id', $user->id)->exists();
-        if (!$isParticipant && !($user->isSindico() || $user->isAdmin())) {
+        $canCloseAsStaff = $user->isSindico() || ($user->isAdmin() && !$conversation->isSyndicChannel());
+
+        if (!$isParticipant && !$canCloseAsStaff) {
             return response()->json(['error' => 'Sem permissão'], 403);
         }
         if ($conversation->is_closed) {

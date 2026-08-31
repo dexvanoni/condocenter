@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 use OwenIt\Auditing\Contracts\Auditable;
 
 class Condominium extends Model implements Auditable
@@ -17,6 +18,7 @@ class Condominium extends Model implements Auditable
         'name',
         'cnpj',
         'address',
+        'neighborhood',
         'city',
         'state',
         'zip_code',
@@ -24,13 +26,30 @@ class Condominium extends Model implements Auditable
         'email',
         'description',
         'is_active',
+        'financial_mode',
         'marketplace_allow_agregados',
+        'registration_code',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'marketplace_allow_agregados' => 'boolean',
     ];
+
+    public function isFinancialSimplified(): bool
+    {
+        return $this->financial_mode === 'simplified';
+    }
+
+    public function isFinancialFull(): bool
+    {
+        return !$this->isFinancialSimplified();
+    }
+
+    public function accountabilityReportUploads()
+    {
+        return $this->hasMany(AccountabilityReportUpload::class);
+    }
 
     // Relacionamentos
     public function units()
@@ -41,6 +60,22 @@ class Condominium extends Model implements Auditable
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    public function syndics()
+    {
+        return $this->belongsToMany(User::class, 'condominium_user')
+            ->withTimestamps();
+    }
+
+    public function subscription()
+    {
+        return $this->hasOne(CondominiumSubscription::class);
+    }
+
+    public function hasActiveSaasSubscription(): bool
+    {
+        return (bool) $this->subscription?->isAccessAllowed();
     }
 
     public function transactions()
@@ -117,5 +152,29 @@ class Condominium extends Model implements Auditable
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public static function generateUniqueRegistrationCode(): string
+    {
+        do {
+            $code = strtoupper(Str::random(8));
+        } while (static::withTrashed()->where('registration_code', $code)->exists());
+
+        return $code;
+    }
+
+    public function regenerateRegistrationCode(): string
+    {
+        $code = static::generateUniqueRegistrationCode();
+        $this->update(['registration_code' => $code]);
+
+        return $code;
+    }
+
+    public function getFinancialModeLabelAttribute(): string
+    {
+        return $this->financial_mode === 'simplified'
+            ? 'Simplificado'
+            : 'Completo';
     }
 }

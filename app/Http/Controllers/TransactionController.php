@@ -12,7 +12,7 @@ class TransactionController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user?->condominium_id;
+        $condominiumId = $user?->tenantCondominiumId();
 
         $query = Transaction::with(['user', 'unit'])
             ->where('condominium_id', $condominiumId);

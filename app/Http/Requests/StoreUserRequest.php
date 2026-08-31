@@ -2,27 +2,49 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesTenantCondominium;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreUserRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+    use ResolvesTenantCondominium;
+
     public function authorize(): bool
     {
         return $this->user()->can('manage_users');
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'condominium_id' => $this->tenantCondominiumId(),
+        ]);
+    }
+
     public function rules(): array
     {
+        $condominiumId = $this->tenantCondominiumId();
+
         return [
-            'condominium_id' => ['required', 'exists:condominiums,id'],
-            'unit_id' => ['nullable', 'exists:units,id'],
+            'condominium_id' => ['required', 'integer', 'in:' . $condominiumId],
+            'unit_id' => [
+                'nullable',
+                'exists:units,id',
+                function ($attribute, $value, $fail) use ($condominiumId) {
+                    if (!$value) {
+                        return;
+                    }
+
+                    $belongsToTenant = \App\Models\Unit::query()
+                        ->where('id', $value)
+                        ->where('condominium_id', $condominiumId)
+                        ->exists();
+
+                    if (!$belongsToTenant) {
+                        $fail('Selecione uma unidade válida deste condomínio.');
+                    }
+                },
+            ],
             'morador_vinculado_id' => ['nullable', 'exists:users,id'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
@@ -50,13 +72,11 @@ class StoreUserRequest extends FormRequest
         ];
     }
 
-    /**
-     * Get custom messages for validator errors.
-     */
     public function messages(): array
     {
         return [
-            'condominium_id.required' => 'O condomínio é obrigatório.',
+            'condominium_id.required' => 'Selecione um condomínio para continuar.',
+            'condominium_id.in' => 'O usuário deve pertencer ao condomínio selecionado.',
             'name.required' => 'O nome é obrigatório.',
             'email.required' => 'O e-mail é obrigatório.',
             'email.email' => 'Digite um e-mail válido.',
@@ -74,35 +94,29 @@ class StoreUserRequest extends FormRequest
         ];
     }
 
-    /**
-     * Configure the validator instance.
-     */
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            // Validar que apenas admin pode criar Síndico ou Conselho Fiscal
             if ($this->has('roles')) {
                 $restrictedRoles = ['Síndico', 'Conselho Fiscal'];
                 $requestedRoles = $this->input('roles', []);
-                
+
                 if (array_intersect($restrictedRoles, $requestedRoles) && !$this->user()->hasRole('Administrador')) {
                     $validator->errors()->add('roles', 'Apenas administradores podem atribuir os perfis de Síndico ou Conselho Fiscal.');
                 }
             }
 
-            // Validar que agregado deve ter morador vinculado
             if ($this->has('roles') && in_array('Agregado', $this->input('roles', []))) {
                 if (!$this->input('morador_vinculado_id')) {
                     $validator->errors()->add('morador_vinculado_id', 'Agregados devem estar vinculados a um morador.');
                 }
             }
 
-            // Validar que não-admin e não-porteiro devem ter unidade
             if ($this->has('roles')) {
                 $rolesWithoutUnit = ['Administrador', 'Porteiro'];
                 $requestedRoles = $this->input('roles', []);
                 $needsUnit = !array_intersect($rolesWithoutUnit, $requestedRoles);
-                
+
                 if ($needsUnit && !$this->input('unit_id')) {
                     $validator->errors()->add('unit_id', 'Este perfil requer que uma unidade seja vinculada.');
                 }
@@ -110,4 +124,3 @@ class StoreUserRequest extends FormRequest
         });
     }
 }
-

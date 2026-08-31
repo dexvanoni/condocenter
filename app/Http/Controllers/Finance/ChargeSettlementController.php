@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
 use App\Models\Fee;
 use App\Services\ChargeSettlementService;
@@ -15,6 +16,8 @@ use Illuminate\Validation\Rule;
 
 class ChargeSettlementController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function __construct(
         private readonly ChargeSettlementService $settlementService
     ) {
@@ -92,16 +95,12 @@ class ChargeSettlementController extends Controller
 
     private function authorizeCharge(Charge $charge): void
     {
-        if ($charge->condominium_id !== Auth::user()->condominium_id) {
-            abort(403);
-        }
+        $this->ensureResourceBelongsToActiveCondominium(Auth::user(), (int) $charge->condominium_id);
     }
 
     private function authorizeFee(Fee $fee): void
     {
-        if ($fee->condominium_id !== Auth::user()->condominium_id) {
-            abort(403);
-        }
+        $this->ensureResourceBelongsToActiveCondominium(Auth::user(), (int) $fee->condominium_id);
     }
 }
 

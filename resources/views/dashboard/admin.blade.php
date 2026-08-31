@@ -18,6 +18,9 @@
                 </p>
             </div>
             <div class="col-md-4 text-end">
+                <a href="{{ route('condominiums.index') }}" class="btn btn-modern btn-outline-primary me-2">
+                    <i class="bi bi-buildings"></i> Condomínios
+                </a>
                 @can('view_users')
                 <a href="{{ route('users.index') }}" class="btn btn-modern btn-gradient-primary">
                     <i class="bi bi-people"></i> Gerenciar Usuários
@@ -232,7 +235,9 @@
                                 @forelse($condominios as $condominio)
                                 <tr>
                                     <td>
-                                        <strong>{{ $condominio->name }}</strong>
+                                        <a href="{{ route('condominiums.show', $condominio) }}" class="text-decoration-none">
+                                            <strong>{{ $condominio->name }}</strong>
+                                        </a>
                                     </td>
                                     <td>
                                         <span class="text-muted">

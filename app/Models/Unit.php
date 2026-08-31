@@ -112,16 +112,25 @@ class Unit extends Model implements Auditable
 
     public function getFullAddressAttribute()
     {
-        if (!$this->logradouro) {
+        $condominium = $this->relationLoaded('condominium')
+            ? $this->condominium
+            : $this->condominium()->first();
+
+        if (!$condominium || !$condominium->address) {
             return null;
         }
 
-        $address = $this->logradouro;
-        if ($this->numero) $address .= ", {$this->numero}";
-        if ($this->complemento) $address .= " - {$this->complemento}";
-        if ($this->bairro) $address .= ", {$this->bairro}";
-        if ($this->cidade && $this->estado) $address .= " - {$this->cidade}/{$this->estado}";
-        if ($this->cep) $address .= " - CEP: {$this->cep}";
+        $address = $condominium->address;
+
+        if ($condominium->city && $condominium->state) {
+            $address .= " - {$condominium->city}/{$condominium->state}";
+        }
+
+        if ($condominium->zip_code) {
+            $address .= " - CEP: {$condominium->zip_code}";
+        }
+
+        $address .= " - Unidade {$this->full_identifier}";
 
         return $address;
     }
@@ -172,9 +181,7 @@ class Unit extends Model implements Auditable
     {
         return $query->where(function($q) use ($term) {
             $q->where('number', 'like', "%{$term}%")
-              ->orWhere('block', 'like', "%{$term}%")
-              ->orWhere('logradouro', 'like', "%{$term}%")
-              ->orWhere('cep', 'like', "%{$term}%");
+              ->orWhere('block', 'like', "%{$term}%");
         });
     }
 }

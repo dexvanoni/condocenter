@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
 use App\Models\CondominiumAccount;
 use App\Models\Unit;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Auth;
 
 class FinancialStatusController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function __invoke(Request $request)
     {
         $user = Auth::user();
@@ -19,7 +22,7 @@ class FinancialStatusController extends Controller
             abort(403);
         }
 
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $this->activeCondominiumId($user);
         $startDate = $request->filled('start_date')
             ? \Carbon\Carbon::parse($request->input('start_date'))->startOfDay()
             : now()->startOfMonth();

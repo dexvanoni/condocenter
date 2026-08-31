@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\BankAccount;
 use App\Models\BankAccountReconciliation;
 use App\Services\BankReconciliationService;
@@ -13,6 +14,8 @@ use Illuminate\Support\Facades\Validator;
 
 class BankReconciliationController extends Controller
 {
+    use ResolvesActiveCondominium;
+
     public function __construct(
         private readonly BankReconciliationService $service,
     ) {
@@ -21,7 +24,7 @@ class BankReconciliationController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $this->activeCondominiumId($user);
 
         $accounts = BankAccount::where('condominium_id', $condominiumId)
             ->orderBy('name')
@@ -91,7 +94,9 @@ class BankReconciliationController extends Controller
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
         ]);
 
-        $account = BankAccount::where('condominium_id', $user->condominium_id)
+        $condominiumId = $this->activeCondominiumId($user);
+
+        $account = BankAccount::where('condominium_id', $condominiumId)
             ->where('id', $data['account_id'])
             ->firstOrFail();
 
@@ -100,7 +105,7 @@ class BankReconciliationController extends Controller
 
         // Validação: Verifica se já existe conciliação com sobreposição de período
         $existingReconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $condominiumId)
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('start_date', [$startDate, $endDate])
                     ->orWhereBetween('end_date', [$startDate, $endDate])
@@ -129,7 +134,7 @@ class BankReconciliationController extends Controller
 
         // Sugestão de período baseado na última conciliação
         $latestReconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $condominiumId)
             ->latest('created_at')
             ->first();
 
@@ -168,7 +173,9 @@ class BankReconciliationController extends Controller
             'account_id' => ['required', 'integer'],
         ]);
 
-        $account = BankAccount::where('condominium_id', $user->condominium_id)
+        $condominiumId = $this->activeCondominiumId($user);
+
+        $account = BankAccount::where('condominium_id', $condominiumId)
             ->where('id', $data['account_id'])
             ->firstOrFail();
 

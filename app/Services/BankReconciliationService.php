@@ -134,7 +134,7 @@ class BankReconciliationService
 
     public function reconcile(User $user, BankAccount $account, Carbon $startDate, Carbon $endDate): BankAccountReconciliation
     {
-        $condominiumId = $user->condominium_id;
+        $condominiumId = $user->tenantCondominiumId();
         $preview = $this->preview($condominiumId, $account, $startDate, $endDate);
 
         if ($preview['totals']['count_entries'] === 0) {
@@ -148,7 +148,7 @@ class BankReconciliationService
             $previousBalanceUpdatedAt = $account->balance_updated_at;
 
             $reconciliation = BankAccountReconciliation::create([
-                'condominium_id' => $user->condominium_id,
+                'condominium_id' => $user->tenantCondominiumId(),
                 'bank_account_id' => $account->id,
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $endDate->toDateString(),
@@ -236,7 +236,7 @@ class BankReconciliationService
     public function cancelLast(User $user, BankAccount $account): BankAccountReconciliation
     {
         $reconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->latest('created_at')
             ->first();
 

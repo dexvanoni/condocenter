@@ -22,7 +22,7 @@ class InternalRegulationController extends Controller
         $user = Auth::user();
 
         $regulation = InternalRegulation::with(['updatedBy', 'history.updatedBy'])
-            ->byCondominium($user->condominium_id)
+            ->byCondominium($user->tenantCondominiumId())
             ->active()
             ->first();
 
@@ -43,7 +43,7 @@ class InternalRegulationController extends Controller
         $user = Auth::user();
 
         // Verificar se já existe regimento ativo
-        $existingRegulation = InternalRegulation::byCondominium($user->condominium_id)
+        $existingRegulation = InternalRegulation::byCondominium($user->tenantCondominiumId())
             ->active()
             ->first();
 
@@ -79,7 +79,7 @@ class InternalRegulationController extends Controller
             'assembly_details' => 'nullable|string|max:255',
         ]);
 
-        $validated['condominium_id'] = $user->condominium_id;
+        $validated['condominium_id'] = $user->tenantCondominiumId();
         $validated['updated_by'] = $user->id;
         $validated['is_active'] = true;
         $validated['version'] = 1;
@@ -111,7 +111,7 @@ class InternalRegulationController extends Controller
             abort(403, 'Apenas administradores e síndicos podem editar o regimento interno.');
         }
 
-        $regulation = InternalRegulation::byCondominium($user->condominium_id)
+        $regulation = InternalRegulation::byCondominium($user->tenantCondominiumId())
             ->active()
             ->firstOrFail();
 
@@ -131,7 +131,7 @@ class InternalRegulationController extends Controller
             abort(403, 'Apenas administradores e síndicos podem atualizar o regimento interno.');
         }
 
-        $regulation = InternalRegulation::byCondominium($user->condominium_id)
+        $regulation = InternalRegulation::byCondominium($user->tenantCondominiumId())
             ->active()
             ->firstOrFail();
 
@@ -180,7 +180,7 @@ class InternalRegulationController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $regulation = InternalRegulation::byCondominium($user->condominium_id)
+        $regulation = InternalRegulation::byCondominium($user->tenantCondominiumId())
             ->active()
             ->first();
 
@@ -206,7 +206,7 @@ class InternalRegulationController extends Controller
         $user = Auth::user();
 
         $history = InternalRegulationHistory::with(['updatedBy', 'internalRegulation'])
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->findOrFail($historyId);
 
         return view('internal-regulations.show-history', compact('history'));
@@ -221,7 +221,7 @@ class InternalRegulationController extends Controller
         $user = Auth::user();
 
         $regulation = InternalRegulation::with(['updatedBy', 'condominium'])
-            ->byCondominium($user->condominium_id)
+            ->byCondominium($user->tenantCondominiumId())
             ->active()
             ->firstOrFail();
 
@@ -239,7 +239,7 @@ class InternalRegulationController extends Controller
         $user = Auth::user();
 
         $regulation = InternalRegulation::with(['updatedBy', 'condominium'])
-            ->byCondominium($user->condominium_id)
+            ->byCondominium($user->tenantCondominiumId())
             ->active()
             ->firstOrFail();
 

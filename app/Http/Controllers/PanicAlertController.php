@@ -46,7 +46,7 @@ class PanicAlertController extends Controller
 
             $user = Auth::user();
             
-            Log::info('Usuário autenticado', ['user_id' => $user->id, 'condominium_id' => $user->condominium_id]);
+            Log::info('Usuário autenticado', ['user_id' => $user->id, 'condominium_id' => $user->tenantCondominiumId()]);
         
         // Mapear tipos de alerta
         $alertTypes = [
@@ -67,7 +67,7 @@ class PanicAlertController extends Controller
 
         // Criar alerta de pânico
         $panicAlert = PanicAlert::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'user_id' => $user->id,
             'alert_type' => $request->alert_type,
             'title' => $alertTitle,
@@ -84,7 +84,7 @@ class PanicAlertController extends Controller
 
         // Criar mensagem de pânico
         $message = Message::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'from_user_id' => $user->id,
             'to_user_id' => null, // null = para TODOS
             'type' => 'panic_alert',
@@ -108,7 +108,7 @@ class PanicAlertController extends Controller
             'ip_address' => $ipAddress,
             'user_agent' => $userAgent,
             'additional_info' => $request->additional_info,
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'condominium_name' => $user->condominium->name,
         ];
 
@@ -166,7 +166,7 @@ class PanicAlertController extends Controller
         
         Log::info('Verificando alertas ativos', [
             'user_id' => $user->id,
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'user_name' => $user->name
         ]);
         
@@ -185,7 +185,7 @@ class PanicAlertController extends Controller
         
         // Buscar alertas ativos do condomínio do usuário
         $activeAlerts = PanicAlert::where('status', 'active')
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->with(['user', 'condominium'])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -197,15 +197,15 @@ class PanicAlertController extends Controller
                 'id' => $alert4->id,
                 'status' => $alert4->status,
                 'condominium_id' => $alert4->condominium_id,
-                'user_condominium_id' => $user->condominium_id,
-                'matches' => $alert4->condominium_id == $user->condominium_id && $alert4->status == 'active'
+                'user_condominium_id' => $user->tenantCondominiumId(),
+                'matches' => $alert4->condominium_id == $user->tenantCondominiumId() && $alert4->status == 'active'
             ]);
         } else {
             Log::warning('Alerta ID=4 não encontrado no banco de dados');
         }
         
         Log::info('Alertas ativos encontrados para o condomínio', [
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'count' => $activeAlerts->count(),
             'alerts' => $activeAlerts->map(function($alert) {
                 return [
@@ -222,7 +222,7 @@ class PanicAlertController extends Controller
             'alerts' => $activeAlerts,
             'alert_count' => $activeAlerts->count(),
             'debug' => [
-                'user_condominium_id' => $user->condominium_id,
+                'user_condominium_id' => $user->tenantCondominiumId(),
                 'total_active_in_system' => $allActiveAlerts->count()
             ]
         ];
@@ -242,7 +242,7 @@ class PanicAlertController extends Controller
         $alert = PanicAlert::findOrFail($id);
         
         // Verificar se o alerta pertence ao condomínio do usuário
-        if ($alert->condominium_id !== $user->condominium_id) {
+        if ($alert->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -498,7 +498,7 @@ class PanicAlertController extends Controller
         
         Log::info('Buscando alerta ativo para exibir', [
             'user_id' => $user->id,
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'user_name' => $user->name
         ]);
         
@@ -517,13 +517,13 @@ class PanicAlertController extends Controller
         ]);
         
         $activeAlert = PanicAlert::active()
-            ->forCondominium($user->condominium_id)
+            ->forCondominium($user->tenantCondominiumId())
             ->with(['user', 'condominium'])
             ->orderBy('created_at', 'desc')
             ->first();
 
         Log::info('Alerta ativo encontrado para o condomínio', [
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'alert_found' => $activeAlert ? true : false,
             'alert_id' => $activeAlert ? $activeAlert->id : null,
             'alert_status' => $activeAlert ? $activeAlert->status : null
@@ -532,7 +532,7 @@ class PanicAlertController extends Controller
         // Se não houver alerta ativo, redirecionar para dashboard
         if (!$activeAlert) {
             Log::warning('Nenhum alerta ativo encontrado para o condomínio', [
-                'condominium_id' => $user->condominium_id,
+                'condominium_id' => $user->tenantCondominiumId(),
                 'total_active_in_system' => $allActiveAlerts->count()
             ]);
             return redirect()->route('dashboard')->with('info', 'Não há alertas de pânico ativos no momento.');
@@ -557,7 +557,7 @@ class PanicAlertController extends Controller
         $alert = PanicAlert::findOrFail($id);
         
         // Verificar se o alerta pertence ao condomínio do usuário
-        if ($alert->condominium_id !== $user->condominium_id) {
+        if ($alert->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

@@ -20,7 +20,7 @@ class PackageService
     public function listPackages(User $user, array $filters = []): LengthAwarePaginator
     {
         $query = Package::with(['unit', 'registeredBy', 'collectedBy'])
-            ->byCondominium($user->condominium_id);
+            ->byCondominium($user->tenantCondominiumId());
 
         if ($user->isMorador() || $user->isAgregado()) {
             $unitId = $user->unit_id ?? $user->moradorVinculado?->unit_id;
@@ -141,7 +141,7 @@ class PackageService
                 'users' => fn ($q) => $q->select('id', 'name', 'unit_id', 'cpf')
                     ->whereHas('roles', fn ($role) => $role->whereIn('name', ['Morador', 'Agregado'])),
             ])
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->orderBy('block')
             ->orderBy('number');
 
@@ -207,7 +207,7 @@ class PackageService
 
         return User::query()
             ->select('id', 'name', 'cpf', 'unit_id')
-            ->byCondominium($user->condominium_id)
+            ->byCondominium($user->tenantCondominiumId())
             ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Morador', 'Agregado']))
             ->where(function (Builder $query) use ($term) {
                 $query->where('name', 'like', "%{$term}%")

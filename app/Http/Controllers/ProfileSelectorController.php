@@ -59,14 +59,15 @@ class ProfileSelectorController extends Controller
     {
         $user = $this->authUser();
 
-        // Valida se o usuário tem esse perfil
-        if (!$user->hasRole($roleName)) {
+        // Valida se o usuário tem esse perfil atribuído
+        if (!$user->hasAssignedRole($roleName)) {
             return redirect()->route('profile.select')
                 ->with('error', 'Perfil inválido.');
         }
 
         // Define na sessão
         session(['active_role' => $roleName]);
+        $user->refreshActiveProfileCache();
 
         // Registra seleção no banco
         ProfileSelection::create([
@@ -100,8 +101,8 @@ class ProfileSelectorController extends Controller
         $user = $this->authUser();
         $roleName = $request->role;
 
-        // Valida se o usuário tem esse perfil
-        if (!$user->hasRole($roleName)) {
+        // Valida se o usuário tem esse perfil atribuído
+        if (!$user->hasAssignedRole($roleName)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Perfil inválido.',
@@ -110,6 +111,7 @@ class ProfileSelectorController extends Controller
 
         // Define na sessão
         session(['active_role' => $roleName]);
+        $user->refreshActiveProfileCache();
 
         // Registra seleção no banco
         ProfileSelection::create([
@@ -131,6 +133,7 @@ class ProfileSelectorController extends Controller
             'success' => true,
             'message' => "Perfil alterado para {$roleName}",
             'role' => $roleName,
+            'redirect' => route('dashboard', [], false),
         ]);
     }
 

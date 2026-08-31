@@ -62,6 +62,10 @@
                         <span class="badge bg-secondary">{{ $unit->situacao_label }}</span>
                     </div>
                     <div class="col-md-6 mb-3">
+                        <strong>Andar:</strong><br>
+                        {{ $unit->floor ?? '-' }}
+                    </div>
+                    <div class="col-md-6 mb-3">
                         <strong>Status Financeiro:</strong><br>
                         @if($unit->possui_dividas)
                             <span class="badge bg-danger">Com Dívidas</span>
@@ -81,44 +85,18 @@
             </div>
         </div>
 
-        <!-- Endereço -->
-        @if($unit->logradouro)
+        <!-- Endereço (herdado do condomínio) -->
+        @if($unit->full_address)
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">Endereço</h5>
             </div>
             <div class="card-body">
                 <p class="mb-0">{{ $unit->full_address }}</p>
+                <small class="text-muted">Endereço base cadastrado no condomínio.</small>
             </div>
         </div>
         @endif
-
-        <!-- Características -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Características</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <strong>Quartos:</strong><br>
-                        {{ $unit->num_quartos ?? '-' }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Banheiros:</strong><br>
-                        {{ $unit->num_banheiros ?? '-' }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Área:</strong><br>
-                        {{ $unit->area ? $unit->area . ' m²' : '-' }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Andar:</strong><br>
-                        {{ $unit->floor ?? '-' }}
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Moradores -->
         <div class="card mb-4">
@@ -185,18 +163,6 @@
     </div>
 
     <div class="col-lg-4">
-        <!-- Foto -->
-        @if($unit->foto)
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="mb-0">Foto</h5>
-            </div>
-            <div class="card-body text-center">
-                <img src="{{ Storage::url($unit->foto) }}" alt="Foto da Unidade" class="img-fluid rounded">
-            </div>
-        </div>
-        @endif
-
         <!-- Estatísticas -->
         <div class="card">
             <div class="card-header">

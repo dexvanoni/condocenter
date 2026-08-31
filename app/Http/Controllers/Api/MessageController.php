@@ -21,7 +21,7 @@ class MessageController extends Controller
         $user = Auth::user();
         
         $query = Message::with(['fromUser', 'toUser'])
-            ->where('condominium_id', $user->condominium_id)
+            ->where('condominium_id', $user->tenantCondominiumId())
             ->where(function ($q) use ($user) {
                 $q->where('to_user_id', $user->id)
                   ->orWhere('from_user_id', $user->id)
@@ -76,7 +76,7 @@ class MessageController extends Controller
         }
 
         $message = Message::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'from_user_id' => $user->id,
             'to_user_id' => $request->to_user_id,
             'type' => $request->type,
@@ -104,7 +104,7 @@ class MessageController extends Controller
                     $recipientIds = [$message->to_user_id];
                 } else {
                     $recipientIds = User::query()
-                        ->where('condominium_id', $user->condominium_id)
+                        ->where('condominium_id', $user->tenantCondominiumId())
                         ->where('is_active', true)
                         ->where('id', '!=', $user->id)
                         ->pluck('id')
@@ -140,7 +140,7 @@ class MessageController extends Controller
         $user = Auth::user();
 
         // Verificar permissão de leitura
-        if ($message->condominium_id !== $user->condominium_id) {
+        if ($message->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

@@ -26,7 +26,7 @@ class ReservationManagementController extends Controller
         if ($request->ajax()) {
             $query = Reservation::with(['space', 'user', 'unit'])
                 ->whereHas('space', function ($query) {
-                    $query->where('condominium_id', Auth::user()->condominium_id);
+                    $query->where('condominium_id', Auth::user()->tenantCondominiumId());
                 })
                 ->select('reservations.*');
 
@@ -188,7 +188,7 @@ class ReservationManagementController extends Controller
     {
         $reservation = Reservation::with(['space', 'user', 'unit', 'recurringReservation'])
             ->whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
@@ -202,11 +202,11 @@ class ReservationManagementController extends Controller
     {
         $reservation = Reservation::with(['space', 'user', 'unit'])
             ->whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
-        $spaces = Space::where('condominium_id', Auth::user()->condominium_id)
+        $spaces = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->where('is_active', true)
             ->get();
 
@@ -222,7 +222,7 @@ class ReservationManagementController extends Controller
     public function update(Request $request, $id)
     {
         $reservation = Reservation::whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
@@ -272,7 +272,7 @@ class ReservationManagementController extends Controller
     public function destroy(Request $request, $id)
     {
         $reservation = Reservation::whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->findOrFail($id);
 
@@ -311,7 +311,7 @@ class ReservationManagementController extends Controller
 
         $reservations = Reservation::whereIn('id', $validated['reservation_ids'])
             ->whereHas('space', function ($query) {
-                $query->where('condominium_id', Auth::user()->condominium_id);
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
             })
             ->get();
 
@@ -353,7 +353,7 @@ class ReservationManagementController extends Controller
      */
     public function getSpaces()
     {
-        $spaces = Space::where('condominium_id', Auth::user()->condominium_id)
+        $spaces = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->where('is_active', true)
             ->select('id', 'name')
             ->orderBy('name')

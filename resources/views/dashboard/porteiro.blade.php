@@ -27,6 +27,8 @@
 
     <div id="announcementBannerContainer"></div>
 
+    @include('dashboard.partials.ride-alerts')
+
     <!-- Estatísticas do Dia -->
     <div class="row g-4 mb-4">
         <!-- Total de Entradas Hoje -->
@@ -276,12 +278,12 @@
     <!-- Ações Rápidas -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">
-            <a href="#" class="widget-quick-action" data-bs-toggle="modal" data-bs-target="#registrarEntradaModal">
+            <a href="{{ route('access-control.porteiro') }}" class="widget-quick-action">
                 <div class="widget-icon bg-brand-soft">
-                    <i class="bi bi-door-open"></i>
+                    <i class="bi bi-shield-check"></i>
                 </div>
-                <h6 class="mt-3 mb-1">Registrar Entrada</h6>
-                <small class="text-muted">Visitante, prestador ou entrega</small>
+                <h6 class="mt-3 mb-1">Painel de Acesso</h6>
+                <small class="text-muted">Liberações e visitantes</small>
             </a>
         </div>
         <div class="col-md-4">

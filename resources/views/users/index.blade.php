@@ -4,7 +4,14 @@
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1><i class="bi bi-people-fill"></i> Usuários</h1>
+    <div>
+        <h1 class="mb-1"><i class="bi bi-people-fill"></i> Usuários</h1>
+        @if(!empty($activeCondominium))
+        <p class="text-muted mb-0">
+            Condomínio selecionado: <strong>{{ $activeCondominium->name }}</strong>
+        </p>
+        @endif
+    </div>
     @can('manage_users')
     <a href="{{ route('users.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Novo Usuário
@@ -43,6 +50,12 @@
             </div>
             
             <!-- Segunda linha -->
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">Todos cadastros</option>
+                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pendentes de aprovação</option>
+                </select>
+            </div>
             <div class="col-md-3">
                 <select name="is_active" class="form-select">
                     <option value="">Todos status</option>
@@ -109,7 +122,11 @@
                             @endforeach
                         </td>
                         <td>
-                            @if($user->is_active)
+                            @if($user->isPendingApproval())
+                                <span class="badge bg-warning text-dark">Pendente</span>
+                            @elseif($user->isRegistrationRejected())
+                                <span class="badge bg-danger">Rejeitado</span>
+                            @elseif($user->is_active)
                                 <span class="badge bg-success">Ativo</span>
                             @else
                                 <span class="badge bg-secondary">Inativo</span>
@@ -127,6 +144,40 @@
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 @can('update', $user)
+                                @if($user->isPendingApproval())
+                                <form action="{{ route('users.approve', $user) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-success" title="Aprovar cadastro"
+                                            onclick="return confirm('Aprovar o cadastro de {{ $user->name }}?')">
+                                        <i class="bi bi-check2-circle"></i>
+                                    </button>
+                                </form>
+                                <form action="{{ route('users.reject', $user) }}" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-outline-danger" title="Rejeitar cadastro"
+                                            onclick="return confirm('Rejeitar o cadastro de {{ $user->name }}?')">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                                @elseif($user->isRegistrationApproved())
+                                    @if($user->is_active)
+                                    <form action="{{ route('users.deactivate', $user) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-secondary" title="Desativar"
+                                                onclick="return confirm('Desativar {{ $user->name }}?')">
+                                            <i class="bi bi-person-dash"></i>
+                                        </button>
+                                    </form>
+                                    @else
+                                    <form action="{{ route('users.activate', $user) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-success" title="Ativar"
+                                                onclick="return confirm('Ativar {{ $user->name }}?')">
+                                            <i class="bi bi-person-check"></i>
+                                        </button>
+                                    </form>
+                                    @endif
+                                @endif
                                 <a href="{{ route('users.edit', $user) }}" class="btn btn-warning" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </a>

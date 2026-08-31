@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\SelfRegistrationController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
@@ -15,6 +16,19 @@ Route::post('login', function (\Illuminate\Http\Request $request) {
     ]);
 
     if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if ($user && !$user->is_active) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'Seu cadastro ainda aguarda aprovação da administração. Você receberá acesso assim que for aprovado.',
+            ])->onlyInput('email');
+        }
+
         $request->session()->regenerate();
         return redirect()->intended('dashboard');
     }
@@ -23,6 +37,30 @@ Route::post('login', function (\Illuminate\Http\Request $request) {
         'email' => 'As credenciais fornecidas não correspondem aos nossos registros.',
     ])->onlyInput('email');
 })->middleware('guest');
+
+Route::get('register', [SelfRegistrationController::class, 'create'])
+    ->middleware('guest')
+    ->name('register');
+
+Route::post('register', [SelfRegistrationController::class, 'store'])
+    ->middleware('guest')
+    ->name('register.store');
+
+Route::get('register/success', [SelfRegistrationController::class, 'success'])
+    ->middleware('guest')
+    ->name('register.success');
+
+Route::post('register/lookup', [SelfRegistrationController::class, 'lookupCode'])
+    ->middleware('guest')
+    ->name('register.lookup');
+
+Route::get('register/units', [SelfRegistrationController::class, 'units'])
+    ->middleware('guest')
+    ->name('register.units');
+
+Route::get('register/moradores', [SelfRegistrationController::class, 'moradores'])
+    ->middleware('guest')
+    ->name('register.moradores');
 
 Route::post('logout', function (\Illuminate\Http\Request $request) {
     Auth::logout();

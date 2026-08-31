@@ -88,7 +88,7 @@ class PackageController extends Controller
         $user = Auth::user();
 
         // Verificar permissão
-        if ($package->condominium_id !== $user->condominium_id) {
+        if ($package->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
+
+        if (env('AMBIENTE') === 'ngrok') {
+            $middleware->trustProxies(at: '*');
+        }
         
         // Registrar aliases de middlewares personalizados
         $middleware->alias([
@@ -21,6 +25,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.agregado.permission' => \App\Http\Middleware\CheckAgregadoPermission::class,
             'check.reservation.access' => \App\Http\Middleware\CheckReservationAccess::class,
             'check.module.access' => \App\Http\Middleware\CheckModuleAccess::class,
+            'ensure.full.financial' => \App\Http\Middleware\EnsureFullFinancialMode::class,
+            'ensure.saas.subscription' => \App\Http\Middleware\EnsureActiveSaasSubscription::class,
+            'resolve.condominium' => \App\Http\Middleware\ResolveActiveCondominium::class,
+            'require.condominium' => \App\Http\Middleware\RequireActiveCondominium::class,
+        ]);
+
+        $middleware->web(append: [
+            \App\Http\Middleware\ResolveActiveCondominium::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

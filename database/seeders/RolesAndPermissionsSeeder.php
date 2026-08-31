@@ -67,12 +67,25 @@ class RolesAndPermissionsSeeder extends Seeder
             'create_marketplace_items',
             'manage_marketplace_items',
             'view_marketplace',
+
+            // Caronas
+            'view_rides',
+            'create_rides',
+            'book_rides',
+            'manage_rides',
             
             // Portaria
             'register_entries',
             'register_packages',
             'view_entries',
             'view_packages',
+            'create_access_authorizations',
+            'manage_access_lists',
+            'manage_service_providers',
+            'manage_condominium_service_providers',
+            'process_access',
+            'view_access_movements',
+            'export_access_reports',
             
             // Pets
             'register_pets',
@@ -133,8 +146,18 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_reservations',
             'manage_marketplace_items',
             'view_marketplace',
+            'view_rides',
+            'create_rides',
+            'book_rides',
+            'manage_rides',
             'view_entries',
             'view_packages',
+            'view_access_movements',
+            'export_access_reports',
+            'manage_condominium_service_providers',
+            'create_access_authorizations',
+            'manage_access_lists',
+            'manage_service_providers',
             'view_pets',
             'create_assemblies',
             'manage_assemblies',
@@ -168,6 +191,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_reservations',
             'create_marketplace_items',
             'view_marketplace',
+            'view_rides',
+            'create_rides',
+            'book_rides',
             'register_pets',
             'view_pets',
             'vote_assemblies',
@@ -176,6 +202,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'send_panic_alert',
             'view_messages',
             'view_notifications',
+            'create_access_authorizations',
+            'manage_access_lists',
+            'manage_service_providers',
         ]);
 
         // Porteiro
@@ -185,6 +214,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'register_packages',
             'view_entries',
             'view_packages',
+            'process_access',
+            'view_access_movements',
+            'view_rides',
+            'create_rides',
+            'book_rides',
             'view_pets',
             'view_notifications',
         ]);
@@ -211,6 +245,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_messages',
             'view_users',
             'view_units',
+            'view_rides',
+            'create_rides',
+            'book_rides',
         ]);
 
         // Secretaria
@@ -228,6 +265,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'send_announcements',
             'view_messages',
             'view_notifications',
+            'view_rides',
+            'create_rides',
+            'book_rides',
         ]);
 
         // Agregado
@@ -235,8 +275,11 @@ class RolesAndPermissionsSeeder extends Seeder
         $agregadoRole->syncPermissions([
             'view_spaces',
             'view_marketplace',
+            'view_rides',
             'view_pets',
             'view_notifications',
+            'create_access_authorizations',
+            'manage_access_lists',
         ]);
     }
 }

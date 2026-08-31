@@ -18,7 +18,7 @@ class EntryController extends Controller
         $user = Auth::user();
         
         $query = Entry::with(['unit', 'registeredBy', 'authorizedBy'])
-            ->where('condominium_id', $user->condominium_id);
+            ->where('condominium_id', $user->tenantCondominiumId());
 
         // Filtros
         if ($request->has('type')) {
@@ -65,7 +65,7 @@ class EntryController extends Controller
         $user = Auth::user();
 
         $entry = Entry::create([
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
             'unit_id' => $request->unit_id,
             'registered_by' => $user->id,
             'type' => $request->type,
@@ -93,7 +93,7 @@ class EntryController extends Controller
         $entry = Entry::findOrFail($id);
 
         // Verificar permissão
-        if ($entry->condominium_id !== Auth::user()->condominium_id) {
+        if ($entry->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -124,7 +124,7 @@ class EntryController extends Controller
             ->findOrFail($id);
 
         // Verificar permissão
-        if ($entry->condominium_id !== Auth::user()->condominium_id) {
+        if ($entry->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

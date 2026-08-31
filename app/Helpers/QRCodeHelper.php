@@ -17,7 +17,7 @@ class QRCodeHelper
             'name' => $user->name,
             'unit_id' => $user->unit_id,
             'qr_code' => $user->qr_code,
-            'condominium_id' => $user->condominium_id,
+            'condominium_id' => $user->tenantCondominiumId(),
         ];
 
         return QrCode::size(300)

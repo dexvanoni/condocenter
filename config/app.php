@@ -56,6 +56,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Ambiente de execução customizado
+    |--------------------------------------------------------------------------
+    |
+    | Use AMBIENTE=ngrok no .env para forçar URLs absolutas em HTTPS
+    | (necessário ao expor o app local via túnel ngrok).
+    |
+    */
+
+    'ambiente' => env('AMBIENTE', 'local'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

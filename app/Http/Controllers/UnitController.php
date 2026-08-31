@@ -3,24 +3,32 @@
 namespace App\Http\Controllers;
 
 use App\Models\Unit;
-use App\Models\Condominium;
 use App\Models\User;
+use App\Services\ActiveCondominiumService;
 use App\Http\Requests\StoreUnitRequest;
 use App\Http\Requests\UpdateUnitRequest;
-use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class UnitController extends Controller
 {
     use AuthorizesRequests;
 
-    protected FileUploadService $fileUploadService;
+    public function __construct(
+        private ActiveCondominiumService $activeCondominiumService
+    ) {}
 
-    public function __construct(FileUploadService $fileUploadService)
+    private function activeCondominiumId(): int
     {
-        $this->fileUploadService = $fileUploadService;
+        $id = $this->activeCondominiumService->getActiveCondominiumId($this->authUser());
+
+        if (!$id) {
+            abort(403, 'Selecione um condomínio para continuar.');
+        }
+
+        return $id;
     }
 
     /**
@@ -44,7 +52,7 @@ class UnitController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
         $query = Unit::with(['condominium', 'users', 'morador'])
-            ->byCondominium($user->condominium_id);
+            ->byCondominium($this->activeCondominiumId());
 
         // Filtros
         if ($request->filled('search')) {
@@ -81,15 +89,10 @@ class UnitController extends Controller
     public function create()
     {
         $this->authorize('create', Unit::class);
-        
-        $authUser = $this->authUser();
-        $condominiums = Condominium::active()->get();
-        $users = User::active()
-            ->byCondominium($authUser->condominium_id)
-            ->orderBy('name')
-            ->get();
 
-        return view('units.create', compact('condominiums', 'users'));
+        $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
+
+        return view('units.create', compact('activeCondominium'));
     }
 
     /**
@@ -98,15 +101,15 @@ class UnitController extends Controller
     public function store(StoreUnitRequest $request)
     {
         $this->authorize('create', Unit::class);
-        
-        $data = $request->validated();
 
-        // Upload de foto se fornecida
-        if ($request->hasFile('foto')) {
-            $data['foto'] = $this->fileUploadService->uploadUnitPhoto($request->file('foto'));
-        }
+        $validated = $request->validated();
+        $moradorId = !empty($validated['morador_id']) ? (int) $validated['morador_id'] : null;
+        unset($validated['morador_id']);
 
-        $unit = Unit::create($data);
+        $validated['condominium_id'] = $this->activeCondominiumId();
+
+        $unit = Unit::create($this->sanitizeUnitData($validated));
+        $this->syncMorador($moradorId, $unit);
 
         // Log da atividade
         $this->authUser()->logActivity(
@@ -139,13 +142,11 @@ class UnitController extends Controller
     {
         $this->authorize('update', $unit);
         
-        $condominiums = Condominium::active()->get();
-        $users = User::active()
-            ->byCondominium($unit->condominium_id)
-            ->orderBy('name')
-            ->get();
+        $unit->load(['condominium', 'morador']);
+        $selectedMorador = $unit->morador;
+        $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
 
-        return view('units.edit', compact('unit', 'condominiums', 'users'));
+        return view('units.edit', compact('unit', 'selectedMorador', 'activeCondominium'));
     }
 
     /**
@@ -154,23 +155,13 @@ class UnitController extends Controller
     public function update(UpdateUnitRequest $request, Unit $unit)
     {
         $this->authorize('update', $unit);
-        
-        $data = $request->validated();
 
-        // Upload de nova foto se fornecida
-        if ($request->hasFile('foto')) {
-            // Deleta foto antiga
-            if ($unit->foto) {
-                $this->fileUploadService->deletePhoto($unit->foto);
-            }
-            
-            $data['foto'] = $this->fileUploadService->uploadUnitPhoto(
-                $request->file('foto'),
-                $unit->id
-            );
-        }
+        $validated = $request->validated();
+        $moradorId = !empty($validated['morador_id']) ? (int) $validated['morador_id'] : null;
+        unset($validated['morador_id'], $validated['condominium_id']);
 
-        $unit->update($data);
+        $unit->update($this->sanitizeUnitData($validated));
+        $this->syncMorador($moradorId, $unit);
 
         // Log da atividade
         $this->authUser()->logActivity(
@@ -193,9 +184,8 @@ class UnitController extends Controller
         
         $identifier = $unit->full_identifier;
 
-        // Deleta foto se existir
         if ($unit->foto) {
-            $this->fileUploadService->deletePhoto($unit->foto);
+            Storage::disk('public')->delete($unit->foto);
         }
 
         $unit->delete();
@@ -217,23 +207,78 @@ class UnitController extends Controller
      */
     public function searchUsers(Request $request)
     {
-        $term = $request->get('term', '');
+        $this->authorize('viewAny', Unit::class);
+
+        $term = trim((string) $request->get('term', ''));
         /** @var \App\Models\User $user */
         $user = $request->user();
 
+        if (strlen($term) < 2) {
+            return response()->json([]);
+        }
+
         $users = User::active()
-            ->byCondominium($user->condominium_id)
-            ->where(function($q) use ($term) {
+            ->byCondominium($this->activeCondominiumId())
+            ->with('unit:id,number,block')
+            ->where(function ($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
-                  ->orWhere('cpf', 'like', "%{$term}%");
+                    ->orWhere('cpf', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%");
             })
-            ->whereHas('roles', function($q) {
-                $q->whereIn('name', ['Morador', 'Agregado']);
+            ->whereHas('roles', function ($q) {
+                $q->where('name', 'Morador');
             })
+            ->orderBy('name')
             ->limit(10)
-            ->get(['id', 'name', 'cpf', 'unit_id']);
+            ->get(['id', 'name', 'cpf', 'email', 'unit_id'])
+            ->map(function (User $morador) {
+                return [
+                    'id' => $morador->id,
+                    'name' => $morador->name,
+                    'cpf' => $morador->cpf,
+                    'email' => $morador->email,
+                    'unit' => $morador->unit?->full_identifier,
+                    'text' => trim($morador->name . ($morador->cpf ? ' - ' . $morador->cpf : '')),
+                ];
+            });
 
         return response()->json($users);
     }
-}
 
+    private function syncMorador(?int $moradorId, Unit $unit): void
+    {
+        User::query()
+            ->where('unit_id', $unit->id)
+            ->whereHas('roles', fn ($q) => $q->where('name', 'Morador'))
+            ->when($moradorId, fn ($q) => $q->where('id', '!=', $moradorId))
+            ->update(['unit_id' => null]);
+
+        if (!$moradorId) {
+            return;
+        }
+
+        User::query()
+            ->where('id', $moradorId)
+            ->where('condominium_id', $unit->condominium_id)
+            ->whereHas('roles', fn ($q) => $q->where('name', 'Morador'))
+            ->update(['unit_id' => $unit->id]);
+    }
+
+    private function sanitizeUnitData(array $data): array
+    {
+        return array_merge($data, [
+            'cep' => null,
+            'logradouro' => null,
+            'numero' => null,
+            'complemento' => null,
+            'bairro' => null,
+            'cidade' => null,
+            'estado' => null,
+            'area' => null,
+            'num_quartos' => null,
+            'num_banheiros' => null,
+            'notes' => null,
+            'foto' => null,
+        ]);
+    }
+}
