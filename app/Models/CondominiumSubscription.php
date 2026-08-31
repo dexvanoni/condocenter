@@ -10,6 +10,7 @@ class CondominiumSubscription extends Model
 {
     public const METRIC_UNIT = 'unit';
     public const METRIC_USER = 'user';
+    public const METRIC_FIXED = 'fixed';
 
     public const CYCLE_MONTHLY = 'monthly';
     public const CYCLE_QUARTERLY = 'quarterly';
@@ -37,6 +38,7 @@ class CondominiumSubscription extends Model
         'billing_metric',
         'unit_price',
         'user_price',
+        'fixed_price',
         'billing_cycle',
         'trial_days',
         'payment_method',
@@ -66,6 +68,7 @@ class CondominiumSubscription extends Model
         return [
             'unit_price' => 'decimal:2',
             'user_price' => 'decimal:2',
+            'fixed_price' => 'decimal:2',
             'recurring_amount' => 'decimal:2',
             'contract_starts_at' => 'date',
             'contract_ends_at' => 'date',
@@ -167,7 +170,11 @@ class CondominiumSubscription extends Model
 
     public function billingMetricLabel(): string
     {
-        return $this->billing_metric === self::METRIC_USER ? 'Por usuário' : 'Por unidade';
+        return match ($this->billing_metric) {
+            self::METRIC_USER => 'Por usuário',
+            self::METRIC_FIXED => 'Preço fixo',
+            default => 'Por unidade',
+        };
     }
 
     public function billingCycleLabel(): string

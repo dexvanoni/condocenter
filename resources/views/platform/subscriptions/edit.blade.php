@@ -37,7 +37,7 @@
     @if($sub)
     <div class="row g-3 mb-4">
         <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><small class="text-muted">Valor recorrente</small><h4 class="mb-0">R$ {{ number_format($sub->recurring_amount, 2, ',', '.') }}</h4></div></div></div>
-        <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><small class="text-muted">Quantidade</small><h4 class="mb-0">{{ $sub->billable_quantity }} {{ $sub->billing_metric === 'user' ? 'usuários' : 'unidades' }}</h4></div></div></div>
+        <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><small class="text-muted">Quantidade</small><h4 class="mb-0">@if($sub->billing_metric === 'fixed')Contrato fixo @else{{ $sub->billable_quantity }} {{ $sub->billing_metric === 'user' ? 'usuários' : 'unidades' }}@endif</h4></div></div></div>
         <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><small class="text-muted">Ciclo</small><h4 class="mb-0">{{ $sub->billingCycleLabel() }}</h4></div></div></div>
         <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><small class="text-muted">Pagamento</small><h4 class="mb-0" style="font-size:1.1rem;">{{ $sub->paymentMethodLabel() }}</h4></div></div></div>
     </div>
@@ -48,17 +48,25 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light"><h5 class="mb-0">Dados do contrato</h5></div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('platform.subscriptions.store', $condominium) }}">
+                    <form method="POST" action="{{ route('platform.subscriptions.store', $condominium) }}" id="contractForm">
                         @csrf
                         <div class="row g-3">
                             @if($plans->isNotEmpty())
                             <div class="col-12">
                                 <label class="form-label">Aplicar plano template</label>
-                                <select name="subscription_plan_id" class="form-select">
+                                <select name="subscription_plan_id" id="subscriptionPlanSelect" class="form-select">
                                     <option value="">— Personalizado (sem template) —</option>
                                     @foreach($plans as $planOption)
-                                        <option value="{{ $planOption->id }}" @selected(old('subscription_plan_id', $sub?->subscription_plan_id) == $planOption->id)>
-                                            {{ $planOption->name }} — {{ $planOption->billingCycleLabel() }}
+                                        <option value="{{ $planOption->id }}"
+                                                data-metric="{{ $planOption->billing_metric }}"
+                                                data-unit-price="{{ $planOption->unit_price }}"
+                                                data-user-price="{{ $planOption->user_price }}"
+                                                data-fixed-price="{{ $planOption->fixed_price }}"
+                                                data-cycle="{{ $planOption->billing_cycle }}"
+                                                data-trial="{{ $planOption->trial_days }}"
+                                                data-payment="{{ $planOption->payment_method }}"
+                                                @selected(old('subscription_plan_id', $sub?->subscription_plan_id) == $planOption->id)>
+                                            {{ $planOption->name }} — {{ $planOption->billingMetricLabel() }} — {{ $planOption->priceSummary() }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -67,24 +75,31 @@
                             @endif
                             <div class="col-md-6">
                                 <label class="form-label">Modelo de cobrança</label>
-                                <select name="billing_metric" class="form-select" required>
+                                <select name="billing_metric" id="contractBillingMetric" class="form-select" required>
                                     <option value="unit" @selected(old('billing_metric', $sub?->billing_metric) === 'unit')>Por unidade</option>
                                     <option value="user" @selected(old('billing_metric', $sub?->billing_metric) === 'user')>Por usuário</option>
+                                    <option value="fixed" @selected(old('billing_metric', $sub?->billing_metric) === 'fixed')>Preço fixo</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-6 contract-field contract-field--unit">
                                 <label class="form-label">Valor / unidade (R$)</label>
                                 <input type="number" step="0.01" min="0" name="unit_price" class="form-control"
                                        value="{{ old('unit_price', $sub?->unit_price ?? 0) }}">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-6 contract-field contract-field--user d-none">
                                 <label class="form-label">Valor / usuário (R$)</label>
                                 <input type="number" step="0.01" min="0" name="user_price" class="form-control"
                                        value="{{ old('user_price', $sub?->user_price ?? 0) }}">
                             </div>
+                            <div class="col-md-6 contract-field contract-field--fixed d-none">
+                                <label class="form-label">Valor fixo por ciclo (R$)</label>
+                                <input type="number" step="0.01" min="0" name="fixed_price" class="form-control"
+                                       value="{{ old('fixed_price', $sub?->fixed_price ?? 0) }}">
+                                <div class="form-text">Valor total cobrado a cada periodicidade escolhida.</div>
+                            </div>
                             <div class="col-md-4">
                                 <label class="form-label">Periodicidade</label>
-                                <select name="billing_cycle" class="form-select" required>
+                                <select name="billing_cycle" id="contractBillingCycle" class="form-select" required>
                                     @foreach(['monthly' => 'Mensal', 'quarterly' => 'Trimestral', 'semiannual' => 'Semestral', 'annual' => 'Anual'] as $val => $label)
                                         <option value="{{ $val }}" @selected(old('billing_cycle', $sub?->billing_cycle ?? 'monthly') === $val)>{{ $label }}</option>
                                     @endforeach
@@ -275,3 +290,38 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('contractForm');
+    const metricSelect = document.getElementById('contractBillingMetric');
+    const planSelect = document.getElementById('subscriptionPlanSelect');
+
+    function syncContractFields() {
+        const metric = metricSelect?.value || 'unit';
+        form?.querySelectorAll('.contract-field').forEach(el => el.classList.add('d-none'));
+        form?.querySelector('.contract-field--' + metric)?.classList.remove('d-none');
+    }
+
+    function applyPlanTemplate() {
+        if (!planSelect || !planSelect.value) return;
+        const option = planSelect.selectedOptions[0];
+        if (!option) return;
+
+        if (metricSelect) metricSelect.value = option.dataset.metric || 'unit';
+        form.querySelector('[name="unit_price"]').value = option.dataset.unitPrice || 0;
+        form.querySelector('[name="user_price"]').value = option.dataset.userPrice || 0;
+        form.querySelector('[name="fixed_price"]').value = option.dataset.fixedPrice || 0;
+        document.getElementById('contractBillingCycle').value = option.dataset.cycle || 'monthly';
+        form.querySelector('[name="trial_days"]').value = option.dataset.trial || 0;
+        form.querySelector('[name="payment_method"]').value = option.dataset.payment || 'boleto';
+        syncContractFields();
+    }
+
+    syncContractFields();
+    metricSelect?.addEventListener('change', syncContractFields);
+    planSelect?.addEventListener('change', applyPlanTemplate);
+});
+</script>
+@endpush

@@ -45,6 +45,7 @@ class CondominiumSubscriptionService
                 'billing_metric' => $data['billing_metric'],
                 'unit_price' => $data['unit_price'] ?? 0,
                 'user_price' => $data['user_price'] ?? 0,
+                'fixed_price' => $data['fixed_price'] ?? 0,
                 'billing_cycle' => $data['billing_cycle'],
                 'trial_days' => (int) ($data['trial_days'] ?? 0),
                 'payment_method' => $data['payment_method'],
@@ -241,6 +242,13 @@ class CondominiumSubscriptionService
 
     public function refreshCalculatedAmounts(CondominiumSubscription $subscription, Condominium $condominium): void
     {
+        if ($subscription->billing_metric === CondominiumSubscription::METRIC_FIXED) {
+            $subscription->billable_quantity = 1;
+            $subscription->recurring_amount = round((float) $subscription->fixed_price, 2);
+
+            return;
+        }
+
         $quantity = $this->resolveBillableQuantity($subscription, $condominium);
         $unitPrice = (float) ($subscription->billing_metric === CondominiumSubscription::METRIC_USER
             ? $subscription->user_price
@@ -252,6 +260,10 @@ class CondominiumSubscriptionService
 
     public function resolveBillableQuantity(CondominiumSubscription $subscription, Condominium $condominium): int
     {
+        if ($subscription->billing_metric === CondominiumSubscription::METRIC_FIXED) {
+            return 1;
+        }
+
         if ($subscription->billing_metric === CondominiumSubscription::METRIC_USER) {
             return max($condominium->users()
                 ->where(function ($query) {

@@ -21,9 +21,11 @@ class StoreCondominiumSubscriptionRequest extends FormRequest
             'billing_metric' => ['required', Rule::in([
                 CondominiumSubscription::METRIC_UNIT,
                 CondominiumSubscription::METRIC_USER,
+                CondominiumSubscription::METRIC_FIXED,
             ])],
             'unit_price' => ['nullable', 'numeric', 'min:0'],
             'user_price' => ['nullable', 'numeric', 'min:0'],
+            'fixed_price' => ['nullable', 'numeric', 'min:0', 'required_if:billing_metric,fixed'],
             'billing_cycle' => ['required', Rule::in([
                 CondominiumSubscription::CYCLE_MONTHLY,
                 CondominiumSubscription::CYCLE_QUARTERLY,

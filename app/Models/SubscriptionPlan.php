@@ -15,6 +15,7 @@ class SubscriptionPlan extends Model
         'billing_metric',
         'unit_price',
         'user_price',
+        'fixed_price',
         'billing_cycle',
         'trial_days',
         'payment_method',
@@ -27,6 +28,7 @@ class SubscriptionPlan extends Model
         return [
             'unit_price' => 'decimal:2',
             'user_price' => 'decimal:2',
+            'fixed_price' => 'decimal:2',
             'is_active' => 'boolean',
         ];
     }
@@ -55,12 +57,36 @@ class SubscriptionPlan extends Model
         };
     }
 
+    public function billingMetricLabel(): string
+    {
+        return match ($this->billing_metric) {
+            'user' => 'Por usuário',
+            'fixed' => 'Preço fixo',
+            default => 'Por unidade',
+        };
+    }
+
+    public function priceSummary(): string
+    {
+        if ($this->billing_metric === 'fixed') {
+            return 'R$ ' . number_format((float) $this->fixed_price, 2, ',', '.')
+                . ' / ' . strtolower($this->billingCycleLabel());
+        }
+
+        if ($this->billing_metric === 'user') {
+            return 'R$ ' . number_format((float) $this->user_price, 2, ',', '.') . ' / usuário · ' . $this->billingCycleLabel();
+        }
+
+        return 'R$ ' . number_format((float) $this->unit_price, 2, ',', '.') . ' / unidade · ' . $this->billingCycleLabel();
+    }
+
     public function toContractDefaults(): array
     {
         return [
             'billing_metric' => $this->billing_metric,
             'unit_price' => $this->unit_price,
             'user_price' => $this->user_price,
+            'fixed_price' => $this->fixed_price,
             'billing_cycle' => $this->billing_cycle,
             'trial_days' => $this->trial_days,
             'payment_method' => $this->payment_method,

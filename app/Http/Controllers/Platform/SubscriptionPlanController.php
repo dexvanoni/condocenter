@@ -61,9 +61,10 @@ class SubscriptionPlanController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'billing_metric' => ['required', Rule::in(['unit', 'user'])],
+            'billing_metric' => ['required', Rule::in(['unit', 'user', 'fixed'])],
             'unit_price' => ['nullable', 'numeric', 'min:0'],
             'user_price' => ['nullable', 'numeric', 'min:0'],
+            'fixed_price' => ['nullable', 'numeric', 'min:0', 'required_if:billing_metric,fixed'],
             'billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'semiannual', 'annual'])],
             'trial_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'payment_method' => ['required', Rule::in(['boleto', 'credit_card', 'pix_recurring', 'bank_deposit'])],
@@ -74,6 +75,7 @@ class SubscriptionPlanController extends Controller
             'sort_order' => (int) $request->input('sort_order', 0),
             'unit_price' => $request->input('unit_price', 0),
             'user_price' => $request->input('user_price', 0),
+            'fixed_price' => $request->input('fixed_price', 0),
             'trial_days' => (int) $request->input('trial_days', 0),
         ];
     }

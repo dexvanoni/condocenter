@@ -34,6 +34,7 @@
                                     <strong>{{ $plan->name }}</strong>
                                     @unless($plan->is_active)<span class="badge bg-secondary ms-1">Inativo</span>@endunless
                                     <div class="small text-muted">{{ $plan->description }}</div>
+                                    <div class="small mt-1"><span class="badge bg-light text-dark border">{{ $plan->billingMetricLabel() }}</span> {{ $plan->priceSummary() }}</div>
                                 </div>
                                 <form method="POST" action="{{ route('platform.plans.destroy', $plan) }}" onsubmit="return confirm('Excluir plano?')">
                                     @csrf @method('DELETE')
@@ -51,3 +52,20 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    function syncPlanFields(form) {
+        const metric = form.querySelector('.plan-billing-metric')?.value || 'unit';
+        form.querySelectorAll('.plan-field').forEach(el => el.classList.add('d-none'));
+        form.querySelector('.plan-field--' + metric)?.classList.remove('d-none');
+    }
+
+    document.querySelectorAll('.plan-form').forEach(form => {
+        syncPlanFields(form);
+        form.querySelector('.plan-billing-metric')?.addEventListener('change', () => syncPlanFields(form));
+    });
+});
+</script>
+@endpush
