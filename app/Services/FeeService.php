@@ -693,33 +693,6 @@ class FeeService
                 'active' => false,
                 'metadata' => $metadata,
             ]);
-
-            // Enviar notificações via OneSignal (se habilitado)
-            if ($notifiedUsers->isNotEmpty()) {
-                DB::afterCommit(function () use ($notifiedUsers, $fee, $reason) {
-                    try {
-                        /** @var \App\Services\OneSignalNotificationService $oneSignal */
-                        $oneSignal = app(\App\Services\OneSignalNotificationService::class);
-                        if ($oneSignal->isEnabled()) {
-                            $oneSignal->sendToUsers(
-                                $notifiedUsers->unique()->all(),
-                                sprintf(
-                                    'A taxa "%s" foi invalidada. O valor pago foi debitado do caixa.',
-                                    $fee->name
-                                ),
-                                'Taxa Invalidada - Reembolso',
-                                [
-                                    'fee_id' => $fee->id,
-                                    'type' => 'fee_invalidated',
-                                    'reason' => $reason,
-                                ]
-                            );
-                        }
-                    } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::warning('Erro ao enviar notificação OneSignal de invalidação de taxa: ' . $e->getMessage());
-                    }
-                });
-            }
         });
     }
 }

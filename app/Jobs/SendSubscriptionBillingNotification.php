@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\CondominiumSubscription;
 use App\Models\Notification;
 use App\Models\User;
-use App\Services\OneSignalNotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -115,25 +114,5 @@ class SendSubscriptionBillingNotification implements ShouldQueue
             'sent' => true,
             'sent_at' => now(),
         ]);
-
-        $oneSignal = app(OneSignalNotificationService::class);
-
-        if (!$oneSignal->isEnabled()) {
-            return;
-        }
-
-        try {
-            $oneSignal->sendToUsers(
-                [$recipient->id],
-                $message,
-                $title,
-                [
-                    'type' => $type,
-                    'subscription_id' => (string) $subscription->id,
-                ]
-            );
-        } catch (\Throwable $e) {
-            Log::warning('OneSignal subscription billing notification failed: ' . $e->getMessage());
-        }
     }
 }

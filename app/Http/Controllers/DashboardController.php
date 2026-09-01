@@ -471,7 +471,12 @@ class DashboardController extends Controller
             ->withCount([
                 'items as pending_items_count' => function ($query) use ($user) {
                     $query->whereDoesntHave('votes', function ($voteQuery) use ($user) {
-                        $voteQuery->where('voter_id', $user->id);
+                        $voteQuery->where(function ($q) use ($user) {
+                            $q->where('voter_id', $user->id);
+                            if ($user->unit_id) {
+                                $q->orWhere('unit_id', $user->unit_id);
+                            }
+                        });
                     });
                 },
             ])
@@ -491,10 +496,11 @@ class DashboardController extends Controller
                     'title' => $assembly->title,
                     'status' => $assembly->display_status ?? $assembly->status,
                     'urgency' => $assembly->urgency,
-                    'scheduled_at' => $assembly->scheduled_at,
+                    'voting_opens_at' => $assembly->voting_opens_at ?? $assembly->scheduled_at,
                     'voting_closes_at' => $assembly->voting_closes_at,
                     'pending_items' => $assembly->pending_items_count ?? 0,
                     'total_items' => $assembly->items_count ?? $assembly->items->count(),
+                    'voted_items' => max(0, ($assembly->items_count ?? $assembly->items->count()) - ($assembly->pending_items_count ?? 0)),
                 ];
             })
             ->values();

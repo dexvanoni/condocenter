@@ -38,6 +38,85 @@
             padding: 1.25rem;
         }
     }
+
+    .assembly-voting-stats {
+        background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+        border: 1px solid #dbe4f4;
+        border-radius: 1rem;
+        padding: 1.1rem 1.15rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .assembly-voting-stats h6 {
+        color: #0a1b67;
+        font-weight: 700;
+        margin-bottom: 0.85rem;
+    }
+
+    .assembly-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .assembly-stat-card {
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 0.85rem;
+        padding: 0.75rem 0.65rem;
+        text-align: center;
+    }
+
+    .assembly-stat-card .value {
+        display: block;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #0a1b67;
+        line-height: 1.1;
+    }
+
+    .assembly-stat-card .label {
+        display: block;
+        font-size: 0.72rem;
+        color: #64748b;
+        margin-top: 0.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .assembly-stat-card.highlight {
+        border-color: #c7d5f5;
+        background: #f0f5ff;
+    }
+
+    .assembly-role-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .assembly-role-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        font-size: 0.78rem;
+        color: #475569;
+    }
+
+    .assembly-role-chip strong {
+        color: #0a1b67;
+    }
+
+    @media (max-width: 768px) {
+        .assembly-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
 </style>
 @endpush
 
@@ -142,30 +221,19 @@
                             <div class="col-lg-6 d-flex flex-column gap-4">
                                 <section class="assembly-section-card">
                                     <header class="mb-3">
-                                        <h6 class="mb-1 text-uppercase text-primary fw-semibold small">Cronograma e janela de votação</h6>
-                                        <span class="text-muted small">Informe quando os moradores serão convocados e até quando poderão votar.</span>
+                                        <h6 class="mb-1 text-uppercase text-primary fw-semibold small">Janela de votação</h6>
+                                        <span class="text-muted small">Defina quando a votação abre e quando encerra automaticamente.</span>
                                     </header>
                                     <div class="row g-3 align-items-end">
-                                        <div class="col-md-4">
-                                            <label class="form-label">Data de início *</label>
-                                <input type="datetime-local" class="form-control" name="scheduled_at" required>
-                            </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Início da votação</label>
-                                            <input type="datetime-local" class="form-control" name="voting_opens_at">
-                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Encerramento da votação</label>
-                                            <input type="datetime-local" class="form-control" name="voting_closes_at">
-                        </div>
-                                        <div class="col-md-4">
-                                <label class="form-label">Duração (minutos) *</label>
-                                            <div class="input-group">
-                                                <input type="number" class="form-control" name="duration_minutes" value="120" min="15" max="1440" required>
-                                                <span class="input-group-text">min</span>
-                            </div>
-                        </div>
-                    </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Início da votação *</label>
+                                            <input type="datetime-local" class="form-control" name="voting_opens_at" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Término da votação *</label>
+                                            <input type="datetime-local" class="form-control" name="voting_closes_at" required>
+                                        </div>
+                                    </div>
                                 </section>
 
                                 <section class="assembly-section-card" data-role-checkboxes>
@@ -220,12 +288,6 @@
                                             <small class="text-muted d-block">Os moradores verão barras de progresso atualizadas com o total de votos por opção.</small>
                                         </div>
                                     </div>
-                                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="allow_delegation" id="allowDelegation">
-                        <label class="form-check-label" for="allowDelegation">
-                            Permitir delegação de voto
-                        </label>
-                                    </div>
                                     <div class="form-check">
                                         <input class="form-check-input" type="checkbox" name="allow_comments" id="allowComments">
                                         <label class="form-check-label" for="allowComments">
@@ -272,7 +334,6 @@
         </div>
     </div>
 </div>
-@endsection
 
 <!-- Modal Votação -->
 <div class="modal fade" id="voteModal" tabindex="-1" aria-hidden="true">
@@ -310,11 +371,46 @@
     </div>
 </div>
 
+<!-- Modal Reabrir votação -->
+<div class="modal fade" id="reopenModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reabrir votação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="reopenForm">
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" id="reopenModalError"></div>
+                    <p class="text-muted small">Informe o novo período de votação. Os votos já registrados serão mantidos.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Início da votação *</label>
+                        <input type="datetime-local" class="form-control" name="reopen_voting_opens_at" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Término da votação *</label>
+                        <input type="datetime-local" class="form-control" name="reopen_voting_closes_at" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-repeat"></i> Reabrir votação
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
+
 @push('scripts')
 <script>
     window.ASSEMBLIES_CONTEXT = {
         userId: {{ auth()->id() }},
+        unitId: {{ auth()->user()->unit_id ?? 'null' }},
         roles: @json(auth()->user()->roles->pluck('name')),
+        canManage: @json(auth()->user()->can('manage_assemblies') || auth()->user()->hasAnyRole(['Síndico', 'Administrador'])),
         csrf: document.querySelector('meta[name="csrf-token"]').content,
     };
 
@@ -327,12 +423,24 @@
             loading: true,
             editingAssemblyId: null,
             currentVote: null,
+            keepOpenAssemblyId: null,
         },
 
         init() {
+            const params = new URLSearchParams(window.location.search);
+            const openAssembly = params.get('open');
+            if (openAssembly) {
+                this.state.keepOpenAssemblyId = Number(openAssembly);
+                this.state.status = 'in_progress';
+            }
+
             this.cacheElements();
             this.bindEvents();
             this.resetAgendaItems();
+            if (openAssembly) {
+                this.updateTabs();
+                this.updateSectionTitle();
+            }
             this.loadAssemblies();
         },
 
@@ -365,6 +473,11 @@
             this.defaultVoteCommentLabel = this.voteCommentLabel?.innerHTML ?? '';
             this.defaultVoteCommentPlaceholder = this.voteCommentInput?.getAttribute('placeholder') ?? '';
             this.closeSubmitLabel = '<i class="bi bi-stop-circle"></i> Confirmar encerramento';
+            this.reopenModalEl = document.getElementById('reopenModal');
+            this.reopenModal = window.bootstrap && this.reopenModalEl ? new bootstrap.Modal(this.reopenModalEl) : null;
+            this.reopenForm = document.getElementById('reopenForm');
+            this.reopenModalError = document.getElementById('reopenModalError');
+            this.state.reopenAssemblyId = null;
         },
 
         bindEvents() {
@@ -409,7 +522,19 @@
                     const button = event.target.closest('[data-action="close-assembly"]');
                     this.openCloseModal(Number(button.dataset.id));
                 }
+
+                if (event.target.closest('[data-action="reopen-assembly"]')) {
+                    const button = event.target.closest('[data-action="reopen-assembly"]');
+                    this.openReopenModal(Number(button.dataset.id));
+                }
             });
+
+            if (this.reopenForm) {
+                this.reopenForm.addEventListener('submit', event => {
+                    event.preventDefault();
+                    this.submitReopenAssembly();
+                });
+            }
 
             if (this.voteForm) {
                 this.voteForm.addEventListener('submit', event => {
@@ -446,6 +571,7 @@
                 return;
             }
             this.state.status = status;
+            this.state.keepOpenAssemblyId = null;
             this.updateTabs();
             this.updateSectionTitle();
             this.loadAssemblies();
@@ -495,6 +621,19 @@
 
                 const data = await response.json();
                 this.state.assemblies = data.data ?? [];
+
+                if (this.state.keepOpenAssemblyId
+                    && !this.state.assemblies.some(a => Number(a.id) === Number(this.state.keepOpenAssemblyId))
+                    && this.state.status === 'in_progress'
+                    && !this.state._assemblyTabFallback) {
+                    this.state._assemblyTabFallback = true;
+                    this.state.status = 'scheduled';
+                    this.updateTabs();
+                    this.updateSectionTitle();
+                    return this.loadAssemblies();
+                }
+
+                this.state._assemblyTabFallback = false;
                 this.renderAssemblies();
             } catch (error) {
                 console.error(error);
@@ -514,10 +653,13 @@
         },
 
         buildCloseButton(assembly) {
-            const roles = window.ASSEMBLIES_CONTEXT.roles ?? [];
-            const userId = window.ASSEMBLIES_CONTEXT.userId;
-            const canClose = (assembly.display_status ?? assembly.status) === 'in_progress'
-                && (assembly.created_by === userId || roles.some(role => ['Síndico', 'Administrador'].includes(role)));
+            const canManage = window.ASSEMBLIES_CONTEXT.canManage
+                || assembly.created_by === window.ASSEMBLIES_CONTEXT.userId;
+            const effectiveStatus = assembly.display_status ?? assembly.status;
+            const canClose = ['in_progress', 'voting_closed'].includes(effectiveStatus)
+                && assembly.status !== 'completed'
+                && assembly.status !== 'cancelled'
+                && canManage;
 
             if (!canClose) {
                 return '';
@@ -525,9 +667,25 @@
 
             return `
                 <button class="btn btn-sm btn-outline-danger" data-action="close-assembly" data-id="${assembly.id}">
-                    <i class="bi bi-stop-circle"></i> Encerrar votação
+                    <i class="bi bi-stop-circle"></i> Encerrar assembleia
             </button>
         `;
+        },
+
+        buildReopenButton(assembly) {
+            const canManage = window.ASSEMBLIES_CONTEXT.canManage
+                || assembly.created_by === window.ASSEMBLIES_CONTEXT.userId;
+            const effectiveStatus = assembly.display_status ?? assembly.status;
+
+            if (!canManage || effectiveStatus !== 'voting_closed' || assembly.status === 'completed') {
+                return '';
+            }
+
+            return `
+                <button class="btn btn-sm btn-outline-warning" data-action="reopen-assembly" data-id="${assembly.id}">
+                    <i class="bi bi-arrow-repeat"></i> Reabrir votação
+                </button>
+            `;
         },
 
         renderError(message) {
@@ -564,6 +722,38 @@
                     </div>
                 </div>
             `;
+
+            this.restoreOpenAccordion();
+        },
+
+        restoreOpenAccordion() {
+            const assemblyId = this.state.keepOpenAssemblyId;
+            if (!assemblyId) {
+                return;
+            }
+
+            const collapseId = `assemblies-accordion-${this.state.status}-collapse-${assemblyId}`;
+            const collapseEl = document.getElementById(collapseId);
+            if (!collapseEl) {
+                return;
+            }
+
+            requestAnimationFrame(() => {
+                if (window.bootstrap) {
+                    const instance = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                    instance.show();
+                } else {
+                    collapseEl.classList.add('show');
+                }
+
+                const button = collapseEl.parentElement?.querySelector('.accordion-button');
+                if (button) {
+                    button.classList.remove('collapsed');
+                    button.setAttribute('aria-expanded', 'true');
+                }
+
+                collapseEl.closest('.accordion-item')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
         },
 
         buildAssemblyAccordionItem(assembly, accordionId) {
@@ -586,10 +776,12 @@
                 : '';
             const manageButtons = this.buildAssemblyActions(assembly);
             const closeButton = this.buildCloseButton(assembly);
+            const reopenButton = this.buildReopenButton(assembly);
+            const votingStats = this.buildVotingStatsPanel(assembly);
 
             const headingId = `${accordionId}-heading-${assembly.id}`;
             const collapseId = `${accordionId}-collapse-${assembly.id}`;
-            const isInitiallyOpen = false;
+            const isInitiallyOpen = Number(this.state.keepOpenAssemblyId) === Number(assembly.id);
             const expandedAttr = isInitiallyOpen ? 'true' : 'false';
             const buttonClass = isInitiallyOpen ? 'accordion-button' : 'accordion-button collapsed';
             const collapseClass = isInitiallyOpen ? 'accordion-collapse collapse show' : 'accordion-collapse collapse';
@@ -605,7 +797,7 @@
                                         ${votingType}
                                     </div>
                                     <div class="d-flex flex-wrap align-items-center gap-3 text-muted small mt-1">
-                                        <span><i class="bi bi-calendar-event"></i> ${this.formatDate(assembly.scheduled_at)}</span>
+                                        <span><i class="bi bi-calendar-event"></i> ${this.formatDate(assembly.voting_opens_at ?? assembly.scheduled_at)}</span>
                                         ${votingWindow}
                                         <span><i class="bi bi-person-check"></i> ${allowedRoles}</span>
                                     </div>
@@ -620,6 +812,7 @@
                     <div id="${collapseId}" class="${collapseClass}" aria-labelledby="${headingId}">
                         <div class="accordion-body">
                             ${assembly.description ? `<p class="text-muted mb-4">${assembly.description}</p>` : ''}
+                            ${votingStats}
                             <div class="mb-4">
                                 <h6 class="fw-semibold mb-2">Itens da pauta</h6>
                                 <div class="d-flex flex-column gap-3">
@@ -632,6 +825,7 @@
                                     Criado por ${assembly.creator?.name ?? 'N/A'} em ${this.formatDate(assembly.created_at)}
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
+                                    ${reopenButton}
                                     ${closeButton}
                                     ${manageButtons}
                                     ${minutesButton}
@@ -639,6 +833,71 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            `;
+        },
+
+        buildVotingStatsPanel(assembly) {
+            if (!window.ASSEMBLIES_CONTEXT.canManage || !assembly.voting_stats) {
+                return '';
+            }
+
+            const stats = assembly.voting_stats;
+            const users = stats.users ?? {};
+            const units = stats.units ?? {};
+            const roles = stats.by_role ?? [];
+
+            const roleChips = roles.map(role => `
+                <span class="assembly-role-chip">
+                    <span>${role.role}</span>
+                    <strong>${role.voted}/${role.eligible}</strong>
+                    <span class="text-muted">(${role.pending} pend.)</span>
+                </span>
+            `).join('');
+
+            return `
+                <div class="assembly-voting-stats">
+                    <h6 class="mb-2"><i class="bi bi-bar-chart-line"></i> Estatísticas de participação</h6>
+                    <div class="small text-muted mb-2">
+                        Perfis convocados: ${(stats.allowed_roles ?? []).join(', ') || 'Padrão'}
+                    </div>
+                    <div class="assembly-stat-grid">
+                        <div class="assembly-stat-card highlight">
+                            <span class="value">${users.eligible ?? 0}</span>
+                            <span class="label">Moradores elegíveis</span>
+                        </div>
+                        <div class="assembly-stat-card">
+                            <span class="value">${users.voted ?? 0}</span>
+                            <span class="label">Já votaram</span>
+                        </div>
+                        <div class="assembly-stat-card">
+                            <span class="value">${users.pending ?? 0}</span>
+                            <span class="label">Faltam votar</span>
+                        </div>
+                        <div class="assembly-stat-card">
+                            <span class="value">${users.participation_rate ?? 0}%</span>
+                            <span class="label">Participação</span>
+                        </div>
+                    </div>
+                    <div class="assembly-stat-grid" style="margin-bottom: 0;">
+                        <div class="assembly-stat-card">
+                            <span class="value">${units.eligible ?? 0}</span>
+                            <span class="label">Unidades elegíveis</span>
+                        </div>
+                        <div class="assembly-stat-card">
+                            <span class="value">${units.voted ?? 0}</span>
+                            <span class="label">Unidades votantes</span>
+                        </div>
+                        <div class="assembly-stat-card">
+                            <span class="value">${units.pending ?? 0}</span>
+                            <span class="label">Unidades pendentes</span>
+                        </div>
+                        <div class="assembly-stat-card">
+                            <span class="value">${units.participation_rate ?? 0}%</span>
+                            <span class="label">Participação (unid.)</span>
+                        </div>
+                    </div>
+                    ${roleChips ? `<div class="assembly-role-stats mt-3">${roleChips}</div>` : ''}
                 </div>
             `;
         },
@@ -772,7 +1031,19 @@
 
         userHasVoted(assembly, item) {
             const userId = Number(window.ASSEMBLIES_CONTEXT.userId);
-            return (item.votes ?? []).some(vote => Number(vote.voter_id ?? vote.voter?.id) === userId);
+            const unitId = window.ASSEMBLIES_CONTEXT.unitId ? Number(window.ASSEMBLIES_CONTEXT.unitId) : null;
+            return (item.votes ?? []).some(vote => {
+                if (Number(vote.voter_id ?? vote.voter?.id) === userId) {
+                    return true;
+                }
+                if (unitId && vote.unit_id && Number(vote.unit_id) === unitId) {
+                    return true;
+                }
+                if (unitId && vote.unit?.id && Number(vote.unit.id) === unitId) {
+                    return true;
+                }
+                return false;
+            });
         },
 
         getItemOptions(item, assembly, summary) {
@@ -812,6 +1083,8 @@
         },
 
         openVoteModal(assemblyId, itemId) {
+            this.state.keepOpenAssemblyId = Number(assemblyId);
+
             const assembly = this.state.assemblies.find(a => Number(a.id) === Number(assemblyId));
             if (!assembly || !assembly.is_voting_open) {
                 this.notify('warning', 'Esta assembleia não está aberta para votação.');
@@ -1059,6 +1332,7 @@
                 this.notify('success', data.message ?? 'Voto registrado com sucesso.');
                 this.hideVoteModal();
                 this.state.currentVote = null;
+                this.state.keepOpenAssemblyId = Number(assemblyId);
                 await this.loadAssemblies();
             } catch (error) {
                 console.error(error);
@@ -1070,8 +1344,12 @@
 
         async submitCloseAssembly(assemblyId, reason) {
             const trimmedReason = (reason ?? '').trim();
-            if (!trimmedReason) {
-                this.showVoteError('Informe o motivo do encerramento.');
+            const assembly = this.state.assemblies.find(a => Number(a.id) === Number(assemblyId));
+            const requiresReason = assembly?.voting_closes_at
+                && new Date() < new Date(assembly.voting_closes_at);
+
+            if (requiresReason && !trimmedReason) {
+                this.showVoteError('Informe o motivo do encerramento antecipado.');
                 this.voteCommentInput?.focus();
                 return;
             }
@@ -1088,7 +1366,7 @@
                         'X-CSRF-TOKEN': window.ASSEMBLIES_CONTEXT.csrf,
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    body: JSON.stringify({ reason: trimmedReason }),
+                    body: JSON.stringify({ reason: trimmedReason || null }),
                     credentials: 'same-origin',
                 });
 
@@ -1117,6 +1395,81 @@
                 this.showVoteError(error.message ?? 'Erro inesperado ao encerrar a votação.');
             } finally {
                 this.setVoteModalLoading(false);
+            }
+        },
+
+        openReopenModal(assemblyId) {
+            this.state.reopenAssemblyId = assemblyId;
+            if (this.reopenForm) {
+                this.reopenForm.reset();
+            }
+            this.showReopenError('');
+            if (this.reopenModal) {
+                this.reopenModal.show();
+            }
+        },
+
+        showReopenError(message) {
+            if (!this.reopenModalError) {
+                return;
+            }
+            if (!message) {
+                this.reopenModalError.classList.add('d-none');
+                this.reopenModalError.textContent = '';
+                return;
+            }
+            this.reopenModalError.classList.remove('d-none');
+            this.reopenModalError.textContent = message;
+        },
+
+        async submitReopenAssembly() {
+            if (!this.state.reopenAssemblyId || !this.reopenForm) {
+                return;
+            }
+
+            const opensAt = this.reopenForm.elements['reopen_voting_opens_at'].value;
+            const closesAt = this.reopenForm.elements['reopen_voting_closes_at'].value;
+
+            if (!opensAt || !closesAt) {
+                this.showReopenError('Informe o início e o término da votação.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/assemblies/${this.state.reopenAssemblyId}/reopen`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': window.ASSEMBLIES_CONTEXT.csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        voting_opens_at: opensAt,
+                        voting_closes_at: closesAt,
+                    }),
+                    credentials: 'same-origin',
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    if (response.status === 422 && data.errors) {
+                        this.showReopenError(Object.values(data.errors).flat().join(' '));
+                        return;
+                    }
+                    throw new Error(data.error ?? data.message ?? 'Não foi possível reabrir a votação.');
+                }
+
+                this.notify('success', data.message ?? 'Votação reaberta com sucesso.');
+                if (this.reopenModal) {
+                    this.reopenModal.hide();
+                }
+                this.state.reopenAssemblyId = null;
+                await this.loadAssemblies();
+            } catch (error) {
+                console.error(error);
+                this.showReopenError(error.message ?? 'Erro inesperado ao reabrir votação.');
             }
         },
 
@@ -1192,6 +1545,7 @@
             const map = {
                 scheduled: { label: 'Agendada', class: 'text-bg-primary' },
                 in_progress: { label: 'Em andamento', class: 'text-bg-warning' },
+                voting_closed: { label: 'Votação encerrada', class: 'text-bg-secondary' },
                 completed: { label: 'Concluída', class: 'text-bg-success' },
                 cancelled: { label: 'Cancelada', class: 'text-bg-danger' }
             };
@@ -1224,13 +1578,14 @@
             }
 
             const parts = [];
-            if (assembly.voting_opens_at) {
-                parts.push(`<i class="bi bi-unlock"></i> Início votação: ${this.formatDate(assembly.voting_opens_at)}`);
+            const opensAt = assembly.voting_opens_at ?? assembly.scheduled_at;
+            if (opensAt) {
+                parts.push(`<i class="bi bi-unlock"></i> Início: ${this.formatDate(opensAt)}`);
             }
             if (assembly.voting_closes_at) {
-                parts.push(`<i class="bi bi-lock"></i> Fim votação: ${this.formatDate(assembly.voting_closes_at)}`);
+                parts.push(`<i class="bi bi-lock"></i> Término: ${this.formatDate(assembly.voting_closes_at)}`);
             }
-            return `<span>${parts.join(' • ')}</span>`;
+            return parts.length ? `<span>${parts.join(' • ')}</span>` : '';
         },
 
         async submitAssembly() {
@@ -1241,19 +1596,10 @@
             formData.append('title', elements['title'].value.trim());
             formData.append('urgency', elements['urgency'].value);
             formData.append('description', elements['description'].value.trim());
-            formData.append('scheduled_at', elements['scheduled_at'].value);
-            if (elements['voting_opens_at'].value) {
-                formData.append('voting_opens_at', elements['voting_opens_at'].value);
-            }
-            if (elements['voting_closes_at'].value) {
-                formData.append('voting_closes_at', elements['voting_closes_at'].value);
-            }
-            formData.append('duration_minutes', elements['duration_minutes'].value);
+            formData.append('voting_opens_at', elements['voting_opens_at'].value);
+            formData.append('voting_closes_at', elements['voting_closes_at'].value);
             formData.append('voting_type', elements['voting_type'].value);
 
-            if (elements['allow_delegation'].checked) {
-                formData.append('allow_delegation', '1');
-            }
             if (elements['allow_comments'].checked) {
                 formData.append('allow_comments', '1');
             }
@@ -1269,13 +1615,9 @@
                 const title = row.querySelector('[data-item-title]').value.trim();
                 const description = row.querySelector('[data-item-description]').value.trim();
                 const optionsValue = row.querySelector('[data-item-options]').value.trim();
-                const opensAt = row.querySelector('[data-item-opens-at]').value;
-                const closesAt = row.querySelector('[data-item-closes-at]').value;
 
                 formData.append(`items[${index}][title]`, title);
                 if (description) formData.append(`items[${index}][description]`, description);
-                if (opensAt) formData.append(`items[${index}][opens_at]`, opensAt);
-                if (closesAt) formData.append(`items[${index}][closes_at]`, closesAt);
 
                 const options = optionsValue
                     ? optionsValue.split('\n').map(option => option.trim()).filter(Boolean)
@@ -1370,10 +1712,8 @@
             elements['title'].value = assembly.title ?? '';
             elements['urgency'].value = assembly.urgency ?? 'normal';
             elements['description'].value = assembly.description ?? '';
-            elements['scheduled_at'].value = this.toInputDateTime(assembly.scheduled_at);
-            elements['voting_opens_at'].value = this.toInputDateTime(assembly.voting_opens_at);
+            elements['voting_opens_at'].value = this.toInputDateTime(assembly.voting_opens_at ?? assembly.scheduled_at);
             elements['voting_closes_at'].value = this.toInputDateTime(assembly.voting_closes_at);
-            elements['duration_minutes'].value = assembly.duration_minutes ?? 120;
 
             const votingTypeOpen = this.form.querySelector('#votingTypeOpen');
             const votingTypeSecret = this.form.querySelector('#votingTypeSecret');
@@ -1388,7 +1728,6 @@
                     .some(role => (role.name ?? role) === checkbox.value);
             });
 
-            this.form.querySelector('#allowDelegation').checked = Boolean(assembly.allow_delegation);
             this.form.querySelector('#allowComments').checked = Boolean(assembly.allow_comments);
 
             const resultsVisibility = assembly.results_visibility ?? 'final_only';
@@ -1560,19 +1899,9 @@
                 </div>
                 <input type="text" class="form-control mb-2" data-item-title placeholder="Ex: Aprovação da reforma da fachada" required>
                 <textarea class="form-control mb-2" rows="2" data-item-description placeholder="Detalhes e contexto do item"></textarea>
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <label class="form-label small mb-1">Opções de voto (uma por linha)</label>
-                        <textarea class="form-control" rows="3" data-item-options placeholder="Sim&#10;Não&#10;Abstenção"></textarea>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">Abertura</label>
-                        <input type="datetime-local" class="form-control" data-item-opens-at>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small mb-1">Encerramento</label>
-                        <input type="datetime-local" class="form-control" data-item-closes-at>
-                    </div>
+                <div>
+                    <label class="form-label small mb-1">Opções de voto (uma por linha)</label>
+                    <textarea class="form-control" rows="3" data-item-options placeholder="Sim&#10;Não&#10;Abstenção"></textarea>
                 </div>
             `;
 
@@ -1590,12 +1919,6 @@
                 }
                 if (item.options?.length) {
                     wrapper.querySelector('[data-item-options]').value = item.options.join('\n');
-                }
-                if (item.opens_at) {
-                    wrapper.querySelector('[data-item-opens-at]').value = this.toInputDateTime(item.opens_at);
-                }
-                if (item.closes_at) {
-                    wrapper.querySelector('[data-item-closes-at]').value = this.toInputDateTime(item.closes_at);
                 }
                 wrapper.setAttribute('data-item-id', item.id);
             }

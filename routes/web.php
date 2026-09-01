@@ -332,6 +332,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->name('condominiums.toggle-active');
     Route::post('/condominiums/{condominium}/regenerate-code', [\App\Http\Controllers\CondominiumController::class, 'regenerateRegistrationCode'])
         ->name('condominiums.regenerate-code');
+    Route::get('/condominiums/{condominium}/settings/whatsapp', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'index'])
+        ->name('condominiums.settings.whatsapp');
+    Route::put('/condominiums/{condominium}/settings/whatsapp', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'update'])
+        ->name('condominiums.settings.whatsapp.update');
+    Route::post('/condominiums/{condominium}/settings/whatsapp/test', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'test'])
+        ->name('condominiums.settings.whatsapp.test');
 
     // Plataforma SaaS — assinaturas e configurações globais
     Route::prefix('platform')->name('platform.')->group(function () {
@@ -353,6 +359,13 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             ->name('settings.asaas.update');
         Route::post('/settings/asaas/test', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'testAsaas'])
             ->name('settings.asaas.test');
+
+        Route::get('/settings/whatsapp', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'whatsapp'])
+            ->name('settings.whatsapp');
+        Route::put('/settings/whatsapp', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'updateWhatsapp'])
+            ->name('settings.whatsapp.update');
+        Route::post('/settings/whatsapp/test', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'testWhatsapp'])
+            ->name('settings.whatsapp.test');
 
         Route::get('/condominiums/{condominium}/subscription/charges/export', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'exportCharges'])
             ->name('subscriptions.charges.export');

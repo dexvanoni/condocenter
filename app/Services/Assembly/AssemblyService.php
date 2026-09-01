@@ -26,16 +26,20 @@ class AssemblyService
         return $this->db->transaction(function () use ($payload, $creator) {
             $itemsPayload = $payload['items'] ?? $this->convertAgendaToItems($payload['agenda'] ?? []);
 
+            $votingOpensAt = $payload['voting_opens_at'] ?? $payload['scheduled_at'] ?? null;
+            $votingClosesAt = $payload['voting_closes_at'] ?? null;
+            $durationMinutes = $this->resolveDurationMinutes($votingOpensAt, $votingClosesAt, $payload['duration_minutes'] ?? null);
+
             $assembly = Assembly::create([
-                'condominium_id' => $payload['condominium_id'] ?? $creator->condominium_id,
+                'condominium_id' => $payload['condominium_id'] ?? $creator->tenantCondominiumId() ?? $creator->condominium_id,
                 'created_by' => $creator->id,
                 'title' => $payload['title'],
                 'description' => $payload['description'] ?? null,
                 'agenda' => $this->extractAgendaTitles($itemsPayload),
-                'scheduled_at' => $payload['scheduled_at'],
-                'voting_opens_at' => $payload['voting_opens_at'] ?? null,
-                'voting_closes_at' => $payload['voting_closes_at'] ?? null,
-                'duration_minutes' => $payload['duration_minutes'] ?? 120,
+                'scheduled_at' => $votingOpensAt,
+                'voting_opens_at' => $votingOpensAt,
+                'voting_closes_at' => $votingClosesAt,
+                'duration_minutes' => $durationMinutes,
                 'status' => $payload['status'] ?? 'scheduled',
                 'voting_type' => $payload['voting_type'] ?? 'open',
                 'urgency' => $payload['urgency'] ?? 'normal',
@@ -94,6 +98,18 @@ class AssemblyService
             }
 
             if ($updatable) {
+                if (isset($updatable['voting_opens_at'])) {
+                    $updatable['scheduled_at'] = $updatable['voting_opens_at'];
+                }
+
+                if (isset($updatable['voting_opens_at'], $updatable['voting_closes_at'])) {
+                    $updatable['duration_minutes'] = $this->resolveDurationMinutes(
+                        $updatable['voting_opens_at'],
+                        $updatable['voting_closes_at'],
+                        $updatable['duration_minutes'] ?? $assembly->duration_minutes
+                    );
+                }
+
                 $assembly->update($updatable);
             }
 
@@ -181,6 +197,62 @@ class AssemblyService
         });
     }
 
+    public function reopenVoting(Assembly $assembly, array $payload, User $actor): Assembly
+    {
+        if (in_array($assembly->status, ['completed', 'cancelled'], true)) {
+            throw ValidationException::withMessages([
+                'assembly' => 'Não é possível reabrir assembleias concluídas ou canceladas.',
+            ]);
+        }
+
+        $opensAt = $payload['voting_opens_at'];
+        $closesAt = $payload['voting_closes_at'];
+
+        return $this->db->transaction(function () use ($assembly, $opensAt, $closesAt, $actor) {
+            $fromStatus = $assembly->status;
+
+            $assembly->update([
+                'voting_opens_at' => $opensAt,
+                'voting_closes_at' => $closesAt,
+                'scheduled_at' => $opensAt,
+                'duration_minutes' => $this->resolveDurationMinutes($opensAt, $closesAt, $assembly->duration_minutes),
+                'status' => 'scheduled',
+                'ended_at' => null,
+            ]);
+
+            $assembly->items()
+                ->where('status', 'closed')
+                ->update(['status' => 'pending']);
+
+            $assembly->statusLogs()->create([
+                'changed_by' => $actor->id,
+                'from_status' => $fromStatus,
+                'to_status' => 'scheduled',
+                'context' => [
+                    'action' => 'reopen_voting',
+                    'voting_opens_at' => $opensAt,
+                    'voting_closes_at' => $closesAt,
+                    'reopened_at' => now()->toIso8601String(),
+                ],
+            ]);
+
+            return $assembly->fresh(['items', 'attachments', 'allowedRoles']);
+        });
+    }
+
+    protected function resolveDurationMinutes($opensAt, $closesAt, ?int $fallback = null): int
+    {
+        if ($opensAt && $closesAt) {
+            $opens = $opensAt instanceof \Carbon\CarbonInterface ? $opensAt : \Carbon\Carbon::parse($opensAt);
+            $closes = $closesAt instanceof \Carbon\CarbonInterface ? $closesAt : \Carbon\Carbon::parse($closesAt);
+            $minutes = $opens->diffInMinutes($closes);
+
+            return max(15, min(1440, $minutes));
+        }
+
+        return $fallback ?? 120;
+    }
+
     protected function syncItems(Assembly $assembly, array $items): void
     {
         if (empty($items)) {
@@ -200,8 +272,6 @@ class AssemblyService
                 'options' => Arr::get($itemData, 'options'),
                 'position' => Arr::get($itemData, 'position', $position++),
                 'status' => Arr::get($itemData, 'status', 'pending'),
-                'opens_at' => Arr::get($itemData, 'opens_at'),
-                'closes_at' => Arr::get($itemData, 'closes_at'),
             ];
 
             if ($itemId) {

@@ -45,20 +45,17 @@ class AssemblyWorkflowTest extends TestCase
 
         Sanctum::actingAs($sindico);
 
-        $scheduledAt = now()->addDays(2)->seconds(0);
-        $votingCloses = $scheduledAt->copy()->addDay();
+        $votingOpens = now()->addDays(2)->seconds(0);
+        $votingCloses = $votingOpens->copy()->addDay();
 
         $payload = [
             'title' => 'Assembleia Geral Extraordinária',
             'description' => 'Deliberação sobre obras e prestação de contas.',
             'urgency' => 'high',
-            'scheduled_at' => $scheduledAt->format('Y-m-d\TH:i'),
-            'voting_opens_at' => $scheduledAt->format('Y-m-d\TH:i'),
+            'voting_opens_at' => $votingOpens->format('Y-m-d\TH:i'),
             'voting_closes_at' => $votingCloses->format('Y-m-d\TH:i'),
-            'duration_minutes' => 150,
             'voting_type' => 'open',
             'results_visibility' => 'real_time',
-            'allow_delegation' => true,
             'allow_comments' => true,
             'allowed_roles' => ['Morador', 'Síndico'],
             'items' => [
@@ -66,7 +63,6 @@ class AssemblyWorkflowTest extends TestCase
                     'title' => 'Prestação de contas 2025',
                     'description' => 'Análise do balancete anual.',
                     'options' => ['aprovar', 'rejeitar', 'abstenção'],
-                    'opens_at' => $scheduledAt->format('Y-m-d\TH:i'),
                 ],
                 [
                     'title' => 'Obra da fachada',
@@ -101,7 +97,6 @@ class AssemblyWorkflowTest extends TestCase
             'id' => $assemblyId,
             'title' => 'Assembleia Geral Extraordinária',
             'urgency' => 'high',
-            'allow_delegation' => true,
             'allow_comments' => true,
             'results_visibility' => 'real_time',
         ]);
@@ -119,6 +114,7 @@ class AssemblyWorkflowTest extends TestCase
 
         $this->seedRoles(['Síndico', 'Morador']);
         $this->seedPermission('create_assemblies', 'Síndico');
+        $this->seedPermission('vote_assemblies', 'Morador');
 
         $sindico = User::factory()->for($condominium)->create();
         $sindico->assignRole('Síndico');
@@ -134,10 +130,8 @@ class AssemblyWorkflowTest extends TestCase
             'title' => 'Assembleia Ordinária',
             'description' => 'Pauta mensal.',
             'urgency' => 'normal',
-            'scheduled_at' => now()->addHour(),
             'voting_opens_at' => now()->subMinutes(5),
             'voting_closes_at' => now()->addHours(2),
-            'duration_minutes' => 90,
             'voting_type' => 'open',
             'results_visibility' => 'real_time',
             'allow_comments' => true,
@@ -180,6 +174,7 @@ class AssemblyWorkflowTest extends TestCase
 
         $this->seedRoles(['Síndico', 'Morador']);
         $this->seedPermission('create_assemblies', 'Síndico');
+        $this->seedPermission('vote_assemblies', 'Morador');
 
         $sindico = User::factory()->for($condominium)->create();
         $sindico->assignRole('Síndico');
@@ -196,10 +191,8 @@ class AssemblyWorkflowTest extends TestCase
             'condominium_id' => $condominium->id,
             'title' => 'Assembleia Secreta',
             'urgency' => 'critical',
-            'scheduled_at' => now()->subHour(),
-            'voting_opens_at' => now()->subMinutes(30),
+            'voting_opens_at' => now()->subHour(),
             'voting_closes_at' => now()->addHour(),
-            'duration_minutes' => 60,
             'voting_type' => 'secret',
             'results_visibility' => 'final_only',
             'allow_comments' => false,
@@ -241,6 +234,46 @@ class AssemblyWorkflowTest extends TestCase
         ]);
     }
 
+    public function test_sindico_reabre_votacao_apos_encerramento_do_prazo(): void
+    {
+        $condominium = Condominium::factory()->create();
+
+        $this->seedRoles(['Síndico', 'Morador']);
+        $this->seedPermission('manage_assemblies', 'Síndico');
+
+        $sindico = User::factory()->for($condominium)->create();
+        $sindico->assignRole('Síndico');
+
+        /** @var AssemblyService $assemblyService */
+        $assemblyService = app(AssemblyService::class);
+
+        $assembly = $assemblyService->createAssembly([
+            'condominium_id' => $condominium->id,
+            'title' => 'Assembleia para reabertura',
+            'urgency' => 'normal',
+            'voting_opens_at' => now()->subDays(2),
+            'voting_closes_at' => now()->subDay(),
+            'items' => [
+                ['title' => 'Item único', 'options' => ['sim', 'não']],
+            ],
+        ], $sindico);
+
+        Sanctum::actingAs($sindico);
+
+        $newOpens = now()->subMinute();
+        $newCloses = now()->addDays(2);
+
+        $this->postJson("/api/assemblies/{$assembly->id}/reopen", [
+            'voting_opens_at' => $newOpens->format('Y-m-d\TH:i'),
+            'voting_closes_at' => $newCloses->format('Y-m-d\TH:i'),
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Votação reaberta com sucesso.');
+
+        $refreshed = $assembly->fresh();
+        $this->assertTrue($refreshed->isVotingOpen());
+    }
+
     private function seedRoles(array $roles): void
     {
         collect($roles)->each(fn (string $role) => Role::firstOrCreate(['name' => $role]));
@@ -252,4 +285,3 @@ class AssemblyWorkflowTest extends TestCase
         Role::where('name', $role)->first()->givePermissionTo($perm);
     }
 }
-

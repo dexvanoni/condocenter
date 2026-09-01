@@ -25,7 +25,14 @@ class AssemblyVotingService
             ]);
         }
 
-        if ($assembly->condominium_id !== $voter->condominium_id) {
+        if (!$voter->can('vote_assemblies')) {
+            throw ValidationException::withMessages([
+                'user' => 'Você não possui permissão para votar em assembleias.',
+            ]);
+        }
+
+        $tenantId = $voter->tenantCondominiumId();
+        if ($assembly->condominium_id !== $tenantId) {
             throw ValidationException::withMessages([
                 'user' => 'Votante não pertence ao condomínio da assembleia.',
             ]);
@@ -73,13 +80,29 @@ class AssemblyVotingService
                 ]);
             }
 
+            if ($voter->unit_id) {
+                $unitVoteExists = AssemblyVote::query()
+                    ->where('assembly_item_id', $item->id)
+                    ->where('unit_id', $voter->unit_id)
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($unitVoteExists) {
+                    throw ValidationException::withMessages([
+                        'vote' => 'Já existe um voto registrado para a sua unidade neste item.',
+                    ]);
+                }
+            }
+
+            $isSecret = $assembly->voting_type === 'secret';
+
             return AssemblyVote::create([
                 'assembly_id' => $assembly->id,
                 'assembly_item_id' => $item->id,
                 'voter_id' => $voter->id,
                 'unit_id' => $voter->unit_id,
-                'choice' => $choice,
-                'encrypted_choice' => $assembly->voting_type === 'secret' ? encrypt($choice) : null,
+                'choice' => $isSecret ? 'confidential' : $choice,
+                'encrypted_choice' => $isSecret ? encrypt($choice) : null,
                 'comment' => $comment,
             ]);
         });
@@ -117,11 +140,9 @@ class AssemblyVotingService
             ->values();
 
         if ($allowedRoles->isEmpty()) {
-            // fallback padrão
-            $allowedRoles = collect(['Morador', 'Agregado', 'Síndico']);
+            $allowedRoles = collect(['Morador', 'Síndico']);
         }
 
         return $user->roles()->whereIn('name', $allowedRoles)->exists();
     }
 }
-

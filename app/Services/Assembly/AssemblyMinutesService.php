@@ -3,11 +3,17 @@
 namespace App\Services\Assembly;
 
 use App\Models\Assembly;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 
 class AssemblyMinutesService
 {
+    public function __construct(
+        private readonly AssemblyVotingStatsService $votingStatsService
+    ) {
+    }
+
     public function generateAndPersistMinutes(Assembly $assembly): void
     {
         $assembly->unsetRelation('items');
@@ -17,6 +23,7 @@ class AssemblyMinutesService
             'attachments',
             'allowedRoles',
             'creator',
+            'condominium',
         ]);
 
         $minutesData = $this->buildMinutesData($assembly);
@@ -36,7 +43,18 @@ class AssemblyMinutesService
     public function buildMinutesData(Assembly $assembly): array
     {
         $items = $assembly->items->sortBy('position')->map(function ($item) use ($assembly) {
-            $votes = $item->votes;
+            $votes = $item->votes->map(function ($vote) use ($assembly) {
+                if ($assembly->voting_type === 'secret' && $vote->encrypted_choice) {
+                    try {
+                        $vote->choice = decrypt($vote->encrypted_choice);
+                    } catch (\Throwable) {
+                        // mantém mascarado
+                    }
+                }
+
+                return $vote;
+            });
+
             $totals = $votes->groupBy('choice')->map->count();
             $totalVotes = $votes->count();
 
@@ -95,7 +113,24 @@ class AssemblyMinutesService
             ];
         })->values();
 
+        $condominium = $assembly->condominium;
+        $sindico = $this->resolveSindico($assembly);
+
         return [
+            'condominium' => [
+                'name' => $condominium?->name ?? 'Condomínio',
+                'cnpj' => $condominium?->cnpj,
+                'address' => $this->formatCondominiumAddress($condominium),
+                'city' => $condominium?->city,
+                'state' => $condominium?->state,
+                'phone' => $condominium?->phone,
+                'email' => $condominium?->email,
+            ],
+            'sindico' => [
+                'name' => $sindico?->name ?? '_______________________________',
+                'email' => $sindico?->email,
+            ],
+            'participation' => $this->votingStatsService->compute($assembly),
             'assembly' => [
                 'id' => $assembly->id,
                 'title' => $assembly->title,
@@ -139,11 +174,33 @@ class AssemblyMinutesService
         $items = $minutesData['items'];
 
         $lines = [];
-        $lines[] = '# Ata da Assembleia';
+        $condominiumName = $minutesData['condominium']['name'] ?? 'Condomínio';
+        $lines[] = "# Ata de Assembleia — {$condominiumName}";
         $lines[] = '';
         $lines[] = "**Título:** {$assembly['title']}";
         $lines[] = "**Situação:** {$assembly['status_label']}";
         $lines[] = "**Urgência:** {$assembly['urgency']}";
+
+        if (!empty($minutesData['participation'])) {
+            $users = $minutesData['participation']['users'];
+            $units = $minutesData['participation']['units'];
+            $lines[] = '';
+            $lines[] = '## Participação';
+            $lines[] = sprintf(
+                '- Moradores elegíveis: %d | Votaram: %d | Pendentes: %d (%.1f%%)',
+                $users['eligible'],
+                $users['voted'],
+                $users['pending'],
+                $users['participation_rate']
+            );
+            $lines[] = sprintf(
+                '- Unidades elegíveis: %d | Votaram: %d | Pendentes: %d (%.1f%%)',
+                $units['eligible'],
+                $units['voted'],
+                $units['pending'],
+                $units['participation_rate']
+            );
+        }
 
         if ($assembly['scheduled_at']) {
             $lines[] = '**Programada para:** ' . $this->formatDate($assembly['scheduled_at']);
@@ -211,7 +268,52 @@ class AssemblyMinutesService
             $lines[] = '';
         }
 
+        $lines[] = '';
+        $lines[] = '## Assinatura';
+        $lines[] = '';
+        $lines[] = '______________________________________________';
+        $lines[] = ($minutesData['sindico']['name'] ?? 'Síndico(a)') . ' — Síndico(a) do Condomínio';
+        $lines[] = 'Data: ____/____/________';
+
         return implode(PHP_EOL, $lines);
+    }
+
+    protected function resolveSindico(Assembly $assembly): ?User
+    {
+        $sindico = User::query()
+            ->where('condominium_id', $assembly->condominium_id)
+            ->where('is_active', true)
+            ->whereHas('roles', fn ($query) => $query->where('name', 'Síndico'))
+            ->orderBy('id')
+            ->first();
+
+        if ($sindico) {
+            return $sindico;
+        }
+
+        if ($assembly->creator && $assembly->creator->hasRole('Síndico')) {
+            return $assembly->creator;
+        }
+
+        return null;
+    }
+
+    protected function formatCondominiumAddress($condominium): ?string
+    {
+        if (!$condominium) {
+            return null;
+        }
+
+        $parts = array_filter([
+            $condominium->address,
+            $condominium->neighborhood,
+            $condominium->city && $condominium->state
+                ? "{$condominium->city}/{$condominium->state}"
+                : ($condominium->city ?? $condominium->state),
+            $condominium->zip_code ? "CEP {$condominium->zip_code}" : null,
+        ]);
+
+        return $parts ? implode(' — ', $parts) : null;
     }
 
     protected function formatDate(?string $isoDate): string

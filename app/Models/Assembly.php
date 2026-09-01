@@ -120,7 +120,7 @@ class Assembly extends Model
     {
         $now = now();
 
-        if ($this->status === 'cancelled') {
+        if (in_array($this->status, ['cancelled', 'completed'], true)) {
             return false;
         }
 
@@ -132,7 +132,7 @@ class Assembly extends Model
             return false;
         }
 
-        return in_array($this->status, ['scheduled', 'in_progress'], true);
+        return true;
     }
 
     public function syncAllowedRoles(array $roleIds): void
@@ -169,14 +169,22 @@ class Assembly extends Model
 
     public function getDisplayStatusAttribute(): string
     {
-        if ($this->status === 'scheduled'
-            && $this->scheduled_at
-            && now()->greaterThanOrEqualTo($this->scheduled_at)
-        ) {
+        if (in_array($this->status, ['completed', 'cancelled'], true)) {
+            return $this->status;
+        }
+
+        $now = now();
+        $opensAt = $this->voting_opens_at ?? $this->scheduled_at;
+
+        if ($this->voting_closes_at && $now->gt($this->voting_closes_at)) {
+            return 'voting_closed';
+        }
+
+        if ($opensAt && $now->greaterThanOrEqualTo($opensAt)) {
             return 'in_progress';
         }
 
-        return $this->status;
+        return 'scheduled';
     }
 
     public function getVoteSummaryAttribute(): array
@@ -185,11 +193,23 @@ class Assembly extends Model
 
         return $this->items
             ->mapWithKeys(function (AssemblyItem $item) {
-                $totals = $item->votes
+                $votes = $item->votes->map(function ($vote) {
+                    if ($this->voting_type === 'secret' && $vote->encrypted_choice) {
+                        try {
+                            $vote->choice = decrypt($vote->encrypted_choice);
+                        } catch (\Throwable) {
+                            // mantém valor mascarado
+                        }
+                    }
+
+                    return $vote;
+                });
+
+                $totals = $votes
                     ->groupBy('choice')
                     ->map->count();
 
-                $totalVotes = $item->votes->count();
+                $totalVotes = $votes->count();
                 $threshold = $totalVotes > 0 ? intdiv($totalVotes, 2) + 1 : null;
 
                 $breakdown = $totals

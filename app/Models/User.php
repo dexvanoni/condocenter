@@ -330,6 +330,19 @@ class User extends Authenticatable implements Auditable
         return $this->qr_code;
     }
 
+    public function whatsappPhone(): ?string
+    {
+        foreach (['phone', 'telefone_celular', 'telefone_residencial', 'telefone_comercial'] as $field) {
+            $value = $this->{$field};
+
+            if (filled($value)) {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     // Scopes
     public function scopeActive($query)
     {

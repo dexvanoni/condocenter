@@ -950,8 +950,8 @@
             'show_selector' => false,
         ];
             $menuActive = [
-            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show'),
-            'plataforma' => request()->routeIs('condominiums.index') || request()->routeIs('condominiums.create') || request()->routeIs('condominiums.edit'),
+            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show') || request()->routeIs('condominiums.settings.whatsapp*'),
+            'plataforma' => request()->routeIs('condominiums.index') || request()->routeIs('condominiums.create') || request()->routeIs('condominiums.edit') || request()->routeIs('condominiums.settings.whatsapp*'),
             'configuracoes_globais' => request()->routeIs('platform.*'),
             'financeiro' => request()->routeIs('transactions.*')
                 || request()->routeIs('fees.*')
@@ -1100,8 +1100,13 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('platform.settings.*') ? 'active' : '' }}" href="{{ route('platform.settings.asaas') }}">
+                                <a class="nav-link {{ request()->routeIs('platform.settings.asaas') ? 'active' : '' }}" href="{{ route('platform.settings.asaas') }}">
                                     <i class="bi bi-credit-card-2-front"></i> Asaas (SaaS)
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.settings.whatsapp*') ? 'active' : '' }}" href="{{ route('platform.settings.whatsapp') }}">
+                                    <i class="bi bi-whatsapp"></i> WhatsApp
                                 </a>
                             </li>
                         </ul>
@@ -1157,6 +1162,13 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('syndic-subscription.*') ? 'active' : '' }}" href="{{ route('syndic-subscription.show') }}">
                                     <i class="bi bi-receipt-cutoff"></i> Assinatura SaaS
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('condominiums.settings.whatsapp') && \App\Helpers\SidebarHelper::canManageWhatsAppSettings($user) && !empty($activeCondominiumContext['id']))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('condominiums.settings.whatsapp*') ? 'active' : '' }}" href="{{ route('condominiums.settings.whatsapp', $activeCondominiumContext['id']) }}">
+                                    <i class="bi bi-whatsapp"></i> WhatsApp
                                 </a>
                             </li>
                             @endif
@@ -1793,8 +1805,13 @@
                                         </a>
                                     </li>
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('platform.settings.*') ? 'active' : '' }}" href="{{ route('platform.settings.asaas') }}">
+                                        <a class="nav-link {{ request()->routeIs('platform.settings.asaas') ? 'active' : '' }}" href="{{ route('platform.settings.asaas') }}">
                                             <i class="bi bi-credit-card-2-front"></i> Asaas (SaaS)
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.settings.whatsapp*') ? 'active' : '' }}" href="{{ route('platform.settings.whatsapp') }}">
+                                            <i class="bi bi-whatsapp"></i> WhatsApp
                                         </a>
                                     </li>
                                 </ul>
@@ -1851,6 +1868,13 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('syndic-subscription.*') ? 'active' : '' }}" href="{{ route('syndic-subscription.show') }}">
                                             <i class="bi bi-receipt-cutoff"></i> Assinatura SaaS
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('condominiums.settings.whatsapp') && \App\Helpers\SidebarHelper::canManageWhatsAppSettings($user) && !empty($activeCondominiumContext['id']))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('condominiums.settings.whatsapp*') ? 'active' : '' }}" href="{{ route('condominiums.settings.whatsapp', $activeCondominiumContext['id']) }}">
+                                            <i class="bi bi-whatsapp"></i> WhatsApp
                                         </a>
                                     </li>
                                     @endif
@@ -2349,29 +2373,6 @@
     @stack('scripts')
 
     @include('layouts.partials.access-notifications-poll')
-
-    @php
-        $oneSignalTags = [
-            'condominium_id' => optional($user)->getActiveCondominiumId() ?? optional($user)->condominium_id,
-            'role_admin' => optional($user)->getActiveRoleName() === 'Administrador' ? '1' : '0',
-            'role_sindico' => optional($user)->getActiveRoleName() === 'Síndico' ? '1' : '0',
-        ];
-
-        $oneSignalConfig = [
-            'enabled' => config('onesignal.enabled', false),
-            'userId' => optional($user)->id,
-            'tags' => array_filter($oneSignalTags, fn ($value) => !is_null($value)),
-            'meta' => [
-                'prompt' => [
-                    'force' => false,
-                ],
-            ],
-        ];
-    @endphp
-
-    <script>
-        window.AppOneSignal = @json($oneSignalConfig);
-    </script>
 
     <script>
         // Mobile sidebar já funciona com Bootstrap collapse
@@ -4132,17 +4133,5 @@
         };
     </script>
     @endif
-    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
-<script>
-  window.OneSignal = window.OneSignal || [];
-  OneSignal.push(function() {
-    OneSignal.init({
-      appId: "e44db475-4460-4545-8b3b-cdc31b6dd396",
-      safari_web_id: "SEU_SAFARI_WEB_ID_SE_EXISTIR",
-      notifyButton: { enable: true },
-      allowLocalhostAsSecureOrigin: true, // permite testes locais com HTTPS falso
-    });
-  });
-</script>
 </body>
 </html>

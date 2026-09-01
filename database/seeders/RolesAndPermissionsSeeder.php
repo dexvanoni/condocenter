@@ -162,6 +162,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'create_assemblies',
             'manage_assemblies',
             'view_assemblies',
+            'vote_assemblies',
             'send_announcements',
             'manage_panic_alerts',
             'view_messages',

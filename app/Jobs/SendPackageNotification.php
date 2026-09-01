@@ -12,7 +12,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use App\Services\OneSignalNotificationService;
 
 class SendPackageNotification implements ShouldQueue
 {
@@ -86,24 +85,6 @@ class SendPackageNotification implements ShouldQueue
 
             // Marcar notificação como enviada
             $this->package->update(['notification_sent' => true]);
-
-            /** @var OneSignalNotificationService $oneSignal */
-            $oneSignal = app(OneSignalNotificationService::class);
-            if ($oneSignal->isEnabled() && $residents->isNotEmpty()) {
-                $payload = [
-                    'package_id' => $this->package->id,
-                    'type_label' => $this->package->type_label,
-                    'unit_label' => $this->package->unit->full_identifier ?? 'Unidade',
-                    'received_at' => optional($this->package->received_at)->format('d/m/Y H:i'),
-                    'collected_at' => optional($this->package->collected_at)->format('d/m/Y H:i'),
-                ];
-
-                $oneSignal->sendPackageNotification(
-                    $residents->pluck('id')->all(),
-                    $this->type,
-                    $payload
-                );
-            }
 
             Log::info("Notificação de encomenda enviada", [
                 'package_id' => $this->package->id,

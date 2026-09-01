@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\AccessMovement;
 use App\Models\Notification;
 use App\Models\User;
-use App\Services\OneSignalNotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -95,27 +94,6 @@ class SendProhibitionAlertNotification implements ShouldQueue
             'sent' => true,
             'sent_at' => now(),
         ]);
-
-        $oneSignal = app(OneSignalNotificationService::class);
-
-        if (!$oneSignal->isEnabled()) {
-            return;
-        }
-
-        try {
-            $oneSignal->sendToUsers(
-                [$recipient->id],
-                $message,
-                $title,
-                [
-                    'type' => 'access_prohibition_critical',
-                    'movement_id' => (string) $movement->id,
-                    'critical' => '1',
-                ]
-            );
-        } catch (\Throwable $e) {
-            Log::warning('OneSignal prohibition alert failed: ' . $e->getMessage());
-        }
     }
 
     protected function buildMessage(AccessMovement $movement): string

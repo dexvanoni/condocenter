@@ -12,6 +12,7 @@
         <div class="d-flex gap-2">
             <a href="{{ route('platform.plans.index') }}" class="btn btn-outline-primary btn-sm">Planos</a>
             <a href="{{ route('platform.settings.asaas') }}" class="btn btn-outline-secondary btn-sm">Asaas</a>
+            <a href="{{ route('platform.settings.whatsapp') }}" class="btn btn-outline-success btn-sm">WhatsApp</a>
             <a href="{{ route('condominiums.index') }}" class="btn btn-primary btn-sm">Condomínios</a>
         </div>
     </div>

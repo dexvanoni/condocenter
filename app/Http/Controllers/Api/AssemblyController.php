@@ -8,9 +8,11 @@ use App\Models\AssemblyAttachment;
 use App\Models\AssemblyItem;
 use App\Models\User;
 use App\Services\Assembly\AssemblyMinutesService;
+use App\Services\Assembly\AssemblyNotificationService;
+use App\Services\Assembly\AssemblyResponseService;
 use App\Services\Assembly\AssemblyService;
+use App\Services\Assembly\AssemblyVotingStatsService;
 use App\Services\Assembly\AssemblyVotingService;
-use App\Services\OneSignalNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,7 +29,10 @@ class AssemblyController extends Controller
     public function __construct(
         private readonly AssemblyService $assemblyService,
         private readonly AssemblyVotingService $votingService,
-        private readonly AssemblyMinutesService $minutesService
+        private readonly AssemblyMinutesService $minutesService,
+        private readonly AssemblyResponseService $responseService,
+        private readonly AssemblyNotificationService $notificationService,
+        private readonly AssemblyVotingStatsService $votingStatsService
     ) {
     }
 
@@ -55,20 +60,27 @@ class AssemblyController extends Controller
 
         if ($status = $request->input('status')) {
             if ($status === 'scheduled') {
-                $query->where('status', 'scheduled')
+                $query->whereNotIn('status', ['completed', 'cancelled'])
                     ->where(function ($q) {
-                        $q->whereNull('scheduled_at')
-                          ->orWhere('scheduled_at', '>', Carbon::now());
+                        $q->whereNull('voting_opens_at')
+                            ->orWhere('voting_opens_at', '>', Carbon::now());
                     });
             } elseif ($status === 'in_progress') {
-                $query->where(function ($q) {
-                    $q->where('status', 'in_progress')
-                      ->orWhere(function ($inner) {
-                          $inner->where('status', 'scheduled')
-                                ->whereNotNull('scheduled_at')
-                                ->where('scheduled_at', '<=', Carbon::now());
-                      });
-                });
+                $query->whereNotIn('status', ['completed', 'cancelled'])
+                    ->where(function ($q) {
+                        $now = Carbon::now();
+                        $q->where(function ($inner) use ($now) {
+                            $inner->whereNotNull('voting_opens_at')
+                                ->where('voting_opens_at', '<=', $now)
+                                ->where(function ($window) use ($now) {
+                                    $window->whereNull('voting_closes_at')
+                                        ->orWhere('voting_closes_at', '>=', $now);
+                                });
+                        })->orWhere(function ($inner) use ($now) {
+                            $inner->whereNotNull('voting_closes_at')
+                                ->where('voting_closes_at', '<', $now);
+                        });
+                    });
             } else {
                 $query->where('status', $status);
             }
@@ -79,22 +91,29 @@ class AssemblyController extends Controller
         }
 
         if ($request->boolean('only_open_for_voting')) {
-            $query->where(function ($q) {
-                $now = now();
-                $q->whereNull('voting_opens_at')->orWhere('voting_opens_at', '<=', $now);
-            })->where(function ($q) {
-                $now = now();
-                $q->whereNull('voting_closes_at')->orWhere('voting_closes_at', '>=', $now);
-            });
+            $now = now();
+            $query->whereNotIn('status', ['completed', 'cancelled'])
+                ->where(function ($q) use ($now) {
+                    $q->whereNull('voting_opens_at')->orWhere('voting_opens_at', '<=', $now);
+                })->where(function ($q) use ($now) {
+                    $q->whereNull('voting_closes_at')->orWhere('voting_closes_at', '>=', $now);
+                });
         }
 
         $assemblies = $query
+            ->orderByDesc('voting_opens_at')
             ->orderByDesc('scheduled_at')
             ->paginate($request->integer('per_page', 15));
 
-        $assemblies->getCollection()->each(function (Assembly $assembly) {
-            $assembly->append(['vote_summary', 'display_status', 'is_voting_open']);
-        });
+        $assemblies->setCollection(
+            $this->responseService->sanitizeCollection(
+                $assemblies->getCollection()->each(function (Assembly $assembly) use ($user) {
+                    $assembly->append(['vote_summary', 'display_status', 'is_voting_open']);
+                    $this->attachVotingStats($assembly, $user);
+                }),
+                $user
+            )
+        );
 
         return response()->json($assemblies);
     }
@@ -111,16 +130,13 @@ class AssemblyController extends Controller
         $rules = [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'scheduled_at' => 'required|date|after:now',
-            'voting_opens_at' => 'nullable|date|after_or_equal:scheduled_at',
-            'voting_closes_at' => 'nullable|date|after:scheduled_at',
-            'duration_minutes' => 'required|integer|min:15|max:1440',
+            'voting_opens_at' => 'required|date|after:now',
+            'voting_closes_at' => 'required|date|after:voting_opens_at',
             'voting_type' => ['required', Rule::in(['open', 'secret'])],
             'urgency' => ['required', Rule::in(['low', 'normal', 'high', 'critical'])],
             'results_visibility' => ['required', Rule::in(['final_only', 'real_time'])],
-            'allow_delegation' => 'boolean',
             'allow_comments' => 'boolean',
-            'allowed_roles' => 'nullable|array',
+            'allowed_roles' => 'nullable|array|min:1',
             'allowed_roles.*' => 'string',
             'items' => 'required_without:agenda|array|min:1',
             'items.*.title' => 'required|string|max:255',
@@ -128,23 +144,22 @@ class AssemblyController extends Controller
             'items.*.options' => 'nullable|array|min:1',
             'items.*.options.*' => 'string|max:100',
             'items.*.position' => 'nullable|integer|min:0',
-            'items.*.opens_at' => 'nullable|date',
-            'items.*.closes_at' => 'nullable|date',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|mimes:png,jpg,jpeg,webp,pdf|max:5120',
             'agenda' => 'nullable|array',
         ];
 
         $messages = [
-            'scheduled_at.after' => 'A data de início deve ser futura.',
-            'voting_opens_at.after_or_equal' => 'O início da votação deve ser igual ou posterior à data de início.',
-            'voting_closes_at.after' => 'O encerramento da votação deve ser posterior à data de início.',
+            'voting_opens_at.after' => 'O início da votação deve ser uma data futura.',
+            'voting_closes_at.after' => 'O término da votação deve ser posterior ao início.',
+            'allowed_roles.min' => 'Selecione ao menos um perfil autorizado a votar.',
             'results_visibility.in' => 'Selecione uma opção válida para a visibilidade dos resultados.',
         ];
 
         $validated = Validator::make($request->all(), $rules, $messages)->validate();
 
         $payload = $validated;
+        $payload['scheduled_at'] = $validated['voting_opens_at'];
 
         if (!empty($validated['allowed_roles'])) {
             $payload['allowed_role_ids'] = $this->resolveRoleIds($validated['allowed_roles']);
@@ -155,17 +170,23 @@ class AssemblyController extends Controller
 
         $assembly = $this->assemblyService->createAssembly($payload, $user);
 
-        $this->notifyAssemblyUsers($assembly->fresh('allowedRoles'), 'scheduled');
+        $this->notificationService->notifyEligibleUsers($assembly->fresh('allowedRoles'), 'created');
+
+        $assembly = $assembly->load(['items', 'attachments', 'allowedRoles']);
+        $this->responseService->sanitize($assembly, $user);
 
         return response()->json([
             'message' => 'Assembleia criada com sucesso.',
-            'assembly' => $assembly->load(['items', 'attachments', 'allowedRoles']),
+            'assembly' => $assembly,
         ], 201);
     }
 
     public function show(Assembly $assembly): JsonResponse
     {
         $this->ensureSameCondominium($assembly);
+
+        /** @var User $user */
+        $user = Auth::user();
 
         $assembly->load([
             'creator',
@@ -176,10 +197,10 @@ class AssemblyController extends Controller
             'allowedRoles',
         ]);
         $assembly->loadCount('votes');
-
         $assembly->append(['vote_summary', 'display_status', 'is_voting_open']);
+        $this->attachVotingStats($assembly, $user);
 
-        return response()->json($assembly);
+        return response()->json($this->responseService->sanitize($assembly, $user));
     }
 
     public function update(Request $request, Assembly $assembly): JsonResponse
@@ -196,18 +217,15 @@ class AssemblyController extends Controller
         $rules = [
             'title' => 'sometimes|string|max:255',
             'description' => 'sometimes|nullable|string',
-            'scheduled_at' => 'sometimes|date',
-            'voting_opens_at' => 'sometimes|nullable|date',
-            'voting_closes_at' => 'sometimes|nullable|date',
-            'duration_minutes' => 'sometimes|integer|min:15|max:1440',
+            'voting_opens_at' => 'sometimes|date',
+            'voting_closes_at' => 'sometimes|date|after:voting_opens_at',
             'voting_type' => ['sometimes', Rule::in(['open', 'secret'])],
             'urgency' => ['sometimes', Rule::in(['low', 'normal', 'high', 'critical'])],
             'results_visibility' => ['sometimes', Rule::in(['final_only', 'real_time'])],
-            'allow_delegation' => 'sometimes|boolean',
             'allow_comments' => 'sometimes|boolean',
             'status' => ['sometimes', Rule::in(['scheduled', 'in_progress', 'completed', 'cancelled'])],
             'status_context' => 'sometimes|array',
-            'allowed_roles' => 'sometimes|array',
+            'allowed_roles' => 'sometimes|array|min:1',
             'allowed_roles.*' => 'string',
             'items' => 'sometimes|array',
             'items.*.id' => 'sometimes|integer|exists:assembly_items,id',
@@ -217,8 +235,6 @@ class AssemblyController extends Controller
             'items.*.options.*' => 'string|max:100',
             'items.*.position' => 'nullable|integer|min:0',
             'items.*.status' => ['nullable', Rule::in(['pending', 'open', 'closed', 'cancelled'])],
-            'items.*.opens_at' => 'nullable|date',
-            'items.*.closes_at' => 'nullable|date',
             'attachments_to_add' => 'sometimes|array|max:10',
             'attachments_to_add.*' => 'file|mimes:png,jpg,jpeg,webp,pdf|max:5120',
             'attachments_to_remove' => 'sometimes|array',
@@ -226,35 +242,14 @@ class AssemblyController extends Controller
         ];
 
         $messages = [
-            'voting_opens_at.after_or_equal' => 'O início da votação deve ser igual ou posterior à data de início.',
-            'voting_closes_at.after' => 'O encerramento da votação deve ser posterior à data de início.',
+            'voting_closes_at.after' => 'O término da votação deve ser posterior ao início.',
             'results_visibility.in' => 'Selecione uma opção válida para a visibilidade dos resultados.',
         ];
 
-        $validator = Validator::make($request->all(), $rules, $messages);
-
-        $validated = $validator->validate();
-
-        $scheduledAt = isset($validated['scheduled_at'])
-            ? Carbon::parse($validated['scheduled_at'])
-            : $assembly->scheduled_at;
+        $validated = Validator::make($request->all(), $rules, $messages)->validate();
 
         if (!empty($validated['voting_opens_at'])) {
-            $opensAt = Carbon::parse($validated['voting_opens_at']);
-            if ($scheduledAt && $opensAt->lt($scheduledAt)) {
-                throw ValidationException::withMessages([
-                    'voting_opens_at' => 'O início da votação deve ser igual ou posterior à data de início.',
-                ]);
-            }
-        }
-
-        if (!empty($validated['voting_closes_at'])) {
-            $closesAt = Carbon::parse($validated['voting_closes_at']);
-            if ($scheduledAt && $closesAt->lte($scheduledAt)) {
-                throw ValidationException::withMessages([
-                    'voting_closes_at' => 'O encerramento da votação deve ser posterior à data de início.',
-                ]);
-            }
+            $validated['scheduled_at'] = $validated['voting_opens_at'];
         }
 
         $payload = $validated;
@@ -277,10 +272,12 @@ class AssemblyController extends Controller
         }
 
         $updated = $this->assemblyService->updateAssembly($assembly, $payload, Auth::user());
+        $updated = $updated->load(['items', 'attachments', 'allowedRoles']);
+        $this->responseService->sanitize($updated, Auth::user());
 
         return response()->json([
             'message' => 'Assembleia atualizada com sucesso.',
-            'assembly' => $updated->load(['items', 'attachments', 'allowedRoles']),
+            'assembly' => $updated,
         ]);
     }
 
@@ -312,6 +309,10 @@ class AssemblyController extends Controller
     {
         $this->ensureSameCondominium($assembly);
 
+        if ($item->assembly_id !== $assembly->id) {
+            abort(404);
+        }
+
         $request->validate([
             'choice' => 'required|string|max:100',
             'comment' => 'nullable|string|max:1000',
@@ -325,9 +326,14 @@ class AssemblyController extends Controller
             $request->input('comment')
         );
 
+        $votePayload = $vote->load(['voter', 'unit']);
+        if ($assembly->voting_type === 'secret') {
+            $votePayload->makeHidden(['choice', 'encrypted_choice']);
+        }
+
         return response()->json([
             'message' => 'Voto registrado com sucesso.',
-            'vote' => $vote->load(['voter', 'unit']),
+            'vote' => $votePayload,
         ], 201);
     }
 
@@ -338,7 +344,7 @@ class AssemblyController extends Controller
 
         $context = [
             'started_at' => $request->input('started_at')
-                ? \Carbon\Carbon::parse($request->input('started_at'))
+                ? Carbon::parse($request->input('started_at'))
                 : now(),
             'reason' => $request->input('reason'),
         ];
@@ -348,8 +354,6 @@ class AssemblyController extends Controller
         ]);
 
         $this->assemblyService->transitionStatus($assembly, 'in_progress', Auth::user(), $context);
-
-        $this->notifyAssemblyUsers($assembly->fresh('allowedRoles'), 'in_progress');
 
         return response()->json([
             'message' => 'Assembleia iniciada com sucesso.',
@@ -364,7 +368,7 @@ class AssemblyController extends Controller
 
         $context = [
             'ended_at' => $request->input('ended_at')
-                ? \Carbon\Carbon::parse($request->input('ended_at'))
+                ? Carbon::parse($request->input('ended_at'))
                 : now(),
             'reason' => $request->input('reason'),
         ];
@@ -391,11 +395,36 @@ class AssemblyController extends Controller
             'ended_at' => now(),
         ];
 
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
         $this->assemblyService->transitionStatus($assembly, 'cancelled', Auth::user(), $context);
 
         return response()->json([
             'message' => 'Assembleia cancelada com sucesso.',
             'assembly' => $assembly->fresh(),
+        ]);
+    }
+
+    public function reopen(Request $request, Assembly $assembly): JsonResponse
+    {
+        $this->ensureSameCondominium($assembly);
+        $this->ensureCanManage(Auth::user(), $assembly);
+
+        $validated = $request->validate([
+            'voting_opens_at' => 'required|date',
+            'voting_closes_at' => 'required|date|after:voting_opens_at',
+        ], [
+            'voting_closes_at.after' => 'O término da votação deve ser posterior ao início.',
+        ]);
+
+        $updated = $this->assemblyService->reopenVoting($assembly, $validated, Auth::user());
+        $this->notificationService->notifyEligibleUsers($updated, 'reopened');
+
+        return response()->json([
+            'message' => 'Votação reaberta com sucesso.',
+            'assembly' => $this->responseService->sanitize($updated->load(['items', 'attachments', 'allowedRoles']), Auth::user()),
         ]);
     }
 
@@ -429,9 +458,19 @@ class AssemblyController extends Controller
 
     protected function ensureCanManage(User $user, Assembly $assembly): void
     {
-        if ($assembly->created_by !== $user->id && !$user->hasAnyRole(['Síndico', 'Administrador'])) {
-            abort(403, 'Você não possui permissão para esta ação.');
+        if ($user->can('manage_assemblies')) {
+            return;
         }
+
+        if ($assembly->created_by === $user->id) {
+            return;
+        }
+
+        if ($user->hasAnyRole(['Síndico', 'Administrador'])) {
+            return;
+        }
+
+        abort(403, 'Você não possui permissão para esta ação.');
     }
 
     protected function resolveRoleIds(?array $roles): array
@@ -473,44 +512,19 @@ class AssemblyController extends Controller
             ->all();
     }
 
-    protected function notifyAssemblyUsers(Assembly $assembly, string $status): void
+    protected function attachVotingStats(Assembly $assembly, User $user): void
     {
-        /** @var OneSignalNotificationService $oneSignal */
-        $oneSignal = app(OneSignalNotificationService::class);
-        if (!$oneSignal->isEnabled()) {
+        if (!$this->userCanViewVotingStats($user, $assembly)) {
             return;
         }
 
-        $assembly->loadMissing('allowedRoles');
+        $assembly->setAttribute('voting_stats', $this->votingStatsService->compute($assembly));
+    }
 
-        $query = User::query()
-            ->where('condominium_id', $assembly->condominium_id)
-            ->where('is_active', true);
-
-        $roleNames = $assembly->allowedRoles->pluck('name')->filter()->unique()->values();
-
-        if ($roleNames->isNotEmpty()) {
-            $query->whereHas('roles', fn ($roles) => $roles->whereIn('name', $roleNames));
-        } else {
-            $query->whereHas('roles', fn ($roles) => $roles->whereIn('name', [
-                'Morador',
-                'Agregado',
-                'Síndico',
-                'Administrador',
-            ]));
-        }
-
-        $recipientIds = $query->pluck('id')->all();
-        if (empty($recipientIds)) {
-            return;
-        }
-
-        $oneSignal->sendAssemblyNotification($recipientIds, $status, [
-            'assembly_id' => $assembly->id,
-            'title' => $assembly->title,
-            'scheduled_at' => optional($assembly->scheduled_at)->toIso8601String(),
-            'scheduled_at_label' => optional($assembly->scheduled_at)->format('d/m/Y H:i'),
-            'status' => $status,
-        ]);
+    protected function userCanViewVotingStats(User $user, Assembly $assembly): bool
+    {
+        return $user->can('manage_assemblies')
+            || $assembly->created_by === $user->id
+            || $user->hasAnyRole(['Síndico', 'Administrador']);
     }
 }

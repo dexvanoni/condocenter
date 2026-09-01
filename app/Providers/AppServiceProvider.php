@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\Notification;
 use App\Models\Pet;
 use App\Models\ServiceProvider as AccessServiceProvider;
 use App\Models\Unit;
 use App\Models\User as UserModel;
+use App\Observers\NotificationObserver;
 use App\Services\AccessAlertService;
 use App\Services\RideAlertService;
 use App\Support\TenantContext;
@@ -30,7 +32,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (config('app.ambiente') === 'ngrok') {
+        if ($this->shouldForceHttpsUrls()) {
             URL::forceScheme('https');
 
             $rootUrl = rtrim((string) config('app.url'), '/');
@@ -40,6 +42,8 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->registerTenantRouteBindings();
+
+        Notification::observe(NotificationObserver::class);
 
         View::composer(['dashboard.*', 'access-control.*'], function ($view) {
             $user = Auth::user();
@@ -54,6 +58,17 @@ class AppServiceProvider extends ServiceProvider
             $view->with('rideAlerts', $rideAlerts);
             $view->with('accessAlerts', $accessAlerts);
         });
+    }
+
+    protected function shouldForceHttpsUrls(): bool
+    {
+        if (config('app.ambiente') !== 'ngrok') {
+            return false;
+        }
+
+        $appUrl = (string) config('app.url');
+
+        return str_starts_with($appUrl, 'https://');
     }
 
     protected function registerTenantRouteBindings(): void

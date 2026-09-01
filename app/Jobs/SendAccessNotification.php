@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Models\AccessMovement;
 use App\Models\Notification;
 use App\Models\User;
-use App\Services\OneSignalNotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -102,26 +101,6 @@ class SendAccessNotification implements ShouldQueue
             'sent' => true,
             'sent_at' => now(),
         ]);
-
-        $oneSignal = app(OneSignalNotificationService::class);
-
-        if (!$oneSignal->isEnabled()) {
-            return;
-        }
-
-        try {
-            $oneSignal->sendToUsers(
-                [$recipient->id],
-                $message,
-                $title,
-                [
-                    'type' => $entered ? 'access_entered' : 'access_denied',
-                    'movement_id' => (string) $movement->id,
-                ]
-            );
-        } catch (\Throwable $e) {
-            Log::warning('OneSignal access notification failed: ' . $e->getMessage());
-        }
     }
 
     protected function buildMessage(AccessMovement $movement, bool $entered): string

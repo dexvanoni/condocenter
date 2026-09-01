@@ -123,6 +123,7 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
     Route::post('assemblies/{assembly}/start', [AssemblyController::class, 'start'])->name('api.assemblies.start');
     Route::post('assemblies/{assembly}/complete', [AssemblyController::class, 'complete'])->name('api.assemblies.complete');
     Route::post('assemblies/{assembly}/cancel', [AssemblyController::class, 'cancel'])->name('api.assemblies.cancel');
+    Route::post('assemblies/{assembly}/reopen', [AssemblyController::class, 'reopen'])->name('api.assemblies.reopen');
     Route::get('assemblies/{assembly}/minutes/export', [AssemblyController::class, 'exportMinutes'])->name('api.assemblies.minutes.export');
     
     // Mensagens

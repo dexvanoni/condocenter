@@ -12,7 +12,6 @@ use Carbon\Carbon;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
-use App\Services\OneSignalNotificationService;
 
 class ChargeSettlementService
 {
@@ -75,34 +74,6 @@ class ChargeSettlementService
                 'created_by' => $userId,
             ]);
             $account->save();
-
-            DB::afterCommit(function () use ($charge, $paymentMethod, $paidAt) {
-                /** @var OneSignalNotificationService $oneSignal */
-                $oneSignal = app(OneSignalNotificationService::class);
-                if (!$oneSignal->isEnabled()) {
-                    return;
-                }
-
-                $recipientIds = User::query()
-                    ->where('condominium_id', $charge->condominium_id)
-                    ->where('is_active', true)
-                    ->whereHas('roles', fn ($roles) => $roles->whereIn('name', ['Administrador', 'Síndico']))
-                    ->pluck('id')
-                    ->all();
-
-                if (empty($recipientIds)) {
-                    return;
-                }
-
-                $oneSignal->sendPaymentReceived($recipientIds, [
-                    'charge_id' => $charge->id,
-                    'charge_title' => $charge->title,
-                    'amount' => $charge->amount,
-                    'amount_label' => 'R$ ' . number_format((float) $charge->amount, 2, ',', '.'),
-                    'payment_method' => $paymentMethod,
-                    'payment_date' => $paidAt->toDateString(),
-                ]);
-            });
         });
     }
 

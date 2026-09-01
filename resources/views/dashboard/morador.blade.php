@@ -217,10 +217,139 @@
     </script>
 
     @if($assembliesPendentes->isNotEmpty())
+    @push('styles')
+    <style>
+        .assembly-alert-widget {
+            border: none;
+            border-radius: 1.1rem;
+            overflow: hidden;
+            box-shadow: 0 14px 36px rgba(10, 27, 103, 0.12);
+        }
+
+        .assembly-alert-widget .widget-head {
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+            color: #fff;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .assembly-alert-widget .widget-head h5 {
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .assembly-alert-widget .widget-count {
+            min-width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.18);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .assembly-pending-card {
+            border: 1px solid #e8edf5;
+            border-radius: 1rem;
+            padding: 1.1rem 1.15rem;
+            background: #fff;
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .assembly-pending-card + .assembly-pending-card {
+            margin-top: 0.85rem;
+        }
+
+        .assembly-pending-card:hover {
+            border-color: #c7d5f5;
+            box-shadow: 0 8px 22px rgba(56, 102, 210, 0.1);
+        }
+
+        .assembly-pending-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.35rem;
+        }
+
+        .assembly-meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem 1rem;
+            color: #64748b;
+            font-size: 0.82rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .assembly-meta-row span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .assembly-progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #475569;
+            margin-bottom: 0.35rem;
+        }
+
+        .assembly-progress-label strong {
+            color: #0a1b67;
+        }
+
+        .assembly-progress {
+            height: 8px;
+            border-radius: 999px;
+            background: #e8edf5;
+            overflow: hidden;
+        }
+
+        .assembly-progress-bar {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #3866d2, #0a1b67);
+            transition: width 0.3s ease;
+        }
+
+        .assembly-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .assembly-chip.status-in_progress { background: #fef3c7; color: #92400e; }
+        .assembly-chip.status-scheduled { background: #dbeafe; color: #1d4ed8; }
+        .assembly-chip.status-voting_closed { background: #e2e8f0; color: #475569; }
+
+        .assembly-chip.urgency-low { background: #ecfdf5; color: #047857; }
+        .assembly-chip.urgency-normal { background: #f1f5f9; color: #475569; }
+        .assembly-chip.urgency-high { background: #fff7ed; color: #c2410c; }
+        .assembly-chip.urgency-critical { background: #fef2f2; color: #b91c1c; }
+
+        .assembly-pending-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.95rem;
+            flex-wrap: wrap;
+        }
+    </style>
+    @endpush
     @php
         $statusLabels = [
             'scheduled' => 'Agendada',
             'in_progress' => 'Em andamento',
+            'voting_closed' => 'Prazo encerrado',
             'completed' => 'Concluída',
             'cancelled' => 'Cancelada',
         ];
@@ -233,52 +362,70 @@
     @endphp
     <div class="row mb-4">
         <div class="col-12">
-            <div class="dashboard-card border-primary fade-in">
-                <div class="card-header bg-brand-gradient text-white d-flex justify-content-between align-items-center">
+            <div class="dashboard-card assembly-alert-widget fade-in">
+                <div class="widget-head d-flex justify-content-between align-items-start gap-3">
                     <div>
                         <h5 class="mb-1">
-                            <i class="bi bi-megaphone"></i> Assembleias aguardando seu voto
+                            <i class="bi bi-megaphone-fill"></i> Assembleias aguardando seu voto
                         </h5>
-                        <span class="text-white-50 small">Vote em todos os itens para remover este alerta</span>
+                        <span class="text-white-50 small">Conclua a votação nos itens pendentes da pauta</span>
                     </div>
-                    <span class="badge badge-brand">{{ $assembliesPendentes->count() }}</span>
+                    <span class="widget-count">{{ $assembliesPendentes->count() }}</span>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-3 p-md-4" style="background: #f8faff;">
                     @foreach($assembliesPendentes as $assembly)
-                    <div class="list-item-hover border-bottom pb-3 mb-3">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <h6 class="mb-1">{{ $assembly['title'] }}</h6>
-                                <p class="mb-1 small text-muted">
-                                    <i class="bi bi-calendar-event"></i>
-                                    {{ optional($assembly['scheduled_at'])->format('d/m/Y H:i') ?? 'Sem data' }}
-                                    @if($assembly['voting_closes_at'])
-                                        <span class="ms-2">
-                                            <i class="bi bi-lock"></i>
-                                            encerra em {{ \Carbon\Carbon::parse($assembly['voting_closes_at'])->diffForHumans(null, true) }}
-                                        </span>
-                                    @endif
-                                </p>
-                                <span class="badge badge-brand">
-                                    {{ $assembly['pending_items'] }} de {{ $assembly['total_items'] }} itens pendentes
-                                </span>
-                            </div>
-                            <div class="text-end">
-                                <span class="badge badge-brand mb-1">
-                                    {{ $statusLabels[$assembly['status']] ?? \Illuminate\Support\Str::title($assembly['status']) }}
-                                </span>
-                                <div class="small text-muted">
-                                    Urgência: {{ $urgencyLabels[$assembly['urgency']] ?? \Illuminate\Support\Str::title($assembly['urgency']) }}
+                        @php
+                            $totalItems = max(1, (int) $assembly['total_items']);
+                            $votedItems = (int) ($assembly['voted_items'] ?? ($totalItems - $assembly['pending_items']));
+                            $progress = round(($votedItems / $totalItems) * 100);
+                            $statusKey = $assembly['status'] ?? 'in_progress';
+                            $urgencyKey = $assembly['urgency'] ?? 'normal';
+                        @endphp
+                        <article class="assembly-pending-card">
+                            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                <h6 class="assembly-pending-title mb-0">{{ $assembly['title'] }}</h6>
+                                <div class="d-flex flex-wrap gap-1 justify-content-end">
+                                    <span class="assembly-chip status-{{ $statusKey }}">
+                                        {{ $statusLabels[$statusKey] ?? \Illuminate\Support\Str::title($statusKey) }}
+                                    </span>
+                                    <span class="assembly-chip urgency-{{ $urgencyKey }}">
+                                        {{ $urgencyLabels[$urgencyKey] ?? \Illuminate\Support\Str::title($urgencyKey) }}
+                                    </span>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+
+                            <div class="assembly-meta-row">
+                                <span>
+                                    <i class="bi bi-calendar2-event"></i>
+                                    {{ optional($assembly['voting_opens_at'])->format('d/m/Y H:i') ?? 'Sem data' }}
+                                </span>
+                                @if($assembly['voting_closes_at'])
+                                    <span>
+                                        <i class="bi bi-hourglass-split"></i>
+                                        Encerra em {{ \Carbon\Carbon::parse($assembly['voting_closes_at'])->diffForHumans(null, true) }}
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="assembly-progress-label">
+                                <span>Progresso da sua votação</span>
+                                <strong>{{ $votedItems }}/{{ $totalItems }} itens</strong>
+                            </div>
+                            <div class="assembly-progress" role="progressbar" aria-valuenow="{{ $progress }}" aria-valuemin="0" aria-valuemax="100">
+                                <div class="assembly-progress-bar" style="width: {{ $progress }}%;"></div>
+                            </div>
+
+                            <div class="assembly-pending-actions">
+                                <span class="small text-muted">
+                                    <i class="bi bi-check2-square"></i>
+                                    {{ $assembly['pending_items'] }} {{ $assembly['pending_items'] === 1 ? 'item pendente' : 'itens pendentes' }}
+                                </span>
+                                <a href="{{ route('assemblies.index', ['open' => $assembly['id']]) }}" class="btn btn-sm btn-gradient-primary">
+                                    <i class="bi bi-hand-thumbs-up"></i> Votar agora
+                                </a>
+                            </div>
+                        </article>
                     @endforeach
-                    <div class="text-end">
-                        <a href="{{ route('assemblies.index') }}" class="btn btn-sm btn-gradient-primary">
-                            <i class="bi bi-people"></i> Ir para Assembleias
-                        </a>
-                    </div>
                 </div>
             </div>
         </div>

@@ -9,7 +9,6 @@ use App\Models\Notification;
 use App\Models\RecurringReservation;
 use App\Models\Reservation;
 use App\Models\Space;
-use App\Services\OneSignalNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -816,22 +815,6 @@ class ReservationController extends Controller
                 'sent' => true,
                 'sent_at' => now(),
             ]);
-
-            /** @var OneSignalNotificationService $oneSignal */
-            $oneSignal = app(OneSignalNotificationService::class);
-
-            if ($oneSignal->isEnabled()) {
-                $oneSignal->sendToUsers(
-                    [$reservation->user_id],
-                    "Foi gerada uma cobrança de {$amountLabel} para a reserva do espaço {$space->name}. Vencimento em {$dueDate}.",
-                    'Cobrança de reserva',
-                    [
-                        'type' => 'reservation_charge_created',
-                        'reservation_id' => $reservation->id,
-                        'charge_id' => $charge->id,
-                    ]
-                );
-            }
         } catch (\Exception $e) {
             Log::warning('Falha ao notificar cobrança de reserva: ' . $e->getMessage(), [
                 'reservation_id' => $reservation->id,

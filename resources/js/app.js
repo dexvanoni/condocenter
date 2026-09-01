@@ -1,6 +1,5 @@
 import './bootstrap';
 import { createApp } from 'vue';
-import './onesignal-client';
 
 // Bootstrap
 import * as bootstrap from 'bootstrap';

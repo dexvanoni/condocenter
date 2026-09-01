@@ -29,11 +29,19 @@ class Condominium extends Model implements Auditable
         'financial_mode',
         'marketplace_allow_agregados',
         'registration_code',
+        'whatsapp_enabled',
+        'evolution_api_url',
+        'evolution_api_key',
+        'evolution_instance',
+        'whatsapp_notify_groups',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'marketplace_allow_agregados' => 'boolean',
+        'whatsapp_enabled' => 'boolean',
+        'whatsapp_notify_groups' => 'array',
+        'evolution_api_key' => 'encrypted',
     ];
 
     public function isFinancialSimplified(): bool

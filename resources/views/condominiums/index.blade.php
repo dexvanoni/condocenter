@@ -64,7 +64,7 @@
                         <th>Financeiro</th>
                         <th>Assinatura SaaS</th>
                         <th>Status</th>
-                        <th width="140">Ações</th>
+                        <th width="180">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -118,6 +118,11 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 @endcan
+                                @if(auth()->user()?->isAdmin())
+                                <a href="{{ route('condominiums.settings.whatsapp', $condominium) }}" class="btn btn-outline-success" title="WhatsApp">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                                @endif
                             </div>
                         </td>
                     </tr>

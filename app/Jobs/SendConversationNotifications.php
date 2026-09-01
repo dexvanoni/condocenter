@@ -6,7 +6,6 @@ use App\Models\Conversation;
 use App\Models\ConversationRecipient;
 use App\Models\Notification;
 use App\Models\User;
-use App\Services\OneSignalNotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -67,18 +66,6 @@ class SendConversationNotifications implements ShouldQueue
         }
 
         if (in_array($this->priority, ['high', 'urgent'], true)) {
-            try {
-                /** @var OneSignalNotificationService $oneSignal */
-                $oneSignal = app(OneSignalNotificationService::class);
-                if ($oneSignal && method_exists($oneSignal, 'isEnabled') && $oneSignal->isEnabled()) {
-                    foreach ($targetUsers as $u) {
-                        $oneSignal->sendToUser($u, $title, $this->messageText, $payload);
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::error('Erro ao enviar push OneSignal: ' . $e->getMessage());
-            }
-
             // Email opcional (apenas se o app estiver configurado)
             if (config('mail.default') !== 'log') {
                 foreach ($targetUsers as $u) {
