@@ -413,10 +413,13 @@
 		if (c.subject) return c.subject;
 		if (c.type === 'announcement') return 'Aviso';
 		if (c.type === 'direct') {
-			const other = (c.participants || []).map(p => p.user).find(u => u && Number(u.id) !== currentUserId);
+			const users = (c.participants || [])
+				.map(p => p.user)
+				.filter(u => u && u.name);
+			const other = users.find(u => Number(u.id) !== currentUserId);
 			if (other?.name) return other.name;
-			const any = (c.participants || []).map(p => p.user).find(u => u?.name);
-			if (any) return any;
+			const any = users.find(u => u?.name);
+			if (any?.name) return any.name;
 			return 'Direta';
 		}
 		return 'Conversa';
@@ -711,7 +714,7 @@
 	}
 
 	function escapeHtml(str) {
-		return (str ?? '').replace(/[&<>"']/g, (m) => ({
+		return String(str ?? '').replace(/[&<>"']/g, (m) => ({
 			'&': '&amp;',
 			'<': '&lt;',
 			'>': '&gt;',
