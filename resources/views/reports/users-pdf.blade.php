@@ -52,7 +52,7 @@
     </table>
 
     <div class="footer">
-        Gerado em {{ $generated_at }} - CondoManager
+        Gerado em {{ $generated_at }} - {{ config('app.name', 'SindCON') }}
     </div>
 </body>
 </html>

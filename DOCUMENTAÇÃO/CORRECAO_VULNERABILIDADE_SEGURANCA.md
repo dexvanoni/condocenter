@@ -1,4 +1,4 @@
-# 🔒 Correção: Vulnerabilidade de Segurança - Reservas
+﻿# 🔒 Correção: Vulnerabilidade de Segurança - Reservas
 
 ## 🎯 Problema Identificado
 

@@ -1,15 +1,15 @@
-# 📁 Organização da Documentação
+﻿# 📁 Organização da Documentação
 
 ## 🎯 Objetivo
 
-Este documento explica como a documentação do projeto CondoCenter está organizada.
+Este documento explica como a documentação do projeto SindCON está organizada.
 
 ---
 
 ## 📂 Estrutura Atual
 
 ```
-condocenter/
+SindCON/
 │
 ├── README.md                    # 📖 Readme principal (raiz do projeto)
 │
@@ -137,7 +137,7 @@ condocenter/
 
 ### **✅ Antes (Desorganizado):**
 ```
-condocenter/
+SindCON/
 ├── README.md
 ├── SETUP.md
 ├── API_DOCUMENTATION.md
@@ -156,7 +156,7 @@ condocenter/
 
 ### **✅ Depois (Organizado):**
 ```
-condocenter/
+SindCON/
 ├── README.md                # Apenas o principal
 ├── docs/                    # Tudo organizado aqui
 │   ├── README.md           # Índice completo
@@ -273,7 +273,7 @@ README.md (raiz)
 ### **✅ Projeto Profissionalmente Organizado**
 
 ```
-📦 CondoCenter
+📦 SindCON
 │
 ├── 📖 README.md (Principal)
 │   ↓

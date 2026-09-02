@@ -1,8 +1,8 @@
-# Sistema de Verificação de QR Code para Pets
+﻿# Sistema de Verificação de QR Code para Pets
 
 ## 📋 Visão Geral
 
-Sistema completo de verificação de QR Code para pets implementado no CondoCenter. Permite que qualquer pessoa escaneie o QR Code da coleira de um pet perdido e entre em contato com o dono imediatamente.
+Sistema completo de verificação de QR Code para pets implementado no SindCON. Permite que qualquer pessoa escaneie o QR Code da coleira de um pet perdido e entre em contato com o dono imediatamente.
 
 ## 🎯 Funcionalidades Implementadas
 
@@ -198,7 +198,7 @@ GET  /pets/{pet}       // Requer: PetPolicy::view()
 
 ### Cenário 2: Verificação Interna (Portaria/Segurança)
 ```
-1. Acessa sistema CondoCenter
+1. Acessa sistema SindCON
 2. Vai em "Pets" > "Verificar QR Code"
 3. Inicia scanner
 4. Aproxima coleira da câmera

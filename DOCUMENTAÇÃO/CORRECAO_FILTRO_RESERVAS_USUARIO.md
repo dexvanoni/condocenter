@@ -1,4 +1,4 @@
-# 🔧 Correção: Filtro de Reservas por Usuário
+﻿# 🔧 Correção: Filtro de Reservas por Usuário
 
 ## 🎯 Problema Identificado
 

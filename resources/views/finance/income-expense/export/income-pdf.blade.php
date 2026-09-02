@@ -79,7 +79,7 @@
     </table>
 
     <div class="footer">
-        <p>Este relatório foi gerado automaticamente pelo sistema CondoCenter.</p>
+        <p>Este relatório foi gerado automaticamente pelo sistema {{ config('app.name', 'SindCON') }}.</p>
     </div>
 </body>
 </html>

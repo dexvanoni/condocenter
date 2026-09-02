@@ -1,4 +1,4 @@
-# 📱 CORREÇÃO DO BOTÃO SANDUÍCHE - NAVBAR MOBILE
+﻿# 📱 CORREÇÃO DO BOTÃO SANDUÍCHE - NAVBAR MOBILE
 
 ## 🎯 **PROBLEMA IDENTIFICADO**
 
@@ -34,7 +34,7 @@ O botão sanduíche (hamburger) da navbar não funcionava no mobile:
 
 <!-- Brand/Logo (opcional) -->
 <span class="navbar-brand d-lg-none me-auto">
-    <i class="bi bi-building"></i> CondoManager
+    <i class="bi bi-building"></i> SindCON
 </span>
 ```
 

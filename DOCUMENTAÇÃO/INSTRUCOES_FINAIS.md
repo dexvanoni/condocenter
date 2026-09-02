@@ -1,8 +1,8 @@
-# 🚀 CondoCenter Mobile - App de Pânico
+﻿# 🚀 SindCON Mobile - App de Pânico
 
 ## ✅ Aplicativo Criado com Sucesso!
 
-O aplicativo móvel CondoCenter foi criado com todas as funcionalidades solicitadas:
+O aplicativo móvel SindCON foi criado com todas as funcionalidades solicitadas:
 
 ### 📱 Funcionalidades Implementadas
 
@@ -27,7 +27,7 @@ O aplicativo móvel CondoCenter foi criado com todas as funcionalidades solicita
 
 ```
 celular/
-├── CondoCenterMobile/           # App React Native
+├── SindCONMobile/           # App React Native
 │   ├── src/
 │   │   ├── components/         # Componentes reutilizáveis
 │   │   ├── contexts/          # Contextos (Auth, Notifications)
@@ -61,7 +61,7 @@ celular/
 
 ### 3. Instalar e Testar
 ```bash
-cd celular/CondoCenterMobile
+cd celular/SindCONMobile
 npm install
 npm run android  # Para testar
 ```
@@ -147,7 +147,7 @@ FIREBASE_CONFIG = {
 ### Logs de Debug:
 ```bash
 # Android
-adb logcat | grep CondoCenter
+adb logcat | grep SindCON
 
 # Expo
 npx expo logs
@@ -173,7 +173,7 @@ npx expo logs
 
 ## 🎉 Parabéns!
 
-Seu aplicativo móvel CondoCenter está pronto! 
+Seu aplicativo móvel SindCON está pronto! 
 
 O app possui todas as funcionalidades solicitadas:
 - ✅ Autenticação completa

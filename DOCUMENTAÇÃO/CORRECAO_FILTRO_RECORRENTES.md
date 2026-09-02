@@ -1,4 +1,4 @@
-# 🔧 Correção: Filtro "Tipo = Recorrente" Não Funcionando
+﻿# 🔧 Correção: Filtro "Tipo = Recorrente" Não Funcionando
 
 ## 🎯 Problema Identificado
 

@@ -1,4 +1,4 @@
-# 🎉 IMPLEMENTAÇÃO COMPLETA - Sistema de Unidades e Usuários
+﻿# 🎉 IMPLEMENTAÇÃO COMPLETA - Sistema de Unidades e Usuários
 
 ## ✅ STATUS: IMPLEMENTAÇÃO 100% CONCLUÍDA E FUNCIONAL
 
@@ -399,7 +399,7 @@ Dashboard
 
 ### 1. Acessar o Sistema
 ```
-http://localhost/condocenter
+http://localhost/SindCON
 ```
 
 ### 2. Fazer Login
@@ -546,5 +546,5 @@ Use um usuário existente ou crie um novo via tinker.
 
 **🚀 O SISTEMA ESTÁ 100% FUNCIONAL E PRONTO PARA USO!**
 
-Acesse: `http://localhost/condocenter` e teste todas as funcionalidades implementadas.
+Acesse: `http://localhost/SindCON` e teste todas as funcionalidades implementadas.
 

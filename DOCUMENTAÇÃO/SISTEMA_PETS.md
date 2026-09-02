@@ -1,4 +1,4 @@
-# Sistema de Cadastro de Pets - CondoCenter
+﻿# Sistema de Cadastro de Pets - SindCON
 
 ## Visão Geral
 

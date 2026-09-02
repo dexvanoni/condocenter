@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'CondoManager') }} - @yield('title', 'Dashboard')</title>
+    <title>{{ config('app.name', 'SindCON') }} - @yield('title', 'Dashboard')</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -989,7 +989,7 @@
         <nav class="sidebar d-none d-lg-block{{ $isAdminProfile ? ' sidebar-admin' : '' }}" id="sidebar" style="width: 250px;">
             <div class="sidebar-brand-block">
                 <h4 class="mb-0">
-                    <i class="bi bi-building"></i> CondoManager
+                    <i class="bi bi-building"></i> {{ config('app.name', 'SindCON') }}
                 </h4>
                 @php
                     $displayCondominium = $activeCondominiumContext['condominium'] ?? $user->condominium;
@@ -1656,7 +1656,7 @@
                     
                     <!-- Brand/Logo (opcional) -->
                     <span class="navbar-brand d-lg-none me-auto">
-                        <i class="bi bi-building"></i> CondoManager
+                        <i class="bi bi-building"></i> {{ config('app.name', 'SindCON') }}
                     </span>
 
                     <div class="d-flex align-items-center ms-auto">

@@ -1,4 +1,4 @@
-# 💰 Permissões Financeiras - Transparência Total
+﻿# 💰 Permissões Financeiras - Transparência Total
 
 ## 🎯 Objetivo
 

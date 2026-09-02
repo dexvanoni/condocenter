@@ -1,6 +1,6 @@
-# CondoCenter Mobile - App de Pânico
+﻿# SindCON Mobile - App de Pânico
 
-Este é o aplicativo móvel do CondoCenter, focado nas funcionalidades de **alerta de pânico** e **autenticação**. O app se comunica com o sistema web existente através da API Laravel.
+Este é o aplicativo móvel do SindCON, focado nas funcionalidades de **alerta de pânico** e **autenticação**. O app se comunica com o sistema web existente através da API Laravel.
 
 ## 🚀 Funcionalidades
 
@@ -33,7 +33,7 @@ Este é o aplicativo móvel do CondoCenter, focado nas funcionalidades de **aler
 ### 1. Instalar Dependências
 
 ```bash
-cd celular/CondoCenterMobile
+cd celular/SindCONMobile
 npm install
 ```
 
@@ -204,7 +204,7 @@ Para ver logs detalhados:
 
 ```bash
 # Android
-adb logcat | grep CondoCenter
+adb logcat | grep SindCON
 
 # Expo
 npx expo logs

@@ -1,4 +1,4 @@
-# 🔧 Correção: Dashboard do Agregado - Permissões Reais
+﻿# 🔧 Correção: Dashboard do Agregado - Permissões Reais
 
 ## 🎯 Problema Identificado
 

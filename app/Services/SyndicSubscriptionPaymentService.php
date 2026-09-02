@@ -66,7 +66,7 @@ class SyndicSubscriptionPaymentService
             'billingType' => $billingType,
             'value' => (float) $subscription->recurring_amount,
             'dueDate' => now()->format('Y-m-d'),
-            'description' => 'Antecipação — Assinatura CondoManager',
+            'description' => 'Antecipação — Assinatura SindCON',
             'externalReference' => 'subscription:' . $subscription->id,
         ]);
 

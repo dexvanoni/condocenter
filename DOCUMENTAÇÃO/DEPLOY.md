@@ -1,4 +1,4 @@
-# 🚀 Guia de Deploy - CondoManager
+﻿# 🚀 Guia de Deploy - SindCON
 
 ## Deploy na Hostinger (Produção)
 
@@ -50,14 +50,14 @@ php artisan test
 
 ```bash
 # Comprimir projeto
-tar -czf condomanager.tar.gz --exclude='node_modules' --exclude='.git' --exclude='vendor' .
+tar -czf SindCON.tar.gz --exclude='node_modules' --exclude='.git' --exclude='vendor' .
 
 # Upload via SCP
-scp condomanager.tar.gz usuario@seudominio.com:/home/usuario/
+scp SindCON.tar.gz usuario@seudominio.com:/home/usuario/
 
 # No servidor
 cd /home/usuario/public_html
-tar -xzf ../condomanager.tar.gz
+tar -xzf ../SindCON.tar.gz
 ```
 
 #### Via FTP
@@ -97,7 +97,7 @@ nano .env
 Conteúdo do `.env` de produção:
 
 ```env
-APP_NAME="CondoManager"
+APP_NAME="SindCON"
 APP_ENV=production
 APP_KEY=
 APP_DEBUG=false
@@ -110,7 +110,7 @@ APP_LOCALE=pt_BR
 DB_CONNECTION=mysql
 DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=u123456_condocenter
+DB_DATABASE=u123456_SindCON
 DB_USERNAME=u123456_user
 DB_PASSWORD=SENHA_SEGURA_AQUI
 
@@ -127,7 +127,7 @@ MAIL_USERNAME=seu_email@gmail.com
 MAIL_PASSWORD=senha_app_gmail
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS="noreply@seudominio.com"
-MAIL_FROM_NAME="CondoManager"
+MAIL_FROM_NAME="SindCON"
 
 # Asaas PRODUÇÃO
 ASAAS_API_KEY=sua_chave_producao_aqui
@@ -239,10 +239,10 @@ cd /home/usuario/public_html && php artisan schedule:run >> /dev/null 2>&1
 
 #### Opção A: Supervisor (VPS)
 
-Criar arquivo `/etc/supervisor/conf.d/condomanager-worker.conf`:
+Criar arquivo `/etc/supervisor/conf.d/SindCON-worker.conf`:
 
 ```ini
-[program:condomanager-worker]
+[program:SindCON-worker]
 process_name=%(program_name)s_%(process_num)02d
 command=php /home/usuario/public_html/artisan queue:work --sleep=3 --tries=3 --max-time=3600
 autostart=true
@@ -260,7 +260,7 @@ Depois:
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
-sudo supervisorctl start condomanager-worker:*
+sudo supervisorctl start SindCON-worker:*
 ```
 
 #### Opção B: Cron Job (Hospedagem Compartilhada)
@@ -311,8 +311,8 @@ Configure backup diário do banco:
 #!/bin/bash
 # Script: backup-db.sh
 DATE=$(date +%Y%m%d_%H%M%S)
-mysqldump -u usuario -p senha condocenter > /backup/condocenter_$DATE.sql
-find /backup -name "condocenter_*.sql" -mtime +7 -delete
+mysqldump -u usuario -p senha SindCON > /backup/SindCON_$DATE.sql
+find /backup -name "SindCON_*.sql" -mtime +7 -delete
 ```
 
 Adicionar ao cron:
@@ -328,7 +328,7 @@ Adicionar ao cron:
 
 ```bash
 # 1. Backup
-mysqldump -u root -p condocenter > backup_pre_update.sql
+mysqldump -u root -p SindCON > backup_pre_update.sql
 
 # 2. Modo manutenção
 php artisan down
@@ -352,7 +352,7 @@ php artisan route:cache
 php artisan view:cache
 
 # 7. Reiniciar workers (se usar supervisor)
-sudo supervisorctl restart condomanager-worker:*
+sudo supervisorctl restart SindCON-worker:*
 
 # 8. Sair do modo manutenção
 php artisan up
@@ -415,7 +415,7 @@ GET https://seudominio.com/api/health
 
 ## 📞 Suporte Pós-Deploy
 
-- **Email:** suporte@condomanager.com
+- **Email:** suporte@SindCON.com
 - **Logs:** `storage/logs/laravel.log`
 - **Health Check:** `/api/health`
 

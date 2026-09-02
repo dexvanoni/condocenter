@@ -1,4 +1,4 @@
-# 📋 Documentação - Sistema de Permissões do Sidebar
+﻿# 📋 Documentação - Sistema de Permissões do Sidebar
 
 ## 🎯 Visão Geral
 

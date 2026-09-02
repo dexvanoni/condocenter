@@ -1,4 +1,4 @@
-# ✅ Correção Final - Autenticação da API
+﻿# ✅ Correção Final - Autenticação da API
 
 ## 🐛 Problema
 

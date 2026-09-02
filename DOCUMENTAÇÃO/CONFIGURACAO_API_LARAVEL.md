@@ -1,4 +1,4 @@
-# Configuração da API Laravel para o App Mobile
+﻿# Configuração da API Laravel para o App Mobile
 
 ## 1. Adicionar Rotas de Pânico na API
 

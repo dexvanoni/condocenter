@@ -1,4 +1,4 @@
-# 🔧 Correção: Inconsistências de Permissões do Agregado
+﻿# 🔧 Correção: Inconsistências de Permissões do Agregado
 
 ## 🎯 Problema Identificado
 

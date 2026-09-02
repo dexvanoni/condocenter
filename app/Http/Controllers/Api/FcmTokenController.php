@@ -245,7 +245,7 @@ class FcmTokenController extends Controller
             $success = $this->firebaseService->sendToUser(
                 $user->id,
                 '🧪 Teste de Notificação',
-                'Esta é uma notificação de teste do sistema CondoCenter',
+                'Esta é uma notificação de teste do sistema SindCON',
                 [
                     'type' => 'test',
                     'timestamp' => now()->toISOString()

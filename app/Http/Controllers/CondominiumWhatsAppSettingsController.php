@@ -68,7 +68,7 @@ class CondominiumWhatsAppSettingsController extends Controller
 
         if ($connection['ok'] && filled($testPhone)) {
             $message = $this->whatsapp->formatMessage(
-                'Teste CondoCenter',
+                'Teste SindCON',
                 "Esta é uma mensagem de teste da integração WhatsApp do condomínio {$condominium->name}."
             );
             $testSend = $this->evolution->sendText($testPhone, $message, $condominium->id);

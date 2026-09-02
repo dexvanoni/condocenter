@@ -5,7 +5,7 @@ const LoadingScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>🏢</Text>
-      <Text style={styles.title}>CondoCenter</Text>
+      <Text style={styles.title}>SindCON</Text>
       <ActivityIndicator size="large" color="#3498db" style={styles.loader} />
       <Text style={styles.loadingText}>Carregando...</Text>
     </View>

@@ -1,4 +1,4 @@
-# Testes do Módulo Financeiro – 13/11/2025
+﻿# Testes do Módulo Financeiro – 13/11/2025
 
 ## Contexto
 - Ambiente: `localhost:8000`

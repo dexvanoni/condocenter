@@ -1,4 +1,4 @@
-# Fotos Padrão dos Espaços
+﻿# Fotos Padrão dos Espaços
 
 Este diretório contém as fotos padrão para os diferentes tipos de espaços.
 

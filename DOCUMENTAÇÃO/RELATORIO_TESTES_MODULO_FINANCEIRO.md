@@ -1,4 +1,4 @@
-# Relatório de Testes - Módulo Financeiro
+﻿# Relatório de Testes - Módulo Financeiro
 
 > ⚠️ **NOTA:** Este é o relatório inicial de testes. Para o relatório completo com todas as correções implementadas, erros encontrados e melhorias realizadas, consulte: **`RELATORIO_FINAL_TESTES_FINANCEIRO.md`**
 
@@ -11,7 +11,7 @@
 
 ## Sumário Executivo
 
-Este relatório apresenta os resultados dos testes realizados no módulo Financeiro do sistema CondoManager. Os testes foram conduzidos de forma sistemática, cobrindo todas as funcionalidades principais: gestão de taxas, cobranças, transações financeiras e conciliação bancária.
+Este relatório apresenta os resultados dos testes realizados no módulo Financeiro do sistema SindCON. Os testes foram conduzidos de forma sistemática, cobrindo todas as funcionalidades principais: gestão de taxas, cobranças, transações financeiras e conciliação bancária.
 
 **Status Geral:** ⚠️ **FUNCIONAL COM OBSERVAÇÕES**
 

@@ -175,7 +175,7 @@ class WhatsAppNotificationService
 
     public function formatMessage(string $title, string $message): string
     {
-        $appName = config('app.name', 'CondoCenter');
+        $appName = config('app.name', 'SindCON');
 
         return "*{$title}*\n\n{$message}\n\n_{$appName}_";
     }

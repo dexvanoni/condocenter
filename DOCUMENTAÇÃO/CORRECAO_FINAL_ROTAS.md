@@ -1,4 +1,4 @@
-# ✅ Correção Final - Conflito de Nomes de Rotas
+﻿# ✅ Correção Final - Conflito de Nomes de Rotas
 
 ## 🐛 Problema
 

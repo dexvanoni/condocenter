@@ -1,4 +1,4 @@
-# 🚀 CondoManager - Guia de Início Rápido
+﻿# 🚀 SindCON - Guia de Início Rápido
 
 ## Primeiros Passos (5 minutos)
 
@@ -7,7 +7,7 @@
 Crie um arquivo `.env` na raiz do projeto com este conteúdo mínimo:
 
 ```env
-APP_NAME="CondoManager"
+APP_NAME="SindCON"
 APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
@@ -16,7 +16,7 @@ APP_URL=http://localhost
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=condocenter
+DB_DATABASE=SindCON
 DB_USERNAME=root
 DB_PASSWORD=
 
@@ -38,7 +38,7 @@ C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan key:generate
 
 # Criar banco de dados no MySQL
 # mysql -u root -p
-# CREATE DATABASE condocenter CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# CREATE DATABASE SindCON CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 # Executar migrations
 C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan migrate
@@ -65,7 +65,7 @@ Acesse: **http://localhost:8000**
 
 | Email | Senha | Perfil |
 |-------|-------|--------|
-| `admin@condomanager.com` | `password` | Administrador |
+| `admin@SindCON.com` | `password` | Administrador |
 | `sindico@vistaverde.com` | `password` | Síndico |
 | `morador1@example.com` | `password` | Morador |
 | `porteiro@vistaverde.com` | `password` | Porteiro |
@@ -124,7 +124,7 @@ php artisan key:generate
 ### Erro: "SQLSTATE[HY000] [1049] Unknown database"
 Crie o banco de dados no MySQL:
 ```sql
-CREATE DATABASE condocenter CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE SindCON CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ### Assets não carregam

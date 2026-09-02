@@ -1,4 +1,4 @@
-# 📏 Regras do Projeto
+﻿# 📏 Regras do Projeto
 
 ## Alterações em Banco de Dados
 
@@ -7,7 +7,7 @@
 - Planeje sempre mecanismos de mitigação (backup, rollback, migrações reversíveis) para evitar perda de dados.
 - Priorize a avaliação de impactos em todos os ambientes (`dev`, `test`, `prod`) e somente siga com a execução após autorização formal.
 
-> Objetivo: garantir transparência, segurança e rastreabilidade em qualquer operação que envolva o banco de dados do CondoCenter.
+> Objetivo: garantir transparência, segurança e rastreabilidade em qualquer operação que envolva o banco de dados do SindCON.
 
 
 

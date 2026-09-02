@@ -1,4 +1,4 @@
-# ✅ Deploy – Lembretes Financeiros e Painel de Contas
+﻿# ✅ Deploy – Lembretes Financeiros e Painel de Contas
 
 Este documento descreve os passos necessários para colocar em produção os novos serviços financeiros: lembretes automáticos de cobranças, painel de contas do condomínio e prestação de contas exportável.
 
@@ -27,7 +27,7 @@ O comando `charges:send-reminders` deve rodar diariamente às 08:00 para notific
 Adicionar ao cron (`crontab -e`), executando `schedule:run` a cada minuto:
 
 ```bash
-* * * * * cd /caminho/para/condocenter && php artisan schedule:run >> /var/log/laravel-schedule.log 2>&1
+* * * * * cd /caminho/para/SindCON && php artisan schedule:run >> /var/log/laravel-schedule.log 2>&1
 ```
 
 O Laravel internamente dispara `charges:send-reminders` apenas no horário configurado (08:00), junto com as demais tasks do agendador.
@@ -39,7 +39,7 @@ Usar o “Agendador de Tarefas”:
 2. Ação:
    - Programa/script: `C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe`
    - Argumentos: `artisan schedule:run`
-   - Iniciar em: `C:\laragon\www\condocenter`
+   - Iniciar em: `C:\laragon\www\SindCON`
 3. Gatilho: a cada 1 minuto (ou pelo menos diariamente antes das 08:00).  
    O scheduler do Laravel cuida de executar `charges:send-reminders` apenas às 08h.
 
@@ -63,15 +63,15 @@ Deixar o terminal aberto enquanto precisa processar jobs.
   Arquivo exemplo `/etc/supervisor/conf.d/queue-worker.conf`:
 
   ```
-  [program:condocenter-queue]
+  [program:SindCON-queue]
   process_name=%(program_name)s_%(process_num)02d
-  command=/usr/bin/php /var/www/condocenter/artisan queue:work --tries=3 --timeout=120
+  command=/usr/bin/php /var/www/SindCON/artisan queue:work --tries=3 --timeout=120
   autostart=true
   autorestart=true
   user=www-data
   numprocs=1
   redirect_stderr=true
-  stdout_logfile=/var/log/condocenter-queue.log
+  stdout_logfile=/var/log/SindCON-queue.log
   ```
 
   `supervisorctl reread && supervisorctl update`

@@ -1,4 +1,4 @@
-# 📅 CondoManager - Sistema de Reservas/Agendamentos
+﻿# 📅 SindCON - Sistema de Reservas/Agendamentos
 
 ## Sistema Completo e Automático
 
@@ -712,5 +712,5 @@ O sistema de reservas está **100% funcional** com:
 
 ---
 
-*Sistema de Reservas Completo - CondoManager v1.0*
+*Sistema de Reservas Completo - SindCON v1.0*
 

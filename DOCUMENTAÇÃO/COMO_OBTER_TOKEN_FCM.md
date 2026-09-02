@@ -1,4 +1,4 @@
-# 🎫 COMO OBTER TOKEN FCM REAL
+﻿# 🎫 COMO OBTER TOKEN FCM REAL
 
 ## 📍 **ONDE ENCONTRAR O TOKEN FCM**
 
@@ -65,7 +65,7 @@ window.setupFCM()
 
 **Solução:**
 1. Ir para [Firebase Console](https://console.firebase.google.com)
-2. Selecionar projeto "condomanager-natal"
+2. Selecionar projeto "SindCON-natal"
 3. Ir em **Project Settings > Cloud Messaging**
 4. Copiar a **Web Push certificates** VAPID Key
 5. Atualizar no arquivo `.env`:
@@ -119,7 +119,7 @@ The notification permission was denied by the user
 
 ### **PASSO 1: Verificar VAPID Key**
 1. Acessar [Firebase Console](https://console.firebase.google.com)
-2. Projeto: `condomanager-natal`
+2. Projeto: `SindCON-natal`
 3. **Project Settings > Cloud Messaging**
 4. Copiar **Web Push certificates** VAPID Key
 5. Atualizar no `.env` se necessário

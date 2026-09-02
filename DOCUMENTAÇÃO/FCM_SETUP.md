@@ -1,8 +1,8 @@
-# 🔔 Firebase Cloud Messaging (FCM) - Configuração
+﻿# 🔔 Firebase Cloud Messaging (FCM) - Configuração
 
 ## 📋 Visão Geral
 
-O sistema CondoCenter agora inclui suporte completo a notificações push usando Firebase Cloud Messaging (FCM). Esta funcionalidade pode ser facilmente habilitada/desabilitada sem afetar o sistema existente.
+O sistema SindCON agora inclui suporte completo a notificações push usando Firebase Cloud Messaging (FCM). Esta funcionalidade pode ser facilmente habilitada/desabilitada sem afetar o sistema existente.
 
 ## ⚙️ Configuração
 

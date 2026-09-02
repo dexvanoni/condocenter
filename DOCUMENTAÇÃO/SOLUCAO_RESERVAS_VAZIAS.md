@@ -1,4 +1,4 @@
-# 🔍 Solução: Nenhuma Reserva Aparecendo na Administração
+﻿# 🔍 Solução: Nenhuma Reserva Aparecendo na Administração
 
 ## 🎯 Problema Identificado
 

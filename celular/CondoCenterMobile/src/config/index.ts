@@ -32,7 +32,7 @@ export const NOTIFICATION_CONFIG = {
 
 // Configurações do app
 export const APP_CONFIG = {
-  NAME: 'CondoCenter Mobile',
+  NAME: 'SindCON Mobile',
   VERSION: '1.0.0',
   SUPPORTED_LANGUAGES: ['pt-BR'],
   DEFAULT_LANGUAGE: 'pt-BR',

@@ -1,4 +1,4 @@
-# 🚨 Guia de Teste - Sistema de Alerta de PÂNICO
+﻿# 🚨 Guia de Teste - Sistema de Alerta de PÂNICO
 
 ## Como Testar o Sistema de PÂNICO
 

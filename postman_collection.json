@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "CondoManager API",
+    "name": "SindCON API",
     "description": "API REST para gestão de condomínios",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "1.0.0"

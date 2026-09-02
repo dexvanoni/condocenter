@@ -1,4 +1,4 @@
-# 🎉 RELATÓRIO FINAL DOS TESTES FCM - SISTEMA FUNCIONANDO!
+﻿# 🎉 RELATÓRIO FINAL DOS TESTES FCM - SISTEMA FUNCIONANDO!
 
 ## 📊 RESUMO EXECUTIVO
 
@@ -39,9 +39,9 @@
   "enabled": true,
   "config": {
     "apiKey": "AIzaSyCXIyHgLpQHvRfZF1Crvpgojlo_Q1Zl1SI",
-    "authDomain": "condomanager-natal.firebaseapp.com",
-    "projectId": "condomanager-natal",
-    "storageBucket": "condomanager-natal.firebasestorage.app",
+    "authDomain": "SindCON-natal.firebaseapp.com",
+    "projectId": "SindCON-natal",
+    "storageBucket": "SindCON-natal.firebasestorage.app",
     "messagingSenderId": "709629843657",
     "appId": "1:709629843657:web:c30ea63b73fda564611518",
     "vapidKey": "BPh1AIGzdkKI0EowVbkoEOaOkzz5FkG6GPgWo9TbyS8KjTUx_pO369qIAZIOM5jYZUP-rPj34alMjYF8vQHnZN8"
@@ -267,7 +267,7 @@ O sistema FCM está **100% funcional** e pronto para uso em produção. Todas as
 
 ### **🚀 Sistema Pronto para Produção!**
 
-O CondoCenter agora possui um sistema completo de notificações push que pode:
+O SindCON agora possui um sistema completo de notificações push que pode:
 - Enviar alertas de emergência instantâneos
 - Notificar sobre reservas e pagamentos
 - Comunicar-se com moradores em tempo real

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CondoCenter - Sistema Completo de Gestão Condominial</title>
+    <title>SindCON - Sistema Completo de Gestão Condominial</title>
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -452,7 +452,7 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-8 hero-content">
-                    <h1 class="hero-title">CondoCenter</h1>
+                    <h1 class="hero-title">SindCON</h1>
                     <p class="hero-subtitle">A Solução Completa para Gestão Condominial</p>
                     <p class="hero-description">
                         Sistema moderno e intuitivo desenvolvido especialmente para administradores e síndicos 
@@ -1092,7 +1092,7 @@
         <div class="container">
             <div class="text-center mb-5">
                 <h2 class="section-title">Vantagens e Potenciais</h2>
-                <p class="section-subtitle">Por que escolher o CondoCenter para seu condomínio?</p>
+                <p class="section-subtitle">Por que escolher o SindCON para seu condomínio?</p>
             </div>
             <div class="row g-4">
                 <div class="col-md-6 col-lg-4">
@@ -1220,7 +1220,7 @@
     <section class="cta-section">
         <div class="container">
             <h2 class="cta-title">Pronto para Transformar a Gestão do Seu Condomínio?</h2>
-            <p class="lead mb-4">Entre em contato e descubra como o CondoCenter pode revolucionar a administração do seu condomínio</p>
+            <p class="lead mb-4">Entre em contato e descubra como o SindCON pode revolucionar a administração do seu condomínio</p>
             <button class="btn btn-cta">
                 <i class="bi bi-envelope-fill me-2"></i>Solicitar Demonstração
             </button>
@@ -1230,7 +1230,7 @@
     <!-- Footer -->
     <footer class="bg-dark text-white py-4">
         <div class="container text-center">
-            <p class="mb-0">&copy; <?php echo date('Y'); ?> CondoCenter. Todos os direitos reservados.</p>
+            <p class="mb-0">&copy; <?php echo date('Y'); ?> SindCON. Todos os direitos reservados.</p>
         </div>
     </footer>
 

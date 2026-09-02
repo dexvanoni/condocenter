@@ -90,7 +90,7 @@
         </div>
         <div class="footer">
             <p>Este é um e-mail automático. Não responda.</p>
-            <p>&copy; {{ date('Y') }} CondoManager - Gestão de Condomínios</p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name', 'SindCON') }} - Gestão de Condomínios</p>
         </div>
     </div>
 </body>

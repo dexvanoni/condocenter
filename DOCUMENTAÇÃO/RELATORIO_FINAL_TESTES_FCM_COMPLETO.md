@@ -1,10 +1,10 @@
-# 🔔 RELATÓRIO FINAL - TESTES DE NOTIFICAÇÕES FCM
+﻿# 🔔 RELATÓRIO FINAL - TESTES DE NOTIFICAÇÕES FCM
 
 ## 📋 RESUMO EXECUTIVO
 
 **Status Geral: ✅ FUNCIONANDO PERFEITAMENTE**
 
-O sistema de notificações Firebase Cloud Messaging (FCM) do CondoManager está **100% funcional** e operacional. Todos os componentes principais foram testados e validados com sucesso.
+O sistema de notificações Firebase Cloud Messaging (FCM) do SindCON está **100% funcional** e operacional. Todos os componentes principais foram testados e validados com sucesso.
 
 ## 🎯 RESULTADOS DOS TESTES
 
@@ -31,9 +31,9 @@ eZAfBcjgoZRx7wRx5_-lTw:APA91bG11dtb93k6mADWDaqTcXv...
 
 **Configuração Firebase:**
 - ✅ API Key: Configurada
-- ✅ Auth Domain: condomanager-natal.firebaseapp.com
-- ✅ Project ID: condomanager-natal
-- ✅ Storage Bucket: condomanager-natal.firebasestorage.app
+- ✅ Auth Domain: SindCON-natal.firebaseapp.com
+- ✅ Project ID: SindCON-natal
+- ✅ Storage Bucket: SindCON-natal.firebasestorage.app
 - ✅ Messaging Sender ID: 709629843657
 - ✅ App ID: 1:709629843657:web:c30ea63b73fda564611518
 - ✅ VAPID Key: Configurada

@@ -1,4 +1,4 @@
-# CondoManager - Resumo do Projeto
+﻿# SindCON - Resumo do Projeto
 
 ## ✅ O que foi implementado (MVP Funcional)
 
@@ -318,14 +318,14 @@ Todos os models com:
 
 ### 1. Executar o Projeto
 ```bash
-cd C:\laragon\www\condocenter
+cd C:\laragon\www\SindCON
 C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan serve
 ```
 
 Acesse: http://localhost:8000
 
 ### 2. Logins Disponíveis
-- **Admin:** admin@condomanager.com / password
+- **Admin:** admin@SindCON.com / password
 - **Síndico:** sindico@vistaverde.com / password
 - **Morador:** morador1@example.com / password
 - **Porteiro:** porteiro@vistaverde.com / password

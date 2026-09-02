@@ -1,4 +1,4 @@
-# 🔧 Correção - Permissão manage_reservations
+﻿# 🔧 Correção - Permissão manage_reservations
 
 ## 🐛 Problema
 

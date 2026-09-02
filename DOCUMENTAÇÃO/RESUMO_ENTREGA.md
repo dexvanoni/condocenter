@@ -1,4 +1,4 @@
-# 🎉 CondoManager - Resumo da Entrega
+﻿# 🎉 SindCON - Resumo da Entrega
 
 ## ✅ PROJETO 100% COMPLETO - Todos os Módulos Funcionais
 
@@ -557,7 +557,7 @@ morador1@example.com / password
 
 ### 🚨 Sistema de PÂNICO Destacado
 
-Um recurso **crítico de segurança** que diferencia o CondoManager de qualquer outro sistema de gestão de condomínios no mercado.
+Um recurso **crítico de segurança** que diferencia o SindCON de qualquer outro sistema de gestão de condomínios no mercado.
 
 ### 🎯 Próximo Passo
 

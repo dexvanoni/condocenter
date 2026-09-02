@@ -1,6 +1,6 @@
-# 📚 Documentação do CondoCenter
+﻿# 📚 Documentação do SindCON
 
-Bem-vindo à documentação completa do sistema CondoCenter!
+Bem-vindo à documentação completa do sistema SindCON!
 
 ---
 

@@ -288,7 +288,7 @@
 
     <div class="signature-block">
         <p style="text-align: justify; font-size: 11px; color: #374151;">
-            A presente ata reflete os resultados da assembleia digital realizada na plataforma CondoManager,
+            A presente ata reflete os resultados da assembleia digital realizada na plataforma {{ config('app.name', 'SindCON') }},
             conforme registros eletrônicos de votação e deliberações constantes neste documento.
         </p>
         <div class="signature-line">
@@ -301,7 +301,7 @@
     </div>
 
     <div class="footer">
-        Documento gerado automaticamente em {{ $generated_at }} · CondoManager — Gestão de Condomínios
+        Documento gerado automaticamente em {{ $generated_at }} · {{ config('app.name', 'SindCON') }} — Gestão de Condomínios
     </div>
 </body>
 </html>

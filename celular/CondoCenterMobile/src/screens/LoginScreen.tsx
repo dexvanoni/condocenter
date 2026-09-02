@@ -42,7 +42,7 @@ const LoginScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.logoContainer}>
           <Text style={styles.logo}>🏢</Text>
-          <Text style={styles.title}>CondoCenter</Text>
+          <Text style={styles.title}>SindCON</Text>
           <Text style={styles.subtitle}>Sistema de Gestão Condominial</Text>
         </View>
 

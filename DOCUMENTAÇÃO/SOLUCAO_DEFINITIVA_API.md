@@ -1,4 +1,4 @@
-# ✅ Solução Definitiva - API com Sanctum Stateful
+﻿# ✅ Solução Definitiva - API com Sanctum Stateful
 
 ## 🐛 Problemas Encontrados
 

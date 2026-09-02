@@ -1,4 +1,4 @@
-# 🔧 Correção de Erro jQuery - Administração de Reservas
+﻿# 🔧 Correção de Erro jQuery - Administração de Reservas
 
 ## 🎯 Problema Identificado
 

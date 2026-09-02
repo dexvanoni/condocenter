@@ -1,4 +1,4 @@
-# 🔧 Correção de Permissões para Agregados - Reservas
+﻿# 🔧 Correção de Permissões para Agregados - Reservas
 
 ## 🎯 Problema Identificado
 

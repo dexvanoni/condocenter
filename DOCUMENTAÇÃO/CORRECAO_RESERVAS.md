@@ -1,4 +1,4 @@
-# ✅ Correção do Sistema de Reservas
+﻿# ✅ Correção do Sistema de Reservas
 
 ## 🐛 Problemas Identificados e Resolvidos
 

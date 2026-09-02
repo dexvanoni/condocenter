@@ -5,7 +5,7 @@
 @section('content')
 <div class="container-fluid px-4">
     <div class="mb-4">
-        <h1 class="mb-1"><i class="bi bi-receipt-cutoff"></i> Assinatura CondoManager</h1>
+        <h1 class="mb-1"><i class="bi bi-receipt-cutoff"></i> Assinatura {{ config('app.name', 'SindCON') }}</h1>
         <p class="text-muted mb-0">{{ $condominium->name }}</p>
     </div>
 

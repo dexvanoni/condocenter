@@ -1,4 +1,4 @@
-# ✅ RESUMO DA CORREÇÃO - Sistema de Reservas
+﻿# ✅ RESUMO DA CORREÇÃO - Sistema de Reservas
 
 ## 🎯 Problema Reportado
 

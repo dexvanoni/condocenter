@@ -1,4 +1,4 @@
-# 📚 CondoManager - Documentação da API
+﻿# 📚 SindCON - Documentação da API
 
 ## Base URL
 

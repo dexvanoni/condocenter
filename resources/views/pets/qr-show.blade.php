@@ -169,7 +169,7 @@
             <div class="text-center mt-4">
                 <small class="text-muted">
                     <i class="bi bi-shield-check"></i>
-                    Sistema de Identificação de Pets - CondoCenter
+                    Sistema de Identificação de Pets - {{ config('app.name', 'SindCON') }}
                 </small>
             </div>
         </div>

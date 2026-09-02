@@ -1,4 +1,4 @@
-# 🚀 Teste Rápido - Sistema de Reservas
+﻿# 🚀 Teste Rápido - Sistema de Reservas
 
 ## Problema Resolvido ✅
 

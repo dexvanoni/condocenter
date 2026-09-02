@@ -4,12 +4,12 @@
  * ============================================================
  * 
  * Este arquivo testa todas as funcionalidades do sistema FCM implementado
- * no CondoCenter, incluindo configurações, APIs e funcionalidades.
+ * no SindCON, incluindo configurações, APIs e funcionalidades.
  * 
  * Data: 14/10/2025
  * Versão: 1.0
  * 
- * @author Sistema CondoCenter
+ * @author Sistema SindCON
  * @package FCM Testing
  */
 
@@ -487,7 +487,7 @@ function generateReport() {
 echo "🔔 TESTE COMPLETO DO SISTEMA FCM\n";
 echo "=================================\n";
 echo "Data: " . date('d/m/Y H:i:s') . "\n";
-echo "Sistema: CondoCenter\n";
+echo "Sistema: SindCON\n";
 echo "Versão: 1.0\n\n";
 
 echo "Iniciando testes...\n\n";

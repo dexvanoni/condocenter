@@ -147,7 +147,7 @@ class SubscriptionBillingService
             'value' => (float) ($payment['value'] ?? 0),
             'due_date' => !empty($payment['dueDate']) ? Carbon::parse($payment['dueDate']) : null,
             'payment_date' => !empty($payment['paymentDate']) ? Carbon::parse($payment['paymentDate']) : null,
-            'description' => $payment['description'] ?? 'Assinatura CondoManager',
+            'description' => $payment['description'] ?? 'Assinatura SindCON',
             'invoice_url' => $payment['invoiceUrl'] ?? null,
             'bank_slip_url' => $payment['bankSlipUrl'] ?? null,
             'billing_type' => $payment['billingType'] ?? null,

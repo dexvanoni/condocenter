@@ -190,9 +190,9 @@
 
         <div class="footer">
             <p><strong>⚠️ ESTE É UM EMAIL URGENTE DE EMERGÊNCIA</strong></p>
-            <p>Enviado automaticamente pelo sistema CondoManager</p>
+            <p>Enviado automaticamente pelo sistema {{ config('app.name', 'SindCON') }}</p>
             <p>{{ $alertData['condominium_name'] }}</p>
-            <p>&copy; {{ date('Y') }} CondoManager - Sistema de Gestão de Condomínios</p>
+            <p>&copy; {{ date('Y') }} {{ config('app.name', 'SindCON') }} - Sistema de Gestão de Condomínios</p>
         </div>
     </div>
 </body>

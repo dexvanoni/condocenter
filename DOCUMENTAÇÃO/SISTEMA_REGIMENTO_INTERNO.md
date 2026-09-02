@@ -1,4 +1,4 @@
-# Sistema de Regimento Interno
+﻿# Sistema de Regimento Interno
 
 ## Visão Geral
 
@@ -251,10 +251,10 @@ Para dúvidas ou sugestões sobre este sistema, consulte a documentação do Lar
 
 ## Licença
 
-Este sistema foi desenvolvido como parte do projeto CondoCenter e segue as mesmas diretrizes de licenciamento do projeto principal.
+Este sistema foi desenvolvido como parte do projeto SindCON e segue as mesmas diretrizes de licenciamento do projeto principal.
 
 ---
 
-**Desenvolvido com ❤️ para o CondoCenter**
+**Desenvolvido com ❤️ para o SindCON**
 **Data: 31/10/2025**
 

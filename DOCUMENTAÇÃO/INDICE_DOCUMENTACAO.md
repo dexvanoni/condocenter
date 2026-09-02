@@ -1,4 +1,4 @@
-# 📚 CondoManager - Índice de Documentação
+﻿# 📚 SindCON - Índice de Documentação
 
 ## Guia Rápido de Navegação
 

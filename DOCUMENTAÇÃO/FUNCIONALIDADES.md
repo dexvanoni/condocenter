@@ -1,4 +1,4 @@
-# 🎯 CondoManager - Funcionalidades Implementadas
+﻿# 🎯 SindCON - Funcionalidades Implementadas
 
 ## Sistema Completo de Gestão de Condomínios
 
@@ -704,7 +704,7 @@ php artisan reports:generate-monthly 1
 
 ## ✨ Conclusão
 
-O **CondoManager** é um sistema **completo, profissional e pronto para produção**, com funcionalidades avançadas incluindo o inovador **Sistema de Alerta de PÂNICO** com confirmação por deslize, que pode salvar vidas em situações de emergência.
+O **SindCON** é um sistema **completo, profissional e pronto para produção**, com funcionalidades avançadas incluindo o inovador **Sistema de Alerta de PÂNICO** com confirmação por deslize, que pode salvar vidas em situações de emergência.
 
 Todos os módulos solicitados foram implementados com qualidade, segurança e atenção aos detalhes.
 

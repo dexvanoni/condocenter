@@ -1,4 +1,4 @@
-# 📋 Menu Lateral por Perfil - CondoManager
+﻿# 📋 Menu Lateral por Perfil - SindCON
 
 Este documento mostra exatamente quais itens do menu cada perfil visualiza.
 

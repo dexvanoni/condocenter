@@ -1,9 +1,9 @@
-# 🔔 PROCEDIMENTOS DE TESTE COMPLETO DO SISTEMA FCM
+﻿# 🔔 PROCEDIMENTOS DE TESTE COMPLETO DO SISTEMA FCM
 
 ## 📊 RESUMO DOS TESTES REALIZADOS
 
 **Data:** 17/10/2025  
-**Sistema:** CondoCenter  
+**Sistema:** SindCON  
 **Versão:** 1.0  
 **Taxa de Sucesso:** 70% (14/20 testes aprovados)
 
@@ -175,10 +175,10 @@ grep FCM .env
 # FCM_ENABLED=true
 # FCM_SERVER_KEY=e3c737d9e54b6498b12d118488bb7f32dc07bcd2
 # FCM_SENDER_ID=709629843657
-# FCM_PROJECT_ID=condomanager-natal
+# FCM_PROJECT_ID=SindCON-natal
 # FCM_API_KEY=AIzaSyCXIyHgLpQHvRfZF1Crvpgojlo_Q1Zl1SI
-# FCM_AUTH_DOMAIN=condomanager-natal.firebaseapp.com
-# FCM_STORAGE_BUCKET=condomanager-natal.firebasestorage.app
+# FCM_AUTH_DOMAIN=SindCON-natal.firebaseapp.com
+# FCM_STORAGE_BUCKET=SindCON-natal.firebasestorage.app
 # FCM_APP_ID=1:709629843657:web:c30ea63b73fda564611518
 # FCM_VAPID_KEY=BPh1AIGzdkKI0EowVbkoEOaOkzz5FkG6GPgWo9TbyS8KjTUx_pO369qIAZIOM5jYZUP-rPj34alMjYF8vQHnZN8
 ```

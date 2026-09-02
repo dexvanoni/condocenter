@@ -1,4 +1,4 @@
-# Guia de Configuração - CondoManager
+﻿# Guia de Configuração - SindCON
 
 ## Variáveis de Ambiente (.env)
 
@@ -6,7 +6,7 @@ Crie um arquivo `.env` na raiz do projeto com as seguintes configurações:
 
 ```env
 # Aplicação
-APP_NAME="CondoManager"
+APP_NAME="SindCON"
 APP_ENV=local
 APP_KEY=
 APP_DEBUG=true
@@ -22,7 +22,7 @@ APP_FAKER_LOCALE=pt_BR
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=condocenter
+DB_DATABASE=SindCON
 DB_USERNAME=root
 DB_PASSWORD=
 
@@ -45,13 +45,13 @@ MAIL_PORT=587
 MAIL_USERNAME=seu_email@gmail.com
 MAIL_PASSWORD=sua_senha_app
 MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS="noreply@condomanager.com"
+MAIL_FROM_ADDRESS="noreply@SindCON.com"
 MAIL_FROM_NAME="${APP_NAME}"
 
 # Asaas Payment Gateway
 ASAAS_API_KEY=seu_token_aqui
 ASAAS_SANDBOX=true
-ASAAS_WEBHOOK_EMAIL=admin@condomanager.com
+ASAAS_WEBHOOK_EMAIL=admin@SindCON.com
 
 # Storage (local para dev, s3 para prod)
 FILESYSTEM_DISK=local
@@ -69,7 +69,7 @@ AWS_BUCKET=
 
 ```bash
 # 1. Navegar até o diretório
-cd C:\laragon\www\condocenter
+cd C:\laragon\www\SindCON
 
 # 2. Instalar dependências PHP
 C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe C:\laragon\bin\composer\composer.phar install
@@ -85,7 +85,7 @@ copy .env.example .env
 C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan key:generate
 
 # 6. Criar banco de dados MySQL
-# No MySQL: CREATE DATABASE condocenter CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# No MySQL: CREATE DATABASE SindCON CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 # 7. Executar migrations
 C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan migrate
@@ -115,7 +115,7 @@ cp .env.example .env
 php artisan key:generate
 
 # 3. Criar banco de dados
-mysql -u root -p -e "CREATE DATABASE condocenter CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "CREATE DATABASE SindCON CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 4. Executar migrations e seeders
 php artisan migrate
@@ -195,15 +195,15 @@ C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe artisan queue:work
 Configure o Supervisor:
 
 ```ini
-[program:condomanager-worker]
+[program:SindCON-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /path/to/condocenter/artisan queue:work --sleep=3 --tries=3
+command=php /path/to/SindCON/artisan queue:work --sleep=3 --tries=3
 autostart=true
 autorestart=true
 user=www-data
 numprocs=8
 redirect_stderr=true
-stdout_logfile=/path/to/condocenter/storage/logs/worker.log
+stdout_logfile=/path/to/SindCON/storage/logs/worker.log
 ```
 
 ## Configuração de Email
@@ -241,7 +241,7 @@ APP_DEBUG=false
 APP_URL=https://seudominio.com
 
 DB_HOST=localhost
-DB_DATABASE=u123456_condocenter
+DB_DATABASE=u123456_SindCON
 DB_USERNAME=u123456_user
 DB_PASSWORD=senha_segura
 
@@ -334,7 +334,7 @@ php artisan view:clear
 ### Backup do Banco de Dados
 
 ```bash
-mysqldump -u root -p condocenter > backup_$(date +%Y%m%d).sql
+mysqldump -u root -p SindCON > backup_$(date +%Y%m%d).sql
 ```
 
 ### Backup de Arquivos
@@ -364,7 +364,7 @@ Retorna status da aplicação, banco de dados e filas.
 ## Suporte
 
 Para problemas ou dúvidas:
-- Email: suporte@condomanager.com
+- Email: suporte@SindCON.com
 - GitHub Issues: [URL do repositório]
-- Documentação: https://docs.condomanager.com
+- Documentação: https://docs.SindCON.com
 

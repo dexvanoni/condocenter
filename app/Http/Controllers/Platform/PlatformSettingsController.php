@@ -103,7 +103,7 @@ class PlatformSettingsController extends Controller
 
         if ($connection['ok'] && filled($testPhone)) {
             $message = $this->whatsapp->formatMessage(
-                'Teste CondoCenter',
+                'Teste SindCON',
                 'Esta é uma mensagem de teste da integração WhatsApp via Evolution API.'
             );
             $testSend = $this->evolution->sendText($testPhone, $message);

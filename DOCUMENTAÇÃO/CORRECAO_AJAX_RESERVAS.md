@@ -1,4 +1,4 @@
-# ✅ Correção - Requisições AJAX de Reservas
+﻿# ✅ Correção - Requisições AJAX de Reservas
 
 ## 🐛 Problema
 

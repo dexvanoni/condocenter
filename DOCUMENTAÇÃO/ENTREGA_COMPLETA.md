@@ -1,4 +1,4 @@
-# 🎊 CondoManager - Entrega Completa e Final
+﻿# 🎊 SindCON - Entrega Completa e Final
 
 ## Sistema Profissional 100% Funcional
 
@@ -399,7 +399,7 @@ http://localhost:8000
 
 | Email | Senha | Perfil |
 |-------|-------|--------|
-| admin@condomanager.com | password | Administrador |
+| admin@SindCON.com | password | Administrador |
 | sindico@vistaverde.com | password | Síndico |
 | morador1@example.com | password | Morador |
 | morador2@example.com | password | Morador |
@@ -659,7 +659,7 @@ Projeto desenvolvido com:
 
 **Você agora possui um sistema SaaS completo, profissional e único no mercado.**
 
-O CondoManager não é apenas um MVP - é um **produto pronto para uso**, com funcionalidades avançadas incluindo o revolucionário **Sistema de Alerta de PÂNICO** que pode salvar vidas.
+O SindCON não é apenas um MVP - é um **produto pronto para uso**, com funcionalidades avançadas incluindo o revolucionário **Sistema de Alerta de PÂNICO** que pode salvar vidas.
 
 **Todos os 20 requisitos foram implementados.**  
 **Todos os 8 entregáveis foram cumpridos.**  
@@ -679,5 +679,5 @@ E ainda incluímos funcionalidades extras que agregam valor significativo ao pro
 
 *Desenvolvido com dedicação para facilitar a gestão de condomínios no Brasil.* 🇧🇷
 
-**CondoManager v1.0.0 - {{ date('d/m/Y') }}**
+**SindCON v1.0.0 - {{ date('d/m/Y') }}**
 

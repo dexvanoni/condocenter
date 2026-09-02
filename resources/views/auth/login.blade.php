@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - CondoManager</title>
+    <title>Login - {{ config('app.name', 'SindCON') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -34,7 +34,7 @@
             <div class="col-md-5">
                 <div class="login-card">
                     <div class="login-header">
-                        <h2><i class="bi bi-building"></i> CondoManager</h2>
+                        <h2><i class="bi bi-building"></i> {{ config('app.name', 'SindCON') }}</h2>
                         <p class="mb-0">Sistema de Gestão de Condomínios</p>
                     </div>
                     <div class="p-4">

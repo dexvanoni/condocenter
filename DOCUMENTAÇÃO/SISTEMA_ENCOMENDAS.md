@@ -1,4 +1,4 @@
-# Sistema de Encomendas
+﻿# Sistema de Encomendas
 
 ## Visão Geral
 - Painel interativo para porteiros com todas as unidades do condomínio e contagem em tempo real de encomendas pendentes.

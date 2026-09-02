@@ -1,8 +1,8 @@
-# 🎨 Dashboards Premium - Implementação Completa
+﻿# 🎨 Dashboards Premium - Implementação Completa
 
 ## 📋 Visão Geral
 
-Implementação completa de dashboards modernos e intuitivos para todos os perfis do sistema CondoCenter, com design premium, animações suaves, cards elegantes e total respeito às permissões de cada perfil.
+Implementação completa de dashboards modernos e intuitivos para todos os perfis do sistema SindCON, com design premium, animações suaves, cards elegantes e total respeito às permissões de cada perfil.
 
 ---
 

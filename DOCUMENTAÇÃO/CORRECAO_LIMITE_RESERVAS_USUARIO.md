@@ -1,4 +1,4 @@
-# 🔧 Correção: Limite de Reservas por Usuário
+﻿# 🔧 Correção: Limite de Reservas por Usuário
 
 ## 🎯 Problema Identificado
 

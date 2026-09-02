@@ -388,7 +388,7 @@ class CondominiumSubscriptionService
             'value' => (float) $subscription->recurring_amount,
             'nextDueDate' => $nextDueDate,
             'cycle' => $this->mapBillingCycleToAsaas($subscription->billing_cycle),
-            'description' => "Assinatura CondoManager — {$condominium->name}",
+            'description' => "Assinatura SindCON — {$condominium->name}",
             'externalReference' => 'subscription:' . $subscription->id,
         ]);
 

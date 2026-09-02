@@ -1,4 +1,4 @@
-# 🔧 CORREÇÃO DO ERRO DE ALERTA DE PÂNICO
+﻿# 🔧 CORREÇÃO DO ERRO DE ALERTA DE PÂNICO
 
 ## 🚨 Problema Identificado
 

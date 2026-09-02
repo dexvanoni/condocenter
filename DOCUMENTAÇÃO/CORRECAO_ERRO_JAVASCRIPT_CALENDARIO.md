@@ -1,4 +1,4 @@
-# 🔧 Correção de Erro JavaScript - Calendário de Reservas
+﻿# 🔧 Correção de Erro JavaScript - Calendário de Reservas
 
 ## 🎯 Problema Identificado
 

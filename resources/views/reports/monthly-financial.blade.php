@@ -190,7 +190,7 @@
     </div>
 
     <div class="footer">
-        <p>Este relatório foi gerado automaticamente pelo sistema CondoManager</p>
+        <p>Este relatório foi gerado automaticamente pelo sistema {{ config('app.name', 'SindCON') }}</p>
         <p>{{ $condominium->name }} - {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 </body>
