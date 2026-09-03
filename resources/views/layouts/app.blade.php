@@ -950,13 +950,14 @@
             'show_selector' => false,
         ];
             $menuActive = [
-            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show') || request()->routeIs('condominiums.settings.whatsapp*'),
+            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show') || request()->routeIs('condominiums.settings.whatsapp*') || request()->routeIs('condominiums.settings.receiving*'),
             'plataforma' => request()->routeIs('condominiums.index') || request()->routeIs('condominiums.create') || request()->routeIs('condominiums.edit') || request()->routeIs('condominiums.settings.whatsapp*'),
             'configuracoes_globais' => request()->routeIs('platform.*'),
             'financeiro' => request()->routeIs('transactions.*')
                 || request()->routeIs('fees.*')
                 || request()->routeIs('fines.*')
                 || request()->routeIs('charges.*')
+                || request()->routeIs('my-charges.*')
                 || request()->routeIs('financial.status.*')
                 || request()->routeIs('financial.accounts.*')
                 || request()->routeIs('financial.income-expense.*')
@@ -967,6 +968,7 @@
                 || request()->routeIs('accountability-reports.*')
                 || request()->routeIs('accountability-uploads.*')
                 || request()->routeIs('financial.settings.*')
+                || request()->routeIs('condominiums.settings.receiving*')
                 || request()->routeIs('balance.*')
                 || request()->routeIs('my-finances'),
             'espacos' => request()->routeIs('reservations.*')
@@ -1298,6 +1300,13 @@
                                     </a>
                                 </li>
                                 @endif
+                                @if(Route::has('condominiums.settings.receiving') && \App\Helpers\SidebarHelper::canManageReceivingSettings($user) && !empty($activeCondominiumContext['id']))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('condominiums.settings.receiving*') ? 'active' : '' }}" href="{{ route('condominiums.settings.receiving', $activeCondominiumContext['id']) }}">
+                                        <i class="bi bi-wallet2"></i> Recebimentos (Asaas)
+                                    </a>
+                                </li>
+                                @endif
                             @endif
 
                             @if(!$isFinancialSimplified && Route::has('financial.accounts.index') && ($isFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $isFinanceResident))
@@ -1328,6 +1337,13 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                     <i class="bi bi-wallet2"></i> Minhas Finanças
+                                </a>
+                            </li>
+                            @endif
+                            @if(!$isFinanceAdmin && Route::has('my-charges.index') && $isFinanceResident && $user->can('view_charges') && $user->unit_id)
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
+                                    <i class="bi bi-receipt"></i> Minhas Cobranças
                                 </a>
                             </li>
                             @endif
@@ -1997,6 +2013,13 @@
                                             </a>
                                         </li>
                                         @endif
+                                        @if(Route::has('condominiums.settings.receiving') && \App\Helpers\SidebarHelper::canManageReceivingSettings($user) && !empty($activeCondominiumContext['id']))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('condominiums.settings.receiving*') ? 'active' : '' }}" href="{{ route('condominiums.settings.receiving', $activeCondominiumContext['id']) }}">
+                                                <i class="bi bi-wallet2"></i> Recebimentos (Asaas)
+                                            </a>
+                                        </li>
+                                        @endif
                                     @endif
 
                                     @if(!$mobileFinancialSimplified && Route::has('financial.accounts.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
@@ -2034,6 +2057,13 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                             <i class="bi bi-wallet2"></i> Minhas Finanças
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(!$mobileFinanceAdmin && Route::has('my-charges.index') && $mobileFinanceResident && $user->can('view_charges') && $user->unit_id)
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
+                                            <i class="bi bi-receipt"></i> Minhas Cobranças
                                         </a>
                                     </li>
                                     @endif
@@ -3007,7 +3037,6 @@
             });
             
             // Observar mudanças no container e nos elementos
-            const codeContainer = document.querySelector('.confirmation-code-container');
             if (codeContainer) {
                 observer.observe(codeContainer, {
                     attributes: true,

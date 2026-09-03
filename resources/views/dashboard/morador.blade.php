@@ -19,7 +19,7 @@
             </div>
             <div class="col-md-4 text-end">
                 @if($chargesPendentes->count() > 0 || $chargesAtrasadas->count() > 0)
-                <a href="{{ route('charges.index') }}" class="btn btn-primary">
+                <a href="{{ route('my-charges.index') }}" class="btn btn-primary">
                     <i class="bi bi-credit-card"></i> Pagar Cobranças
                 </a>
                 @endif
@@ -44,7 +44,7 @@
                         <h6 class="mb-1">Atenção! Você possui cobranças em atraso</h6>
                         <p class="mb-0">{{ $chargesAtrasadas->count() }} {{ Str::plural('cobrança', $chargesAtrasadas->count()) }} atrasada(s) no valor de R$ {{ number_format($chargesAtrasadas->sum('amount'), 2, ',', '.') }}</p>
                     </div>
-                    <a href="{{ route('charges.index') }}" class="btn btn-danger">
+                    <a href="{{ route('my-charges.index') }}" class="btn btn-danger">
                         <i class="bi bi-arrow-right"></i> Regularizar
                     </a>
                 </div>
@@ -552,9 +552,15 @@
                                         <strong class="text-brand">R$ {{ number_format($charge->calculateTotal(), 2, ',', '.') }}</strong>
                                     </td>
                                     <td class="text-center">
-                                        <button class="btn btn-sm btn-danger">
-                                            <i class="bi bi-credit-card"></i> Pagar
-                                        </button>
+                                        @if($onlinePaymentsEnabled ?? false)
+                                            <button type="button" class="btn btn-sm btn-danger" onclick="openChargeCheckout({{ $charge->id }})">
+                                                <i class="bi bi-credit-card"></i> Pagar
+                                            </button>
+                                        @else
+                                            <a href="{{ route('my-charges.index') }}" class="btn btn-sm btn-danger" title="Pagamento com a administração">
+                                                <i class="bi bi-receipt"></i> Ver cobrança
+                                            </a>
+                                        @endif
                                     </td>
                                 </tr>
                                 @endforeach
@@ -572,9 +578,15 @@
                                         <strong>R$ {{ number_format($charge->calculateTotal(), 2, ',', '.') }}</strong>
                                     </td>
                                     <td class="text-center">
-                                        <button class="btn btn-sm btn-primary">
-                                            <i class="bi bi-credit-card"></i> Pagar
-                                        </button>
+                                        @if($onlinePaymentsEnabled ?? false)
+                                            <button type="button" class="btn btn-sm btn-primary" onclick="openChargeCheckout({{ $charge->id }})">
+                                                <i class="bi bi-credit-card"></i> Pagar
+                                            </button>
+                                        @else
+                                            <a href="{{ route('my-charges.index') }}" class="btn btn-sm btn-primary" title="Pagamento com a administração">
+                                                <i class="bi bi-receipt"></i> Ver cobrança
+                                            </a>
+                                        @endif
                                     </td>
                                 </tr>
                                 @endforeach
@@ -859,4 +871,8 @@
         @endif
     </div>
 </div>
+
+@if($onlinePaymentsEnabled ?? false)
+    @include('charges.partials.payment-checkout')
+@endif
 @endsection

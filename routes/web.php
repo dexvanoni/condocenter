@@ -14,6 +14,8 @@ use App\Http\Controllers\Finance\BankAccountController;
 use App\Http\Controllers\Finance\BankReconciliationController;
 use App\Http\Controllers\Finance\ChargeSettlementController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Condominium;
 use App\Http\Controllers\ConversationWebController;
 
 // Rota de teste absoluta
@@ -37,6 +39,7 @@ Route::get('/apresentacao', function () {
 // Webhook routes (public, sem autenticação)
 Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webhooks.asaas');
 Route::post('/webhooks/asaas/platform', [WebhookController::class, 'asaasPlatform'])->name('webhooks.asaas.platform');
+Route::post('/webhooks/asaas/condominium/{condominium}', [WebhookController::class, 'asaasCondominium'])->name('webhooks.asaas.condominium');
 
 // QR Code público de pets (sem autenticação)
 Route::get('/pets/qr/{qrCode}', [\App\Http\Controllers\PetController::class, 'showQrCode'])->name('pets.show-qr');
@@ -75,10 +78,15 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::middleware(['ensure.saas.subscription'])->group(function () {
     // Financeiro — taxas e cobranças (disponível em ambos os ambientes)
     Route::middleware(['can:view_charges'])->group(function () {
+        Route::get('/minhas-cobrancas', [\App\Http\Controllers\ResidentChargeController::class, 'index'])->name('my-charges.index');
+        Route::get('/minhas-cobrancas/export/pdf', [\App\Http\Controllers\ResidentChargeController::class, 'exportPdf'])->name('my-charges.export-pdf');
         Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
         Route::get('/charges/data', [\App\Http\Controllers\ChargeController::class, 'data'])->name('charges.data');
         Route::get('/charges/{charge}/receipt', [\App\Http\Controllers\ChargeController::class, 'receipt'])->name('charges.receipt');
         Route::get('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'show'])->name('charges.show');
+        Route::post('/charges/{charge}/checkout', [\App\Http\Controllers\ChargePaymentController::class, 'checkout'])->name('charges.checkout');
+        Route::post('/charges/{charge}/pay-card', [\App\Http\Controllers\ChargePaymentController::class, 'payWithCard'])->name('charges.pay-card');
+        Route::get('/charges/{charge}/payment-status', [\App\Http\Controllers\ChargePaymentController::class, 'status'])->name('charges.payment-status');
         Route::delete('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'destroy'])
             ->middleware('can:manage_charges')
             ->name('charges.destroy');
@@ -180,8 +188,13 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     
     // Reservas
     Route::middleware(['check.reservation.access:view'])->group(function () {
-        Route::get('/reservations', function() { 
-            return view('reservations.calendar'); 
+        Route::get('/reservations', function () {
+            $user = Auth::user();
+            $condominium = Condominium::query()->find($user?->tenantCondominiumId());
+
+            return view('reservations.calendar', [
+                'onlinePaymentsEnabled' => $condominium?->acceptsOnlinePayments() ?? false,
+            ]);
         })->name('reservations.index');
     });
     
@@ -348,6 +361,16 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->name('condominiums.settings.whatsapp.test');
     Route::post('/condominiums/{condominium}/settings/whatsapp/groups', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'listGroups'])
         ->name('condominiums.settings.whatsapp.groups');
+    Route::get('/condominiums/{condominium}/settings/receiving', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'index'])
+        ->name('condominiums.settings.receiving');
+    Route::put('/condominiums/{condominium}/settings/receiving/mode', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'updateMode'])
+        ->name('condominiums.settings.receiving.mode');
+    Route::put('/condominiums/{condominium}/settings/receiving/credentials', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'updateCredentials'])
+        ->name('condominiums.settings.receiving.credentials');
+    Route::post('/condominiums/{condominium}/settings/receiving/test', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'test'])
+        ->name('condominiums.settings.receiving.test');
+    Route::post('/condominiums/{condominium}/settings/receiving/complete', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'completeSetup'])
+        ->name('condominiums.settings.receiving.complete');
 
     // Plataforma SaaS — assinaturas e configurações globais
     Route::prefix('platform')->name('platform.')->group(function () {

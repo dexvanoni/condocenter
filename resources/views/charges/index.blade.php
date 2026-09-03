@@ -219,6 +219,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" id="detailChargePayBtn" class="btn btn-success d-none" onclick="openChargeCheckout(selectedChargeId)">
+                    <i class="bi bi-credit-card"></i> Pagar online
+                </button>
                 <a href="#" id="detailChargeReceiptBtn" class="btn btn-outline-primary d-none" target="_blank" rel="noopener">
                     <i class="bi bi-file-earmark-pdf"></i> Gerar comprovante (PDF)
                 </a>
@@ -300,6 +303,8 @@
     </div>
 </div>
 
+@include('charges.partials.payment-checkout')
+
 @push('scripts')
 <script>
     const chargesDataUrl = "{{ route('charges.data') }}";
@@ -308,7 +313,7 @@
 
     let chargesCurrentPage = 1;
     let chargesCache = new Map();
-    let chargePermissions = { can_manage: false };
+    let chargePermissions = { can_manage: false, can_pay_online: false };
     let chargeDetailsModal;
     let receiveChargeModal;
     let deleteChargeModal;
@@ -427,6 +432,10 @@
     function buildActions(charge) {
         const buttons = [];
         buttons.push(`<button type="button" class="btn btn-outline-secondary btn-sm" onclick="openChargeDetails(${charge.id})">Ver</button>`);
+
+        if (charge.can_pay_online) {
+            buttons.push(`<button type="button" class="btn btn-success btn-sm" onclick="openChargeCheckout(${charge.id})"><i class="bi bi-wallet2"></i> Pagar</button>`);
+        }
 
         if (chargePermissions.can_manage && ['pending', 'overdue'].includes(charge.status)) {
             buttons.push(`<button type="button" class="btn btn-outline-success btn-sm" onclick="openReceiveChargeModal(${charge.id})">Receber</button>`);
@@ -577,7 +586,7 @@
     }
 
     function renderCharges(response) {
-        chargePermissions = response.permissions || { can_manage: false };
+        chargePermissions = response.permissions || { can_manage: false, can_pay_online: false };
         chargesCache = new Map();
 
         updateSummary(response.summary);
@@ -634,8 +643,10 @@
             </tr>
         `;
         const receiptBtn = document.getElementById('detailChargeReceiptBtn');
+        const payBtn = document.getElementById('detailChargePayBtn');
         receiptBtn.classList.add('d-none');
         receiptBtn.href = '#';
+        payBtn.classList.add('d-none');
 
         fetch(`${chargeBaseUrl}/${id}`, {
             headers: {
@@ -664,6 +675,12 @@
                 } else {
                     receiptBtn.classList.add('d-none');
                     receiptBtn.href = '#';
+                }
+
+                if (data.can_pay_online) {
+                    payBtn.classList.remove('d-none');
+                } else {
+                    payBtn.classList.add('d-none');
                 }
 
                 const paymentsBody = document.getElementById('detailChargePaymentsBody');
@@ -825,6 +842,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        window.chargePaymentOnSuccess = () => loadCharges(chargesCurrentPage);
+
         chargeDetailsModal = new bootstrap.Modal(document.getElementById('chargeDetailsModal'));
         receiveChargeModal = new bootstrap.Modal(document.getElementById('receiveChargeModal'));
         deleteChargeModal = new bootstrap.Modal(document.getElementById('deleteChargeModal'));
@@ -850,6 +869,11 @@
             clearErrors(document.getElementById('deleteChargeErrors'));
             selectedChargeId = null;
         });
+
+        const payParam = new URLSearchParams(window.location.search).get('pay');
+        if (payParam && typeof window.openChargeCheckout === 'function') {
+            window.openChargeCheckout(payParam);
+        }
 
         loadCharges();
     });

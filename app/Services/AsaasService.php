@@ -7,24 +7,141 @@ use Illuminate\Support\Facades\Log;
 
 class AsaasService
 {
-    protected $apiKey;
-    protected $apiUrl;
-    protected $isSandbox;
+    protected ?string $apiKey = null;
+    protected string $apiUrl = 'https://sandbox.asaas.com/api/v3';
+    protected bool $isSandbox = true;
+    protected ?int $condominiumId = null;
 
-    public function __construct()
+    public function __construct(
+        private CondominiumAsaasSettingsService $condominiumSettings,
+    ) {
+        $this->bootFromGlobalConfig();
+    }
+
+    public function forCondominium(?int $condominiumId): self
     {
-        $this->isSandbox = config('services.asaas.sandbox', true);
-        $this->apiKey = config('services.asaas.api_key');
-        $this->apiUrl = $this->isSandbox 
+        $instance = clone $this;
+        $instance->condominiumId = $condominiumId;
+        $instance->bootFromCondominium($condominiumId);
+
+        return $instance;
+    }
+
+    public function isConfigured(): bool
+    {
+        return filled($this->apiKey);
+    }
+
+    public function getCondominiumId(): ?int
+    {
+        return $this->condominiumId;
+    }
+
+    protected function bootFromGlobalConfig(): void
+    {
+        $this->isSandbox = (bool) config('services.asaas.sandbox', true);
+        $this->apiKey = config('services.asaas.api_key') ?: null;
+        $this->apiUrl = $this->isSandbox
             ? 'https://sandbox.asaas.com/api/v3'
             : 'https://www.asaas.com/api/v3';
     }
 
-    /**
-     * Cria ou atualiza um cliente no Asaas
-     */
+    protected function bootFromCondominium(?int $condominiumId): void
+    {
+        if (!$condominiumId) {
+            $this->bootFromGlobalConfig();
+
+            return;
+        }
+
+        $condominium = \App\Models\Condominium::query()->find($condominiumId);
+
+        if (!$condominium || !$this->condominiumSettings->isConfigured($condominium)) {
+            $this->bootFromGlobalConfig();
+
+            return;
+        }
+
+        $config = $this->condominiumSettings->getApiConfig($condominium);
+        $this->apiKey = $config['api_key'] ?: null;
+        $this->isSandbox = (bool) $config['sandbox'];
+        $this->apiUrl = $config['api_url'];
+    }
+
+    public function findCustomerByExternalReference(string $externalReference): ?array
+    {
+        if (!$this->isConfigured()) {
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->apiKey,
+            ])->get("{$this->apiUrl}/customers", [
+                'externalReference' => $externalReference,
+                'limit' => 1,
+            ]);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $customers = $response->json()['data'] ?? [];
+
+            return $customers[0] ?? null;
+        } catch (\Exception $e) {
+            Log::error('Exceção ao buscar cliente no Asaas: ' . $e->getMessage(), [
+                'condominium_id' => $this->condominiumId,
+            ]);
+
+            return null;
+        }
+    }
+
+    public function updateCustomer(string $customerId, array $data): ?array
+    {
+        if (!$this->isConfigured()) {
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->apiKey,
+                'Content-Type' => 'application/json',
+            ])->put("{$this->apiUrl}/customers/{$customerId}", $data);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error('Erro ao atualizar cliente no Asaas', [
+                'condominium_id' => $this->condominiumId,
+                'response' => $response->json(),
+                'status' => $response->status(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Exceção ao atualizar cliente no Asaas: ' . $e->getMessage(), [
+                'condominium_id' => $this->condominiumId,
+            ]);
+
+            return null;
+        }
+    }
+
     public function createOrUpdateCustomer($data)
     {
+        $externalReference = $data['externalReference'] ?? null;
+
+        if ($externalReference) {
+            $existing = $this->findCustomerByExternalReference($externalReference);
+
+            if ($existing) {
+                return $this->updateCustomer($existing['id'], $data) ?? $existing;
+            }
+        }
+
         try {
             $response = Http::withHeaders([
                 'access_token' => $this->apiKey,
@@ -36,20 +153,57 @@ class AsaasService
             }
 
             Log::error('Erro ao criar cliente no Asaas', [
+                'condominium_id' => $this->condominiumId,
                 'response' => $response->json(),
-                'status' => $response->status()
+                'status' => $response->status(),
             ]);
 
             return null;
         } catch (\Exception $e) {
-            Log::error('Exceção ao criar cliente no Asaas: ' . $e->getMessage());
+            Log::error('Exceção ao criar cliente no Asaas: ' . $e->getMessage(), [
+                'condominium_id' => $this->condominiumId,
+            ]);
+
             return null;
         }
     }
 
-    /**
-     * Cria uma cobrança no Asaas
-     */
+    public function tokenizeCreditCard(string $customerId, array $creditCard, array $holderInfo): ?array
+    {
+        if (!$this->isConfigured()) {
+            return null;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->apiKey,
+                'Content-Type' => 'application/json',
+            ])->post("{$this->apiUrl}/creditCard/tokenize", [
+                'customer' => $customerId,
+                'creditCard' => $creditCard,
+                'creditCardHolderInfo' => $holderInfo,
+            ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            Log::error('Erro ao tokenizar cartão no Asaas', [
+                'condominium_id' => $this->condominiumId,
+                'response' => $response->json(),
+                'status' => $response->status(),
+            ]);
+
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Exceção ao tokenizar cartão no Asaas: ' . $e->getMessage(), [
+                'condominium_id' => $this->condominiumId,
+            ]);
+
+            return null;
+        }
+    }
+
     public function createPayment($data)
     {
         try {
@@ -63,20 +217,21 @@ class AsaasService
             }
 
             Log::error('Erro ao criar cobrança no Asaas', [
+                'condominium_id' => $this->condominiumId,
                 'response' => $response->json(),
-                'status' => $response->status()
+                'status' => $response->status(),
             ]);
 
             return null;
         } catch (\Exception $e) {
-            Log::error('Exceção ao criar cobrança no Asaas: ' . $e->getMessage());
+            Log::error('Exceção ao criar cobrança no Asaas: ' . $e->getMessage(), [
+                'condominium_id' => $this->condominiumId,
+            ]);
+
             return null;
         }
     }
 
-    /**
-     * Consulta um pagamento no Asaas
-     */
     public function getPayment($paymentId)
     {
         try {
@@ -91,15 +246,17 @@ class AsaasService
             return null;
         } catch (\Exception $e) {
             Log::error('Exceção ao consultar pagamento no Asaas: ' . $e->getMessage());
+
             return null;
         }
     }
 
-    /**
-     * Gera QR Code PIX para um pagamento
-     */
     public function getPixQRCode($paymentId)
     {
+        if (!$this->isConfigured()) {
+            return null;
+        }
+
         try {
             $response = Http::withHeaders([
                 'access_token' => $this->apiKey,
@@ -109,16 +266,24 @@ class AsaasService
                 return $response->json();
             }
 
+            Log::warning('Falha ao obter QR Code PIX no Asaas', [
+                'payment_id' => $paymentId,
+                'condominium_id' => $this->condominiumId,
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
             return null;
         } catch (\Exception $e) {
-            Log::error('Exceção ao gerar QR Code PIX: ' . $e->getMessage());
+            Log::error('Exceção ao gerar QR Code PIX: ' . $e->getMessage(), [
+                'payment_id' => $paymentId,
+                'condominium_id' => $this->condominiumId,
+            ]);
+
             return null;
         }
     }
 
-    /**
-     * Cria uma assinatura recorrente
-     */
     public function createSubscription($data)
     {
         try {
@@ -133,19 +298,17 @@ class AsaasService
 
             Log::error('Erro ao criar assinatura no Asaas', [
                 'response' => $response->json(),
-                'status' => $response->status()
+                'status' => $response->status(),
             ]);
 
             return null;
         } catch (\Exception $e) {
             Log::error('Exceção ao criar assinatura no Asaas: ' . $e->getMessage());
+
             return null;
         }
     }
 
-    /**
-     * Cancela uma assinatura
-     */
     public function cancelSubscription($subscriptionId)
     {
         try {
@@ -156,14 +319,12 @@ class AsaasService
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('Exceção ao cancelar assinatura no Asaas: ' . $e->getMessage());
+
             return false;
         }
     }
 
-    /**
-     * Cria um webhook para receber notificações
-     */
-    public function createWebhook($url, $events = [])
+    public function createWebhook($url, $events = [], ?string $email = null)
     {
         try {
             $defaultEvents = [
@@ -180,7 +341,7 @@ class AsaasService
                 'Content-Type' => 'application/json',
             ])->post("{$this->apiUrl}/webhooks", [
                 'url' => $url,
-                'email' => config('services.asaas.webhook_email', 'admin@condomanager.com'),
+                'email' => $email ?: config('services.asaas.webhook_email', 'admin@condomanager.com'),
                 'enabled' => true,
                 'interrupted' => false,
                 'events' => empty($events) ? $defaultEvents : $events,
@@ -193,47 +354,55 @@ class AsaasService
             return null;
         } catch (\Exception $e) {
             Log::error('Exceção ao criar webhook no Asaas: ' . $e->getMessage());
+
             return null;
         }
     }
 
-    /**
-     * Processa o webhook recebido do Asaas
-     */
     public function processWebhook($payload)
     {
         try {
             $event = $payload['event'] ?? null;
+
+            if ($event === 'WEBHOOK_TEST') {
+                return true;
+            }
+
             $payment = $payload['payment'] ?? null;
 
             if (!$event || !$payment) {
                 return false;
             }
 
-            Log::info('Webhook Asaas recebido', ['event' => $event, 'payment_id' => $payment['id']]);
+            Log::info('Webhook Asaas recebido', [
+                'event' => $event,
+                'payment_id' => $payment['id'],
+                'condominium_id' => $this->condominiumId,
+            ]);
 
-            // Busca a cobrança no sistema
             $charge = \App\Models\Charge::where('asaas_payment_id', $payment['id'])->first();
 
             if (!$charge) {
                 Log::warning('Cobrança não encontrada para o payment_id: ' . $payment['id']);
+
                 return false;
             }
 
-            // Atualiza status baseado no evento
             switch ($event) {
                 case 'PAYMENT_CONFIRMED':
                 case 'PAYMENT_RECEIVED':
-                    $charge->markAsPaid();
-                    
-                    // Cria registro de pagamento
-                    \App\Models\Payment::create([
-                        'charge_id' => $charge->id,
-                        'amount_paid' => $payment['value'],
-                        'payment_date' => $payment['paymentDate'] ?? now(),
-                        'payment_method' => $this->mapAsaasPaymentMethod($payment['billingType']),
-                        'asaas_payment_id' => $payment['id'],
-                    ]);
+                    if ($charge->status === 'paid') {
+                        return true;
+                    }
+
+                    $charge->update(['asaas_payment_id' => $payment['id']]);
+
+                    app(ChargeSettlementService::class)->markAsPaid(
+                        $charge->fresh(),
+                        \Carbon\Carbon::parse($payment['paymentDate'] ?? now()),
+                        $this->mapAsaasPaymentMethod($payment['billingType'] ?? null),
+                        'Pagamento confirmado via Asaas.'
+                    );
                     break;
 
                 case 'PAYMENT_OVERDUE':
@@ -248,13 +417,11 @@ class AsaasService
             return true;
         } catch (\Exception $e) {
             Log::error('Erro ao processar webhook Asaas: ' . $e->getMessage());
+
             return false;
         }
     }
 
-    /**
-     * Mapeia o método de pagamento do Asaas para o sistema
-     */
     protected function mapAsaasPaymentMethod($billingType)
     {
         $map = [
@@ -268,4 +435,3 @@ class AsaasService
         return $map[$billingType] ?? 'other';
     }
 }
-

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
+use App\Models\Condominium;
 use App\Models\Unit;
 use App\Services\ChargeReceiptService;
 use App\Services\ChargeSettlementService;
@@ -87,6 +88,10 @@ class ChargeController extends Controller
         $perPage = (int) $request->input('per_page', 15);
         $charges = $chargesQuery->orderByDesc('due_date')->paginate($perPage);
 
+        $condominium = Condominium::query()->find($condominiumId);
+        $onlinePaymentsEnabled = $condominium?->acceptsOnlinePayments() ?? false;
+        $userCanPayOnline = $onlinePaymentsEnabled && filled($user->unit_id);
+
         $unitOptions = $user->isMorador() && $user->unit_id
             ? Unit::where('id', $user->unit_id)->get(['id', 'block', 'number'])
             : Unit::where('condominium_id', $condominiumId)
@@ -95,7 +100,14 @@ class ChargeController extends Controller
                 ->get(['id', 'block', 'number']);
 
         return response()->json([
-            'data' => $charges->items(),
+            'data' => collect($charges->items())->map(function (Charge $charge) use ($user, $userCanPayOnline) {
+                $payload = $charge->toArray();
+                $payload['can_pay_online'] = $userCanPayOnline
+                    && (int) $charge->unit_id === (int) $user->unit_id
+                    && in_array($charge->status, ['pending', 'overdue'], true);
+
+                return $payload;
+            })->values(),
             'meta' => [
                 'current_page' => $charges->currentPage(),
                 'last_page' => $charges->lastPage(),
@@ -116,6 +128,8 @@ class ChargeController extends Controller
             ],
             'permissions' => [
                 'can_manage' => $user->can('manage_charges'),
+                'online_payments_enabled' => $onlinePaymentsEnabled,
+                'can_pay_online' => $userCanPayOnline,
             ],
         ]);
     }
@@ -145,10 +159,19 @@ class ChargeController extends Controller
             ])
             ->values();
 
+        $condominium = $charge->condominium ?? Condominium::query()->find($charge->condominium_id);
+        $onlinePaymentsEnabled = $condominium?->acceptsOnlinePayments() ?? false;
+        $canPayOnline = $onlinePaymentsEnabled
+            && filled($user->unit_id)
+            && (int) $charge->unit_id === (int) $user->unit_id
+            && in_array($charge->status, ['pending', 'overdue'], true);
+
         return response()->json([
             'charge' => $charge,
             'payment_summary' => $paymentSummary,
             'can_manage' => $user->can('manage_charges'),
+            'can_pay_online' => $canPayOnline,
+            'online_payments_enabled' => $onlinePaymentsEnabled,
             'receipt_url' => $charge->status === 'paid'
                 ? route('charges.receipt', $charge)
                 : null,

@@ -74,6 +74,8 @@ class ChargeSettlementService
                 'created_by' => $userId,
             ]);
             $account->save();
+
+            app(ReservationChargeService::class)->syncReservationOnChargePaid($charge->fresh());
         });
     }
 

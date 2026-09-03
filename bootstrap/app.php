@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'webhooks/asaas',
             'webhooks/asaas/platform',
+            'webhooks/asaas/condominium/*',
         ]);
 
         if (env('AMBIENTE') === 'ngrok') {

@@ -16,9 +16,17 @@
         canMakeReservations: @json($canMakeReservations),
         canViewReservations: @json($canViewReservations),
         isAgregado: @json($user->isAgregado()),
-        userName: @json($user->name)
+        userName: @json($user->name),
+        onlinePaymentsEnabled: @json($onlinePaymentsEnabled ?? false),
     };
 </script>
+
+@if(!($onlinePaymentsEnabled ?? false))
+<div class="alert alert-info mb-3">
+    <i class="bi bi-info-circle"></i>
+    O condomínio recebe pagamentos <strong>manualmente</strong>. Taxas de reserva geram cobrança no sistema, mas o pagamento deve ser feito conforme orientação da administração (sem checkout Asaas).
+</div>
+@endif
 
 <!-- Header Compacto -->
 <div class="row mb-3">
@@ -306,123 +314,9 @@
     </div>
 </div>
 
-<!-- Modal de Pagamento Asaas -->
-<div class="modal fade" id="paymentModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-check-circle"></i> Reserva Confirmada!
-                </h5>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-success">
-                    <h5>✅ Sua reserva foi confirmada automaticamente!</h5>
-                    <p class="mb-0">Para garantir sua reserva, efetue o pagamento abaixo:</p>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <p><strong>Espaço:</strong> <span id="paymentSpaceName"></span></p>
-                        <p><strong>Data:</strong> <span id="paymentDate"></span></p>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <h3 class="text-success mb-0" id="paymentAmount"></h3>
-                        <small class="text-muted">Vencimento: <span id="paymentDueDate"></span></small>
-                    </div>
-                </div>
-
-                <!-- Tabs de Métodos de Pagamento -->
-                <ul class="nav nav-tabs mb-3" id="paymentTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="pix-tab" data-bs-toggle="tab" data-bs-target="#pix" type="button">
-                            <i class="bi bi-qr-code"></i> PIX
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="card-tab" data-bs-toggle="tab" data-bs-target="#card" type="button">
-                            <i class="bi bi-credit-card"></i> Cartão de Crédito
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="boleto-tab" data-bs-toggle="tab" data-bs-target="#boleto" type="button">
-                            <i class="bi bi-file-text"></i> Boleto
-                        </button>
-                    </li>
-                </ul>
-
-                <div class="tab-content" id="paymentTabContent">
-                    <!-- PIX -->
-                    <div class="tab-pane fade show active" id="pix" role="tabpanel">
-                        <div class="text-center">
-                            <h5 class="mb-3">Pague com PIX</h5>
-                            <div id="pixQRCode" class="mb-3">
-                                <!-- QR Code será inserido aqui -->
-                            </div>
-                            <div class="alert alert-warning">
-                                <strong>Ou copie o código PIX:</strong>
-                            </div>
-                            <div class="input-group mb-3">
-                                <input type="text" class="form-control" id="pixCopyPaste" readonly>
-                                <button class="btn btn-primary" type="button" onclick="copyPixCode()">
-                                    <i class="bi bi-clipboard"></i> Copiar
-                                </button>
-                            </div>
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle"></i> 
-                                Após o pagamento, sua reserva será confirmada automaticamente em alguns minutos.
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- Cartão de Crédito -->
-                    <div class="tab-pane fade" id="card" role="tabpanel">
-                        <div class="alert alert-info">
-                            <i class="bi bi-credit-card"></i>
-                            <strong>Pagamento via Cartão de Crédito</strong>
-                        </div>
-                        <div id="cardPaymentLink">
-                            <a href="#" id="cardPaymentUrl" target="_blank" class="btn btn-primary btn-lg w-100">
-                                <i class="bi bi-credit-card"></i> Pagar com Cartão de Crédito
-                            </a>
-                            <p class="text-muted mt-2 text-center">
-                                <small>Você será redirecionado para a página segura do Asaas</small>
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Boleto -->
-                    <div class="tab-pane fade" id="boleto" role="tabpanel">
-                        <div class="alert alert-info">
-                            <i class="bi bi-file-text"></i>
-                            <strong>Pagamento via Boleto Bancário</strong>
-                        </div>
-                        <div id="boletoLink">
-                            <a href="#" id="boletoUrl" target="_blank" class="btn btn-primary btn-lg w-100">
-                                <i class="bi bi-download"></i> Baixar Boleto
-                            </a>
-                            <p class="text-muted mt-2 text-center">
-                                <small>Vencimento: <span id="boletoDueDate"></span></small>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="alert alert-light border mt-3">
-                    <strong>Código da Cobrança:</strong> <span id="chargeId" class="font-monospace"></span>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">
-                    Fechar
-                </button>
-                <a href="{{ route('charges.index') }}" class="btn btn-primary">
-                    Ver Minhas Cobranças
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
+@if($onlinePaymentsEnabled ?? false)
+    @include('charges.partials.payment-checkout')
+@endif
 
 @push('styles')
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
@@ -1412,19 +1306,7 @@
                 
                 // Mensagens personalizadas
                 let successMsg = result.message;
-                
-                if (result.credit_used) {
-                    successMsg += `\n\n💰 Créditos utilizados: R$ ${parseFloat(result.credit_amount).toFixed(2).replace('.', ',')}`;
-                }
-                
-                // Se tem cobrança restante, mostrar modal de pagamento
-                if (result.has_charge && result.payment_data) {
-                    alert(successMsg);
-                    showPaymentModal(result.payment_data, result.reservation);
-                } else {
-                    alert(successMsg);
-                    location.reload();
-                }
+                handleReservationChargeResult(result, successMsg);
             } else {
                 console.error('Erro na resposta:', result);
                 alert(result.error || 'Erro ao criar reserva. Verifique o console para mais detalhes.');
@@ -1435,67 +1317,32 @@
         }
     }
 
-    // Mostrar modal de pagamento
-    function showPaymentModal(paymentData, reservation) {
-        // Evitar problema de timezone
-        const dateStr = reservation.reservation_date.split('T')[0];
-        const [year, month, day] = dateStr.split('-');
-        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        
-        const dueDateStr = paymentData.due_date.split('T')[0];
-        const [dueYear, dueMonth, dueDay] = dueDateStr.split('-');
-        const dueDate = new Date(parseInt(dueYear), parseInt(dueMonth) - 1, parseInt(dueDay));
-        
-        document.getElementById('paymentSpaceName').textContent = selectedSpace.name;
-        document.getElementById('paymentDate').textContent = date.toLocaleDateString('pt-BR');
-        document.getElementById('paymentAmount').textContent = `R$ ${parseFloat(paymentData.value).toFixed(2).replace('.', ',')}`;
-        document.getElementById('paymentDueDate').textContent = dueDate.toLocaleDateString('pt-BR');
-        
-        // PIX
-        if (paymentData.pix_qrcode) {
-            document.getElementById('pixQRCode').innerHTML = `<img src="data:image/png;base64,${paymentData.pix_qrcode}" alt="QR Code PIX">`;
-        }
-        if (paymentData.pix_code) {
-            document.getElementById('pixCopyPaste').value = paymentData.pix_code;
-        }
-        
-        // Cartão
-        if (paymentData.invoice_url) {
-            document.getElementById('cardPaymentUrl').href = paymentData.invoice_url;
-        }
-        
-        // Boleto
-        if (paymentData.boleto_url) {
-            document.getElementById('boletoUrl').href = paymentData.boleto_url;
-            document.getElementById('boletoDueDate').textContent = dueDate.toLocaleDateString('pt-BR');
-        }
-        
-        document.getElementById('chargeId').textContent = paymentData.id || '-';
-        
-        const modalEl = document.getElementById('paymentModal');
-        let modal = window.bootstrap?.Modal.getInstance(modalEl);
-        if (!modal) {
-            modal = new window.bootstrap.Modal(modalEl);
-        }
-        modal.show();
-    }
+    function handleReservationChargeResult(result, successMsg) {
+        const onlineEnabled = result.online_payments_enabled ?? window.userPermissions.onlinePaymentsEnabled;
+        const chargeId = result.payment_data?.charge_id || result.reservation_charge?.id;
+        const myChargesUrl = @json(route('my-charges.index'));
 
-    // Copiar código PIX
-    function copyPixCode() {
-        const input = document.getElementById('pixCopyPaste');
-        input.select();
-        document.execCommand('copy');
-        
-        alert('Código PIX copiado para a área de transferência!');
-    }
-
-    // Fechar modal de pagamento
-    function closePaymentModal() {
-        const modalEl = document.getElementById('paymentModal');
-        const modal = window.bootstrap?.Modal.getInstance(modalEl);
-        if (modal) {
-            modal.hide();
+        if (result.credit_used) {
+            successMsg += `\n\n💰 Créditos utilizados: R$ ${parseFloat(result.credit_amount).toFixed(2).replace('.', ',')}`;
         }
+
+        if (result.has_charge && onlineEnabled && chargeId) {
+            alert(successMsg);
+
+            if (typeof window.openChargeCheckout === 'function') {
+                window.openChargeCheckout(chargeId);
+            } else {
+                window.location.href = `${myChargesUrl}?pay=${chargeId}`;
+            }
+
+            return;
+        }
+
+        if (result.has_charge && !onlineEnabled) {
+            successMsg += '\n\n📋 Uma cobrança foi registrada. Procure a administração do condomínio para efetuar o pagamento ou acesse Minhas Cobranças para acompanhar.';
+        }
+
+        alert(successMsg);
         location.reload();
     }
 
@@ -2015,19 +1862,7 @@
                 
                 // Mensagem personalizada
                 let successMsg = result.message;
-                
-                if (result.credit_used) {
-                    successMsg += `\n\n💰 Créditos utilizados: R$ ${parseFloat(result.credit_amount).toFixed(2).replace('.', ',')}`;
-                }
-                
-                // Se tem cobrança, mostrar modal de pagamento
-                if (result.has_charge && result.payment_data) {
-                    alert(successMsg);
-                    showPaymentModal(result.payment_data, result.reservation);
-                } else {
-                    alert(successMsg);
-                    location.reload();
-                }
+                handleReservationChargeResult(result, successMsg);
             } else {
                 console.error('Erro na resposta:', result);
                 alert(result.error || 'Erro ao criar reserva. Verifique o console para mais detalhes.');

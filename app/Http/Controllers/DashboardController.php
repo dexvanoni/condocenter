@@ -579,6 +579,8 @@ class DashboardController extends Controller
             }
         }
 
+        $onlinePaymentsEnabled = $condominium?->acceptsOnlinePayments() ?? false;
+
         return view('dashboard.morador', compact(
             'chargesPendentes',
             'chargesAtrasadas',
@@ -596,7 +598,8 @@ class DashboardController extends Controller
             'statusCadastro',
             'filteredFinancialEntries',
             'isMorador',
-            'otherUnitsSummary'
+            'otherUnitsSummary',
+            'onlinePaymentsEnabled',
         ));
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Condominium;
 use App\Services\AsaasService;
 use App\Services\CondominiumSubscriptionService;
 use App\Services\PlatformSettingsService;
@@ -18,13 +19,25 @@ class WebhookController extends Controller
 
     /**
      * Webhook Asaas — cobranças internas do condomínio (taxas/reservas).
+     * Mantido para compatibilidade com integrações legadas.
      */
     public function asaas(Request $request)
     {
         try {
-            Log::info('Webhook Asaas (condomínio) recebido', $request->all());
+            Log::info('Webhook Asaas (condomínio legado) recebido', $request->all());
 
-            $result = $this->asaasService->processWebhook($request->all());
+            $paymentId = data_get($request->all(), 'payment.id');
+            $condominiumId = null;
+
+            if ($paymentId) {
+                $condominiumId = \App\Models\Charge::where('asaas_payment_id', $paymentId)->value('condominium_id');
+            }
+
+            $service = $condominiumId
+                ? $this->asaasService->forCondominium((int) $condominiumId)
+                : $this->asaasService;
+
+            $result = $service->processWebhook($request->all());
 
             if ($result) {
                 return response()->json(['status' => 'success'], 200);
@@ -35,6 +48,35 @@ class WebhookController extends Controller
             Log::error('Erro ao processar webhook Asaas: ' . $e->getMessage());
 
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Webhook Asaas — cobranças do condomínio (conta Asaas do síndico).
+     */
+    public function asaasCondominium(Request $request, Condominium $condominium)
+    {
+        if (!$this->validateCondominiumWebhookToken($request, $condominium)) {
+            return response()->json(['status' => 'unauthorized'], 401);
+        }
+
+        try {
+            Log::info('Webhook Asaas (condomínio) recebido', [
+                'condominium_id' => $condominium->id,
+                'event' => $request->input('event'),
+            ]);
+
+            $result = $this->asaasService
+                ->forCondominium((int) $condominium->id)
+                ->processWebhook($request->all());
+
+            return response()->json(['status' => $result ? 'success' : 'ignored'], 200);
+        } catch (\Exception $e) {
+            Log::error('Erro webhook Asaas condomínio: ' . $e->getMessage(), [
+                'condominium_id' => $condominium->id,
+            ]);
+
+            return response()->json(['status' => 'error'], 500);
         }
     }
 
@@ -63,6 +105,20 @@ class WebhookController extends Controller
     protected function validatePlatformWebhookToken(Request $request): bool
     {
         $expected = $this->platformSettings->getAsaasConfig()['webhook_token'] ?? null;
+
+        if (!$expected) {
+            return true;
+        }
+
+        $provided = $request->header('asaas-access-token')
+            ?: $request->input('accessToken');
+
+        return hash_equals((string) $expected, (string) $provided);
+    }
+
+    protected function validateCondominiumWebhookToken(Request $request, Condominium $condominium): bool
+    {
+        $expected = $condominium->asaas_webhook_token;
 
         if (!$expected) {
             return true;

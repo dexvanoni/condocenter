@@ -258,6 +258,11 @@ class SidebarHelper
         return self::isAdminOrSindico($user) && (bool) $user->getActiveCondominiumId();
     }
 
+    public static function canManageReceivingSettings(User $user): bool
+    {
+        return self::canManageFinancialSettings($user);
+    }
+
     public static function canManageWhatsAppSettings(User $user): bool
     {
         return self::isAdminOrSindico($user) && (bool) $user->getActiveCondominiumId();

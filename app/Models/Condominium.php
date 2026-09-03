@@ -27,6 +27,12 @@ class Condominium extends Model implements Auditable
         'description',
         'is_active',
         'financial_mode',
+        'payment_receiving_mode',
+        'asaas_api_key',
+        'asaas_sandbox',
+        'asaas_webhook_email',
+        'asaas_webhook_token',
+        'asaas_setup_completed_at',
         'marketplace_allow_agregados',
         'registration_code',
         'whatsapp_enabled',
@@ -41,6 +47,10 @@ class Condominium extends Model implements Auditable
         'is_active' => 'boolean',
         'marketplace_allow_agregados' => 'boolean',
         'whatsapp_enabled' => 'boolean',
+        'asaas_sandbox' => 'boolean',
+        'asaas_api_key' => 'encrypted',
+        'asaas_webhook_token' => 'encrypted',
+        'asaas_setup_completed_at' => 'datetime',
         'whatsapp_notify_groups' => 'array',
         'evolution_api_key' => 'encrypted',
     ];
@@ -53,6 +63,16 @@ class Condominium extends Model implements Auditable
     public function isFinancialFull(): bool
     {
         return !$this->isFinancialSimplified();
+    }
+
+    public function acceptsOnlinePayments(): bool
+    {
+        return app(\App\Services\CondominiumAsaasSettingsService::class)->acceptsOnlinePayments($this);
+    }
+
+    public function isPlatformReceiving(): bool
+    {
+        return $this->payment_receiving_mode === 'platform';
     }
 
     public function accountabilityReportUploads()

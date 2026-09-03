@@ -101,7 +101,23 @@
                                             <a href="{{ route('charges.index') }}?search={{ urlencode($recipient->charge->title) }}">
                                                 #{{ $recipient->charge->id }}
                                             </a>
-                                            <span class="badge bg-secondary ms-1">{{ $recipient->charge->status }}</span>
+                                            @php
+                                                $chargeBadge = match($recipient->charge->status) {
+                                                    'pending' => 'warning',
+                                                    'overdue' => 'danger',
+                                                    'paid' => 'success',
+                                                    'cancelled' => 'secondary',
+                                                    default => 'secondary',
+                                                };
+                                                $chargeLabel = match($recipient->charge->status) {
+                                                    'pending' => 'Pendente',
+                                                    'overdue' => 'Em atraso',
+                                                    'paid' => 'Pago',
+                                                    'cancelled' => 'Cancelada',
+                                                    default => $recipient->charge->status,
+                                                };
+                                            @endphp
+                                            <span class="badge bg-{{ $chargeBadge }} ms-1">{{ $chargeLabel }}</span>
                                         @else
                                             —
                                         @endif
@@ -116,6 +132,47 @@
     </div>
 
     <div class="col-lg-4">
+        @if(($isMoradorView ?? false) && $residentContext)
+            <div class="card shadow-sm mb-3 border-{{ $residentContext['payment_status_color'] }}">
+                <div class="card-header bg-{{ $residentContext['payment_status_color'] }} {{ in_array($residentContext['payment_status_color'], ['warning', 'success']) ? 'text-dark' : 'text-white' }}">
+                    <h5 class="mb-0"><i class="bi bi-credit-card"></i> Pagamento</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <span class="text-muted">Status:</span>
+                        <span class="badge bg-{{ $residentContext['payment_status_color'] }}">
+                            {{ $residentContext['payment_status_label'] }}
+                        </span>
+                    </p>
+                    @if(!empty($residentContext['paid_at']))
+                        <p class="small text-muted mb-3">
+                            Pago em {{ $residentContext['paid_at']->format('d/m/Y H:i') }}
+                        </p>
+                    @endif
+
+                    @if($residentContext['can_pay_online'])
+                        <button type="button"
+                                class="btn btn-success w-100"
+                                onclick="openChargeCheckout({{ $residentContext['charge_id'] }})">
+                            <i class="bi bi-wallet2"></i> Pagar online
+                        </button>
+                        <p class="small text-muted mt-2 mb-0">
+                            PIX, cartão ou boleto via Asaas.
+                        </p>
+                    @elseif(in_array($residentContext['charge_status'], ['pending', 'overdue']))
+                        <a href="{{ route('my-charges.index') }}" class="btn btn-outline-primary w-100">
+                            Ver em Cobranças
+                        </a>
+                        @if(!($onlinePaymentsEnabled ?? false))
+                            <p class="small text-muted mt-2 mb-0">
+                                Pagamento online ainda não está habilitado pelo condomínio.
+                            </p>
+                        @endif
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @can('cancel', $fine)
             @if(!$fine->isCancelled())
                 <div class="card shadow-sm border-danger">
@@ -140,4 +197,8 @@
         @endcan
     </div>
 </div>
+
+@if(($isMoradorView ?? false) && ($onlinePaymentsEnabled ?? false))
+    @include('charges.partials.payment-checkout')
+@endif
 @endsection

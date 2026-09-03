@@ -98,6 +98,20 @@
 
         <div class="card shadow-sm border-info">
             <div class="card-body">
+                <h6 class="fw-semibold"><i class="bi bi-wallet2"></i> Recebimentos</h6>
+                @if(Route::has('condominiums.settings.receiving') && \App\Helpers\SidebarHelper::canManageReceivingSettings(auth()->user()))
+                    <p class="small text-muted">
+                        Configure se o condomínio recebe pagamentos online (PIX/cartão) ou apenas registra recebimentos manualmente.
+                    </p>
+                    <a href="{{ route('condominiums.settings.receiving', $condominium) }}" class="btn btn-sm btn-outline-primary">
+                        Configurar Asaas
+                    </a>
+                @endif
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-info mt-4">
+            <div class="card-body">
                 <h6 class="fw-semibold">Modo atual</h6>
                 @if($currentMode === 'simplified')
                     <span class="badge bg-info text-dark fs-6">Simplificado</span>

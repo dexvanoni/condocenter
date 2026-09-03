@@ -200,6 +200,14 @@ class AccountabilityReportService
             return $charge->fee->name;
         }
 
+        if ($charge?->generated_by === 'reservation') {
+            return $charge->title ?: 'Taxas de reserva';
+        }
+
+        if ($charge?->generated_by === 'fine') {
+            return $charge->title ?: 'Multas';
+        }
+
         if ($charge?->title) {
             return $charge->title;
         }

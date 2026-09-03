@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\SendReservationNotification;
-use App\Models\Charge;
-use App\Models\Notification;
+use App\Models\Condominium;
 use App\Models\RecurringReservation;
 use App\Models\Reservation;
 use App\Models\Space;
+use App\Services\CondominiumAsaasSettingsService;
+use App\Services\ReservationChargeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,6 +19,12 @@ use Illuminate\Support\Facades\Mail;
 
 class ReservationController extends Controller
 {
+    public function __construct(
+        private readonly ReservationChargeService $reservationChargeService,
+        private readonly CondominiumAsaasSettingsService $condominiumAsaasSettings,
+    ) {
+    }
+
     /**
      * Lista reservas
      */
@@ -104,6 +111,10 @@ class ReservationController extends Controller
         }
         
         $space = Space::findOrFail($request->space_id);
+
+        $condominium = Condominium::query()->find($user->tenantCondominiumId());
+        $onlinePaymentsEnabled = $condominium
+            && $this->condominiumAsaasSettings->acceptsOnlinePayments($condominium);
 
         // Verificar se o espaço pertence ao condomínio do usuário
         if ($space->condominium_id !== $user->tenantCondominiumId()) {
@@ -192,7 +203,10 @@ class ReservationController extends Controller
             $reservationData['status'] = 'pending';
             $reservationData['prereservation_status'] = 'pending_payment';
             $reservationData['payment_deadline'] = $space->getPaymentDeadline();
-            $reservationData['prereservation_amount'] = $space->price_per_hour;
+            $reservationData['prereservation_amount'] = $this->reservationChargeService->calculateAmount(
+                new Reservation($reservationData),
+                $space
+            );
         } elseif ($space->approval_type === 'manual') {
             // Aprovação manual: status pending, aguardando síndico
             $reservationData['status'] = 'pending';
@@ -206,16 +220,20 @@ class ReservationController extends Controller
         $reservation = Reservation::create($reservationData);
 
         $generatedCharge = null;
-        if ($space->approval_type === 'automatic') {
-            $generatedCharge = $this->createImmediateApprovalCharge($reservation, $space);
+        if ($space->price_per_hour > 0 && $space->approval_type === 'automatic') {
+            $generatedCharge = $this->reservationChargeService->createForReservation(
+                $reservation,
+                $space,
+                context: 'automatic'
+            );
         }
 
-        $paymentData = null;
         $creditUsed = false;
-        $remainingAmount = $space->price_per_hour;
+        $totalReservationAmount = $this->reservationChargeService->calculateAmount($reservation, $space);
+        $remainingAmount = $totalReservationAmount;
         
-        // Lógica de pagamento apenas para pré-reservas
-        if ($space->approval_type === 'prereservation' && $space->price_per_hour > 0) {
+        // Lógica de pagamento para pré-reservas com taxa
+        if ($space->approval_type === 'prereservation' && $totalReservationAmount > 0) {
             // Buscar créditos disponíveis do usuário
             $availableCredits = \App\Models\UserCredit::where('user_id', $user->id)
                 ->where('condominium_id', $user->tenantCondominiumId())
@@ -247,14 +265,16 @@ class ReservationController extends Controller
                 Log::info("Créditos aplicados: R$ {$amountToUse}. Restante a pagar: R$ {$remainingAmount}");
             }
             
-            // Se ainda sobrar valor, gerar cobrança via Asaas
+            // Se ainda sobrar valor, gerar cobrança e checkout
             if ($remainingAmount > 0) {
-                try {
-                    $paymentData = $this->generatePaymentSync($reservation, $space, $remainingAmount);
-                } catch (\Exception $e) {
-                    Log::error('Erro ao gerar pagamento: ' . $e->getMessage());
-                    // Continua mesmo com erro no pagamento
-                }
+                $generatedCharge = $this->reservationChargeService->createForReservation(
+                    $reservation,
+                    $space,
+                    $remainingAmount,
+                    'prereservation'
+                );
+            } elseif ($creditUsed) {
+                $reservation->markAsPaid('credits');
             }
         }
 
@@ -262,7 +282,9 @@ class ReservationController extends Controller
         try {
             if ($space->approval_type === 'prereservation') {
                 SendReservationNotification::dispatchSync($reservation, 'pending_payment');
-                $message = 'Pré-reserva criada! Realize o pagamento para confirmar.';
+                $message = $onlinePaymentsEnabled
+                    ? 'Pré-reserva criada! Realize o pagamento para confirmar.'
+                    : 'Pré-reserva criada! Procure a administração do condomínio para efetuar o pagamento.';
             } elseif ($space->approval_type === 'manual') {
                 SendReservationNotification::dispatchSync($reservation, 'pending');
                 $message = 'Reserva enviada para aprovação do síndico.';
@@ -272,9 +294,10 @@ class ReservationController extends Controller
             }
         } catch (\Exception $e) {
             Log::error('Erro ao enviar notificação: ' . $e->getMessage());
-            // Continua mesmo com erro na notificação
             if ($space->approval_type === 'prereservation') {
-                $message = 'Pré-reserva criada! Realize o pagamento para confirmar.';
+                $message = $onlinePaymentsEnabled
+                    ? 'Pré-reserva criada! Realize o pagamento para confirmar.'
+                    : 'Pré-reserva criada! Procure a administração do condomínio para efetuar o pagamento.';
             } elseif ($space->approval_type === 'manual') {
                 $message = 'Reserva enviada para aprovação do síndico.';
             } else {
@@ -283,21 +306,31 @@ class ReservationController extends Controller
         }
 
         if ($generatedCharge) {
-            $message .= ' Foi gerada uma cobrança para esta reserva.';
+            $message .= $onlinePaymentsEnabled
+                ? ' Foi gerada uma cobrança para esta reserva. Você pode pagar online em Minhas Cobranças.'
+                : ' Foi gerada uma cobrança para esta reserva. O pagamento deve ser feito conforme orientação da administração.';
         }
         
-        if ($space->approval_type === 'prereservation' && $space->price_per_hour > 0) {
+        if ($space->approval_type === 'prereservation' && $totalReservationAmount > 0) {
             if ($creditUsed) {
-                $creditsApplied = $space->price_per_hour - $remainingAmount;
+                $creditsApplied = $totalReservationAmount - $remainingAmount;
                 $message .= " Créditos aplicados: R$ " . number_format($creditsApplied, 2, ',', '.');
                 
                 if ($remainingAmount > 0) {
                     $message .= " Restante a pagar: R$ " . number_format($remainingAmount, 2, ',', '.');
+                    if (!$onlinePaymentsEnabled) {
+                        $message .= ' Procure a administração para efetuar o pagamento.';
+                    }
                 } else {
                     $message .= " Reserva totalmente paga com créditos!";
                 }
-            } else if ($remainingAmount > 0) {
-                $message .= " Será gerada uma cobrança de R$ " . number_format($remainingAmount, 2, ',', '.') . " via Asaas.";
+            } elseif ($remainingAmount > 0) {
+                $message .= " Valor pendente: R$ " . number_format($remainingAmount, 2, ',', '.') . '.';
+                if ($onlinePaymentsEnabled) {
+                    $message .= ' O pagamento online estará disponível em Minhas Cobranças.';
+                } else {
+                    $message .= ' Procure a administração do condomínio para efetuar o pagamento.';
+                }
             }
         }
 
@@ -320,10 +353,11 @@ class ReservationController extends Controller
         $response = [
             'message' => $message,
             'reservation' => $reservationWithRelations,
-            'has_charge' => $remainingAmount > 0,
+            'has_charge' => (bool) ($generatedCharge || $remainingAmount > 0),
+            'online_payments_enabled' => $onlinePaymentsEnabled,
             'amount' => $remainingAmount,
             'credit_used' => $creditUsed,
-            'credit_amount' => $creditUsed ? ($space->price_per_hour - $remainingAmount) : 0,
+            'credit_amount' => $creditUsed ? ($totalReservationAmount - $remainingAmount) : 0,
             'total_user_credits' => $totalCredits
         ];
 
@@ -341,9 +375,6 @@ class ReservationController extends Controller
             $response['is_prereservation'] = true;
             $response['payment_deadline'] = $reservation->payment_deadline;
             $response['payment_instructions'] = $space->prereservation_instructions;
-            if ($paymentData) {
-                $response['payment_data'] = $paymentData;
-            }
         }
 
         return response()->json($response, 201);
@@ -483,6 +514,17 @@ class ReservationController extends Controller
 
         $reservation->approve($user->id);
 
+        $reservation->load('space');
+        $space = $reservation->space;
+
+        if ($space && $space->price_per_hour > 0) {
+            $this->reservationChargeService->createForReservation(
+                $reservation,
+                $space,
+                context: 'manual_approval'
+            );
+        }
+
         // Notificar morador
         SendReservationNotification::dispatch($reservation, 'approved');
 
@@ -614,8 +656,18 @@ class ReservationController extends Controller
             return response()->json(['error' => 'Prazo de pagamento expirado'], 400);
         }
 
-        // Marcar como paga e aprovada
-        $reservation->markAsPaid($request->payment_reference ?? 'confirmed');
+        $charge = $this->reservationChargeService->findForReservation($reservation);
+
+        if ($charge && $charge->status === 'paid') {
+            $reservation->markAsPaid($charge->asaas_payment_id ?: ('charge:' . $charge->id));
+        } elseif ($charge) {
+            return response()->json([
+                'error' => 'A cobrança desta pré-reserva ainda não foi paga. Utilize Minhas Cobranças para pagar.',
+                'charge_id' => $charge->id,
+            ], 400);
+        } else {
+            $reservation->markAsPaid($request->payment_reference ?? 'confirmed');
+        }
 
         // Enviar notificação de confirmação
         SendReservationNotification::dispatch($reservation, 'approved');
@@ -645,46 +697,10 @@ class ReservationController extends Controller
         }
 
         // Verificar se existe cobrança associada
-        $charge = \App\Models\Charge::where('title', 'LIKE', "%Taxa de Reserva%{$reservation->space->name}%")
-            ->where('unit_id', $reservation->unit_id)
-            ->where('due_date', '>=', $reservation->reservation_date->copy()->subDays(2))
-            ->where('due_date', '<=', $reservation->reservation_date->copy()->addDay())
-            ->first();
-
-        $creditGenerated = false;
-        $chargeDeleted = false;
-
-        if ($charge) {
-            // Verificar se foi paga
-            $payment = \App\Models\Payment::where('charge_id', $charge->id)
-                ->where('status', 'paid')
-                ->first();
-
-            if ($payment) {
-                // Cobrança foi PAGA → Gerar crédito
-                \App\Models\UserCredit::create([
-                    'condominium_id' => $reservation->space->condominium_id,
-                    'user_id' => $reservation->user_id,
-                    'amount' => $charge->amount,
-                    'type' => 'refund',
-                    'description' => "Estorno de reserva cancelada - {$reservation->space->name} ({$reservation->reservation_date->format('d/m/Y')})",
-                    'reservation_id' => $reservation->id,
-                    'charge_id' => $charge->id,
-                    'status' => 'available',
-                    'expires_at' => now()->addMonths(12), // Válido por 12 meses
-                ]);
-                
-                $creditGenerated = true;
-                
-                Log::info("Crédito gerado para usuário {$user->id}: R$ {$charge->amount}");
-            } else {
-                // Cobrança NÃO foi paga → Deletar cobrança
-                $charge->delete();
-                $chargeDeleted = true;
-                
-                Log::info("Cobrança deletada (não paga): {$charge->id}");
-            }
-        }
+        $cancellationResult = $this->reservationChargeService->handleReservationCancellation($reservation);
+        $creditGenerated = $cancellationResult['credit_generated'];
+        $chargeDeleted = $cancellationResult['charge_cancelled'];
+        $creditAmount = $cancellationResult['credit_amount'];
 
         // Atualizar status da reserva
         $reservation->update([
@@ -700,7 +716,7 @@ class ReservationController extends Controller
         $message = 'Reserva cancelada com sucesso!';
         
         if ($creditGenerated) {
-            $message .= " Um crédito de R$ " . number_format($charge->amount, 2, ',', '.') . " foi adicionado à sua carteira. Válido por 12 meses.";
+            $message .= " Um crédito de R$ " . number_format($creditAmount, 2, ',', '.') . " foi adicionado à sua carteira. Válido por 12 meses.";
         } elseif ($chargeDeleted) {
             $message .= " A cobrança pendente foi removida.";
         }
@@ -709,120 +725,11 @@ class ReservationController extends Controller
             'message' => $message,
             'notifications_sent' => true,
             'credit_generated' => $creditGenerated,
-            'credit_amount' => $creditGenerated ? $charge->amount : 0,
+            'credit_amount' => $creditGenerated ? $creditAmount : 0,
             'charge_deleted' => $chargeDeleted
         ]);
     }
     
-    private function createImmediateApprovalCharge(Reservation $reservation, Space $space): ?Charge
-    {
-        if ($space->price_per_hour <= 0 || !$reservation->unit_id) {
-            return null;
-        }
-
-        $existingCharge = Charge::query()
-            ->where('condominium_id', $space->condominium_id)
-            ->where('unit_id', $reservation->unit_id)
-            ->where('metadata->reservation_id', $reservation->id)
-            ->first();
-
-        if ($existingCharge) {
-            return $existingCharge;
-        }
-
-        $amount = $this->calculateReservationAmount($reservation, $space);
-
-        if ($amount <= 0) {
-            return null;
-        }
-
-        $dueDate = now()->addHours(48);
-
-        $startLabel = $reservation->start_time ?? '--';
-        $endLabel = $reservation->end_time ?? '--';
-
-        $charge = Charge::create([
-            'condominium_id' => $space->condominium_id,
-            'unit_id' => $reservation->unit_id,
-            'title' => "Reserva de Espaço - {$space->name}",
-            'description' => "Cobrança referente à reserva do espaço {$space->name} em {$reservation->reservation_date->format('d/m/Y')} das {$startLabel} às {$endLabel}.",
-            'amount' => $amount,
-            'due_date' => $dueDate,
-            'recurrence_period' => null,
-            'fine_percentage' => 0,
-            'interest_rate' => 0,
-            'status' => 'pending',
-            'type' => 'extra',
-            'generated_by' => 'reservation',
-            'metadata' => [
-                'reservation_id' => $reservation->id,
-                'space_id' => $space->id,
-                'automatic_approval' => true,
-            ],
-        ]);
-
-        $this->notifyReservationCharge($reservation, $charge, $space);
-
-        return $charge;
-    }
-
-    private function calculateReservationAmount(Reservation $reservation, Space $space): float
-    {
-        $baseAmount = (float) $space->price_per_hour;
-
-        if ($baseAmount <= 0) {
-            return 0.0;
-        }
-
-        if ($space->reservation_mode === 'hourly' && $reservation->start_time && $reservation->end_time) {
-            try {
-                $start = Carbon::createFromFormat('H:i', $reservation->start_time);
-                $end = Carbon::createFromFormat('H:i', $reservation->end_time);
-                $minutes = max(0, $start->diffInMinutes($end));
-
-                if ($minutes > 0) {
-                    $hours = $minutes / 60;
-
-                    return round($baseAmount * max($hours, 1), 2);
-                }
-            } catch (\Exception $e) {
-                // Mantém valor base em caso de erro de parsing
-            }
-        }
-
-        return round($baseAmount, 2);
-    }
-
-    private function notifyReservationCharge(Reservation $reservation, Charge $charge, Space $space): void
-    {
-        try {
-            $dueDate = optional($charge->due_date)?->format('d/m/Y');
-            $amountLabel = 'R$ ' . number_format((float) $charge->amount, 2, ',', '.');
-
-            Notification::create([
-                'condominium_id' => $space->condominium_id,
-                'user_id' => $reservation->user_id,
-                'type' => 'reservation_charge_created',
-                'title' => 'Cobrança gerada para sua reserva',
-                'message' => "Foi gerada uma cobrança de {$amountLabel} referente à reserva do espaço {$space->name}. Vencimento em {$dueDate}.",
-                'data' => [
-                    'reservation_id' => $reservation->id,
-                    'charge_id' => $charge->id,
-                    'due_date' => $dueDate,
-                    'amount' => $charge->amount,
-                ],
-                'channel' => 'database',
-                'sent' => true,
-                'sent_at' => now(),
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('Falha ao notificar cobrança de reserva: ' . $e->getMessage(), [
-                'reservation_id' => $reservation->id,
-                'charge_id' => $charge->id,
-            ]);
-        }
-    }
-
     /**
      * Envia notificações de cancelamento
      */
@@ -879,96 +786,6 @@ class ReservationController extends Controller
         }
     }
     
-    /**
-     * Gera pagamento de forma síncrona e retorna dados
-     */
-    private function generatePaymentSync($reservation, $space, $customAmount = null)
-    {
-        $asaasService = app(\App\Services\AsaasService::class);
-        $user = $reservation->user;
-        $amount = $customAmount ?? $space->price_per_hour;
-
-        // Criar cobrança local primeiro
-        $charge = \App\Models\Charge::create([
-            'condominium_id' => $reservation->unit->condominium_id,
-            'unit_id' => $reservation->unit_id,
-            'title' => "Taxa de Reserva - {$space->name}",
-            'description' => "Reserva do(a) {$space->name} para o dia {$reservation->reservation_date->format('d/m/Y')}",
-            'amount' => $amount,
-            'due_date' => $reservation->reservation_date->copy()->subDays(1), // 1 dia antes
-            'recurrence_period' => $reservation->reservation_date->format('Y-m-d'),
-            'fine_percentage' => 0,
-            'interest_rate' => 0,
-            'type' => 'extra',
-            'status' => 'pending',
-            'generated_by' => 'reservation',
-            'metadata' => [
-                'reservation_id' => $reservation->id,
-                'space_id' => $space->id,
-            ],
-        ]);
-
-        // Criar ou atualizar cliente no Asaas
-        $customerData = [
-            'name' => $user->name,
-            'email' => $user->email,
-            'phone' => $user->phone,
-            'mobilePhone' => $user->phone,
-            'cpfCnpj' => $user->cpf,
-            'externalReference' => 'USER-' . $user->id,
-        ];
-
-        $asaasCustomer = $asaasService->createOrUpdateCustomer($customerData);
-
-        if (!$asaasCustomer) {
-            throw new \Exception('Falha ao criar cliente no Asaas');
-        }
-
-        // Criar cobrança no Asaas
-        $paymentData = [
-            'customer' => $asaasCustomer['id'],
-            'billingType' => 'UNDEFINED', // Permite todos os métodos
-            'dueDate' => $charge->due_date->format('Y-m-d'),
-            'value' => $amount,
-            'description' => $charge->title,
-            'externalReference' => 'RESERVATION-' . $reservation->id,
-        ];
-
-        $payment = $asaasService->createPayment($paymentData);
-
-        if (!$payment) {
-            throw new \Exception('Falha ao criar pagamento no Asaas');
-        }
-
-        // Atualizar cobrança com dados do Asaas
-        $charge->update([
-            'asaas_payment_id' => $payment['id'],
-            'boleto_url' => $payment['bankSlipUrl'] ?? null,
-        ]);
-
-        // Gerar PIX QR Code
-        $pixData = $asaasService->getPixQRCode($payment['id']);
-        
-        if ($pixData) {
-            $charge->update([
-                'pix_code' => $pixData['payload'] ?? null,
-                'pix_qrcode' => $pixData['encodedImage'] ?? null,
-            ]);
-        }
-
-        // Retornar dados formatados para o frontend
-        return [
-            'id' => $payment['id'],
-            'value' => $amount,
-            'due_date' => $charge->due_date->format('Y-m-d'),
-            'pix_code' => $pixData['payload'] ?? null,
-            'pix_qrcode' => $pixData['encodedImage'] ?? null,
-            'invoice_url' => $payment['invoiceUrl'] ?? null,
-            'boleto_url' => $payment['bankSlipUrl'] ?? null,
-            'charge_id' => $charge->id,
-        ];
-    }
-
     private function formatTimeValue(?string $time): string
     {
         if (!$time) {

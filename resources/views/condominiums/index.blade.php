@@ -122,6 +122,9 @@
                                 <a href="{{ route('condominiums.settings.whatsapp', $condominium) }}" class="btn btn-outline-success" title="WhatsApp">
                                     <i class="bi bi-whatsapp"></i>
                                 </a>
+                                <a href="{{ route('condominiums.settings.receiving', $condominium) }}" class="btn btn-outline-primary" title="Recebimentos Asaas">
+                                    <i class="bi bi-wallet2"></i>
+                                </a>
                                 @endif
                             </div>
                         </td>

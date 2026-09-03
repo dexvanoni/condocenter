@@ -41,8 +41,9 @@ class CancelExpiredPrereservations implements ShouldQueue
             try {
                 // Verificar se o espaço ainda tem cancelamento automático ativo
                 if ($reservation->space->prereservation_auto_cancel) {
-                    // Marcar como expirado
                     $reservation->markAsExpired();
+                    app(\App\Services\ReservationChargeService::class)
+                        ->cancelChargeForExpiredPrereservation($reservation);
                     
                     // Log da ação
                     Log::info("Pré-reserva expirada cancelada", [
