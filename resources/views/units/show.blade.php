@@ -52,7 +52,11 @@
                         {{ $unit->block ?? '-' }}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <strong>Tipo:</strong><br>
+                        <strong>Modelo:</strong><br>
+                        <span class="badge bg-secondary">{{ $unit->unit_model_label }}</span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <strong>Uso:</strong><br>
                         <span class="badge bg-{{ $unit->type === 'residential' ? 'info' : 'warning' }}">
                             {{ $unit->type === 'residential' ? 'Residencial' : 'Comercial' }}
                         </span>

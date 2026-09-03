@@ -10,6 +10,7 @@ use App\Models\Charge;
 use App\Models\Fee;
 use App\Models\Unit;
 use App\Services\FeeService;
+use App\Support\UnitModels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -61,9 +62,10 @@ class FeeController extends Controller
             ->orderBy('number')
             ->get();
 
-        $autoEligibleUnitsCount = Unit::where('condominium_id', $condominiumId)
-            ->eligibleForAutomaticFee()
-            ->count();
+        $autoEligibleUnitsCount = $this->countAutoEligibleUnits(
+            $condominiumId,
+            UnitModels::normalizeSelection(old('unit_models'))
+        );
 
         $bankAccounts = BankAccount::where('condominium_id', $condominiumId)
             ->orderBy('name')
@@ -80,7 +82,9 @@ class FeeController extends Controller
             'amount' => 0,
         ]);
 
-        return view('fees.create', compact('fee', 'units', 'bankAccounts', 'autoEligibleUnitsCount'));
+        $unitModelOptions = UnitModels::labels();
+
+        return view('fees.create', compact('fee', 'units', 'bankAccounts', 'autoEligibleUnitsCount', 'unitModelOptions'));
     }
 
     public function store(StoreFeeRequest $request)
@@ -149,9 +153,10 @@ class FeeController extends Controller
             ->orderBy('number')
             ->get();
 
-        $autoEligibleUnitsCount = Unit::where('condominium_id', $condominiumId)
-            ->eligibleForAutomaticFee()
-            ->count();
+        $autoEligibleUnitsCount = $this->countAutoEligibleUnits(
+            $condominiumId,
+            UnitModels::normalizeSelection(old('unit_models', $fee->unit_models))
+        );
 
         $bankAccounts = BankAccount::where('condominium_id', $condominiumId)
             ->orderBy('name')
@@ -159,7 +164,9 @@ class FeeController extends Controller
 
         $fee->load('configurations.unit');
 
-        return view('fees.edit', compact('fee', 'units', 'bankAccounts', 'autoEligibleUnitsCount'));
+        $unitModelOptions = UnitModels::labels();
+
+        return view('fees.edit', compact('fee', 'units', 'bankAccounts', 'autoEligibleUnitsCount', 'unitModelOptions'));
     }
 
     public function update(UpdateFeeRequest $request, Fee $fee)
@@ -267,6 +274,14 @@ class FeeController extends Controller
                 'fee' => 'Taxa não pertence ao condomínio selecionado.',
             ]);
         }
+    }
+
+    private function countAutoEligibleUnits(int $condominiumId, ?array $unitModels = null): int
+    {
+        return Unit::where('condominium_id', $condominiumId)
+            ->eligibleForAutomaticFee()
+            ->matchingFeeModels($unitModels)
+            ->count();
     }
 }
 

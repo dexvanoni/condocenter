@@ -22,6 +22,7 @@ class Fee extends Model implements Auditable
         'due_day',
         'due_offset_days',
         'billing_type',
+        'unit_models',
         'auto_generate_charges',
         'active',
         'starts_at',
@@ -38,6 +39,7 @@ class Fee extends Model implements Auditable
         'starts_at' => 'date',
         'ends_at' => 'date',
         'custom_schedule' => 'array',
+        'unit_models' => 'array',
         'metadata' => 'array',
         'last_generated_at' => 'datetime',
     ];

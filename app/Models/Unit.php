@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Support\UnitModels;
 
 class Unit extends Model implements Auditable
 {
@@ -17,6 +18,7 @@ class Unit extends Model implements Auditable
         'number',
         'block',
         'type',
+        'unit_model',
         'situacao',
         'cep',
         'logradouro',
@@ -146,6 +148,11 @@ class Unit extends Model implements Auditable
         };
     }
 
+    public function getUnitModelLabelAttribute(): string
+    {
+        return UnitModels::label($this->unit_model);
+    }
+
     // Scopes
     public function scopeActive($query)
     {
@@ -165,6 +172,24 @@ class Unit extends Model implements Auditable
     public function scopeCommercial($query)
     {
         return $query->where('type', 'commercial');
+    }
+
+    public function scopeOfModel($query, ?string $model)
+    {
+        if (!$model) {
+            return $query;
+        }
+
+        return $query->where('unit_model', $model);
+    }
+
+    public function scopeMatchingFeeModels($query, ?array $models)
+    {
+        if (empty($models)) {
+            return $query;
+        }
+
+        return $query->whereIn('unit_model', $models);
     }
 
     public function scopeHabitado($query)

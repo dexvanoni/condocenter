@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\ActiveCondominiumService;
+use App\Services\ReportGeneratorService;
 use App\Http\Requests\StoreUnitRequest;
 use App\Http\Requests\UpdateUnitRequest;
+use App\Support\UnitModels;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
@@ -49,12 +51,38 @@ class UnitController extends Controller
     {
         $this->authorize('viewAny', Unit::class);
         
-        /** @var \App\Models\User $user */
-        $user = $request->user();
+        $units = $this->filteredUnitsQuery($request)->paginate(20)->withQueryString();
+
+        $unitModelOptions = UnitModels::labels();
+
+        return view('units.index', compact('units', 'unitModelOptions'));
+    }
+
+    /**
+     * Exporta relatório de unidades (PDF, Excel ou CSV) respeitando os filtros da listagem.
+     */
+    public function export(Request $request, ReportGeneratorService $reportService, string $format)
+    {
+        $this->authorize('viewAny', Unit::class);
+
+        if (!in_array($format, ['pdf', 'excel', 'csv'], true)) {
+            abort(404);
+        }
+
+        $units = $this->filteredUnitsQuery($request)->get();
+
+        return $reportService->generateUnitsReport(
+            $units,
+            $format,
+            $this->extractUnitFilters($request)
+        );
+    }
+
+    private function filteredUnitsQuery(Request $request)
+    {
         $query = Unit::with(['condominium', 'users', 'morador'])
             ->byCondominium($this->activeCondominiumId());
 
-        // Filtros
         if ($request->filled('search')) {
             $query->search($request->search);
         }
@@ -63,11 +91,15 @@ class UnitController extends Controller
             $query->where('type', $request->type);
         }
 
+        if ($request->filled('unit_model')) {
+            $query->ofModel($request->unit_model);
+        }
+
         if ($request->filled('situacao')) {
             $query->where('situacao', $request->situacao);
         }
 
-        if ($request->has('possui_dividas')) {
+        if ($request->has('possui_dividas') && $request->input('possui_dividas') !== '') {
             $query->where('possui_dividas', $request->boolean('possui_dividas'));
         }
 
@@ -78,9 +110,20 @@ class UnitController extends Controller
             $query->orderBy('number');
         }
 
-        $units = $query->paginate(20)->withQueryString();
+        return $query;
+    }
 
-        return view('units.index', compact('units'));
+    private function extractUnitFilters(Request $request): array
+    {
+        return array_filter([
+            'search' => $request->input('search'),
+            'type' => $request->input('type'),
+            'unit_model' => $request->input('unit_model'),
+            'situacao' => $request->input('situacao'),
+            'possui_dividas' => $request->has('possui_dividas') && $request->input('possui_dividas') !== ''
+                ? $request->boolean('possui_dividas')
+                : null,
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
     /**
@@ -91,8 +134,9 @@ class UnitController extends Controller
         $this->authorize('create', Unit::class);
 
         $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
+        $unitModelOptions = UnitModels::labels();
 
-        return view('units.create', compact('activeCondominium'));
+        return view('units.create', compact('activeCondominium', 'unitModelOptions'));
     }
 
     /**
@@ -145,8 +189,9 @@ class UnitController extends Controller
         $unit->load(['condominium', 'morador']);
         $selectedMorador = $unit->morador;
         $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
+        $unitModelOptions = UnitModels::labels();
 
-        return view('units.edit', compact('unit', 'selectedMorador', 'activeCondominium'));
+        return view('units.edit', compact('unit', 'selectedMorador', 'activeCondominium', 'unitModelOptions'));
     }
 
     /**

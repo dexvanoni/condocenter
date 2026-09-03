@@ -40,6 +40,8 @@
 
     $wizardMode = $wizardMode ?? false;
     $recurrenceLabels = $recurrenceOptions;
+    $unitModelOptions = $unitModelOptions ?? \App\Support\UnitModels::labels();
+    $selectedUnitModels = old('unit_models', $fee->unit_models ?? []);
 @endphp
 
 @once
@@ -169,6 +171,27 @@
             @endforeach
         </select>
         @error('billing_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="col-12">
+        <label class="form-label fw-semibold">Modelos de unidade</label>
+        <div class="d-flex flex-wrap gap-3" id="fee-unit-models">
+            @foreach($unitModelOptions as $value => $label)
+                <div class="form-check">
+                    <input class="form-check-input fee-unit-model-checkbox"
+                           type="checkbox"
+                           name="unit_models[]"
+                           id="unit_model_{{ $value }}"
+                           value="{{ $value }}"
+                           {{ in_array($value, $selectedUnitModels ?? [], true) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="unit_model_{{ $value }}">{{ $label }}</label>
+                </div>
+            @endforeach
+        </div>
+        <small class="text-muted d-block mt-1">
+            Deixe em branco para aplicar a todos os modelos. Selecione um ou mais para restringir a taxa.
+        </small>
+        @error('unit_models')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
     </div>
 
     <div class="col-md-3 recurrence-dependent">
@@ -304,7 +327,7 @@
                     <h5 class="mb-2"><i class="bi bi-buildings me-1"></i> Unidades habitadas com morador</h5>
                     <p class="text-muted mb-2">
                         Esta taxa será aplicada automaticamente às <strong id="units-total-label">{{ $autoEligibleUnitsCount }}</strong> unidades elegíveis
-                        (habitadas e com morador ativo), usando a forma de pagamento padrão de cada uma (folha ou sistema).
+                        (habitadas com morador ativo<span id="fee-models-filter-hint">{{ empty($selectedUnitModels) ? '' : ' nos modelos selecionados' }}</span>), usando a forma de pagamento padrão de cada uma (folha ou sistema).
                         @if($totalUnits > $autoEligibleUnitsCount)
                             <span class="d-block mt-1 small">
                                 O condomínio possui {{ $totalUnits }} unidades no total; as demais podem ser incluídas manualmente.
@@ -351,6 +374,15 @@
         <input type="text" id="unit-filter" class="form-control" placeholder="Filtrar por bloco, número ou morador">
     </div>
 
+    <div class="mb-3" style="max-width: 360px;">
+        <select id="unit-model-filter" class="form-select form-select-sm">
+            <option value="">Todos os modelos</option>
+            @foreach($unitModelOptions as $value => $label)
+                <option value="{{ $value }}">{{ $label }}</option>
+            @endforeach
+        </select>
+    </div>
+
     <div class="fee-units-table-container">
         <table id="units-table" class="table table-hover mb-0 align-middle w-100">
         <thead class="table-light">
@@ -375,6 +407,7 @@
                 <tr class="unit-row {{ $autoEligible ? '' : 'table-light' }}"
                     data-search="{{ $searchBlob }}"
                     data-unit-id="{{ $unit->id }}"
+                    data-unit-model="{{ $unit->unit_model }}"
                     data-auto-eligible="{{ $autoEligible ? '1' : '0' }}">
                     <td>
                         <div class="form-check">
@@ -403,6 +436,7 @@
                     <td>
                         <div class="fw-semibold">{{ $unit->full_identifier }}</div>
                         <div class="d-flex flex-wrap gap-1 mt-1 mb-1">
+                            <span class="badge bg-secondary">{{ $unit->unit_model_label }}</span>
                             <span class="badge {{ $unit->situacao === 'habitado' ? 'bg-success' : 'bg-secondary' }}">
                                 {{ $unit->situacao_label }}
                             </span>
@@ -556,17 +590,40 @@
 
         const countManuallyAddedUnits = () => {
             let count = 0;
-            document.querySelectorAll('.unit-row[data-auto-eligible="0"] .unit-toggle:checked').forEach(() => {
+            document.querySelectorAll('.unit-row[data-auto-eligible="0"]:not(.d-none) .unit-toggle:checked').forEach(() => {
                 count += 1;
+            });
+            return count;
+        };
+
+        const getSelectedFeeUnitModels = () => {
+            return Array.from(document.querySelectorAll('.fee-unit-model-checkbox:checked'))
+                .map(checkbox => checkbox.value);
+        };
+
+        const unitMatchesFeeModels = (unitModel) => {
+            const selectedModels = getSelectedFeeUnitModels();
+            if (!selectedModels.length) {
+                return true;
+            }
+            return selectedModels.includes(unitModel);
+        };
+
+        const countAutoEligibleUnits = () => {
+            let count = 0;
+            document.querySelectorAll('.unit-row[data-auto-eligible="1"]').forEach(row => {
+                if (unitMatchesFeeModels(row.dataset.unitModel)) {
+                    count += 1;
+                }
             });
             return count;
         };
 
         const countSelectedUnits = () => {
             if (applyAllField?.value === '1') {
-                return autoEligibleUnits + countManuallyAddedUnits();
+                return countAutoEligibleUnits() + countManuallyAddedUnits();
             }
-            return document.querySelectorAll('.unit-toggle:checked').length;
+            return document.querySelectorAll('.unit-row:not(.d-none) .unit-toggle:checked').length;
         };
 
         const isCustomizationPanelVisible = () => !customPanel?.classList.contains('d-none');
@@ -625,6 +682,9 @@
             if (nextBtn) nextBtn.classList.toggle('d-none', currentStep === maxStep);
             if (submitBtn) submitBtn.classList.toggle('d-none', currentStep !== maxStep);
             syncWizardLayout();
+            if (currentStep === 2) {
+                applyUnitModelTableFilter();
+            }
             if (currentStep === 2 && isCustomizationPanelVisible()) {
                 setTimeout(() => {
                     initUnitsDataTable();
@@ -643,7 +703,7 @@
             }
             if (step === 2) {
                 if (applyAllMode) {
-                    if (autoEligibleUnits === 0 && countManuallyAddedUnits() === 0) {
+                    if (countAutoEligibleUnits() === 0 && countManuallyAddedUnits() === 0) {
                         alert('Não há unidades elegíveis para automação. Marque ao menos uma unidade na tabela.');
                         return false;
                     }
@@ -679,6 +739,7 @@
         const selectAllButton = document.getElementById('select-all-units');
         const clearAllButton = document.getElementById('clear-all-units');
         const filterInput = document.getElementById('unit-filter');
+        const unitModelFilter = document.getElementById('unit-model-filter');
         const unitsTable = $('#units-table');
 
         let applyAllMode = applyAllField?.value === '1';
@@ -751,6 +812,7 @@
             setTimeout(() => {
                 initUnitsDataTable();
                 adjustUnitsTable();
+                applyUnitModelTableFilter();
             }, 120);
             updatePreview();
         };
@@ -817,6 +879,17 @@
             const unitId = checkbox.dataset.unitId;
             const row = checkbox.closest('.unit-row');
             const isAutoEligible = row?.dataset.autoEligible === '1';
+            const matchesFeeModels = unitMatchesFeeModels(row?.dataset.unitModel);
+
+            if (!matchesFeeModels) {
+                checkbox.checked = false;
+                checkbox.disabled = true;
+                checkboxState[unitId] = false;
+                toggleInputs(checkbox.dataset.target, false);
+                return;
+            }
+
+            checkbox.disabled = false;
 
             if (applyAllMode && !isCustomizationPanelVisible()) {
                 checkbox.checked = true;
@@ -892,7 +965,11 @@
             if (applyAllMode && !onlySelectedToggle?.checked) {
                 return;
             }
-            document.querySelectorAll('.unit-toggle').forEach(checkbox => {
+            getVisibleUnitCheckboxes().forEach(checkbox => {
+                const row = checkbox.closest('.unit-row');
+                if (!row || !unitMatchesFeeModels(row.dataset.unitModel)) {
+                    return;
+                }
                 checkboxState[checkbox.dataset.unitId] = true;
             });
             applyStateToAllCheckboxes();
@@ -903,7 +980,7 @@
             if (applyAllMode && !onlySelectedToggle?.checked) {
                 return;
             }
-            document.querySelectorAll('.unit-toggle').forEach(checkbox => {
+            getVisibleUnitCheckboxes().forEach(checkbox => {
                 checkboxState[checkbox.dataset.unitId] = false;
             });
             applyStateToAllCheckboxes();
@@ -954,6 +1031,68 @@
             });
         }
 
+        if (unitModelFilter) {
+            unitModelFilter.addEventListener('change', () => {
+                applyUnitModelTableFilter();
+            });
+        }
+
+        document.querySelectorAll('.fee-unit-model-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const hint = document.getElementById('fee-models-filter-hint');
+                if (hint) {
+                    hint.textContent = getSelectedFeeUnitModels().length ? ' nos modelos selecionados' : '';
+                }
+                applyUnitModelTableFilter();
+                updatePreview();
+            });
+        });
+
+        const applyUnitModelTableFilter = () => {
+            const tableModel = unitModelFilter?.value || '';
+
+            document.querySelectorAll('.unit-row').forEach(row => {
+                const rowModel = row.dataset.unitModel;
+                const matchesFeeModels = unitMatchesFeeModels(rowModel);
+                const matchesTableFilter = !tableModel || tableModel === rowModel;
+                const isVisible = matchesFeeModels && matchesTableFilter;
+
+                row.classList.toggle('d-none', !isVisible);
+
+                if (!matchesFeeModels) {
+                    const unitId = row.dataset.unitId;
+                    const checkbox = row.querySelector('.unit-toggle');
+                    checkboxState[unitId] = false;
+                    if (checkbox) {
+                        checkbox.checked = false;
+                        checkbox.disabled = true;
+                    }
+                    if (checkbox) {
+                        toggleInputs(checkbox.dataset.target, false);
+                    }
+                } else {
+                    const checkbox = row.querySelector('.unit-toggle');
+                    if (checkbox) {
+                        checkbox.disabled = false;
+                    }
+                }
+            });
+
+            const eligibleCount = countAutoEligibleUnits();
+            const totalLabel = document.getElementById('units-total-label');
+            if (totalLabel) {
+                totalLabel.textContent = String(eligibleCount);
+            }
+
+            if (unitsDataTable) {
+                unitsDataTable.draw(false);
+            }
+        };
+
+        const getVisibleUnitCheckboxes = () => {
+            return Array.from(document.querySelectorAll('.unit-row:not(.d-none) .unit-toggle'));
+        };
+
         document.querySelectorAll('.unit-toggle').forEach(checkbox => {
             checkboxState[checkbox.dataset.unitId] = checkbox.checked;
         });
@@ -968,6 +1107,7 @@
             filterInput.dispatchEvent(new Event('input'));
         }
 
+        applyUnitModelTableFilter();
         updatePreview();
 
         if (wizardMode) {
@@ -979,6 +1119,7 @@
                 document.querySelectorAll('.unit-row').forEach(row => {
                     const unitId = row.dataset.unitId;
                     const checkbox = row.querySelector('.unit-toggle');
+                    const matchesFeeModels = unitMatchesFeeModels(row.dataset.unitModel);
                     const isChecked = checkboxState.hasOwnProperty(unitId)
                         ? checkboxState[unitId]
                         : checkbox?.checked;
@@ -986,7 +1127,9 @@
 
                     let shouldSubmit = false;
 
-                    if (applyAllMode) {
+                    if (!matchesFeeModels) {
+                        shouldSubmit = false;
+                    } else if (applyAllMode) {
                         shouldSubmit = isChecked || modifiedUnits.has(unitId);
                     } else {
                         shouldSubmit = Boolean(isChecked);

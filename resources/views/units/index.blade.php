@@ -21,9 +21,17 @@
             </div>
             <div class="col-md-2">
                 <select name="type" class="form-select">
-                    <option value="">Todos os tipos</option>
+                    <option value="">Uso (Res./Com.)</option>
                     <option value="residential" {{ request('type') === 'residential' ? 'selected' : '' }}>Residencial</option>
                     <option value="commercial" {{ request('type') === 'commercial' ? 'selected' : '' }}>Comercial</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="unit_model" class="form-select">
+                    <option value="">Todos os modelos</option>
+                    @foreach($unitModelOptions as $value => $label)
+                        <option value="{{ $value }}" {{ request('unit_model') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
                 </select>
             </div>
             <div class="col-md-2">
@@ -56,6 +64,23 @@
 
 <!-- Listagem -->
 <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="text-muted small">{{ $units->total() }} unidade(s) encontrada(s)</span>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ route('units.export', array_merge(['format' => 'pdf'], request()->query())) }}"
+               class="btn btn-outline-danger" title="Exportar PDF com filtros atuais">
+                <i class="bi bi-file-earmark-pdf"></i> PDF
+            </a>
+            <a href="{{ route('units.export', array_merge(['format' => 'excel'], request()->query())) }}"
+               class="btn btn-outline-success" title="Exportar Excel com filtros atuais">
+                <i class="bi bi-file-earmark-excel"></i> Excel
+            </a>
+            <a href="{{ route('units.export', array_merge(['format' => 'csv'], request()->query())) }}"
+               class="btn btn-outline-secondary" title="Exportar CSV com filtros atuais">
+                <i class="bi bi-filetype-csv"></i> CSV
+            </a>
+        </div>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -63,7 +88,8 @@
                     <tr>
                         <th>Ap/Casa</th>
                         <th>Bloco</th>
-                        <th>Tipo</th>
+                        <th>Modelo</th>
+                        <th>Uso</th>
                         <th>Situação</th>
                         <th>Responsável</th>
                         <th>Total</th>
@@ -76,6 +102,7 @@
                     <tr>
                         <td><strong>{{ $unit->number }}</strong></td>
                         <td>{{ $unit->block ?? '-' }}</td>
+                        <td><span class="badge bg-secondary">{{ $unit->unit_model_label }}</span></td>
                         <td>
                             <span class="badge bg-{{ $unit->type === 'residential' ? 'info' : 'warning' }}">
                                 {{ $unit->type === 'residential' ? 'Residencial' : 'Comercial' }}
@@ -130,7 +157,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="text-center py-4">
+                        <td colspan="9" class="text-center py-4">
                             <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
                             Nenhuma unidade encontrada.
                         </td>

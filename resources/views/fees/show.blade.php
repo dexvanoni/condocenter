@@ -260,6 +260,9 @@
                         @endswitch
                     </dd>
 
+                    <dt class="col-5">Modelos de unidade</dt>
+                    <dd class="col-7">{{ \App\Support\UnitModels::formatList($fee->unit_models) }}</dd>
+
                     @if($fee->bankAccount)
                         <dt class="col-5">Conta recebedora</dt>
                         <dd class="col-7">{{ $fee->bankAccount->name }}</dd>

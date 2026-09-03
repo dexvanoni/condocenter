@@ -76,6 +76,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::middleware(['can:view_charges'])->group(function () {
         Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
         Route::get('/charges/data', [\App\Http\Controllers\ChargeController::class, 'data'])->name('charges.data');
+        Route::get('/charges/{charge}/receipt', [\App\Http\Controllers\ChargeController::class, 'receipt'])->name('charges.receipt');
         Route::get('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'show'])->name('charges.show');
         Route::delete('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'destroy'])
             ->middleware('can:manage_charges')
@@ -140,16 +141,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
         Route::get('/financial/accountability', [AccountabilityReportController::class, 'index'])->name('accountability-reports.index');
         Route::get('/financial/accountability/export/pdf', [AccountabilityReportController::class, 'exportPdf'])
-            ->middleware('can:export_accountability_reports')
             ->name('accountability-reports.export.pdf');
         Route::get('/financial/accountability/export/excel', [AccountabilityReportController::class, 'exportExcel'])
-            ->middleware('can:export_accountability_reports')
             ->name('accountability-reports.export.excel');
         Route::get('/financial/accountability/download-receipts', [AccountabilityReportController::class, 'downloadReceipts'])
-            ->middleware('can:export_accountability_reports')
             ->name('accountability-reports.download-receipts');
         Route::get('/financial/accountability/print', [AccountabilityReportController::class, 'print'])
-            ->middleware('can:export_accountability_reports')
             ->name('accountability-reports.print');
 
         Route::get('/financial/income-expense', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'index'])
@@ -309,6 +306,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
     // Unidades
     Route::get('/units/search/users', [\App\Http\Controllers\UnitController::class, 'searchUsers'])->name('units.search-users');
+    Route::get('/units/export/{format}', [\App\Http\Controllers\UnitController::class, 'export'])->name('units.export');
     Route::resource('units', \App\Http\Controllers\UnitController::class);
 
     // Usuários

@@ -22,6 +22,7 @@ class UnitFactory extends Factory
             'number' => (string) fake()->numberBetween(1, 200),
             'block' => fake()->randomElement(['A', 'B', 'C', null]),
             'type' => fake()->randomElement(['residential', 'commercial']),
+            'unit_model' => fake()->randomElement(\App\Support\UnitModels::values()),
             'ideal_fraction' => 1.0000,
             'area' => fake()->randomFloat(2, 40, 150),
             'floor' => fake()->numberBetween(1, 15),

@@ -6,6 +6,7 @@ use App\Models\Charge;
 use App\Models\CondominiumAccount;
 use App\Models\BankAccount;
 use App\Models\Payment;
+use App\Support\PaymentMethods;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -39,28 +40,27 @@ class AccountabilityReportService
             ->get();
 
         $chargeIds = $chargeIncomeEntries->pluck('source_id')->filter()->unique();
-        $chargesById = Charge::with('fee')
+        $chargesById = Charge::with(['fee'])
             ->whereIn('id', $chargeIds)
             ->get()
             ->keyBy('id');
 
         $chargeSummary = $this->buildChargeSummary($chargeIncomeEntries, $chargesById);
 
-        $payments = Payment::with(['charge'])
+        $payments = Payment::query()
             ->whereHas('charge', function ($query) use ($condominiumId) {
                 $query->where('condominium_id', $condominiumId);
             })
             ->whereBetween('payment_date', [$startDate, $endDate])
             ->orderBy('payment_date')
+            ->orderBy('id')
             ->get();
 
         $paymentsSummary = $payments
-            ->groupBy(function (Payment $payment) {
-                return strtoupper($payment->payment_method ?? 'OUTROS');
-            })
+            ->groupBy(fn (Payment $payment) => $payment->payment_method ?? 'other')
             ->map(function (Collection $group, string $method) {
                 return [
-                    'method' => $method === 'OUTROS' ? 'Outros métodos' : $method,
+                    'method' => PaymentMethods::label($method),
                     'transactions' => $group->count(),
                     'total' => $group->sum('amount_paid'),
                 ];
@@ -104,6 +104,8 @@ class AccountabilityReportService
         return [
             'manual_incomes' => $manualIncomes,
             'manual_expenses' => $manualExpenses,
+            'manual_income_details' => $this->buildAccountDetails($manualIncomes, 'income'),
+            'manual_expense_details' => $this->buildAccountDetails($manualExpenses, 'expense'),
             'charge_summary' => $chargeSummary,
             'payments_summary' => $paymentsSummary,
             'bank_accounts' => $bankAccounts,
@@ -111,6 +113,35 @@ class AccountabilityReportService
             'start_date' => $startDate,
             'end_date' => $endDate,
         ];
+    }
+
+    private function buildAccountDetails(Collection $accounts, string $type): Collection
+    {
+        return $accounts->map(function (CondominiumAccount $account) use ($type) {
+            return [
+                'type_label' => $type === 'income' ? 'Entrada' : 'Saída',
+                'source_type_label' => $this->resolveSourceTypeLabel($account),
+                'transaction_date' => optional($account->transaction_date)->format('d/m/Y'),
+                'created_at' => optional($account->created_at)->format('d/m/Y H:i:s'),
+                'description' => $account->description,
+                'payment_method' => PaymentMethods::label($account->payment_method),
+                'amount' => (float) $account->amount,
+                'registered_by' => $account->creator?->name,
+                'notes' => $account->notes,
+                'installments' => $account->installments_total
+                    ? "{$account->installment_number}/{$account->installments_total}"
+                    : null,
+            ];
+        })->values();
+    }
+
+    private function resolveSourceTypeLabel(CondominiumAccount $account): string
+    {
+        return match ($account->source_type) {
+            'charge' => 'Cobrança de taxa',
+            'manual_income' => 'Entrada avulsa',
+            default => $account->type === 'income' ? 'Entrada avulsa' : 'Despesa',
+        };
     }
 
     protected function calculateBalanceUntil(int $condominiumId, Carbon $date): float

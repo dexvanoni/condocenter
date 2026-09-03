@@ -156,4 +156,65 @@ class FeeServiceTest extends TestCase
             $fee->configurations->pluck('unit_id')->all()
         );
     }
+
+    public function test_manual_mode_ignores_units_outside_selected_fee_models(): void
+    {
+        $condominium = Condominium::factory()->create();
+        $sindico = User::factory()->for($condominium)->create();
+
+        $casa = Unit::factory()->for($condominium)->create([
+            'number' => '1',
+            'block' => 'A',
+            'unit_model' => 'casa',
+            'situacao' => 'habitado',
+            'is_active' => true,
+        ]);
+
+        $apartamento = Unit::factory()->for($condominium)->create([
+            'number' => '101',
+            'block' => 'B',
+            'unit_model' => 'apartamento',
+            'situacao' => 'habitado',
+            'is_active' => true,
+        ]);
+
+        foreach ([$casa, $apartamento] as $unit) {
+            $morador = User::factory()->for($condominium)->create([
+                'unit_id' => $unit->id,
+                'is_active' => true,
+            ]);
+            $morador->assignRole('Morador');
+        }
+
+        /** @var FeeService $feeService */
+        $feeService = app(FeeService::class);
+
+        $fee = $feeService->createFee($sindico, [
+            'name' => 'Taxa Casas',
+            'amount' => 200,
+            'recurrence' => 'monthly',
+            'due_day' => 10,
+            'billing_type' => 'condominium_fee',
+            'auto_generate_charges' => false,
+            'generate_charges_now' => false,
+            'active' => true,
+            'unit_models' => ['casa'],
+            'apply_all_units' => false,
+            'unit_configurations' => [
+                [
+                    'unit_id' => $casa->id,
+                    'payment_channel' => 'system',
+                ],
+                [
+                    'unit_id' => $apartamento->id,
+                    'payment_channel' => 'system',
+                ],
+            ],
+        ]);
+
+        $fee->load('configurations');
+
+        $this->assertCount(1, $fee->configurations);
+        $this->assertSame($casa->id, $fee->configurations->first()->unit_id);
+    }
 }

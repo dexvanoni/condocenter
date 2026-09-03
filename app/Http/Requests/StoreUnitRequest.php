@@ -45,6 +45,7 @@ class StoreUnitRequest extends FormRequest
             ],
             'block' => ['nullable', 'string', 'max:50'],
             'type' => ['required', 'in:residential,commercial'],
+            'unit_model' => ['required', \App\Support\UnitModels::validationRule()],
             'situacao' => ['required', 'in:habitado,fechado,indisponivel,em_obra'],
             'floor' => ['nullable', 'integer'],
             'morador_id' => [
@@ -80,6 +81,8 @@ class StoreUnitRequest extends FormRequest
             'number.required' => 'O número da unidade é obrigatório.',
             'type.required' => 'O tipo da unidade é obrigatório.',
             'type.in' => 'O tipo deve ser residencial ou comercial.',
+            'unit_model.required' => 'Selecione o modelo da unidade.',
+            'unit_model.in' => 'Modelo de unidade inválido.',
             'situacao.required' => 'A situação da unidade é obrigatória.',
             'situacao.in' => 'Situação inválida.',
         ];

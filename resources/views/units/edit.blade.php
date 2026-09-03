@@ -129,6 +129,33 @@
         display: block;
         margin-bottom: 0.5rem;
     }
+    .model-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+    }
+    .model-option {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1rem;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .model-option:hover {
+        border-color: #f59e0b;
+        background: #fffbeb;
+    }
+    .model-option.selected {
+        border-color: #f59e0b;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    }
+    .model-option i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #f59e0b;
+    }
     .char-counter {
         display: flex;
         gap: 2rem;
@@ -309,6 +336,36 @@
                             @enderror
                         </div>
 
+                        <div class="col-12">
+                            <label class="form-label fw-bold d-block mb-3">
+                                Modelo da Unidade <span class="text-danger">*</span>
+                            </label>
+                            @php
+                                $modelIcons = [
+                                    'casa' => 'bi-house-door-fill',
+                                    'apartamento' => 'bi-buildings-fill',
+                                    'kitnet' => 'bi-door-closed-fill',
+                                    'quarto' => 'bi-door-open-fill',
+                                    'flat' => 'bi-building-fill',
+                                ];
+                                $selectedModel = old('unit_model', $unit->unit_model ?? 'apartamento');
+                            @endphp
+                            <div class="model-grid">
+                                @foreach($unitModelOptions as $value => $label)
+                                <div class="model-option {{ $selectedModel === $value ? 'selected' : '' }}" onclick="selectModel('{{ $value }}')">
+                                    <i class="bi {{ $modelIcons[$value] ?? 'bi-house' }}"></i>
+                                    <div><strong>{{ $label }}</strong></div>
+                                    <input type="radio" name="unit_model" value="{{ $value }}"
+                                           {{ $selectedModel === $value ? 'checked' : '' }}
+                                           style="display: none;" required>
+                                </div>
+                                @endforeach
+                            </div>
+                            @error('unit_model')
+                            <div class="text-danger mt-2"><small>{{ $message }}</small></div>
+                            @enderror
+                        </div>
+
                         <!-- Situação -->
                         <div class="col-12">
                             <label class="form-label fw-bold d-block mb-3">
@@ -460,6 +517,12 @@ function selectType(type) {
     document.querySelectorAll('.type-card').forEach(card => card.classList.remove('selected'));
     event.currentTarget.classList.add('selected');
     document.querySelector(`input[name="type"][value="${type}"]`).checked = true;
+}
+
+function selectModel(model) {
+    document.querySelectorAll('.model-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+    document.querySelector(`input[name="unit_model"][value="${model}"]`).checked = true;
 }
 
 // Selecionar situação

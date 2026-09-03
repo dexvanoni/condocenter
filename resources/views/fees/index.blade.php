@@ -75,6 +75,12 @@
                     <select class="form-select form-select-sm" id="filterType" style="width: auto; min-width: 180px;">
                         <option value="">Todos os Tipos</option>
                     </select>
+                    <select class="form-select form-select-sm" id="filterUnitModels" style="width: auto; min-width: 180px;">
+                        <option value="">Todos os Modelos</option>
+                        @foreach(\App\Support\UnitModels::labels() as $value => $label)
+                            <option value="{{ $label }}">{{ $label }}</option>
+                        @endforeach
+                    </select>
                     <select class="form-select form-select-sm" id="filterStatus" style="width: auto; min-width: 150px;">
                         <option value="">Todos os Status</option>
                     </select>
@@ -103,11 +109,12 @@
                 <thead class="table-light">
                     <tr>
                         <th style="width: 30%;">Nome da Taxa</th>
-                        <th style="width: 15%;">Tipo</th>
+                        <th style="width: 12%;">Tipo</th>
+                        <th style="width: 15%;">Modelos</th>
                         <th style="width: 12%;" class="text-end">Valor Base</th>
-                        <th style="width: 15%;" class="text-center">Unidades</th>
-                        <th style="width: 13%;" class="text-center">Status</th>
-                        <th style="width: 15%;" class="text-center no-export">Ações</th>
+                        <th style="width: 13%;" class="text-center">Unidades</th>
+                        <th style="width: 10%;" class="text-center">Status</th>
+                        <th style="width: 8%;" class="text-center no-export">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -148,6 +155,9 @@
                                     @endswitch
                                 </small>
                             @endif
+                        </td>
+                        <td>
+                            <small>{{ \App\Support\UnitModels::formatList($fee->unit_models) }}</small>
                         </td>
                         <td class="text-end">
                             <strong class="text-success fs-6">R$ {{ number_format($fee->amount, 2, ',', '.') }}</strong>
@@ -359,7 +369,7 @@ $(document).ready(function() {
         ],
         columnDefs: [
             {
-                targets: [2], // Coluna de Valor
+                targets: [3], // Coluna de Valor
                 type: 'num',
                 render: function(data, type, row) {
                     if (type === 'sort' || type === 'type') {
@@ -398,8 +408,15 @@ $(document).ready(function() {
                 tipoColumn.search(val ? val : '', true, false).draw();
             });
 
+            const modelosColumn = this.api().column(2);
+            const modelosSelect = $('#filterUnitModels');
+            modelosSelect.on('change', function() {
+                const val = $(this).val();
+                modelosColumn.search(val ? val : '', true, false).draw();
+            });
+
             // Popular filtros de Status
-            const statusColumn = this.api().column(4);
+            const statusColumn = this.api().column(5);
             const statusSelect = $('#filterStatus');
             statusColumn.data().unique().each(function(d) {
                 const $d = $(d);
@@ -432,6 +449,7 @@ $(document).ready(function() {
 // Função para limpar filtros
 function clearFilters() {
     $('#filterType').val('').trigger('change');
+    $('#filterUnitModels').val('').trigger('change');
     $('#filterStatus').val('').trigger('change');
     if ($.fn.DataTable.isDataTable('#feesTable')) {
         $('#feesTable').DataTable().search('').draw();

@@ -30,6 +30,22 @@
                         <i class="bi bi-search"></i> Gerar
                     </button>
                 </div>
+                @if($canExport)
+                    <div class="col-auto">
+                        <label class="form-label mb-1 d-none d-md-block">&nbsp;</label>
+                        <div class="btn-group">
+                            <a href="{{ route('accountability-reports.export.pdf', request()->query()) }}" class="btn btn-outline-primary" title="Relatório completo com timbre e assinatura do síndico">
+                                <i class="bi bi-file-earmark-pdf"></i> PDF
+                            </a>
+                            <a href="{{ route('accountability-reports.export.excel', request()->query()) }}" class="btn btn-outline-success" title="Exportar planilha Excel">
+                                <i class="bi bi-file-earmark-excel"></i> Excel
+                            </a>
+                            <a href="{{ route('accountability-reports.print', request()->query()) }}" target="_blank" class="btn btn-outline-secondary" title="Versão para impressão">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                        </div>
+                    </div>
+                @endif
             </form>
         </div>
     </div>
@@ -82,15 +98,15 @@
                     <small class="text-muted">Saldo final: R$ {{ number_format($data['totals']['closing_balance'], 2, ',', '.') }}</small>
                 </div>
                 @if($canExport)
-                    <div class="btn-group">
-                        <a href="{{ route('accountability-reports.export.pdf', request()->query()) }}" class="btn btn-outline-primary">
-                            <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+                    <div class="btn-group flex-wrap">
+                        <a href="{{ route('accountability-reports.export.pdf', request()->query()) }}" class="btn btn-primary" title="Relatório completo com timbre e assinatura do síndico">
+                            <i class="bi bi-file-earmark-pdf"></i> Exportar PDF Detalhado
                         </a>
                         <a href="{{ route('accountability-reports.download-receipts', request()->query()) }}" class="btn btn-outline-info">
-                            <i class="bi bi-download"></i> Download de Comprovantes
+                            <i class="bi bi-download"></i> Comprovantes
                         </a>
                         <a href="{{ route('accountability-reports.export.excel', request()->query()) }}" class="btn btn-outline-success">
-                            <i class="bi bi-file-earmark-excel"></i> Exportar Planilha
+                            <i class="bi bi-file-earmark-excel"></i> Planilha
                         </a>
                         <a href="{{ route('accountability-reports.print', request()->query()) }}" target="_blank" class="btn btn-outline-secondary">
                             <i class="bi bi-printer"></i> Imprimir

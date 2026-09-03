@@ -133,6 +133,33 @@
         display: block;
         margin-bottom: 0.5rem;
     }
+    .model-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+    }
+    .model-option {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 1rem;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .model-option:hover {
+        border-color: var(--brand-light);
+        background: rgba(56, 102, 210, 0.05);
+    }
+    .model-option.selected {
+        border-color: var(--brand-light);
+        background: linear-gradient(135deg, rgba(10,27,103,0.08) 0%, rgba(56,102,210,0.12) 100%);
+    }
+    .model-option i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #3866d2;
+    }
     .char-counter {
         display: flex;
         gap: 2rem;
@@ -321,6 +348,36 @@
                             @enderror
                         </div>
 
+                        <div class="col-12">
+                            <label class="form-label fw-bold d-block mb-3">
+                                Modelo da Unidade <span class="text-danger">*</span>
+                            </label>
+                            @php
+                                $modelIcons = [
+                                    'casa' => 'bi-house-door-fill',
+                                    'apartamento' => 'bi-buildings-fill',
+                                    'kitnet' => 'bi-door-closed-fill',
+                                    'quarto' => 'bi-door-open-fill',
+                                    'flat' => 'bi-building-fill',
+                                ];
+                                $selectedModel = old('unit_model', 'apartamento');
+                            @endphp
+                            <div class="model-grid">
+                                @foreach($unitModelOptions as $value => $label)
+                                <div class="model-option {{ $selectedModel === $value ? 'selected' : '' }}" onclick="selectModel('{{ $value }}')">
+                                    <i class="bi {{ $modelIcons[$value] ?? 'bi-house' }}"></i>
+                                    <div><strong>{{ $label }}</strong></div>
+                                    <input type="radio" name="unit_model" value="{{ $value }}"
+                                           {{ $selectedModel === $value ? 'checked' : '' }}
+                                           style="display: none;" required>
+                                </div>
+                                @endforeach
+                            </div>
+                            @error('unit_model')
+                            <div class="text-danger mt-2"><small>{{ $message }}</small></div>
+                            @enderror
+                        </div>
+
                         <!-- Situação -->
                         <div class="col-12">
                             <label class="form-label fw-bold d-block mb-3">
@@ -471,6 +528,13 @@ function selectType(type) {
     document.querySelector(`input[name="type"][value="${type}"]`).checked = true;
 }
 
+// Selecionar modelo da unidade
+function selectModel(model) {
+    document.querySelectorAll('.model-option').forEach(opt => opt.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+    document.querySelector(`input[name="unit_model"][value="${model}"]`).checked = true;
+}
+
 // Selecionar situação
 function selectSituacao(situacao) {
     document.querySelectorAll('.situacao-option').forEach(opt => opt.classList.remove('selected'));
@@ -483,6 +547,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectedType = document.querySelector('input[name="type"]:checked');
     if (selectedType) {
         selectedType.closest('.type-card').classList.add('selected');
+    }
+
+    const selectedModel = document.querySelector('input[name="unit_model"]:checked');
+    if (selectedModel) {
+        selectedModel.closest('.model-option').classList.add('selected');
     }
     
     const selectedSituacao = document.querySelector('input[name="situacao"]:checked');

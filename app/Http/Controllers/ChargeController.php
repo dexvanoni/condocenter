@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
 use App\Models\Unit;
+use App\Services\ChargeReceiptService;
 use App\Services\ChargeSettlementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -148,7 +149,23 @@ class ChargeController extends Controller
             'charge' => $charge,
             'payment_summary' => $paymentSummary,
             'can_manage' => $user->can('manage_charges'),
+            'receipt_url' => $charge->status === 'paid'
+                ? route('charges.receipt', $charge)
+                : null,
         ]);
+    }
+
+    public function receipt(Request $request, Charge $charge, ChargeReceiptService $receiptService)
+    {
+        $user = $request->user();
+
+        $this->ensureResourceBelongsToActiveCondominium($user, (int) $charge->condominium_id);
+
+        if ($user->isMorador() && $user->unit_id && $charge->unit_id !== $user->unit_id) {
+            abort(403);
+        }
+
+        return $receiptService->download($charge);
     }
 
     public function destroy(Request $request, Charge $charge): RedirectResponse|JsonResponse

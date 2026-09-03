@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\UnitModels;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateFeeRequest extends FormRequest
@@ -21,6 +22,8 @@ class UpdateFeeRequest extends FormRequest
             'due_day' => ['nullable', 'integer', 'min:1', 'max:31'],
             'due_offset_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'billing_type' => ['required', 'in:condominium_fee,fine,extra,reservation'],
+            'unit_models' => ['nullable', 'array'],
+            'unit_models.*' => [UnitModels::validationRule()],
             'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
             'auto_generate_charges' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
@@ -60,6 +63,10 @@ class UpdateFeeRequest extends FormRequest
                 'apply_all_units' => filter_var($this->get('apply_all_units'), FILTER_VALIDATE_BOOLEAN),
             ]);
         }
+
+        $this->merge([
+            'unit_models' => UnitModels::normalizeSelection($this->input('unit_models', [])),
+        ]);
 
         if ($this->has('custom_schedule_text')) {
             $dates = collect(preg_split('/\r\n|[\r\n]+/', (string) $this->input('custom_schedule_text')))

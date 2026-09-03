@@ -219,6 +219,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <a href="#" id="detailChargeReceiptBtn" class="btn btn-outline-primary d-none" target="_blank" rel="noopener">
+                    <i class="bi bi-file-earmark-pdf"></i> Gerar comprovante (PDF)
+                </a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
@@ -433,6 +436,10 @@
             buttons.push(`<button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDeleteCharge(${charge.id})">Excluir</button>`);
         }
 
+        if (charge.status === 'paid') {
+            buttons.push(`<a href="${chargeBaseUrl}/${charge.id}/receipt" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener" title="Baixar comprovante em PDF"><i class="bi bi-file-earmark-pdf"></i> Comprovante</a>`);
+        }
+
         if (buttons.length === 0) {
             return '—';
         }
@@ -626,6 +633,9 @@
                 <td colspan="3" class="text-center text-muted">Carregando dados...</td>
             </tr>
         `;
+        const receiptBtn = document.getElementById('detailChargeReceiptBtn');
+        receiptBtn.classList.add('d-none');
+        receiptBtn.href = '#';
 
         fetch(`${chargeBaseUrl}/${id}`, {
             headers: {
@@ -647,6 +657,14 @@
                 document.getElementById('detailChargeStatus').innerHTML = statusBadge(charge.status);
                 document.getElementById('detailChargeFee').textContent = charge.fee?.name ?? '—';
                 document.getElementById('detailChargeNotes').textContent = charge.description ?? '—';
+
+                if (data.receipt_url) {
+                    receiptBtn.href = data.receipt_url;
+                    receiptBtn.classList.remove('d-none');
+                } else {
+                    receiptBtn.classList.add('d-none');
+                    receiptBtn.href = '#';
+                }
 
                 const paymentsBody = document.getElementById('detailChargePaymentsBody');
                 paymentsBody.innerHTML = '';
@@ -727,7 +745,7 @@
             })
             .then(data => {
                 receiveChargeModal.hide();
-                showAlert('success', data.message || 'Cobrança recebida com sucesso.');
+                showAlert('success', (data.message || 'Cobrança recebida com sucesso.') + ' Você pode gerar o comprovante em PDF na listagem ou nos detalhes da cobrança.');
                 loadCharges(chargesCurrentPage);
             })
             .catch(error => {

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\CondominiumAccount;
 use App\Models\Payment;
 use App\Models\PaymentCancellation;
+use App\Support\UnitModels;
 use Carbon\Carbon;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
@@ -42,7 +43,7 @@ class FeeService
 
             $configurationsToSync = $applyAll
                 ? $this->buildApplyAllConfigurations($fee, $unitConfigurations)
-                : $unitConfigurations;
+                : $this->filterConfigurationsByFeeModels($fee, $unitConfigurations);
 
             $this->syncUnitConfigurations($fee, $configurationsToSync);
 
@@ -76,7 +77,7 @@ class FeeService
 
             $configurationsToSync = $applyAll
                 ? $this->buildApplyAllConfigurations($fee, $unitConfigurations, true)
-                : $unitConfigurations;
+                : $this->filterConfigurationsByFeeModels($fee, $unitConfigurations);
 
             $this->syncUnitConfigurations($fee, $configurationsToSync, true);
 
@@ -321,6 +322,22 @@ class FeeService
             ->values();
     }
 
+    private function filterConfigurationsByFeeModels(Fee $fee, Collection $configurations): Collection
+    {
+        if (empty($fee->unit_models) || $configurations->isEmpty()) {
+            return $configurations;
+        }
+
+        $matchingUnitIds = Unit::where('condominium_id', $fee->condominium_id)
+            ->whereIn('id', $configurations->pluck('unit_id'))
+            ->matchingFeeModels($fee->unit_models)
+            ->pluck('id');
+
+        return $configurations
+            ->filter(fn ($config) => $matchingUnitIds->contains((int) $config['unit_id']))
+            ->values();
+    }
+
     private function validateBankAccount(?int $bankAccountId, int $condominiumId): void
     {
         if (!$bankAccountId) {
@@ -371,6 +388,10 @@ class FeeService
             $data['custom_schedule'] = array_values($data['custom_schedule']);
         } else {
             $data['custom_schedule'] = null;
+        }
+
+        if (array_key_exists('unit_models', $data)) {
+            $data['unit_models'] = UnitModels::normalizeSelection(is_array($data['unit_models']) ? $data['unit_models'] : []);
         }
 
         return $data;
@@ -443,6 +464,7 @@ class FeeService
 
         $eligibleUnits = Unit::where('condominium_id', $fee->condominium_id)
             ->eligibleForAutomaticFee()
+            ->matchingFeeModels($fee->unit_models)
             ->get()
             ->keyBy('id');
 
@@ -455,6 +477,7 @@ class FeeService
             ? collect()
             : Unit::where('condominium_id', $fee->condominium_id)
                 ->whereIn('id', $manualUnitIds)
+                ->matchingFeeModels($fee->unit_models)
                 ->get()
                 ->keyBy('id');
 

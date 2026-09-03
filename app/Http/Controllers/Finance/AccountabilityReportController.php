@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Finance;
 use App\Exports\AccountabilityExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
+use App\Helpers\SidebarHelper;
 use App\Services\AccountabilityReportService;
+use App\Support\CondominiumDocuments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -42,22 +44,29 @@ class AccountabilityReportController extends Controller
 
         $data = $this->service->generate($this->activeCondominiumId($user), $startDate, $endDate);
 
-        $canViewDetails = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
+        $canViewDetails = SidebarHelper::isAdminOrSindico($user);
+        $canExport = $this->userCanExportAccountability($user);
 
         return view('finance.accountability.index', [
             'data' => $data,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'canExport' => $user->can('export_accountability_reports'),
+            'canExport' => $canExport,
             'canViewDetails' => $canViewDetails,
         ]);
+    }
+
+    protected function userCanExportAccountability($user): bool
+    {
+        return $user->can('export_accountability_reports')
+            || SidebarHelper::isAdminOrSindico($user);
     }
 
     public function exportPdf(Request $request)
     {
         $user = Auth::user();
 
-        if (! $user->can('export_accountability_reports')) {
+        if (! $this->userCanExportAccountability($user)) {
             abort(403);
         }
 
@@ -65,11 +74,17 @@ class AccountabilityReportController extends Controller
 
         $data = $this->service->generate($this->activeCondominiumId($user), $startDate, $endDate);
 
+        $condominium = $this->activeCondominium($user);
+        $sindico = CondominiumDocuments::resolveSindico($condominium->id);
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('finance.accountability.pdf', [
             'data' => $data,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'condominium' => $this->activeCondominium($user),
+            'condominium' => CondominiumDocuments::presentCondominium($condominium),
+            'sindico' => ['name' => $sindico?->name],
+            'generated_at' => now()->format('d/m/Y H:i:s'),
+            'app_name' => config('app.name', 'SindCON'),
         ]);
 
         $pdf->setPaper('a4', 'landscape');
@@ -81,7 +96,7 @@ class AccountabilityReportController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user->can('export_accountability_reports')) {
+        if (! $this->userCanExportAccountability($user)) {
             abort(403);
         }
 
@@ -99,7 +114,7 @@ class AccountabilityReportController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user->can('export_accountability_reports')) {
+        if (! $this->userCanExportAccountability($user)) {
             abort(403);
         }
 
@@ -131,7 +146,7 @@ class AccountabilityReportController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user->can('export_accountability_reports')) {
+        if (! $this->userCanExportAccountability($user)) {
             abort(403);
         }
 
