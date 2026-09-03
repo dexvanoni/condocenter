@@ -142,6 +142,10 @@
                 </div>
             </div>
 
+            @include('partials.whatsapp-evolution-groups', [
+                'listRoute' => route('platform.settings.whatsapp.groups'),
+            ])
+
             <div class="card shadow-sm">
                 <div class="card-header bg-light"><h5 class="mb-0">Resultado do teste</h5></div>
                 <div class="card-body">
@@ -164,6 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('btnTestWhatsApp');
     const resultEl = document.getElementById('whatsappTestResult');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    initWhatsAppGroupsPicker({
+        listRoute: @json(route('platform.settings.whatsapp.groups')),
+    });
 
     btn?.addEventListener('click', async () => {
         btn.disabled = true;

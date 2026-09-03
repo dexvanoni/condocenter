@@ -85,7 +85,9 @@ class SendConversationNotifications implements ShouldQueue
     {
         // Para direct: todos participantes
         if ($conversation->type === 'direct') {
-            return $conversation->participants->pluck('user')->filter();
+            return $conversation->participants
+                ->pluck('user')
+                ->filter(fn (?User $user) => $user?->canReceiveWhatsApp());
         }
 
         // Para announcement: expandir recipients
@@ -96,21 +98,21 @@ class SendConversationNotifications implements ShouldQueue
             if ($rcp->target_type === 'all') {
                 $all = User::query()
                     ->byCondominium($condominiumId)
-                    ->where('is_active', true)
+                    ->eligibleForWhatsApp()
                     ->get();
                 $users = $users->merge($all);
             } elseif ($rcp->target_type === 'role' && $rcp->target_value) {
                 $roleUsers = User::query()
                     ->byCondominium($condominiumId)
-                    ->where('is_active', true)
+                    ->eligibleForWhatsApp()
                     ->whereHas('roles', fn ($q) => $q->where('name', $rcp->target_value))
                     ->get();
                 $users = $users->merge($roleUsers);
             } elseif ($rcp->target_type === 'user' && $rcp->target_value) {
                 $u = User::query()
                     ->byCondominium($condominiumId)
-                    ->where('id', (int)$rcp->target_value)
-                    ->where('is_active', true)
+                    ->eligibleForWhatsApp()
+                    ->where('id', (int) $rcp->target_value)
                     ->first();
                 if ($u) {
                     $users->push($u);

@@ -128,7 +128,7 @@ class ChargeSettlementService
     public function markAllPaid(Fee $fee, Carbon $paidAt, string $paymentMethod, ?string $notes, ?int $userId = null): void
     {
         $charges = $fee->charges()
-            ->where('status', '!=', 'paid')
+            ->whereIn('status', ['pending', 'overdue'])
             ->get();
 
         foreach ($charges as $charge) {

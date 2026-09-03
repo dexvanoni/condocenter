@@ -10,6 +10,7 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\CondominiumAccount;
 use App\Models\Payment;
+use App\Models\PaymentCancellation;
 use Carbon\Carbon;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
@@ -18,7 +19,8 @@ use Illuminate\Validation\ValidationException;
 class FeeService
 {
     public function __construct(
-        private readonly DatabaseManager $database
+        private readonly DatabaseManager $database,
+        private readonly ChargeSettlementService $chargeSettlementService,
     ) {
     }
 
@@ -28,7 +30,7 @@ class FeeService
             $applyAll = (bool) ($data['apply_all_units'] ?? false);
             unset($data['apply_all_units']);
 
-            $unitConfigurations = collect($data['unit_configurations'] ?? []);
+            $unitConfigurations = $this->normalizeSubmittedUnitConfigurations($data['unit_configurations'] ?? []);
             unset($data['unit_configurations']);
 
             $data['condominium_id'] = $user->tenantCondominiumId();
@@ -44,7 +46,7 @@ class FeeService
 
             $this->syncUnitConfigurations($fee, $configurationsToSync);
 
-            if ($fee->auto_generate_charges) {
+            if ($fee->auto_generate_charges || !empty($data['generate_charges_now'])) {
                 $this->generateUpcomingCharges($fee);
             }
 
@@ -64,7 +66,7 @@ class FeeService
             $applyAll = (bool) ($data['apply_all_units'] ?? false);
             unset($data['apply_all_units']);
 
-            $unitConfigurations = collect($data['unit_configurations'] ?? []);
+            $unitConfigurations = $this->normalizeSubmittedUnitConfigurations($data['unit_configurations'] ?? []);
             unset($data['unit_configurations']);
 
             $this->validateBankAccount($data['bank_account_id'] ?? null, $user->tenantCondominiumId());
@@ -129,37 +131,54 @@ class FeeService
             ]);
         }
 
-        $this->database->transaction(function () use ($fee) {
-            // Cancela todas as cobranças pendentes e remove entradas relacionadas do CondominiumAccount
-            $charges = $fee->charges()->get();
-            
-            foreach ($charges as $charge) {
-                // Apenas cancela cobranças que não foram pagas
-                if ($charge->status !== 'paid') {
-                    // Remove pagamentos pendentes
-                    Payment::where('charge_id', $charge->id)->delete();
-                    
-                    // Remove entradas do CondominiumAccount (se existirem)
-                    CondominiumAccount::where('condominium_id', $charge->condominium_id)
-                        ->where('type', 'income')
-                        ->where('source_type', 'charge')
-                        ->where('source_id', $charge->id)
-                        ->delete();
-                    
-                    $charge->update([
-                        'status' => 'cancelled',
-                        'metadata' => array_merge($charge->metadata ?? [], [
-                            'cancelled_at' => now()->format('Y-m-d H:i:s'),
-                            'cancelled_reason' => 'Taxa removida do sistema',
-                        ]),
-                    ]);
-                }
-                // Cobranças pagas permanecem como 'paid' para manter histórico financeiro
+        if ($fee->hasPaidCharges()) {
+            throw ValidationException::withMessages([
+                'fee' => 'Esta taxa possui cobranças pagas e não pode ser excluída. Utilize a invalidação.',
+            ]);
+        }
+
+        $this->database->transaction(function () use ($fee, $user) {
+            $reason = 'Taxa removida do sistema';
+
+            foreach ($fee->charges()->get() as $charge) {
+                $this->purgeChargeForFeeRemoval($charge, $reason, $user->id);
             }
-            
+
+            CondominiumAccount::where('condominium_id', $fee->condominium_id)
+                ->where('source_type', 'fee_invalidation')
+                ->where('source_id', $fee->id)
+                ->delete();
+
             $fee->configurations()->delete();
             $fee->delete();
         });
+    }
+
+    /**
+     * Remove cobrança e todos os lançamentos financeiros associados.
+     */
+    private function purgeChargeForFeeRemoval(Charge $charge, string $reason, ?int $userId): void
+    {
+        if ($charge->status === 'paid') {
+            $relatedFee = $charge->relationLoaded('fee') ? $charge->fee : $charge->fee()->first();
+            if ($relatedFee && $relatedFee->isPayrollAutoSettled($charge)) {
+                $this->chargeSettlementService->revokePayrollSettlement($charge, $reason, $userId);
+            }
+        }
+
+        if (in_array($charge->status, ['pending', 'overdue'], true)) {
+            $this->chargeSettlementService->cancelCharge($charge, $reason, $userId);
+        }
+
+        Payment::where('charge_id', $charge->id)->delete();
+        PaymentCancellation::where('charge_id', $charge->id)->delete();
+
+        CondominiumAccount::where('condominium_id', $charge->condominium_id)
+            ->where('source_type', 'charge')
+            ->where('source_id', $charge->id)
+            ->delete();
+
+        $charge->delete();
     }
 
     /**
@@ -290,8 +309,16 @@ class FeeService
                 }
             }
 
-            FeeUnitConfiguration::create($configuration);
+            $payload = collect($configuration)->except('id')->all();
+            FeeUnitConfiguration::create($payload);
         }
+    }
+
+    private function normalizeSubmittedUnitConfigurations(array $configurations): Collection
+    {
+        return collect($configurations)
+            ->filter(fn ($config) => !empty($config['unit_id']))
+            ->values();
     }
 
     private function validateBankAccount(?int $bankAccountId, int $condominiumId): void
@@ -414,8 +441,25 @@ class FeeService
             ? $fee->configurations()->get()->keyBy('unit_id')
             : collect();
 
-        return Unit::where('condominium_id', $fee->condominium_id)
+        $eligibleUnits = Unit::where('condominium_id', $fee->condominium_id)
+            ->eligibleForAutomaticFee()
             ->get()
+            ->keyBy('id');
+
+        $manualUnitIds = $overridesByUnit->keys()
+            ->map(fn ($id) => (int) $id)
+            ->diff($eligibleUnits->keys())
+            ->values();
+
+        $manualUnits = $manualUnitIds->isEmpty()
+            ? collect()
+            : Unit::where('condominium_id', $fee->condominium_id)
+                ->whereIn('id', $manualUnitIds)
+                ->get()
+                ->keyBy('id');
+
+        return $eligibleUnits
+            ->union($manualUnits)
             ->map(function (Unit $unit) use ($overridesByUnit, $existingByUnit) {
                 $override = $overridesByUnit->get($unit->id, []);
                 $existing = $existingByUnit->get($unit->id);
@@ -693,6 +737,19 @@ class FeeService
                 'active' => false,
                 'metadata' => $metadata,
             ]);
+
+            // Cancelar cobranças pendentes/vencidas para não manter débitos ativos
+            $pendingCharges = $fee->charges()
+                ->whereIn('status', ['pending', 'overdue'])
+                ->get();
+
+            foreach ($pendingCharges as $pendingCharge) {
+                $this->chargeSettlementService->cancelCharge(
+                    $pendingCharge,
+                    sprintf('Taxa invalidada: %s', $reason),
+                    $user->id
+                );
+            }
         });
     }
 }

@@ -11,6 +11,9 @@ return [
     'default_country_code' => env('WHATSAPP_DEFAULT_COUNTRY_CODE', '55'),
 
     /*
+    | Mensagens individuais no WhatsApp são enviadas somente a usuários ativos
+    | (is_active = true) e não excluídos (soft delete). Ver WhatsAppNotificationService.
+    |
     | Grupos enviados pela instância global da plataforma (ex.: cobrança SaaS).
     | Demais grupos são configurados por condomínio, cada um com sua instância Evolution.
     */
@@ -104,5 +107,27 @@ return [
             'recipients' => 'Usuários elegíveis à votação conforme perfis permitidos na assembleia (padrão: moradores e síndico).',
             'types' => ['assembly_*'],
         ],
+        'general' => [
+            'label' => 'Avisos gerais (grupo WhatsApp)',
+            'description' => 'Encaminha alertas de pânico, avisos do síndico e notificações gerais para o grupo de avisos do condomínio.',
+            'recipients' => 'Grupo de avisos configurado pelo síndico/administrador (além dos destinatários individuais).',
+            'types' => [
+                'panic_alert',
+                'panic_resolved',
+                'conversation_message',
+                'sindico_message',
+            ],
+            'uses_announcements_group' => true,
+        ],
+    ],
+
+    /*
+    | Tipos que também disparam mensagem no grupo de avisos do condomínio.
+    */
+    'announcements_group_types' => [
+        'panic_alert',
+        'panic_resolved',
+        'conversation_message',
+        'sindico_message',
     ],
 ];

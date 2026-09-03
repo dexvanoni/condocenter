@@ -23,6 +23,7 @@ class StoreFeeRequest extends FormRequest
             'billing_type' => ['required', 'in:condominium_fee,fine,extra,reservation'],
             'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
             'auto_generate_charges' => ['sometimes', 'boolean'],
+            'generate_charges_now' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
             'apply_all_units' => ['sometimes', 'boolean'],
             'starts_at' => ['nullable', 'date'],
@@ -48,6 +49,12 @@ class StoreFeeRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('generate_charges_now')) {
+            $this->merge([
+                'generate_charges_now' => filter_var($this->get('generate_charges_now'), FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
         if ($this->has('active')) {
             $this->merge([
                 'active' => filter_var($this->get('active'), FILTER_VALIDATE_BOOLEAN),
@@ -60,6 +67,15 @@ class StoreFeeRequest extends FormRequest
             ]);
         }
 
+        if ($this->has('unit_configurations')) {
+            $this->merge([
+                'unit_configurations' => collect($this->input('unit_configurations', []))
+                    ->filter(fn ($config) => !empty($config['unit_id']))
+                    ->values()
+                    ->all(),
+            ]);
+        }
+
         if ($this->has('custom_schedule_text')) {
             $dates = collect(preg_split('/\r\n|[\r\n]+/', (string) $this->input('custom_schedule_text')))
                 ->map(fn ($date) => trim($date))
@@ -69,6 +85,26 @@ class StoreFeeRequest extends FormRequest
                 'custom_schedule' => $dates->all(),
             ]);
         }
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $applyAll = filter_var($this->input('apply_all_units'), FILTER_VALIDATE_BOOLEAN);
+            if ($applyAll) {
+                return;
+            }
+
+            $configs = collect($this->input('unit_configurations', []))
+                ->filter(fn ($config) => !empty($config['unit_id']));
+
+            if ($configs->isEmpty()) {
+                $validator->errors()->add(
+                    'unit_configurations',
+                    'Selecione ao menos uma unidade ou mantenha o modo padrão (unidades habitadas com morador).'
+                );
+            }
+        });
     }
 }
 

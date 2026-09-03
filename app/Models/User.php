@@ -332,6 +332,10 @@ class User extends Authenticatable implements Auditable
 
     public function whatsappPhone(): ?string
     {
+        if (!$this->canReceiveWhatsApp()) {
+            return null;
+        }
+
         foreach (['phone', 'telefone_celular', 'telefone_residencial', 'telefone_comercial'] as $field) {
             $value = $this->{$field};
 
@@ -343,10 +347,20 @@ class User extends Authenticatable implements Auditable
         return null;
     }
 
+    public function canReceiveWhatsApp(): bool
+    {
+        return $this->is_active && !$this->trashed();
+    }
+
     // Scopes
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeEligibleForWhatsApp($query)
+    {
+        return $query->active();
     }
 
     public function scopeByCondominium($query, $condominiumId)

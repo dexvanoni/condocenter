@@ -404,7 +404,9 @@
                                 <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
                                    title="Obrigatório exceto para Administrador e Porteiro"></i>
                             </label>
-                            <select name="unit_id" id="unit_id" class="form-select form-select-lg @error('unit_id') is-invalid @enderror">
+                            <select name="unit_id" id="unit_id"
+                                    class="form-select form-select-lg @error('unit_id') is-invalid @enderror"
+                                    data-initial-agregado="{{ $user->isAgregado() ? '1' : '0' }}">
                                 <option value="">Selecione a unidade...</option>
                                 @foreach($units as $unit)
                                 <option value="{{ $unit->id }}" {{ old('unit_id', $user->unit_id) == $unit->id ? 'selected' : '' }}>
@@ -469,7 +471,9 @@
                                     class="form-select form-select-lg @error('morador_vinculado_id') is-invalid @enderror">
                                 <option value="">Selecione o morador responsável...</option>
                                 @foreach($moradores as $morador)
-                                <option value="{{ $morador->id }}" {{ old('morador_vinculado_id', $user->morador_vinculado_id) == $morador->id ? 'selected' : '' }}>
+                                <option value="{{ $morador->id }}"
+                                        data-unit-id="{{ $morador->unit_id }}"
+                                        {{ old('morador_vinculado_id', $user->morador_vinculado_id) == $morador->id ? 'selected' : '' }}>
                                     {{ $morador->name }} - {{ $morador->cpf }} ({{ $morador->unit?->full_identifier }})
                                 </option>
                                 @endforeach
@@ -803,22 +807,119 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar
     updateRoleCounter();
     checkAgregadoSelected();
+    syncUnitFieldForRoles();
     updateCuidadosContainer();
+
+    document.getElementById('morador_vinculado_id')?.addEventListener('change', () => {
+        syncUnitFromMorador();
+    });
 });
 
 // Toggle role selection
 function toggleRole(roleName, card) {
     const checkbox = card.querySelector('input[type="checkbox"]');
     checkbox.checked = !checkbox.checked;
+
+    if (checkbox.checked && roleName === 'Morador') {
+        uncheckRole('Agregado');
+        handleSwitchToMorador();
+    }
+
+    if (checkbox.checked && roleName === 'Agregado') {
+        uncheckRole('Morador');
+        handleSwitchToAgregado();
+    }
     
     if (checkbox.checked) {
         card.classList.add('selected');
     } else {
         card.classList.remove('selected');
+        if (roleName === 'Agregado') {
+            clearMoradorVinculado();
+        }
     }
     
     updateRoleCounter();
     checkAgregadoSelected();
+    syncUnitFieldForRoles();
+}
+
+function syncUnitFromMorador() {
+    const moradorSelect = document.getElementById('morador_vinculado_id');
+    const unitSelect = document.getElementById('unit_id');
+    if (!moradorSelect || !unitSelect) {
+        return;
+    }
+
+    const selectedOption = moradorSelect.options[moradorSelect.selectedIndex];
+    const unitId = selectedOption?.dataset?.unitId;
+    if (unitId) {
+        unitSelect.value = unitId;
+    }
+}
+
+function syncUnitFieldForRoles() {
+    const unitSelect = document.getElementById('unit_id');
+    if (!unitSelect) {
+        return;
+    }
+
+    const agregadoChecked = document.querySelector('.role-checkbox[value="Agregado"]:checked');
+    const moradorRoleChecked = document.querySelector('.role-checkbox[value="Morador"]:checked');
+
+    if (agregadoChecked) {
+        unitSelect.disabled = true;
+        syncUnitFromMorador();
+        return;
+    }
+
+    unitSelect.disabled = false;
+
+    if (moradorRoleChecked && unitSelect.dataset.initialAgregado === '1') {
+        unitSelect.value = '';
+        unitSelect.dataset.initialAgregado = '0';
+    }
+}
+
+function uncheckRole(roleName) {
+    const checkbox = Array.from(document.querySelectorAll('.role-checkbox'))
+        .find(cb => cb.value === roleName && cb.checked);
+
+    if (!checkbox) {
+        return;
+    }
+
+    checkbox.checked = false;
+    const card = checkbox.closest('.role-card');
+    card?.classList.remove('selected');
+}
+
+function clearMoradorVinculado() {
+    const moradorSelect = document.getElementById('morador_vinculado_id');
+    if (moradorSelect) {
+        moradorSelect.value = '';
+    }
+}
+
+function handleSwitchToMorador() {
+    clearMoradorVinculado();
+
+    const unitSelect = document.getElementById('unit_id');
+    if (!unitSelect) {
+        return;
+    }
+
+    if (unitSelect.dataset.initialAgregado === '1') {
+        unitSelect.value = '';
+        unitSelect.dataset.initialAgregado = '0';
+    }
+}
+
+function handleSwitchToAgregado() {
+    const unitSelect = document.getElementById('unit_id');
+    if (unitSelect) {
+        unitSelect.value = '';
+    }
 }
 
 // Atualizar contador de perfis
@@ -849,6 +950,7 @@ function checkAgregadoSelected() {
         alert.classList.remove('show');
         permissionsAlert.classList.remove('show');
         document.getElementById('morador_vinculado_id').required = false;
+        clearMoradorVinculado();
     }
 }
 

@@ -500,33 +500,30 @@
 @endonce
 
 @push('scripts')
+@include('partials.datatables-helper')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const languageUrl = 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json';
 
-        const configurationsTable = $('#fee-configurations-table');
-        if (configurationsTable.length) {
-            configurationsTable.DataTable({
-                paging: true,
-                pageLength: 10,
-                ordering: false,
-                language: {
-                    url: languageUrl
-                }
-            });
-        }
+        initSafeDataTable('#fee-configurations-table', {
+            paging: true,
+            pageLength: 10,
+            ordering: false,
+            language: {
+                url: languageUrl,
+                emptyTable: 'Nenhuma unidade vinculada a esta taxa.',
+            },
+        });
 
-        const chargesTable = $('#fee-charges-table');
-        if (chargesTable.length) {
-            chargesTable.DataTable({
-                paging: true,
-                pageLength: 15,
-                order: [[2, 'desc']], // ordenar por vencimento
-                language: {
-                    url: languageUrl
-                }
-            });
-        }
+        initSafeDataTable('#fee-charges-table', {
+            paging: true,
+            pageLength: 15,
+            order: [[2, 'desc']],
+            language: {
+                url: languageUrl,
+                emptyTable: 'Nenhuma cobrança gerada para esta taxa.',
+            },
+        });
     });
 </script>
 @endpush

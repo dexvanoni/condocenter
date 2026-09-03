@@ -172,6 +172,36 @@ class Unit extends Model implements Auditable
         return $query->where('situacao', 'habitado');
     }
 
+    /**
+     * Unidades elegíveis para aplicação automática de taxas/cobranças:
+     * ativa, situacao habitado e com morador ativo vinculado.
+     */
+    public function scopeEligibleForAutomaticFee($query)
+    {
+        return $query->active()
+            ->habitado()
+            ->whereHas('users', function ($userQuery) {
+                $userQuery->where('is_active', true)
+                    ->whereHas('roles', function ($roleQuery) {
+                        $roleQuery->where('name', 'Morador');
+                    });
+            });
+    }
+
+    public function isEligibleForAutomaticFee(): bool
+    {
+        if (!$this->is_active || $this->situacao !== 'habitado') {
+            return false;
+        }
+
+        return $this->users()
+            ->where('is_active', true)
+            ->whereHas('roles', function ($roleQuery) {
+                $roleQuery->where('name', 'Morador');
+            })
+            ->exists();
+    }
+
     public function scopeWithDebts($query)
     {
         return $query->where('possui_dividas', true);

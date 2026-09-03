@@ -57,6 +57,7 @@ class SendReservationNotification implements ShouldQueue
                 // Notificar síndico
                 $sindicos = \App\Models\User::role('Síndico')
                     ->where('condominium_id', $this->reservation->space->condominium_id)
+                    ->eligibleForWhatsApp()
                     ->get();
 
                 foreach ($sindicos as $sindico) {
@@ -77,10 +78,24 @@ class SendReservationNotification implements ShouldQueue
                     ]);
                 }
             } else {
+                $requester = \App\Models\User::query()
+                    ->eligibleForWhatsApp()
+                    ->whereKey($this->reservation->user_id)
+                    ->first();
+
+                if (!$requester) {
+                    Log::info('Notificação de reserva ignorada: usuário inativo ou excluído.', [
+                        'reservation_id' => $this->reservation->id,
+                        'user_id' => $this->reservation->user_id,
+                    ]);
+
+                    return;
+                }
+
                 // Notificar usuário que fez a reserva
                 Notification::create([
                     'condominium_id' => $this->reservation->space->condominium_id,
-                    'user_id' => $this->reservation->user_id,
+                    'user_id' => $requester->id,
                     'type' => 'reservation_' . $this->type,
                     'title' => $messageData['title'],
                     'message' => $messageData['message'],

@@ -260,7 +260,7 @@ class SidebarHelper
 
     public static function canManageWhatsAppSettings(User $user): bool
     {
-        return $user->isAdmin();
+        return self::isAdminOrSindico($user) && (bool) $user->getActiveCondominiumId();
     }
 
     public static function canManageCondominiums(User $user): bool

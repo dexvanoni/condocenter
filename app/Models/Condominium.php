@@ -34,6 +34,7 @@ class Condominium extends Model implements Auditable
         'evolution_api_key',
         'evolution_instance',
         'whatsapp_notify_groups',
+        'whatsapp_announcements_group',
     ];
 
     protected $casts = [

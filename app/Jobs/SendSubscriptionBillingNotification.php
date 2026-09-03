@@ -72,14 +72,14 @@ class SendSubscriptionBillingNotification implements ShouldQueue
     {
         $recipients = collect();
 
-        if ($subscription->financialResponsible) {
+        if ($subscription->financialResponsible?->canReceiveWhatsApp()) {
             $recipients->push($subscription->financialResponsible);
         }
 
         $syndics = User::query()
             ->where('condominium_id', $subscription->condominium_id)
+            ->eligibleForWhatsApp()
             ->whereHas('roles', fn ($q) => $q->where('name', 'Síndico'))
-            ->where('is_active', true)
             ->get();
 
         foreach ($syndics as $syndic) {

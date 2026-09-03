@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Services\ActiveCondominiumService;
 use App\Services\FileUploadService;
+use App\Services\UserRoleLinkageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,8 @@ class UserController extends Controller
 
     public function __construct(
         FileUploadService $fileUploadService,
-        private ActiveCondominiumService $activeCondominiumService
+        private ActiveCondominiumService $activeCondominiumService,
+        private UserRoleLinkageService $userRoleLinkageService,
     ) {
         $this->fileUploadService = $fileUploadService;
     }
@@ -179,6 +181,8 @@ class UserController extends Controller
         // Extrai roles antes de criar o usuário
         $roles = $data['roles'] ?? [];
         unset($data['roles']);
+
+        $this->userRoleLinkageService->applyLinkageRulesForCreate($roles, $data);
 
         $user = User::create($data);
 
@@ -372,6 +376,10 @@ class UserController extends Controller
                     return redirect()->back()->withErrors(['roles' => 'Apenas administradores podem atribuir os perfis de Síndico ou Conselho Fiscal.'])->withInput();
                 }
                 
+                if (in_array('Morador', $requestedRoles, true) && in_array('Agregado', $requestedRoles, true)) {
+                    return redirect()->back()->withErrors(['roles' => 'Morador e Agregado não podem ser selecionados ao mesmo tempo.'])->withInput();
+                }
+
                 // Validar que agregado deve ter morador vinculado
                 if (in_array('Agregado', $requestedRoles) && !$request->input('morador_vinculado_id')) {
                     return redirect()->back()->withErrors(['morador_vinculado_id' => 'Agregados devem estar vinculados a um morador.'])->withInput();
@@ -411,6 +419,10 @@ class UserController extends Controller
             // Extrai roles antes de atualizar
             $roles = $data['roles'] ?? null;
             unset($data['roles']);
+
+            if ($roles !== null) {
+                $this->userRoleLinkageService->applyLinkageRules($user, $roles, $data);
+            }
 
             $user->update($data);
 

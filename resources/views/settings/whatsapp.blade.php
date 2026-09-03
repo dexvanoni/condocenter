@@ -10,7 +10,7 @@
             <h1 class="mt-2 mb-1"><i class="bi bi-whatsapp text-success"></i> WhatsApp do Condomínio</h1>
             <p class="text-muted mb-0">
                 Configure a instância Evolution e o número usados para avisos de <strong>{{ $condominium->name }}</strong>.
-                Somente administradores da plataforma podem alterar estas configurações.
+                Somente administradores e síndicos podem alterar estas configurações.
             </p>
         </div>
     </div>
@@ -80,6 +80,27 @@
 
                         <hr>
 
+                        <h6 class="mb-3">Grupo de avisos gerais (WhatsApp)</h6>
+                        <p class="text-muted small">
+                            Informe o ID do grupo Evolution (ex.: <code>120363123456789012@g.us</code>).
+                            Alertas de pânico, avisos do síndico e notificações gerais serão encaminhados a este grupo
+                            quando o tipo <strong>Avisos gerais</strong> estiver marcado abaixo.
+                        </p>
+                        <div class="mb-4">
+                            <label class="form-label">ID do grupo de avisos</label>
+                            <div class="input-group">
+                                <input type="text" name="announcements_group" id="announcementsGroupInput"
+                                       class="form-control @error('announcements_group') is-invalid @enderror"
+                                       value="{{ old('announcements_group', $condominium->whatsapp_announcements_group) }}"
+                                       placeholder="120363123456789012@g.us">
+                                <button type="button" class="btn btn-outline-success" id="btnListWhatsAppGroupsInline" title="Listar grupos na Evolution API">
+                                    <i class="bi bi-people"></i> Listar grupos
+                                </button>
+                            </div>
+                            @error('announcements_group')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                            <div class="form-text">Use o botão ao lado ou o painel à direita para buscar e copiar o ID.</div>
+                        </div>
+
                         <h6 class="mb-3">Tipos de aviso por WhatsApp</h6>
                         <p class="text-muted small">Marque os grupos que devem gerar mensagem. O envio usa o telefone cadastrado no perfil de cada destinatário.</p>
 
@@ -143,10 +164,15 @@
                 </div>
             </div>
 
+            @include('partials.whatsapp-evolution-groups', [
+                'listRoute' => route('condominiums.settings.whatsapp.groups', $condominium),
+                'targetInputId' => 'announcementsGroupInput',
+            ])
+
             <div class="card shadow-sm">
                 <div class="card-header bg-light"><h5 class="mb-0">Resultado do teste</h5></div>
                 <div class="card-body">
-                    <pre id="whatsappTestResult" class="small bg-light rounded p-3 mb-0" style="min-height:120px;white-space:pre-wrap;">Clique em "Testar conexão" para verificar a instância Evolution deste condomínio.</pre>
+                    <pre id="whatsappTestResult" class="small bg-light rounded p-3 mb-0" style="min-height:120px;white-space:pre-wrap;">Clique em "Testar conexão" para verificar a instância Evolution e enviar testes ao telefone informado e ao grupo de avisos gerais.</pre>
                 </div>
             </div>
 
@@ -166,6 +192,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultEl = document.getElementById('whatsappTestResult');
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
+    initWhatsAppGroupsPicker({
+        listRoute: @json(route('condominiums.settings.whatsapp.groups', $condominium)),
+        targetInputId: 'announcementsGroupInput',
+    });
+
+    document.getElementById('btnListWhatsAppGroupsInline')?.addEventListener('click', () => {
+        document.getElementById('btnListWhatsAppGroups')?.click();
+        document.getElementById('whatsappGroupsCard')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
     btn?.addEventListener('click', async () => {
         btn.disabled = true;
         resultEl.textContent = 'Testando conexão...';
@@ -182,6 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     test_phone: document.getElementById('testPhone')?.value || '',
+                    announcements_group: document.getElementById('announcementsGroupInput')?.value || '',
                 }),
             });
 

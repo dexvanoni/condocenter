@@ -8,20 +8,17 @@
     <thead class="table-light">
         <tr>
             <th>Taxa</th>
-            <th class="text-end">Valor</th>
+            <th class="text-end">Cobranças</th>
+            <th class="text-end">Valor unitário</th>
+            <th class="text-end">Total</th>
         </tr>
     </thead>
     <tbody>
-        @forelse($data['charge_summary'] as $summary)
-            <tr>
-                <td>{{ $summary['name'] }}</td>
-                <td class="text-end">R$ {{ number_format($summary['total'], 2, ',', '.') }}</td>
-            </tr>
-        @empty
-            <tr>
-                <td colspan="2" class="text-center text-muted">Nenhuma taxa recebida.</td>
-            </tr>
-        @endforelse
+        @include('finance.accountability._charge-summary-rows', [
+            'summaries' => $data['charge_summary'],
+            'highlight' => false,
+            'emptyMessage' => 'Nenhuma taxa recebida.',
+        ])
     </tbody>
 </table>
 @endif

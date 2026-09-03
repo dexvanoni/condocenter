@@ -338,6 +338,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->name('condominiums.settings.whatsapp.update');
     Route::post('/condominiums/{condominium}/settings/whatsapp/test', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'test'])
         ->name('condominiums.settings.whatsapp.test');
+    Route::post('/condominiums/{condominium}/settings/whatsapp/groups', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'listGroups'])
+        ->name('condominiums.settings.whatsapp.groups');
 
     // Plataforma SaaS — assinaturas e configurações globais
     Route::prefix('platform')->name('platform.')->group(function () {
@@ -366,6 +368,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             ->name('settings.whatsapp.update');
         Route::post('/settings/whatsapp/test', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'testWhatsapp'])
             ->name('settings.whatsapp.test');
+        Route::post('/settings/whatsapp/groups', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'listWhatsappGroups'])
+            ->name('settings.whatsapp.groups');
 
         Route::get('/condominiums/{condominium}/subscription/charges/export', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'exportCharges'])
             ->name('subscriptions.charges.export');

@@ -61,6 +61,10 @@ class FeeController extends Controller
             ->orderBy('number')
             ->get();
 
+        $autoEligibleUnitsCount = Unit::where('condominium_id', $condominiumId)
+            ->eligibleForAutomaticFee()
+            ->count();
+
         $bankAccounts = BankAccount::where('condominium_id', $condominiumId)
             ->orderBy('name')
             ->get();
@@ -76,16 +80,23 @@ class FeeController extends Controller
             'amount' => 0,
         ]);
 
-        return view('fees.create', compact('fee', 'units', 'bankAccounts'));
+        return view('fees.create', compact('fee', 'units', 'bankAccounts', 'autoEligibleUnitsCount'));
     }
 
     public function store(StoreFeeRequest $request)
     {
-        $fee = $this->feeService->createFee($request->user(), $request->validated());
+        $data = $request->validated();
+        $fee = $this->feeService->createFee($request->user(), $data);
+
+        $chargesCount = $fee->charges()->count();
+        $message = 'Taxa criada com sucesso!';
+        if ($chargesCount > 0) {
+            $message .= " {$chargesCount} cobrança(s) gerada(s).";
+        }
 
         return redirect()
             ->route('fees.show', $fee)
-            ->with('success', 'Taxa criada com sucesso!');
+            ->with('success', $message);
     }
 
     public function show(Fee $fee)
@@ -138,13 +149,17 @@ class FeeController extends Controller
             ->orderBy('number')
             ->get();
 
+        $autoEligibleUnitsCount = Unit::where('condominium_id', $condominiumId)
+            ->eligibleForAutomaticFee()
+            ->count();
+
         $bankAccounts = BankAccount::where('condominium_id', $condominiumId)
             ->orderBy('name')
             ->get();
 
         $fee->load('configurations.unit');
 
-        return view('fees.edit', compact('fee', 'units', 'bankAccounts'));
+        return view('fees.edit', compact('fee', 'units', 'bankAccounts', 'autoEligibleUnitsCount'));
     }
 
     public function update(UpdateFeeRequest $request, Fee $fee)

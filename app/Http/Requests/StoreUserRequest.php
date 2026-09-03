@@ -106,6 +106,10 @@ class StoreUserRequest extends FormRequest
                 }
             }
 
+            if ($this->has('roles') && in_array('Morador', $this->input('roles', []), true) && in_array('Agregado', $this->input('roles', []), true)) {
+                $validator->errors()->add('roles', 'Morador e Agregado não podem ser selecionados ao mesmo tempo.');
+            }
+
             if ($this->has('roles') && in_array('Agregado', $this->input('roles', []))) {
                 if (!$this->input('morador_vinculado_id')) {
                     $validator->errors()->add('morador_vinculado_id', 'Agregados devem estar vinculados a um morador.');

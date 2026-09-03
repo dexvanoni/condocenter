@@ -111,7 +111,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($fees as $fee)
+                    @foreach($fees as $fee)
                     <tr>
                         <td>
                             <strong>{{ $fee->name }}</strong>
@@ -206,20 +206,7 @@
                             </div>
                         </td>
                     </tr>
-                    @empty
-                    <tr>
-                        <td colspan="6" class="text-center py-5">
-                            <i class="bi bi-cash-stack display-1 text-muted d-block mb-3"></i>
-                            <h5 class="text-muted">Nenhuma taxa cadastrada</h5>
-                            <p class="text-muted">Crie a primeira taxa para começar a administrar o financeiro do condomínio.</p>
-                            @can('manage_charges')
-                                <a href="{{ route('fees.create') }}" class="btn btn-primary">
-                                    <i class="bi bi-plus-circle"></i> Criar primeira taxa
-                                </a>
-                            @endcan
-                        </td>
-                    </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
             </table>
         </div>
@@ -239,14 +226,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
+@include('partials.datatables-helper')
 
 <script>
 $(document).ready(function() {
     const languageUrl = 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json';
 
-    const table = $('#feesTable').DataTable({
+    const table = initSafeDataTable('#feesTable', {
         language: {
-            url: languageUrl
+            url: languageUrl,
+            emptyTable: 'Nenhuma taxa cadastrada. Use o botão "Nova Taxa" para começar.',
         },
         order: [[0, 'asc']], // Ordenar por Nome da Taxa
         pageLength: 25,
@@ -444,7 +433,9 @@ $(document).ready(function() {
 function clearFilters() {
     $('#filterType').val('').trigger('change');
     $('#filterStatus').val('').trigger('change');
-    $('#feesTable').DataTable().search('').draw();
+    if ($.fn.DataTable.isDataTable('#feesTable')) {
+        $('#feesTable').DataTable().search('').draw();
+    }
 }
 </script>
 @endpush

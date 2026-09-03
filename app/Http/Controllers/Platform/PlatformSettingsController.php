@@ -116,4 +116,32 @@ class PlatformSettingsController extends Controller
             'enabled' => $this->settings->isWhatsAppEnabled(),
         ]);
     }
+
+    public function listWhatsappGroups(Request $request)
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $request->validate([
+            'api_url' => ['nullable', 'string', 'max:500'],
+            'instance' => ['nullable', 'string', 'max:120'],
+            'api_key' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $override = array_filter([
+            'api_url' => $request->input('api_url'),
+            'api_key' => $request->input('api_key'),
+            'instance' => $request->input('instance'),
+        ], fn ($value) => filled($value));
+
+        if (!isset($override['api_key'])) {
+            $saved = $this->settings->getWhatsAppConfig();
+            if (filled($saved['api_key'])) {
+                $override['api_key'] = $saved['api_key'];
+            }
+        }
+
+        $result = $this->evolution->fetchAllGroups(null, $override);
+
+        return response()->json($result);
+    }
 }

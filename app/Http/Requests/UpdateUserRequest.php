@@ -98,6 +98,10 @@ class UpdateUserRequest extends FormRequest
                 }
             }
 
+            if ($this->has('roles') && in_array('Morador', $this->input('roles', []), true) && in_array('Agregado', $this->input('roles', []), true)) {
+                $validator->errors()->add('roles', 'Morador e Agregado não podem ser selecionados ao mesmo tempo.');
+            }
+
             // Validar que agregado deve ter morador vinculado
             if ($this->has('roles') && in_array('Agregado', $this->input('roles', []))) {
                 if (!$this->input('morador_vinculado_id')) {

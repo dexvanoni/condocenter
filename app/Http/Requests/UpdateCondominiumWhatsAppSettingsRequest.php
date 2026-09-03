@@ -8,7 +8,20 @@ class UpdateCondominiumWhatsAppSettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAdmin() ?? false;
+        $user = $this->user();
+        $condominium = $this->route('condominium');
+
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $user->isSindico()
+            && $condominium instanceof \App\Models\Condominium
+            && (int) $user->tenantCondominiumId() === (int) $condominium->id;
     }
 
     public function rules(): array
@@ -20,6 +33,7 @@ class UpdateCondominiumWhatsAppSettingsRequest extends FormRequest
             'instance' => ['required', 'string', 'max:120'],
             'notify_groups' => ['nullable', 'array'],
             'notify_groups.*' => ['nullable', 'boolean'],
+            'announcements_group' => ['nullable', 'string', 'max:120'],
             'test_phone' => ['nullable', 'string', 'max:30'],
         ];
     }

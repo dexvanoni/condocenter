@@ -63,7 +63,10 @@ class SendAccessNotification implements ShouldQueue
             $recipients->push($unitMorador);
         }
 
-        return $recipients->unique('id')->values();
+        return $recipients
+            ->filter(fn (User $recipient) => $recipient->canReceiveWhatsApp())
+            ->unique('id')
+            ->values();
     }
 
     /**

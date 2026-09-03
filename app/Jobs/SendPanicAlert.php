@@ -36,7 +36,7 @@ class SendPanicAlert implements ShouldQueue
         try {
             // Buscar TODOS os usuários do condomínio
             $users = User::where('condominium_id', $this->alertData['condominium_id'])
-                ->where('is_active', true)
+                ->eligibleForWhatsApp()
                 ->get();
 
             Log::critical('🚨 ALERTA DE PÂNICO ACIONADO', $this->alertData);

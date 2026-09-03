@@ -379,9 +379,11 @@ class AssemblyController extends Controller
 
         $this->assemblyService->transitionStatus($assembly, 'completed', Auth::user(), $context);
 
+        $assembly->refresh()->load(['items.votes', 'attachments', 'allowedRoles']);
+
         return response()->json([
             'message' => 'Assembleia concluída com sucesso.',
-            'assembly' => $assembly->fresh(['items.votes', 'minutes']),
+            'assembly' => $this->responseService->sanitize($assembly, Auth::user()),
         ]);
     }
 

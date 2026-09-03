@@ -25,17 +25,19 @@
 </table>
 
 <table>
-    <tr><th colspan="2">Entradas - Taxas Recebidas</th></tr>
+    <tr><th colspan="4">Entradas - Taxas Recebidas</th></tr>
     <tr>
         <th>Taxa</th>
-        <th>Valor</th>
+        <th>Cobranças</th>
+        <th>Valor unitário</th>
+        <th>Total</th>
     </tr>
-    @foreach($data['charge_summary'] as $summary)
-        <tr>
-            <td>{{ $summary['name'] }}</td>
-            <td>{{ number_format($summary['total'], 2, ',', '.') }}</td>
-        </tr>
-    @endforeach
+    @include('finance.accountability._charge-summary-rows', [
+        'summaries' => $data['charge_summary'],
+        'currency' => false,
+        'highlight' => false,
+        'emptyMessage' => 'Nenhuma taxa recebida.',
+    ])
 </table>
 
 <table>

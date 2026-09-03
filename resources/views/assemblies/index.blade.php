@@ -1172,16 +1172,24 @@
             if (!assembly) {
                 return;
             }
-            this.state.currentVote = { assemblyId: Number(assembly.id), itemId: null, closingReason: true };
+
+            const requiresReason = assembly.voting_closes_at
+                && new Date() < new Date(assembly.voting_closes_at);
+
+            this.state.currentVote = { assemblyId: Number(assembly.id), itemId: null, closingReason: true, requiresReason };
 
             if (this.voteModalTitle) {
                 this.voteModalTitle.textContent = assembly.title;
             }
             if (this.voteItemTitle) {
-                this.voteItemTitle.textContent = 'Encerrar votação antecipadamente';
+                this.voteItemTitle.textContent = requiresReason
+                    ? 'Encerrar votação antecipadamente'
+                    : 'Concluir assembleia';
             }
             if (this.voteModalNote) {
-                this.voteModalNote.textContent = 'Informe o motivo do encerramento antes do horário previsto.';
+                this.voteModalNote.textContent = requiresReason
+                    ? 'Informe o motivo do encerramento antes do horário previsto.'
+                    : 'Confirme a conclusão da assembleia. O motivo é opcional.';
             }
             if (this.voteModalResultsNote) {
                 this.voteModalResultsNote.textContent = '';
@@ -1197,10 +1205,14 @@
             }
             if (this.voteCommentInput) {
                 this.voteCommentInput.value = '';
-                this.voteCommentInput.setAttribute('placeholder', 'Descreva o motivo do encerramento');
+                this.voteCommentInput.setAttribute('placeholder', requiresReason
+                    ? 'Descreva o motivo do encerramento'
+                    : 'Motivo opcional (ex.: todos os itens votados)');
             }
             if (this.voteCommentLabel) {
-                this.voteCommentLabel.innerHTML = 'Motivo do encerramento (obrigatório)';
+                this.voteCommentLabel.innerHTML = requiresReason
+                    ? 'Motivo do encerramento (obrigatório)'
+                    : 'Motivo do encerramento (opcional)';
             }
             if (this.voteModal) {
                 this.voteModal.show();
@@ -1393,6 +1405,7 @@
             } catch (error) {
                 console.error(error);
                 this.showVoteError(error.message ?? 'Erro inesperado ao encerrar a votação.');
+                await this.loadAssemblies();
             } finally {
                 this.setVoteModalLoading(false);
             }

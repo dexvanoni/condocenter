@@ -90,19 +90,30 @@ class Fee extends Model implements Auditable
     }
 
     /**
-     * Verifica se a taxa possui cobranças pagas
+     * Verifica se a taxa possui cobranças pagas (exceto liquidação automática em folha).
      */
     public function hasPaidCharges(): bool
     {
-        return $this->charges()->where('status', 'paid')->exists();
+        return $this->charges()
+            ->where('status', 'paid')
+            ->get()
+            ->contains(fn (Charge $charge) => !$this->isPayrollAutoSettled($charge));
     }
 
     /**
-     * Obtém todas as cobranças pagas desta taxa
+     * Obtém cobranças pagas que bloqueiam exclusão/invalidação simples.
      */
     public function paidCharges()
     {
-        return $this->charges()->where('status', 'paid')->get();
+        return $this->charges()
+            ->where('status', 'paid')
+            ->get()
+            ->filter(fn (Charge $charge) => !$this->isPayrollAutoSettled($charge));
+    }
+
+    public function isPayrollAutoSettled(Charge $charge): bool
+    {
+        return ($charge->metadata['payroll_auto_settled'] ?? false) === true;
     }
 
     /**

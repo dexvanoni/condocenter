@@ -107,7 +107,7 @@
         <div class="card shadow-sm h-100">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Entradas - Taxas Recebidas</h5>
-                <span class="badge bg-success">{{ $data['charge_summary']->count() }}</span>
+                <span class="badge bg-success">{{ $data['totals']['charges_received_count'] ?? $data['charge_summary']->sum('count') }}</span>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -115,22 +115,16 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Taxa</th>
-                                <th class="text-end">Valor</th>
+                                <th class="text-end">Cobranças</th>
+                                <th class="text-end">Valor unitário</th>
+                                <th class="text-end">Total</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($data['charge_summary'] as $summary)
-                                <tr>
-                                    <td>{{ $summary['name'] }}</td>
-                                    <td class="text-end text-success fw-semibold">
-                                        R$ {{ number_format($summary['total'], 2, ',', '.') }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="2" class="text-center text-muted py-4">Nenhuma taxa recebida no período.</td>
-                                </tr>
-                            @endforelse
+                            @include('finance.accountability._charge-summary-rows', [
+                                'summaries' => $data['charge_summary'],
+                                'emptyPadding' => true,
+                            ])
                         </tbody>
                     </table>
                 </div>

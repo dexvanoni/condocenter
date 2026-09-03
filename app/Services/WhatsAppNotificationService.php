@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Condominium;
 use App\Models\Notification;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class WhatsAppNotificationService
@@ -79,12 +80,13 @@ class WhatsAppNotificationService
             return false;
         }
 
-        $user = $notification->user;
+        $user = $this->resolveEligibleUser($notification->user_id);
 
         if (!$user) {
-            Log::info('WhatsApp skip: notificação sem usuário vinculado.', [
+            Log::info('WhatsApp skip: usuário inativo, excluído ou não encontrado.', [
                 'notification_id' => $notification->id,
                 'type' => $notification->type,
+                'user_id' => $notification->user_id,
             ]);
 
             return false;
@@ -95,13 +97,17 @@ class WhatsAppNotificationService
             ? null
             : $notification->condominium_id;
 
-        return $this->sendToUser(
+        $sent = $this->sendToUser(
             $user,
             $notification->title,
             $notification->message,
             $notification->type,
             $condominiumId
         );
+
+        $this->maybeSendToAnnouncementsGroup($notification);
+
+        return $sent;
     }
 
     public function sendToUser(
@@ -111,6 +117,19 @@ class WhatsAppNotificationService
         ?string $type = null,
         ?int $condominiumId = null
     ): bool {
+        $userId = $user->id;
+        $user = $this->resolveEligibleUser($userId);
+
+        if (!$user) {
+            Log::info('WhatsApp skip: usuário inativo, excluído ou não encontrado.', [
+                'user_id' => $userId,
+                'type' => $type,
+                'condominium_id' => $condominiumId,
+            ]);
+
+            return false;
+        }
+
         if ($type) {
             $group = $this->platformSettings->resolveWhatsAppGroupForType($type);
             $usePlatform = $group && $this->condominiumSettings->isPlatformOnlyGroup($group);
@@ -180,6 +199,68 @@ class WhatsAppNotificationService
         return "*{$title}*\n\n{$message}\n\n_{$appName}_";
     }
 
+    public function maybeSendToAnnouncementsGroup(Notification $notification): bool
+    {
+        if (!$notification->condominium_id || $notification->channel !== 'database') {
+            return false;
+        }
+
+        $condominium = $notification->condominium ?? Condominium::query()->find($notification->condominium_id);
+        if (!$condominium || !$this->condominiumSettings->shouldSendToAnnouncementsGroup($condominium, $notification->type)) {
+            return false;
+        }
+
+        $groupJid = $this->condominiumSettings->getAnnouncementsGroup($condominium);
+        if (!$groupJid) {
+            return false;
+        }
+
+        $dedupeKey = sprintf(
+            'wa_announcements_group:%d:%s:%s',
+            $notification->condominium_id,
+            $notification->type,
+            md5($notification->title . '|' . $notification->message)
+        );
+
+        if (!Cache::add($dedupeKey, 1, now()->addMinutes(2))) {
+            return false;
+        }
+
+        return $this->sendToAnnouncementsGroup(
+            $condominium,
+            $notification->title,
+            $notification->message
+        );
+    }
+
+    public function sendToAnnouncementsGroup(Condominium $condominium, string $title, string $message): bool
+    {
+        $groupJid = $this->condominiumSettings->getAnnouncementsGroup($condominium);
+        if (!$groupJid || !$this->condominiumSettings->isEnabled($condominium) || !$this->condominiumSettings->isConfigured($condominium)) {
+            return false;
+        }
+
+        $text = $this->formatMessage($title, $message);
+        $result = $this->evolution->sendTextToGroup($groupJid, $text, $condominium->id);
+
+        if (!$result['ok']) {
+            Log::warning('WhatsApp announcements group failed', [
+                'condominium_id' => $condominium->id,
+                'group' => $groupJid,
+                'message' => $result['message'] ?? 'unknown',
+            ]);
+
+            return false;
+        }
+
+        Log::info('WhatsApp announcements group sent', [
+            'condominium_id' => $condominium->id,
+            'group' => $groupJid,
+        ]);
+
+        return true;
+    }
+
     public function platformGroupsForUi(): array
     {
         $groups = config('whatsapp.groups', []);
@@ -202,5 +283,17 @@ class WhatsAppNotificationService
     public function groupsForUi(): array
     {
         return $this->platformGroupsForUi();
+    }
+
+    protected function resolveEligibleUser(?int $userId): ?User
+    {
+        if (!$userId) {
+            return null;
+        }
+
+        return User::query()
+            ->eligibleForWhatsApp()
+            ->whereKey($userId)
+            ->first();
     }
 }

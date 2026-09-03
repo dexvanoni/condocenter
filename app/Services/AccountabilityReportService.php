@@ -44,18 +44,7 @@ class AccountabilityReportService
             ->get()
             ->keyBy('id');
 
-        $chargeSummary = $chargeIncomeEntries
-            ->groupBy(function (CondominiumAccount $entry) use ($chargesById) {
-                $charge = $chargesById->get($entry->source_id);
-                return $charge?->fee?->name ?? $charge?->title ?? $entry->description ?? 'Cobranças';
-            })
-            ->map(function (Collection $group, $name) {
-                return [
-                    'name' => $name,
-                    'total' => $group->sum('amount'),
-                ];
-            })
-            ->values();
+        $chargeSummary = $this->buildChargeSummary($chargeIncomeEntries, $chargesById);
 
         $payments = Payment::with(['charge'])
             ->whereHas('charge', function ($query) use ($condominiumId) {
@@ -103,6 +92,7 @@ class AccountabilityReportService
             'manual_income' => $manualIncomes->sum('amount'),
             'manual_expense' => $manualExpenses->sum('amount'),
             'charges_income' => $chargeIncomeEntries->sum('amount'),
+            'charges_received_count' => $chargeIncomeEntries->count(),
         ];
 
         $totals['total_income'] = $totals['manual_income'] + $totals['charges_income'];
@@ -140,6 +130,70 @@ class AccountabilityReportService
             ->sum('amount');
 
         return $income - $expenses;
+    }
+
+    /**
+     * Agrupa recebimentos de taxas por nome + valor unitário (qtd × valor).
+     */
+    private function buildChargeSummary(Collection $chargeIncomeEntries, Collection $chargesById): Collection
+    {
+        return $chargeIncomeEntries
+            ->map(function (CondominiumAccount $entry) use ($chargesById) {
+                $charge = $chargesById->get($entry->source_id);
+
+                return [
+                    'fee_name' => $this->resolveChargeFeeName($charge, $entry),
+                    'amount' => (float) $entry->amount,
+                ];
+            })
+            ->groupBy(fn (array $item) => $item['fee_name'] . '||' . number_format($item['amount'], 2, '.', ''))
+            ->map(function (Collection $group, string $key) {
+                [$feeName] = explode('||', $key, 2);
+                $unitAmount = (float) $group->first()['amount'];
+                $count = $group->count();
+
+                return [
+                    'name' => $feeName,
+                    'count' => $count,
+                    'unit_amount' => $unitAmount,
+                    'total' => round($count * $unitAmount, 2),
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+    }
+
+    private function resolveChargeFeeName(?Charge $charge, CondominiumAccount $entry): string
+    {
+        if ($charge?->fee?->name) {
+            return $charge->fee->name;
+        }
+
+        if ($charge?->title) {
+            return $charge->title;
+        }
+
+        return $this->extractFeeNameFromAccountDescription($entry->description);
+    }
+
+    private function extractFeeNameFromAccountDescription(?string $description): string
+    {
+        if (!$description) {
+            return 'Cobranças';
+        }
+
+        $normalized = preg_replace('/\s*\([^)]+\)\s*$/', '', trim($description));
+        $parts = array_map('trim', explode(' - ', $normalized));
+
+        if (count($parts) >= 3) {
+            array_pop($parts);
+            array_pop($parts);
+            $name = implode(' - ', $parts);
+
+            return $name !== '' ? $name : 'Cobranças';
+        }
+
+        return $normalized !== '' ? $normalized : 'Cobranças';
     }
 }
 

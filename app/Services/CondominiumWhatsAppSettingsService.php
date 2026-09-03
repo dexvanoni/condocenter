@@ -68,6 +68,26 @@ class CondominiumWhatsAppSettingsService
         return $this->isGroupEnabled($condominium, $group);
     }
 
+    public function getAnnouncementsGroup(Condominium $condominium): ?string
+    {
+        $group = trim((string) ($condominium->whatsapp_announcements_group ?? ''));
+
+        return $group !== '' ? $group : null;
+    }
+
+    public function shouldSendToAnnouncementsGroup(Condominium $condominium, string $type): bool
+    {
+        if (!$this->getAnnouncementsGroup($condominium)) {
+            return false;
+        }
+
+        if (!$this->isGroupEnabled($condominium, 'general')) {
+            return false;
+        }
+
+        return in_array($type, config('whatsapp.announcements_group_types', []), true);
+    }
+
     public function isPlatformOnlyGroup(string $group): bool
     {
         return in_array($group, config('whatsapp.platform_only_groups', ['subscription']), true);
@@ -127,6 +147,17 @@ class CondominiumWhatsAppSettingsService
             }
 
             $payload['whatsapp_notify_groups'] = $filtered;
+        }
+
+        if (array_key_exists('announcements_group', $data)) {
+            $group = trim((string) ($data['announcements_group'] ?? ''));
+            $payload['whatsapp_announcements_group'] = $group !== '' ? $group : null;
+
+            if ($group !== '') {
+                $groups = $payload['whatsapp_notify_groups'] ?? $this->getEnabledGroups($condominium);
+                $groups['general'] = true;
+                $payload['whatsapp_notify_groups'] = $groups;
+            }
         }
 
         if ($payload !== []) {

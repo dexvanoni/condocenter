@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Message;
+use App\Models\Notification;
 use App\Models\PanicAlert;
 use App\Models\User;
 use App\Jobs\SendPanicAlert;
@@ -253,6 +254,8 @@ class PanicAlertController extends Controller
         // Resolver o alerta
         $alert->resolve($user);
 
+        $this->notifyPanicResolved($alert, $user);
+
         // Enviar notificação FCM de resolução (se habilitada)
         $this->sendFCMResolutionNotification($alert);
 
@@ -261,6 +264,42 @@ class PanicAlertController extends Controller
             'resolved_by' => $user->name,
             'resolved_at' => $alert->resolved_at->toISOString()
         ]);
+    }
+
+    /**
+     * Notifica moradores sobre resolução do alerta (sistema + WhatsApp via observer).
+     */
+    protected function notifyPanicResolved(PanicAlert $alert, User $resolver): void
+    {
+        $users = User::where('condominium_id', $alert->condominium_id)
+            ->eligibleForWhatsApp()
+            ->get();
+
+        $message = sprintf(
+            'O alerta "%s" foi resolvido por %s em %s.',
+            $alert->title,
+            $resolver->name,
+            now()->format('d/m/Y H:i:s')
+        );
+
+        foreach ($users as $resident) {
+            Notification::create([
+                'condominium_id' => $alert->condominium_id,
+                'user_id' => $resident->id,
+                'type' => 'panic_resolved',
+                'title' => '✅ Alerta de pânico resolvido',
+                'message' => $message,
+                'data' => [
+                    'alert_id' => $alert->id,
+                    'alert_type' => $alert->alert_type,
+                    'resolved_by' => $resolver->id,
+                    'resolved_by_name' => $resolver->name,
+                ],
+                'channel' => 'database',
+                'sent' => true,
+                'sent_at' => now(),
+            ]);
+        }
     }
 
     /**
@@ -295,7 +334,7 @@ class PanicAlertController extends Controller
             
             // Buscar usuários com os perfis específicos no mesmo condomínio
             $users = User::where('condominium_id', $alertData['condominium_id'])
-                ->where('is_active', true)
+                ->eligibleForWhatsApp()
                 ->whereHas('roles', function ($query) use ($targetRoles) {
                     $query->whereIn('name', $targetRoles);
                 })

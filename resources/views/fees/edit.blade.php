@@ -33,7 +33,7 @@
 
 <form action="{{ route('fees.destroy', $fee) }}" method="POST"
       class="mt-3"
-      onsubmit="return confirm('Deseja realmente remover esta taxa? As cobranças existentes serão canceladas.');">
+      onsubmit="return confirm('Remover esta taxa? Todas as cobranças vinculadas serão excluídas e os lançamentos financeiros associados serão removidos do caixa e das estatísticas.');">
     @csrf
     @method('DELETE')
     <button type="submit" class="btn btn-outline-danger">
