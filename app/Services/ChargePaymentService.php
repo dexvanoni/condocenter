@@ -78,6 +78,8 @@ class ChargePaymentService
         $asaas = $this->asaasForCharge($charge);
         $customer = $this->resolveAsaasCustomer($user, $charge, $asaas);
 
+        $this->assertCanReplacePendingPayment($charge, $asaas, 'card');
+
         $tokenResponse = $asaas->tokenizeCreditCard(
             $customer['id'],
             [
@@ -179,6 +181,11 @@ class ChargePaymentService
     protected function createCheckoutPayment(User $user, Charge $charge, string $billingType, bool $replaceExisting = false): array
     {
         $asaas = $this->asaasForCharge($charge);
+
+        if ($charge->asaas_payment_id) {
+            $this->assertCanReplacePendingPayment($charge, $asaas);
+        }
+
         $customer = $this->resolveAsaasCustomer($user, $charge, $asaas);
         $normalizedBillingType = $this->normalizeBillingType($billingType);
 
@@ -361,5 +368,48 @@ class ChargePaymentService
             'DEBIT_CARD' => 'debit_card',
             default => 'other',
         };
+    }
+
+    /**
+     * Cancela cobrança Asaas pendente/vencida vinculada à charge local antes de criar outra.
+     */
+    protected function assertCanReplacePendingPayment(Charge $charge, AsaasService $asaas, string $errorKey = 'payment'): void
+    {
+        $paymentId = $charge->asaas_payment_id;
+
+        if (!$paymentId) {
+            return;
+        }
+
+        $existing = $asaas->getPayment($paymentId);
+
+        if (!$existing) {
+            return;
+        }
+
+        $status = strtoupper((string) ($existing['status'] ?? ''));
+
+        if (!in_array($status, ['PENDING', 'OVERDUE'], true)) {
+            return;
+        }
+
+        if (!$asaas->deletePayment($paymentId)) {
+            throw ValidationException::withMessages([
+                $errorKey => 'Não foi possível atualizar o pagamento existente. Tente novamente em instantes.',
+            ]);
+        }
+
+        $charge->update([
+            'asaas_payment_id' => null,
+            'pix_code' => null,
+            'pix_qrcode' => null,
+            'boleto_url' => null,
+        ]);
+
+        Log::info('Pagamento Asaas pendente cancelado antes de gerar novo', [
+            'charge_id' => $charge->id,
+            'previous_payment_id' => $paymentId,
+            'condominium_id' => $charge->condominium_id,
+        ]);
     }
 }

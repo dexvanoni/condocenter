@@ -251,6 +251,46 @@ class AsaasService
         }
     }
 
+    /**
+     * Remove cobrança pendente/vencida no Asaas (idempotente).
+     */
+    public function deletePayment(string $paymentId): bool
+    {
+        if (!$this->isConfigured()) {
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'access_token' => $this->apiKey,
+            ])->delete("{$this->apiUrl}/payments/{$paymentId}");
+
+            if ($response->successful()) {
+                return true;
+            }
+
+            if (in_array($response->status(), [400, 404], true)) {
+                return true;
+            }
+
+            Log::warning('Falha ao excluir cobrança no Asaas', [
+                'payment_id' => $paymentId,
+                'condominium_id' => $this->condominiumId,
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
+            return false;
+        } catch (\Exception $e) {
+            Log::error('Exceção ao excluir cobrança no Asaas: ' . $e->getMessage(), [
+                'payment_id' => $paymentId,
+                'condominium_id' => $this->condominiumId,
+            ]);
+
+            return false;
+        }
+    }
+
     public function getPixQRCode($paymentId)
     {
         if (!$this->isConfigured()) {
