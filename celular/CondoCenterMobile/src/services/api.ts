@@ -108,24 +108,6 @@ class ApiService {
     }
   }
 
-  // FCM Token
-  async registerFCMToken(token: string): Promise<void> {
-    try {
-      await this.api.post('/fcm/token', { token });
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
-  async getFCMConfig(): Promise<any> {
-    try {
-      const response = await this.api.get('/fcm/config');
-      return response.data;
-    } catch (error) {
-      throw this.handleError(error);
-    }
-  }
-
   // Utilitários
   private handleError(error: any): Error {
     if (error.response) {

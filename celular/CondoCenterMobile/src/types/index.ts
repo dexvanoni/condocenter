@@ -53,9 +53,3 @@ export interface NotificationData {
   data?: any;
   sound?: string;
 }
-
-export interface FCMToken {
-  token: string;
-  device_type: 'android' | 'ios';
-  is_active: boolean;
-}

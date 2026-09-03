@@ -83,31 +83,7 @@ if ($isLaravel) {
 
 echo "\n";
 
-// 6. Verificar FCM específico
-echo "🔔 VERIFICAÇÃO FCM:\n";
-$fcmFiles = [
-    'config/firebase.php' => 'Configuração Firebase',
-    'public/firebase-messaging-sw.js' => 'Service Worker',
-    'app/Services/FirebaseNotificationService.php' => 'Service FCM',
-    '.env' => 'Arquivo de ambiente'
-];
-
-foreach ($fcmFiles as $file => $description) {
-    $exists = file_exists($file);
-    $status = $exists ? '✅' : '❌';
-    echo "$status $description: $file\n";
-}
-
-// Verificar se FCM está habilitado no .env
-if (file_exists('.env')) {
-    $envContent = file_get_contents('.env');
-    $fcmEnabled = strpos($envContent, 'FCM_ENABLED=true') !== false;
-    echo ($fcmEnabled ? '✅' : '❌') . " FCM habilitado no .env\n";
-}
-
-echo "\n";
-
-// 7. Resumo final
+// 6. Resumo final
 echo "📊 RESUMO FINAL:\n";
 echo "================\n";
 

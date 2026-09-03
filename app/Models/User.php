@@ -53,10 +53,6 @@ class User extends Authenticatable implements Auditable
         'registration_status',
         'possui_dividas',
         'agregado_can_authorize_access',
-        'fcm_token',
-        'fcm_enabled',
-        'fcm_topics',
-        'fcm_token_updated_at',
     ];
 
     protected $hidden = [
@@ -77,9 +73,6 @@ class User extends Authenticatable implements Auditable
             'senha_temporaria' => 'boolean',
             'possui_dividas' => 'boolean',
             'agregado_can_authorize_access' => 'boolean',
-            'fcm_enabled' => 'boolean',
-            'fcm_topics' => 'array',
-            'fcm_token_updated_at' => 'datetime',
         ];
     }
 

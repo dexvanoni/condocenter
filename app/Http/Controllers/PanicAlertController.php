@@ -7,7 +7,6 @@ use App\Models\Notification;
 use App\Models\PanicAlert;
 use App\Models\User;
 use App\Jobs\SendPanicAlert;
-use App\Services\FirebaseNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -117,9 +116,6 @@ class PanicAlertController extends Controller
 
         // Enviar emails para perfis específicos (síndico, administrador, porteiro, secretaria)
         $this->sendPanicEmails($alertData);
-
-        // Enviar notificação FCM (se habilitada)
-        $this->sendFCMNotification($panicAlert, $alertData);
 
             Log::info('Alerta de pânico enviado com sucesso', [
                 'alert_id' => $panicAlert->id,
@@ -256,9 +252,6 @@ class PanicAlertController extends Controller
 
         $this->notifyPanicResolved($alert, $user);
 
-        // Enviar notificação FCM de resolução (se habilitada)
-        $this->sendFCMResolutionNotification($alert);
-
         return response()->json([
             'message' => 'Alerta de pânico resolvido com sucesso',
             'resolved_by' => $user->name,
@@ -389,66 +382,6 @@ class PanicAlertController extends Controller
                 'alert_id' => $alertData['alert_id'],
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
-            ]);
-        }
-    }
-
-    /**
-     * Envia notificação FCM para alerta de pânico
-     */
-    protected function sendFCMNotification(PanicAlert $panicAlert, array $alertData): void
-    {
-        try {
-            $firebaseService = new FirebaseNotificationService();
-            
-            $fcmData = [
-                'alert_id' => $panicAlert->id,
-                'alert_type' => $panicAlert->alert_type,
-                'user_name' => $alertData['user_name'],
-                'location' => $alertData['user_unit'],
-                'severity' => $panicAlert->severity
-            ];
-
-            $sentCount = $firebaseService->sendPanicAlert($fcmData);
-            
-            Log::info('Notificação FCM de pânico enviada', [
-                'alert_id' => $panicAlert->id,
-                'sent_count' => $sentCount
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Erro ao enviar notificação FCM de pânico', [
-                'alert_id' => $panicAlert->id,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Envia notificação FCM para resolução de alerta de pânico
-     */
-    protected function sendFCMResolutionNotification(PanicAlert $panicAlert): void
-    {
-        try {
-            $firebaseService = new FirebaseNotificationService();
-            
-            $fcmData = [
-                'alert_id' => $panicAlert->id,
-                'alert_type' => $panicAlert->alert_type,
-                'resolved_by' => $panicAlert->resolvedBy->name ?? 'Usuário'
-            ];
-
-            $sentCount = $firebaseService->sendPanicAlertResolved($fcmData);
-            
-            Log::info('Notificação FCM de resolução enviada', [
-                'alert_id' => $panicAlert->id,
-                'sent_count' => $sentCount
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Erro ao enviar notificação FCM de resolução', [
-                'alert_id' => $panicAlert->id,
-                'error' => $e->getMessage()
             ]);
         }
     }

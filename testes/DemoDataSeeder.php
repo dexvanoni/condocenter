@@ -278,10 +278,6 @@ class DemoDataSeeder
                     'senha_temporaria' => false,
                     'possui_dividas' => $this->faker->boolean(),
                     'email_verified_at' => Carbon::now(),
-                    'fcm_token' => Str::random(32),
-                    'fcm_enabled' => true,
-                    'fcm_topics' => json_encode(['demo']),
-                    'fcm_token_updated_at' => Carbon::now()->subDays($this->faker->numberBetween(1, 15)),
                 ] + $this->timestamps();
 
                 if ($temCanalPadraoUsuario) {

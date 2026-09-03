@@ -11,17 +11,6 @@ export const API_CONFIG = {
   RETRY_ATTEMPTS: 3,
 };
 
-// Configurações do Firebase
-export const FIREBASE_CONFIG = {
-  // Substitua pelos valores do seu projeto Firebase
-  API_KEY: 'sua-api-key',
-  AUTH_DOMAIN: 'seu-projeto.firebaseapp.com',
-  PROJECT_ID: 'seu-projeto-id',
-  STORAGE_BUCKET: 'seu-projeto.appspot.com',
-  MESSAGING_SENDER_ID: 'seu-sender-id',
-  APP_ID: 'seu-app-id',
-};
-
 // Configurações de notificação
 export const NOTIFICATION_CONFIG = {
   PANIC_SOUND_DURATION: 10000, // 10 segundos

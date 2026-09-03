@@ -56,7 +56,7 @@ return [
         ],
         'charges' => [
             'label' => 'Cobranças e financeiro',
-            'description' => 'Lembretes de vencimento, inadimplência, pagamentos e taxas invalidadas.',
+            'description' => 'Lembretes de vencimento, inadimplência, pagamentos, taxas invalidadas e multas aplicadas.',
             'recipients' => 'Morador titular da unidade ou usuários ativos da unidade (lembretes e inadimplência); moradores/agregados da unidade (taxa invalidada).',
             'types' => [
                 'charge_due_tomorrow',
@@ -64,6 +64,7 @@ return [
                 'payment_overdue',
                 'payment_received',
                 'fee_invalidated',
+                'fine_issued',
             ],
         ],
         'conversations' => [

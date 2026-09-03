@@ -42,8 +42,7 @@
           "color": "#ffffff",
           "sounds": ["./assets/sounds/panic-alert.wav"]
         }
-      ],
-      "@react-native-firebase/app"
+      ]
     ],
     "extra": {
       "eas": {

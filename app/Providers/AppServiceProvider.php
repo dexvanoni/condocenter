@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Notification;
+use App\Models\Fine;
 use App\Models\Pet;
 use App\Models\ServiceProvider as AccessServiceProvider;
 use App\Models\Unit;
@@ -91,6 +92,10 @@ class AppServiceProvider extends ServiceProvider
 
         Route::bind('pet', function (string $value) use ($scopeByTenant) {
             return $scopeByTenant(Pet::query()->whereKey($value))->firstOrFail();
+        });
+
+        Route::bind('fine', function (string $value) use ($scopeByTenant) {
+            return $scopeByTenant(Fine::query()->whereKey($value))->firstOrFail();
         });
 
         Route::bind('provider', function (string $value) use ($scopeByTenant) {

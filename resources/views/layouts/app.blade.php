@@ -955,6 +955,7 @@
             'configuracoes_globais' => request()->routeIs('platform.*'),
             'financeiro' => request()->routeIs('transactions.*')
                 || request()->routeIs('fees.*')
+                || request()->routeIs('fines.*')
                 || request()->routeIs('charges.*')
                 || request()->routeIs('financial.status.*')
                 || request()->routeIs('financial.accounts.*')
@@ -1181,7 +1182,7 @@
                     $isFinanceAdmin = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
                     $isFinanceResident = $user->isMorador();
                     $isFinancialSimplified = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
-                    $canViewFinance = !$user->isAgregado() && ($isFinanceAdmin || $isFinanceResident);
+                    $canViewFinance = !$user->isAgregado() && ($isFinanceAdmin || $isFinanceResident || $user->can('view_fines') || $user->can('view_transactions'));
                 @endphp
                 @if($canViewFinance)
                 <li class="nav-item nav-item-group">
@@ -1217,6 +1218,13 @@
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
                                         <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                    </a>
+                                </li>
+                                @endif
+                                @if(Route::has('fines.index') && ($user->can('manage_fines') || $user->can('view_fines')))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('fines.*') ? 'active' : '' }}" href="{{ route('fines.index') }}">
+                                        <i class="bi bi-exclamation-octagon"></i> {{ $user->can('manage_fines') ? 'Multas' : 'Minhas Multas' }}
                                     </a>
                                 </li>
                                 @endif
@@ -1320,6 +1328,13 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                     <i class="bi bi-wallet2"></i> Minhas Finanças
+                                </a>
+                            </li>
+                            @endif
+                            @if(!$isFinanceAdmin && Route::has('fines.index') && $user->can('view_fines') && !$user->can('manage_fines'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('fines.*') ? 'active' : '' }}" href="{{ route('fines.index') }}">
+                                    <i class="bi bi-exclamation-octagon"></i> {{ $user->hasRole('Conselho Fiscal') ? 'Multas' : 'Minhas Multas' }}
                                 </a>
                             </li>
                             @endif
@@ -1887,7 +1902,7 @@
                             $mobileFinanceAdmin = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
                             $mobileFinanceResident = $user->isMorador();
                             $mobileFinancialSimplified = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
-                            $mobileCanSeeFinance = !$user->isAgregado() && ($mobileFinanceAdmin || $mobileFinanceResident);
+                            $mobileCanSeeFinance = !$user->isAgregado() && ($mobileFinanceAdmin || $mobileFinanceResident || $user->can('view_fines') || $user->can('view_transactions'));
                         @endphp
                         @if($mobileCanSeeFinance)
                         <li class="nav-item nav-item-group mt-2">
@@ -1916,6 +1931,13 @@
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('charges.*') ? 'active' : '' }}" href="{{ route('charges.index') }}">
                                                 <i class="bi bi-receipt"></i> {{ $user->can('manage_charges') ? 'Gerenciar Cobranças' : 'Cobranças' }}
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(Route::has('fines.index') && ($user->can('manage_fines') || $user->can('view_fines')))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('fines.*') ? 'active' : '' }}" href="{{ route('fines.index') }}">
+                                                <i class="bi bi-exclamation-octagon"></i> {{ $user->can('manage_fines') ? 'Multas' : 'Minhas Multas' }}
                                             </a>
                                         </li>
                                         @endif
@@ -2012,6 +2034,13 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('my-finances') ? 'active' : '' }}" href="{{ route('my-finances') }}">
                                             <i class="bi bi-wallet2"></i> Minhas Finanças
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(!$mobileFinanceAdmin && Route::has('fines.index') && $user->can('view_fines') && !$user->can('manage_fines'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('fines.*') ? 'active' : '' }}" href="{{ route('fines.index') }}">
+                                            <i class="bi bi-exclamation-octagon"></i> {{ $user->hasRole('Conselho Fiscal') ? 'Multas' : 'Minhas Multas' }}
                                         </a>
                                     </li>
                                     @endif
@@ -4081,57 +4110,5 @@
             }
         }
     </style>
-
-    <!-- Firebase Cloud Messaging Scripts -->
-    @if(config('firebase.enabled', false))
-    <script src="/js/fcm.js"></script>
-    
-    <script>
-        // Configurações FCM específicas da página
-        document.addEventListener('DOMContentLoaded', function() {
-            // Verificar se FCM está disponível
-            if (window.fcmClient && window.fcmClient.isSupported) {
-                console.log('[FCM] Firebase Cloud Messaging disponível');
-                
-                // Opcional: Setup automático (descomente se quiser ativar automaticamente)
-                // window.fcmClient.setup().then(success => {
-                //     if (success) {
-                //         console.log('[FCM] Setup automático concluído');
-                //     }
-                // });
-            } else {
-                console.log('[FCM] Firebase Cloud Messaging não disponível');
-            }
-        });
-
-        // Função global para testar FCM (para uso em botões de teste)
-        window.testFCM = async function() {
-            if (window.fcmClient && window.fcmClient.isSupported) {
-                const result = await window.fcmClient.test();
-                if (result.success) {
-                    alert('Notificação de teste enviada com sucesso!');
-                } else {
-                    alert('Erro ao enviar notificação: ' + result.message);
-                }
-            } else {
-                alert('FCM não está disponível neste navegador');
-            }
-        };
-
-        // Função global para configurar FCM
-        window.setupFCM = async function() {
-            if (window.fcmClient && window.fcmClient.isSupported) {
-                const success = await window.fcmClient.setup();
-                if (success) {
-                    alert('Notificações push configuradas com sucesso!');
-                } else {
-                    alert('Erro ao configurar notificações push');
-                }
-            } else {
-                alert('FCM não está disponível neste navegador');
-            }
-        };
-    </script>
-    @endif
 </body>
 </html>

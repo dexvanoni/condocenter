@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MarketplaceAdminController;
 use App\Http\Controllers\FeeController;
+use App\Http\Controllers\FineController;
 use App\Http\Controllers\Finance\AccountabilityReportController;
 use App\Http\Controllers\Finance\AccountabilityReportUploadController;
 use App\Http\Controllers\Finance\CondominiumAccountController;
@@ -90,6 +91,15 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::post('fees/{fee}/invalidate', [FeeController::class, 'invalidate'])
             ->middleware('can:manage_charges')
             ->name('fees.invalidate');
+    });
+
+    Route::middleware(['can:view_fines'])->group(function () {
+        Route::get('fines', [FineController::class, 'index'])->name('fines.index');
+        Route::get('fines/create', [FineController::class, 'create'])->name('fines.create');
+        Route::post('fines', [FineController::class, 'store'])->name('fines.store');
+        Route::get('fines/{fine}', [FineController::class, 'show'])->name('fines.show');
+        Route::get('fines/{fine}/pdf', [FineController::class, 'exportPdf'])->name('fines.export-pdf');
+        Route::post('fines/{fine}/cancel', [FineController::class, 'cancel'])->name('fines.cancel');
     });
 
     Route::post('charges/{charge}/mark-paid', [ChargeSettlementController::class, 'markPaid'])

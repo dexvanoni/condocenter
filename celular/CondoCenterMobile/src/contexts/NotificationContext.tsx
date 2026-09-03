@@ -57,11 +57,6 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       if (hasPermission) {
         const token = await NotificationService.getExpoPushToken();
         setExpoPushToken(token);
-        
-        if (token) {
-          // Registrar token no servidor
-          await ApiService.registerFCMToken(token);
-        }
       }
     } catch (error) {
       console.error('Erro ao registrar notificações push:', error);
