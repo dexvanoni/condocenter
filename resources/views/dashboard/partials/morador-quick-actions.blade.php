@@ -44,6 +44,22 @@
     </a>
     @endif
 
+    @can('create', App\Models\OccurrenceBookEntry::class)
+    @if(Route::has('occurrence-book.index') && !($user->isAdmin() && !$user->isSindico()))
+    <a href="{{ route('occurrence-book.index') }}" class="md-quick-tile">
+        <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-journal-check"></i></span>
+        <span>Ocorrências</span>
+    </a>
+    @endif
+    @endcan
+
+    @if(Route::has('occurrence-book.public.index') && ($condominium->occurrence_book_public_enabled ?? false) && ($user->isMorador() || $user->isAgregado()) && !($user->isAdmin() && !$user->isSindico()))
+    <a href="{{ route('occurrence-book.public.index') }}" class="md-quick-tile">
+        <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-journal-text"></i></span>
+        <span>Livro público</span>
+    </a>
+    @endif
+
     @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace') && !$isRestricted)
     <a href="{{ route('marketplace.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--market"><i class="bi bi-shop"></i></span>

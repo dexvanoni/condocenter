@@ -233,6 +233,11 @@
                         <i class="bi bi-file-earmark-arrow-up"></i> Prestação de contas
                     </a>
                 @endif
+                @if(Route::has('occurrence-book.manage.index') && auth()->user()->can('manage_occurrence_book') && auth()->user()->isSindico())
+                <a href="{{ route('occurrence-book.manage.index') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-journal-bookmark"></i> Livro
+                </a>
+                @endif
                 @if(Route::has('syndic-conversations.manage'))
                 <a href="{{ route('syndic-conversations.manage') }}" class="btn btn-outline-light btn-sm">
                     <i class="bi bi-chat-dots"></i> Conversas
@@ -315,6 +320,19 @@
                     <span class="sd-alert-card__label">Ordens de serviço</span>
                     <div class="sd-alert-card__value">{{ $serviceOrdersAbertas ?? 0 }}</div>
                     <p class="sd-alert-card__hint">Abertas / em andamento</p>
+                </span>
+            </a>
+        </div>
+        @endif
+
+        @if(Route::has('occurrence-book.manage.index') && auth()->user()->can('manage_occurrence_book') && auth()->user()->isSindico())
+        <div class="col-xl-3 col-md-6">
+            <a href="{{ route('occurrence-book.manage.index') }}" class="sd-alert-card sd-alert-card--{{ ($occurrenceBookPendentes ?? 0) > 0 ? 'warning' : 'success' }}">
+                <span class="sd-alert-card__icon"><i class="bi bi-journal-bookmark-fill"></i></span>
+                <span>
+                    <span class="sd-alert-card__label">Livro de Ocorrências</span>
+                    <div class="sd-alert-card__value">{{ $occurrenceBookPendentes ?? 0 }}</div>
+                    <p class="sd-alert-card__hint">Sem ciência registrada</p>
                 </span>
             </a>
         </div>

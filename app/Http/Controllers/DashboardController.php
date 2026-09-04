@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Condominium;
 use App\Models\ServiceOrder;
 use App\Services\ActiveCondominiumService;
+use App\Services\OccurrenceBookService;
 use App\Services\SyndicConversationStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -176,10 +177,14 @@ class DashboardController extends Controller
             ->whereIn('status', ServiceOrder::OPEN_STATUSES)
             ->count();
 
+        $occurrenceBookPendentes = app(OccurrenceBookService::class)
+            ->pendingCountForCondominium($condominium->id);
+
         $totalDemandas = $pendingUsersCount
             + $reservasPendentes
             + ($syndicConversationStats['pending_response'] ?? 0)
-            + $serviceOrdersAbertas;
+            + $serviceOrdersAbertas
+            + $occurrenceBookPendentes;
 
         $graficoOperacional = [];
         for ($i = 6; $i >= 0; $i--) {
@@ -220,6 +225,7 @@ class DashboardController extends Controller
                 'syndicConversationStats',
                 'syndicPendingConversations',
                 'serviceOrdersAbertas',
+                'occurrenceBookPendentes',
                 'totalDemandas',
                 'graficoOperacional',
             ),
@@ -843,6 +849,7 @@ class DashboardController extends Controller
     {
         // Dashboard limitado para agregados
         $moradorResponsavel = $user->moradorVinculado;
+        $condominium = $user->condominium;
         
         // Encomendas da unidade (via morador responsável)
         $encomendas = [];
@@ -864,7 +871,8 @@ class DashboardController extends Controller
         return view('dashboard.agregado', compact(
             'moradorResponsavel',
             'encomendas',
-            'notificacoes'
+            'notificacoes',
+            'condominium',
         ));
     }
 

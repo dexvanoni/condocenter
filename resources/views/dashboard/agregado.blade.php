@@ -29,6 +29,22 @@
 
     @include('dashboard.partials.ride-alerts')
 
+    @php
+        $agregadoUser = Auth::user();
+    @endphp
+    @if(($condominium->occurrence_book_public_enabled ?? false) && Route::has('occurrence-book.public.index'))
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="md-quick-grid fade-in">
+                <a href="{{ route('occurrence-book.public.index') }}" class="md-quick-tile">
+                    <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-journal-text"></i></span>
+                    <span>Livro público</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    @endif
+
     @include('dashboard.partials.access-alerts')
 
     <!-- Informação sobre Perfil -->

@@ -97,6 +97,15 @@ return [
                 'service_order_charge_created',
             ],
         ],
+        'occurrence_book' => [
+            'label' => 'Livro de Ocorrências',
+            'description' => 'Registros sigilosos de ocorrências, críticas e sugestões dos moradores ao síndico; ciência registrada.',
+            'recipients' => 'Síndico (novo registro, se solicitado via WhatsApp); morador autor (ciência registrada).',
+            'types' => [
+                'occurrence_book_new',
+                'occurrence_book_acknowledged',
+            ],
+        ],
         'subscription' => [
             'label' => 'Assinatura SaaS',
             'description' => 'Cobranças da plataforma para condomínios contratantes.',

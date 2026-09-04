@@ -983,7 +983,7 @@
             'packages' => request()->routeIs('packages.*'),
             'access_control' => request()->routeIs('access-control.*'),
             'portaria' => request()->routeIs('entries.*') || request()->routeIs('access-control.porteiro'),
-            'comunicacao' => request()->routeIs('messages.*') || request()->routeIs('notifications.*') || request()->routeIs('syndic-conversations.*') || request()->routeIs('condominium.landing.*'),
+            'comunicacao' => request()->routeIs('messages.*') || request()->routeIs('notifications.*') || request()->routeIs('syndic-conversations.*') || request()->routeIs('condominium.landing.*') || request()->routeIs('occurrence-book.*'),
         ];
     @endphp
 
@@ -1618,6 +1618,29 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.manage') }}">
                                     <i class="bi bi-clipboard-data"></i> Atendimento Sigiloso
+                                </a>
+                            </li>
+                            @endif
+                            @can('create_occurrence_book')
+                            @if(!($user->isAdmin() && !$user->isSindico()))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('occurrence-book.index') || request()->routeIs('occurrence-book.show') || request()->routeIs('occurrence-book.create') ? 'active' : '' }}" href="{{ route('occurrence-book.index') }}">
+                                    <i class="bi bi-journal-check"></i> Minhas Ocorrências
+                                </a>
+                            </li>
+                            @endif
+                            @endcan
+                            @can('viewPublicBook', App\Models\OccurrenceBookEntry::class)
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('occurrence-book.public.*') ? 'active' : '' }}" href="{{ route('occurrence-book.public.index') }}">
+                                    <i class="bi bi-journal-text"></i> Ver Livro do Condomínio
+                                </a>
+                            </li>
+                            @endcan
+                            @if($user->isSindico() && auth()->user()->can('manage_occurrence_book'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('occurrence-book.manage.*') ? 'active' : '' }}" href="{{ route('occurrence-book.manage.index') }}">
+                                    <i class="bi bi-journal-bookmark"></i> Gestão do Livro
                                 </a>
                             </li>
                             @endif
@@ -2362,6 +2385,29 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.manage') }}">
                                             <i class="bi bi-clipboard-data"></i> Atendimento Sigiloso
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @can('create_occurrence_book')
+                                    @if(!($user->isAdmin() && !$user->isSindico()))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('occurrence-book.index') || request()->routeIs('occurrence-book.show') || request()->routeIs('occurrence-book.create') ? 'active' : '' }}" href="{{ route('occurrence-book.index') }}">
+                                            <i class="bi bi-journal-check"></i> Minhas Ocorrências
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @endcan
+                                    @can('viewPublicBook', App\Models\OccurrenceBookEntry::class)
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('occurrence-book.public.*') ? 'active' : '' }}" href="{{ route('occurrence-book.public.index') }}">
+                                            <i class="bi bi-journal-text"></i> Ver Livro do Condomínio
+                                        </a>
+                                    </li>
+                                    @endcan
+                                    @if($user->isSindico() && auth()->user()->can('manage_occurrence_book'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('occurrence-book.manage.*') ? 'active' : '' }}" href="{{ route('occurrence-book.manage.index') }}">
+                                            <i class="bi bi-journal-bookmark"></i> Gestão do Livro
                                         </a>
                                     </li>
                                     @endif

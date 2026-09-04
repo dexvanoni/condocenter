@@ -387,6 +387,34 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/conversations/syndic/manage', [\App\Http\Controllers\SyndicConversationWebController::class, 'manage'])
         ->name('syndic-conversations.manage');
 
+    Route::prefix('occurrence-book')->name('occurrence-book.')->group(function () {
+        Route::middleware('can:create_occurrence_book')->group(function () {
+            Route::get('/', [\App\Http\Controllers\OccurrenceBookController::class, 'index'])->name('index');
+            Route::get('/novo', [\App\Http\Controllers\OccurrenceBookController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\OccurrenceBookController::class, 'store'])->name('store');
+        });
+
+        Route::middleware('can:manage_occurrence_book')->prefix('gestao')->name('manage.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\OccurrenceBookController::class, 'manageIndex'])->name('index');
+            Route::post('/configuracoes', [\App\Http\Controllers\OccurrenceBookController::class, 'updateSettings'])->name('settings');
+            Route::get('/{entry}', [\App\Http\Controllers\OccurrenceBookController::class, 'manageShow'])->name('show');
+            Route::post('/{entry}/ciencia', [\App\Http\Controllers\OccurrenceBookController::class, 'acknowledge'])->name('acknowledge');
+            Route::post('/{entry}/comentario', [\App\Http\Controllers\OccurrenceBookController::class, 'saveComment'])->name('comment');
+        });
+
+        Route::middleware('can:viewPublicBook,App\Models\OccurrenceBookEntry')->prefix('publico')->name('public.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\OccurrenceBookController::class, 'publicIndex'])->name('index');
+            Route::get('/{entry}', [\App\Http\Controllers\OccurrenceBookController::class, 'publicShow'])->name('show');
+        });
+
+        Route::middleware('can:export_occurrence_book')->group(function () {
+            Route::get('/exportar/excel', [\App\Http\Controllers\OccurrenceBookController::class, 'exportExcel'])->name('export.excel');
+            Route::get('/exportar/pdf', [\App\Http\Controllers\OccurrenceBookController::class, 'exportPdf'])->name('export.pdf');
+        });
+
+        Route::get('/{entry}', [\App\Http\Controllers\OccurrenceBookController::class, 'show'])->name('show');
+    });
+
     // Compatibilidade: rota antiga redireciona para o canal sigiloso
     Route::get('/conversations/direct', [\App\Http\Controllers\SyndicConversationWebController::class, 'start'])
         ->name('conversations.direct.start');
