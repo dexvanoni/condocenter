@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Condominium;
 use App\Http\Controllers\ConversationWebController;
+use App\Http\Controllers\CondominiumLandingPublicController;
+use App\Http\Controllers\CondominiumLandingAdminController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -31,6 +33,10 @@ Route::get('/apresentacao', function () {
     }
     abort(404);
 })->name('apresentacao');
+
+// Landing page pública do condomínio
+Route::get('/c/{slug}', [CondominiumLandingPublicController::class, 'show'])
+    ->name('condominium.landing');
 
 // Webhook routes (public, sem autenticação)
 Route::middleware('throttle:webhooks')->group(function () {
@@ -357,6 +363,20 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->middleware('can:send_announcements')
         ->name('conversations.announcement');
 
+    // Landing page do condomínio (Síndico)
+    Route::prefix('condominium/landing')->name('condominium.landing.')->middleware('can:manage_landing_page')->group(function () {
+        Route::get('/', [CondominiumLandingAdminController::class, 'edit'])->name('edit');
+        Route::put('/', [CondominiumLandingAdminController::class, 'update'])->name('update');
+        Route::post('/items', [CondominiumLandingAdminController::class, 'storeItem'])->name('items.store');
+        Route::get('/items/{item}/edit', [CondominiumLandingAdminController::class, 'editItem'])->name('items.edit');
+        Route::put('/items/{item}', [CondominiumLandingAdminController::class, 'updateItem'])->name('items.update');
+        Route::post('/items/{item}/remove', [CondominiumLandingAdminController::class, 'destroyItem'])->name('items.remove');
+        Route::post('/gallery/remove', [CondominiumLandingAdminController::class, 'removeGalleryImage'])->name('gallery.remove');
+        Route::post('/items/reorder', [CondominiumLandingAdminController::class, 'reorderItems'])->name('items.reorder');
+        Route::get('/qr-code', [CondominiumLandingAdminController::class, 'qrCode'])->name('qr');
+        Route::get('/qr-code/download', [CondominiumLandingAdminController::class, 'qrCodeDownload'])->name('qr.download');
+    });
+
     // Canal sigiloso com o Síndico (separado das mensagens gerais)
     Route::get('/conversations/syndic/start', [\App\Http\Controllers\SyndicConversationWebController::class, 'start'])
         ->middleware('can:contact_sindico')
@@ -450,6 +470,15 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             ->name('plans.update');
         Route::delete('/plans/{plan}', [\App\Http\Controllers\Platform\SubscriptionPlanController::class, 'destroy'])
             ->name('plans.destroy');
+
+        Route::get('/announcements', [\App\Http\Controllers\Platform\PlatformAnnouncementController::class, 'index'])
+            ->name('announcements.index');
+        Route::post('/announcements', [\App\Http\Controllers\Platform\PlatformAnnouncementController::class, 'store'])
+            ->name('announcements.store');
+        Route::put('/announcements/{announcement}', [\App\Http\Controllers\Platform\PlatformAnnouncementController::class, 'update'])
+            ->name('announcements.update');
+        Route::delete('/announcements/{announcement}', [\App\Http\Controllers\Platform\PlatformAnnouncementController::class, 'destroy'])
+            ->name('announcements.destroy');
 
         Route::get('/settings/asaas', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'asaas'])
             ->name('settings.asaas');

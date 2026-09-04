@@ -983,7 +983,7 @@
             'packages' => request()->routeIs('packages.*'),
             'access_control' => request()->routeIs('access-control.*'),
             'portaria' => request()->routeIs('entries.*') || request()->routeIs('access-control.porteiro'),
-            'comunicacao' => request()->routeIs('messages.*') || request()->routeIs('notifications.*') || request()->routeIs('syndic-conversations.*'),
+            'comunicacao' => request()->routeIs('messages.*') || request()->routeIs('notifications.*') || request()->routeIs('syndic-conversations.*') || request()->routeIs('condominium.landing.*'),
         ];
     @endphp
 
@@ -1100,6 +1100,11 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('platform.plans.*') ? 'active' : '' }}" href="{{ route('platform.plans.index') }}">
                                     <i class="bi bi-tags"></i> Planos de assinatura
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.announcements.*') ? 'active' : '' }}" href="{{ route('platform.announcements.index') }}">
+                                    <i class="bi bi-stars"></i> Novidades SindCon
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -1630,6 +1635,13 @@
                                 </a>
                             </li>
                             @endcan
+                            @can('manage_landing_page')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('condominium.landing.*') ? 'active' : '' }}" href="{{ route('condominium.landing.edit') }}">
+                                    <i class="bi bi-globe2"></i> Landing Page
+                                </a>
+                            </li>
+                            @endcan
                             @if(Route::has('notifications.index') && SidebarHelper::canAccessModule($user, 'notifications'))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('notifications.*') ? 'active' : '' }}" href="{{ route('notifications.index') }}">
@@ -1824,6 +1836,11 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('platform.plans.*') ? 'active' : '' }}" href="{{ route('platform.plans.index') }}">
                                             <i class="bi bi-tags"></i> Planos de assinatura
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.announcements.*') ? 'active' : '' }}" href="{{ route('platform.announcements.index') }}">
+                                            <i class="bi bi-stars"></i> Novidades SindCon
                                         </a>
                                     </li>
                                     <li class="nav-item">
@@ -2359,6 +2376,13 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('conversations.announcement') ? 'active' : '' }}" href="{{ route('conversations.announcement') }}">
                                             <i class="bi bi-megaphone"></i> Enviar Aviso
+                                        </a>
+                                    </li>
+                                    @endcan
+                                    @can('manage_landing_page')
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('condominium.landing.*') ? 'active' : '' }}" href="{{ route('condominium.landing.edit') }}">
+                                            <i class="bi bi-globe2"></i> Landing Page
                                         </a>
                                     </li>
                                     @endcan

@@ -806,7 +806,7 @@
             const url = buildUrl(pageUrl);
             state.pageUrl = `${url.pathname}${url.search}`;
 
-            fetch(url, {
+            return fetch(url, {
                 credentials: 'same-origin',
                 headers: {
                     'Accept': 'application/json',
@@ -1320,7 +1320,12 @@
             submitButton.addEventListener('click', handlePublish);
         }
 
-        loadMarketplace('/api/marketplace');
+        loadMarketplace('/api/marketplace').finally(() => {
+            const anuncioId = urlParams.get('anuncio');
+            if (anuncioId) {
+                openItemModal(anuncioId);
+            }
+        });
     });
 </script>
 @endpush

@@ -7,10 +7,24 @@
       "app.css"
     ]
   },
+  "resources/css/landing.css": {
+    "file": "assets/landing-BMabywD5.css",
+    "src": "resources/css/landing.css",
+    "isEntry": true,
+    "names": [
+      "landing.css"
+    ]
+  },
   "resources/js/app.js": {
     "file": "assets/app-C73PN8vr.js",
     "name": "app",
     "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/landing.js": {
+    "file": "assets/landing-BnVLch8F.js",
+    "name": "landing",
+    "src": "resources/js/landing.js",
     "isEntry": true
   }
 }

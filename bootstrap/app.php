@@ -38,6 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'require.condominium' => \App\Http\Middleware\RequireActiveCondominium::class,
         ]);
 
+        $middleware->web(prepend: [
+            \App\Http\Middleware\ResolveCondominiumLandingDomain::class,
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\ResolveActiveCondominium::class,
         ]);

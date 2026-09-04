@@ -106,6 +106,7 @@ class RolesAndPermissionsSeeder extends Seeder
             
             // Comunicação
             'send_announcements',
+            'manage_landing_page',
             'contact_sindico',
             'send_panic_alert',
             'manage_panic_alerts',
@@ -181,6 +182,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_assemblies',
             'vote_assemblies',
             'send_announcements',
+            'manage_landing_page',
             'manage_panic_alerts',
             'view_messages',
             'manage_notifications',

@@ -5,7 +5,25 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
 // Authentication Routes
-Route::get('login', function () {
+Route::get('login', function (\Illuminate\Http\Request $request) {
+    if ($request->filled('redirect')) {
+        $redirect = $request->query('redirect');
+        $target = null;
+
+        if (filter_var($redirect, FILTER_VALIDATE_URL)) {
+            $redirectHost = parse_url($redirect, PHP_URL_HOST);
+            if ($redirectHost && $redirectHost === $request->getHost()) {
+                $target = $redirect;
+            }
+        } elseif (is_string($redirect) && str_starts_with($redirect, '/')) {
+            $target = url($redirect);
+        }
+
+        if ($target) {
+            session(['url.intended' => $target]);
+        }
+    }
+
     return view('auth.login');
 })->middleware('guest')->name('login');
 

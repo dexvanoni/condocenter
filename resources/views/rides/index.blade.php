@@ -272,6 +272,26 @@
         })[m]);
     }
 
+    function openRideFromQuery() {
+        const rideId = new URLSearchParams(window.location.search).get('carona');
+        if (!rideId || !bookRideModal) {
+            return;
+        }
+
+        const ride = ridesCache.find((entry) => Number(entry.id) === Number(rideId));
+        if (!ride) {
+            return;
+        }
+
+        document.getElementById('bookRideId').value = ride.id;
+        document.getElementById('bookRideDestination').textContent = ride.destination;
+        document.getElementById('bookRideMeta').textContent =
+            `${formatDateTime(ride.departure_at)} · ${ride.seats_available} vaga(s) · ${ride.driver?.name || ''}`;
+        document.getElementById('bookSeats').max = ride.seats_available;
+        document.getElementById('bookSeats').value = 1;
+        bootstrap.Modal.getOrCreateInstance(bookRideModal).show();
+    }
+
     async function loadRides() {
         ridesTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div> Carregando...</td></tr>`;
         const url = new URL('/api/rides', window.location.origin);
@@ -293,6 +313,7 @@
         const data = await res.json();
         ridesCache = data.data || [];
         renderRides(ridesCache);
+        openRideFromQuery();
     }
 
     ridesTableBody.addEventListener('click', (e) => {

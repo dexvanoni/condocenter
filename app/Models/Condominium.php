@@ -104,6 +104,11 @@ class Condominium extends Model implements Auditable
         return $this->hasOne(CondominiumSubscription::class);
     }
 
+    public function landingPage()
+    {
+        return $this->hasOne(CondominiumLandingPage::class);
+    }
+
     public function hasActiveSaasSubscription(): bool
     {
         return (bool) $this->subscription?->isAccessAllowed();
