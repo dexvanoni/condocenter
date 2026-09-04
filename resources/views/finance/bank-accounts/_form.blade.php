@@ -93,10 +93,15 @@
 
     <div class="col-md-6">
         <label class="form-label fw-semibold">Status</label>
-        <div class="form-check form-switch">
+        <div class="form-check form-switch mb-2">
             <input type="checkbox" class="form-check-input" id="active" name="active"
                    value="1" {{ old('active', $account->active ?? true) ? 'checked' : '' }}>
             <label class="form-check-label" for="active">Conta ativa</label>
+        </div>
+        <div class="form-check form-switch">
+            <input type="checkbox" class="form-check-input" id="is_primary" name="is_primary"
+                   value="1" {{ old('is_primary', $account->is_primary ?? false) ? 'checked' : '' }}>
+            <label class="form-check-label" for="is_primary">Conta principal do condomínio</label>
         </div>
     </div>
 

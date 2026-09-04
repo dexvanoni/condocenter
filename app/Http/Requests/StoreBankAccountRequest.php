@@ -27,6 +27,7 @@ class StoreBankAccountRequest extends FormRequest
             'balance_updated_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'active' => ['sometimes', 'boolean'],
+            'is_primary' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -34,6 +35,7 @@ class StoreBankAccountRequest extends FormRequest
     {
         $this->merge([
             'active' => $this->boolean('active'),
+            'is_primary' => $this->boolean('is_primary'),
             'current_balance' => $this->input('current_balance', 0),
         ]);
     }

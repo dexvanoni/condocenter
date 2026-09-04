@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\Charge;
 use App\Models\CondominiumAccount;
+use App\Services\BankAccountRoutingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,11 @@ use Illuminate\Validation\Rule;
 class CondominiumAccountController extends Controller
 {
     use ResolvesActiveCondominium;
+
+    public function __construct(
+        private readonly BankAccountRoutingService $bankAccountRoutingService,
+    ) {
+    }
 
     public function index(Request $request)
     {
@@ -168,13 +174,19 @@ class CondominiumAccountController extends Controller
             'notes' => ['nullable', 'string'],
             'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:8192'],
             'captured_image' => ['nullable', 'file', 'image', 'max:8192'],
+            'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
         ]);
 
         $documentPath = $this->storeFile($request->file('document'));
         $capturedImagePath = $this->storeFile($request->file('captured_image'));
 
+        $condominiumId = $this->activeCondominiumId($user);
+        $bankAccountId = $validated['bank_account_id']
+            ?? $this->bankAccountRoutingService->resolveByKey($condominiumId, 'expense');
+
         CondominiumAccount::create([
-            'condominium_id' => $this->activeCondominiumId($user),
+            'condominium_id' => $condominiumId,
+            'bank_account_id' => $bankAccountId,
             'type' => 'expense',
             'description' => $validated['description'],
             'amount' => $validated['amount'],
@@ -208,12 +220,18 @@ class CondominiumAccountController extends Controller
             'payment_method' => ['nullable', Rule::in(['cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'other'])],
             'notes' => ['nullable', 'string'],
             'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:8192'],
+            'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
         ]);
 
         $documentPath = $this->storeFile($request->file('document'));
 
+        $condominiumId = $this->activeCondominiumId($user);
+        $bankAccountId = $validated['bank_account_id']
+            ?? $this->bankAccountRoutingService->resolveByKey($condominiumId, 'manual_income');
+
         CondominiumAccount::create([
-            'condominium_id' => $this->activeCondominiumId($user),
+            'condominium_id' => $condominiumId,
+            'bank_account_id' => $bankAccountId,
             'type' => 'income',
             'source_type' => 'manual_income',
             'description' => $validated['description'],

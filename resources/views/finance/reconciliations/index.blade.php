@@ -2,14 +2,101 @@
 
 @section('title', 'Conciliação Bancária')
 
+@push('styles')
+<style>
+    .recon-hero {
+        background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+        border-radius: 18px;
+        color: #fff;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 12px 32px rgba(10, 27, 103, 0.2);
+    }
+    .recon-steps {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.25rem;
+    }
+    .recon-step {
+        flex: 1;
+        min-width: 140px;
+        padding: 0.65rem 0.85rem;
+        border-radius: 10px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-align: center;
+        border: 2px solid transparent;
+    }
+    .recon-step.active {
+        background: #eef2ff;
+        color: #0a1b67;
+        border-color: #3866d2;
+    }
+    .recon-step.done {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #10b981;
+    }
+    .recon-account-card {
+        border: 2px solid #e8ecf1;
+        border-radius: 14px;
+        padding: 1rem;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        transition: all 0.15s ease;
+        height: 100%;
+    }
+    .recon-account-card:hover, .recon-account-card.selected {
+        border-color: #3866d2;
+        box-shadow: 0 8px 24px rgba(56, 102, 210, 0.12);
+        color: inherit;
+    }
+    .recon-kpi {
+        border-radius: 14px;
+        border: 1px solid #e8ecf1;
+        padding: 1rem;
+        height: 100%;
+        background: #fff;
+    }
+</style>
+@endpush
+
 @section('content')
-<div class="row mb-4">
-    <div class="col-12">
-        <h2 class="mb-1">Conciliação Bancária</h2>
-        <p class="text-muted mb-0">
-            Consolide as movimentações financeiras confirmadas em uma conta bancária e mantenha o saldo do sistema alinhado ao extrato do banco.
-        </p>
+<div class="recon-hero">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
+            <h2 class="mb-1 h3 fw-bold"><i class="bi bi-bank2 me-2"></i>Conciliação Bancária</h2>
+            <p class="mb-0 opacity-75 small">
+                Consolide os lançamentos por conta bancária e mantenha o saldo do sistema alinhado ao extrato.
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ route('financial.settings.index') }}" class="btn btn-light btn-sm">
+                <i class="bi bi-sliders"></i> Regras de destino
+            </a>
+            <a href="{{ route('financial.bank-accounts.index') }}" class="btn btn-outline-light btn-sm">
+                <i class="bi bi-wallet2"></i> Contas
+            </a>
+        </div>
     </div>
+</div>
+
+@php
+    $step = 1;
+    if ($selectedAccount) $step = 2;
+    if ($selectedAccount && ($filters['start_date'] ?? null) && ($filters['end_date'] ?? null)) $step = 3;
+    if ($preview) $step = 4;
+@endphp
+
+<div class="recon-steps">
+    <div class="recon-step {{ $step >= 1 ? ($step > 1 ? 'done' : 'active') : '' }}">1. Conta</div>
+    <div class="recon-step {{ $step >= 2 ? ($step > 2 ? 'done' : 'active') : '' }}">2. Período</div>
+    <div class="recon-step {{ $step >= 3 ? ($step > 3 ? 'done' : 'active') : '' }}">3. Pré-visualizar</div>
+    <div class="recon-step {{ $step >= 4 ? 'active' : '' }}">4. Confirmar</div>
 </div>
 
 @if (session('success'))
@@ -43,34 +130,65 @@
     </div>
 @endif
 
-<div class="card mb-4">
+<div class="card mb-4 border-0 shadow-sm">
     <div class="card-body">
-        <form method="GET" action="{{ route('bank-reconciliation.index') }}" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="filterAccount" class="form-label">Conta bancária</label>
-                <select class="form-select" id="filterAccount" name="account_id" required>
-                    <option value="">Selecione...</option>
-                    @foreach ($accounts as $account)
-                        <option value="{{ $account->id }}" @selected($filters['account_id'] == $account->id)>
-                            {{ $account->name }} — {{ $account->institution ?? 'Conta' }}
-                        </option>
-                    @endforeach
-                </select>
+        @if($accounts->isEmpty())
+            <div class="text-center py-4">
+                <i class="bi bi-bank display-4 text-muted"></i>
+                <p class="mt-3 mb-2">Nenhuma conta bancária cadastrada.</p>
+                <a href="{{ route('financial.bank-accounts.create') }}" class="btn btn-primary">Cadastrar conta</a>
             </div>
-            <div class="col-md-3">
+        @else
+        <form method="GET" action="{{ route('bank-reconciliation.index') }}" class="row g-3 align-items-end">
+            <div class="col-12">
+                <label class="form-label fw-semibold">Conta bancária</label>
+                <div class="row g-2">
+                    @foreach($accounts as $account)
+                    <div class="col-md-4 col-sm-6">
+                        <a href="{{ route('bank-reconciliation.index', ['account_id' => $account->id]) }}"
+                           class="recon-account-card {{ ($filters['account_id'] ?? null) == $account->id ? 'selected' : '' }}">
+                            <strong>{{ $account->name }}</strong>
+                            <small class="d-block text-muted">{{ $account->institution ?? 'Conta' }}</small>
+                            <span class="d-block mt-2 fw-bold text-primary">R$ {{ number_format($account->current_balance ?? 0, 2, ',', '.') }}</span>
+                            @if($account->is_primary)<span class="badge bg-secondary mt-1">Principal</span>@endif
+                        </a>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @if($selectedAccount)
+            <div class="col-md-4">
                 <label for="filterStart" class="form-label">Início do período</label>
                 <input type="date" class="form-control" id="filterStart" name="start_date" value="{{ $filters['start_date'] }}" required>
+                @if($latestReconciliation)
+                <small class="text-muted">Última conciliação: {{ $latestReconciliation->end_date->format('d/m/Y') }}</small>
+                @endif
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label for="filterEnd" class="form-label">Fim do período</label>
                 <input type="date" class="form-control" id="filterEnd" name="end_date" value="{{ $filters['end_date'] }}" required>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
+                <input type="hidden" name="account_id" value="{{ $selectedAccount->id }}">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search"></i> Pré-visualizar
+                    <i class="bi bi-search"></i> Pré-visualizar período
                 </button>
             </div>
+            @if($pendingForAccount)
+            <div class="col-12">
+                <div class="alert alert-info mb-0 py-2 small">
+                    <i class="bi bi-info-circle"></i>
+                    Pendente de conciliar nesta conta (últimos 12 meses):
+                    <strong class="text-success">+R$ {{ number_format($pendingForAccount['income'] ?? 0, 2, ',', '.') }}</strong>
+                    ·
+                    <strong class="text-danger">-R$ {{ number_format($pendingForAccount['expense'] ?? 0, 2, ',', '.') }}</strong>
+                    · {{ $pendingForAccount['count_entries'] ?? 0 }} lançamento(s)
+                </div>
+            </div>
+            @endif
+            @endif
         </form>
+        @endif
     </div>
 </div>
 
@@ -81,37 +199,30 @@
     @endphp
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
+            <div class="recon-kpi">
                     <span class="text-muted d-block">Saldo atual (antes)</span>
                     <h4 class="mb-0 mt-2 text-primary">R$ {{ number_format($currentBalance, 2, ',', '.') }}</h4>
                     <small class="text-muted">
                         Atualizado em {{ optional($selectedAccount->balance_updated_at)->format('d/m/Y H:i') ?? '—' }}
                     </small>
-                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card h-100 shadow-sm border-success">
-                <div class="card-body">
+            <div class="recon-kpi border-success">
                     <span class="text-muted d-block">Entradas conciliáveis</span>
                     <h4 class="mb-0 mt-2 text-success">R$ {{ number_format($preview['totals']['income'], 2, ',', '.') }}</h4>
                     <small class="text-muted">{{ $preview['income_groups']->sum('count') }} lançamento(s)</small>
-                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card h-100 shadow-sm border-danger">
-                <div class="card-body">
+            <div class="recon-kpi border-danger">
                     <span class="text-muted d-block">Saídas conciliáveis</span>
                     <h4 class="mb-0 mt-2 text-danger">R$ {{ number_format($preview['totals']['expense'], 2, ',', '.') }}</h4>
                     <small class="text-muted">{{ $preview['expense_groups']->sum('count') }} lançamento(s)</small>
-                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card h-100 shadow-sm {{ $preview['totals']['net'] >= 0 ? 'border-success' : 'border-danger' }}">
-                <div class="card-body">
+            <div class="recon-kpi {{ $preview['totals']['net'] >= 0 ? 'border-success' : 'border-danger' }}">
                     <span class="text-muted d-block">Saldo projetado</span>
                     <h4 class="mb-0 mt-2 {{ $preview['totals']['net'] >= 0 ? 'text-success' : 'text-danger' }}">
                         R$ {{ number_format($projectedBalance, 2, ',', '.') }}
@@ -119,7 +230,6 @@
                     <small class="text-muted">
                         Resultado do período: {{ $preview['totals']['net'] >= 0 ? '+' : '-' }}R$ {{ number_format(abs($preview['totals']['net']), 2, ',', '.') }}
                     </small>
-                </div>
             </div>
         </div>
     </div>

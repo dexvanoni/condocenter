@@ -211,38 +211,51 @@
 
 @section('content')
 <div class="container-fluid px-4 sd-page">
-    <div class="sd-header row align-items-start mb-4">
-        <div class="col-lg-8">
-            <h1 class="mb-1"><i class="bi bi-speedometer2 text-primary"></i> Dashboard do Síndico</h1>
-            <p class="text-muted mb-0">
-                Olá, <strong>{{ Auth::user()->name }}</strong> · {{ $condominium->name }}
-                <span class="d-none d-md-inline">· {{ now()->translatedFormat('l, d \d\e F') }}</span>
+    {{-- Hero + ações financeiras no topo --}}
+    <div class="sd-hero">
+        <div class="row align-items-center position-relative" style="z-index:1">
+            <div class="col-lg-8">
+                <h1><i class="bi bi-speedometer2 me-2"></i>Dashboard do Síndico</h1>
+                <p class="sd-hero__meta mb-0">
+                    Olá, <strong>{{ Auth::user()->name }}</strong> · {{ $condominium->name }}
+                    <span class="d-none d-md-inline">· {{ now()->translatedFormat('l, d \d\e F') }}</span>
                 </p>
             </div>
-        <div class="col-lg-4 mt-3 mt-lg-0 d-flex flex-wrap gap-2 justify-content-lg-end">
-            @if($isFinancialFull && Route::has('transactions.index'))
-                @can('view_transactions')
-                <a href="{{ route('transactions.index') }}" class="btn btn-primary btn-sm">
-                    <i class="bi bi-graph-up"></i> Financeiro
+            <div class="col-lg-4 mt-3 mt-lg-0 d-flex flex-wrap gap-2 justify-content-lg-end">
+                @if($isFinancialFull && Route::has('transactions.index'))
+                    @can('view_transactions')
+                    <a href="{{ route('transactions.index') }}" class="btn btn-light btn-sm fw-semibold">
+                        <i class="bi bi-graph-up"></i> Financeiro
+                    </a>
+                    @endcan
+                @elseif(Route::has('accountability-uploads.index'))
+                    <a href="{{ route('accountability-uploads.index') }}" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-file-earmark-arrow-up"></i> Prestação de contas
+                    </a>
+                @endif
+                @if(Route::has('syndic-conversations.manage'))
+                <a href="{{ route('syndic-conversations.manage') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-chat-dots"></i> Conversas
                 </a>
-                @endcan
-            @elseif(Route::has('accountability-uploads.index'))
-                <a href="{{ route('accountability-uploads.index') }}" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-file-earmark-arrow-up"></i> Prestação de contas
-                </a>
-            @endif
-            @if(Route::has('syndic-conversations.manage'))
-            <a href="{{ route('syndic-conversations.manage') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-chat-dots"></i> Fale com o síndico
-            </a>
-            @endif
+                @endif
+            </div>
         </div>
     </div>
+
+    @include('dashboard.partials.sindico-action-bar')
 
     <div id="announcementBannerContainer"></div>
     @include('dashboard.partials.ride-alerts')
 
-    {{-- Cards de atenção imediata --}}
+    {{-- Demandas prioritárias --}}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div class="sd-section-title mb-0 flex-grow-1"><i class="bi bi-lightning-charge-fill text-warning"></i> Demandas prioritárias</div>
+        <span class="sd-demand-badge {{ $totalDemandas > 0 ? '' : 'sd-demand-badge--ok' }}">
+            <i class="bi bi-{{ $totalDemandas > 0 ? 'exclamation-circle' : 'check-circle' }}"></i>
+            {{ $totalDemandas }} pendência{{ $totalDemandas === 1 ? '' : 's' }}
+        </span>
+    </div>
+
     <div class="row g-3 mb-4">
         @if(Route::has('syndic-conversations.manage'))
         <div class="col-xl-3 col-md-6">
@@ -293,9 +306,49 @@
                 </span>
             </a>
         </div>
+
+        @if(Route::has('service-orders.manage.index') && auth()->user()->can('manage', App\Models\ServiceOrder::class))
+        <div class="col-xl-3 col-md-6">
+            <a href="{{ route('service-orders.manage.index') }}" class="sd-alert-card sd-alert-card--{{ ($serviceOrdersAbertas ?? 0) > 0 ? 'warning' : 'success' }}">
+                <span class="sd-alert-card__icon"><i class="bi bi-tools"></i></span>
+                <span>
+                    <span class="sd-alert-card__label">Ordens de serviço</span>
+                    <div class="sd-alert-card__value">{{ $serviceOrdersAbertas ?? 0 }}</div>
+                    <p class="sd-alert-card__hint">Abertas / em andamento</p>
+                </span>
+            </a>
+        </div>
+        @endif
+    </div>
+
+    @if($isFinancialFull)
+        @include('dashboard.partials.sindico-financial')
+    @else
+    <div class="sd-mode-banner mb-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div>
+                <strong><i class="bi bi-info-circle me-1"></i> Financeiro simplificado ativo</strong>
+                <p class="mb-0 small text-muted mt-1">
+                    Indicadores financeiros detalhados, gráficos e inadimplência aparecem apenas no modo <strong>completo</strong>.
+                </p>
+            </div>
+            @if(Route::has('financial.settings.index') && \App\Helpers\SidebarHelper::canManageFinancialSettings(auth()->user()))
+            <a href="{{ route('financial.settings.index') }}" class="btn btn-sm btn-outline-primary">Alterar modo</a>
+            @endif
+        </div>
+    </div>
+    @endif
+
+    {{-- Gráfico operacional (7 dias) --}}
+    <div class="sd-section-title"><i class="bi bi-graph-up"></i> Atividade operacional (7 dias)</div>
+    <div class="sd-panel mb-4">
+        <div class="sd-panel__body">
+            <canvas id="graficoOperacional" height="80"></canvas>
+        </div>
     </div>
 
     {{-- KPIs operacionais --}}
+    <div class="sd-section-title"><i class="bi bi-building"></i> Indicadores do condomínio</div>
     <div class="row g-3 mb-4">
         <div class="col-lg-2 col-md-4 col-6">
             <div class="sd-kpi">
@@ -339,25 +392,6 @@
             </div>
         </div>
     </div>
-
-    @if(!$isFinancialFull)
-    <div class="sd-mode-banner mb-4">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <div>
-                <strong><i class="bi bi-info-circle me-1"></i> Financeiro simplificado ativo</strong>
-                <p class="mb-0 small text-muted mt-1">
-                    Indicadores financeiros detalhados, gráficos e inadimplência aparecem apenas no modo <strong>completo</strong>.
-                    Use a prestação de contas para publicar relatórios ao condomínio.
-                </p>
-            </div>
-            @if(Route::has('financial.settings.index') && \App\Helpers\SidebarHelper::canManageFinancialSettings(auth()->user()))
-            <a href="{{ route('financial.settings.index') }}" class="btn btn-sm btn-outline-primary">Alterar modo</a>
-            @endif
-        </div>
-    </div>
-    @else
-        @include('dashboard.partials.sindico-financial')
-    @endif
 
     {{-- Listas de pendências --}}
     <div class="row g-4 mb-4">
@@ -457,34 +491,58 @@
         <div class="col-xl-4">
             <div class="sd-panel h-100">
                 <div class="sd-panel__head">
-                    <h3><i class="bi bi-lightning-charge"></i> Atalhos</h3>
+                    <h3><i class="bi bi-lightning-charge"></i> Atalhos rápidos</h3>
                 </div>
                 <div class="sd-panel__body">
-                    @can('view_users')
-                    <a href="{{ route('users.index') }}" class="sd-quick-link">
-                        <span class="sd-quick-link__icon"><i class="bi bi-people"></i></span>
-                        <span><strong>Moradores</strong><br><small class="text-muted">{{ $moradoresAtivos }} ativos</small></span>
-                    </a>
-                    @endcan
-                    @if(Route::has('access-control.reports') && auth()->user()->can('view_access_movements'))
-                    <a href="{{ route('access-control.reports') }}" class="sd-quick-link">
-                        <span class="sd-quick-link__icon"><i class="bi bi-shield-check"></i></span>
-                        <span><strong>Controle de acesso</strong><br><small class="text-muted">Relatório de movimentações</small></span>
-                    </a>
-                    @endif
-                    @can('manage_reservations')
-                    <a href="{{ route('reservations.manage') }}" class="sd-quick-link">
-                        <span class="sd-quick-link__icon"><i class="bi bi-calendar-check"></i></span>
-                        <span><strong>Gestão de reservas</strong><br><small class="text-muted">{{ $reservasPendentes }} pendente(s)</small></span>
-                    </a>
-                    @endcan
+                    <div class="sd-shortcuts-grid mb-3">
+                        @can('view_users')
+                        <a href="{{ route('users.index') }}" class="sd-shortcut-tile">
+                            <i class="bi bi-people"></i>
+                            <span>Moradores</span>
+                        </a>
+                        @endcan
+                        @can('manage_reservations')
+                        <a href="{{ route('reservations.manage') }}" class="sd-shortcut-tile">
+                            <i class="bi bi-calendar-check"></i>
+                            <span>Reservas</span>
+                        </a>
+                        @endcan
+                        <a href="{{ route('packages.index') }}" class="sd-shortcut-tile">
+                            <i class="bi bi-box-seam"></i>
+                            <span>Encomendas</span>
+                        </a>
+                        @if(Route::has('service-orders.manage.index'))
+                        <a href="{{ route('service-orders.manage.index') }}" class="sd-shortcut-tile">
+                            <i class="bi bi-tools"></i>
+                            <span>OS</span>
+                        </a>
+                        @endif
+                        @if(Route::has('charges.index'))
+                        <a href="{{ route('charges.index') }}" class="sd-shortcut-tile">
+                            <i class="bi bi-receipt"></i>
+                            <span>Cobranças</span>
+                        </a>
+                        @endif
+                        @if(Route::has('access-control.reports') && auth()->user()->can('view_access_movements'))
+                        <a href="{{ route('access-control.reports') }}" class="sd-shortcut-tile">
+                            <i class="bi bi-shield-check"></i>
+                            <span>Acesso</span>
+                        </a>
+                        @endif
+                    </div>
                     @if($isFinancialFull && Route::has('financial.status.index'))
                         @can('view_financial_reports')
                         <a href="{{ route('financial.status.index') }}" class="sd-quick-link">
                             <span class="sd-quick-link__icon"><i class="bi bi-bar-chart"></i></span>
-                            <span><strong>Situação financeira</strong><br><small class="text-muted">Relatórios e indicadores</small></span>
+                            <span><strong>Situação financeira</strong><br><small class="text-muted">Relatórios completos</small></span>
                         </a>
                         @endcan
+                    @endif
+                    @if(Route::has('condominiums.show'))
+                    <a href="{{ route('condominiums.show', $condominium) }}" class="sd-quick-link mb-0">
+                        <span class="sd-quick-link__icon"><i class="bi bi-building"></i></span>
+                        <span><strong>Meu condomínio</strong><br><small class="text-muted">Configurações gerais</small></span>
+                    </a>
                     @endif
                 </div>
             </div>
@@ -575,4 +633,35 @@
 @include('finance.accounts.modals')
 @endcan
 @endif
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const opCanvas = document.getElementById('graficoOperacional');
+    if (!opCanvas) return;
+
+    const data = @json($graficoOperacional ?? []);
+    new Chart(opCanvas, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.dia),
+            datasets: [
+                { label: 'Reservas', data: data.map(d => d.reservas), backgroundColor: 'rgba(56, 102, 210, 0.85)', borderRadius: 4 },
+                { label: 'Portaria', data: data.map(d => d.entradas), backgroundColor: 'rgba(17, 153, 142, 0.85)', borderRadius: 4 },
+                { label: 'Encomendas', data: data.map(d => d.encomendas), backgroundColor: 'rgba(245, 158, 11, 0.85)', borderRadius: 4 },
+            ],
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top' } },
+            scales: {
+                x: { stacked: false },
+                y: { beginAtZero: true, ticks: { stepSize: 1 } },
+            },
+        },
+    });
+});
+</script>
+@endpush
 @endsection

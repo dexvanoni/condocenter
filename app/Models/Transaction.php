@@ -13,6 +13,7 @@ class Transaction extends Model implements Auditable
 
     protected $fillable = [
         'condominium_id',
+        'bank_account_id',
         'unit_id',
         'user_id',
         'type',
@@ -67,6 +68,11 @@ class Transaction extends Model implements Auditable
     public function bankReconciliation()
     {
         return $this->belongsTo(BankAccountReconciliation::class, 'reconciliation_id');
+    }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class);
     }
 
     public function parentTransaction()

@@ -17,7 +17,16 @@ class BankAccountController extends Controller
 
     public function __construct()
     {
-        $this->middleware(['can:view_bank_statements'])->only(['index', 'show']);
+        $this->middleware(function ($request, $next) {
+            $user = $request->user();
+
+            if ($user?->can('view_bank_statements') || $user?->can('manage_bank_statements')) {
+                return $next($request);
+            }
+
+            abort(403, 'Acesso não autorizado.');
+        })->only(['index', 'show']);
+
         $this->middleware(['can:manage_bank_statements'])->except(['index', 'show']);
     }
 
@@ -45,6 +54,10 @@ class BankAccountController extends Controller
         $data['condominium_id'] = $this->activeCondominiumId($request->user());
 
         $account = BankAccount::create($data);
+
+        if ($request->boolean('is_primary')) {
+            $this->syncPrimaryAccount($account);
+        }
 
         if (!empty($data['current_balance'])) {
             $recordedAt = $data['balance_updated_at'] ?? now();
@@ -83,6 +96,10 @@ class BankAccountController extends Controller
 
         $bankAccount->update($data);
 
+        if ($request->boolean('is_primary')) {
+            $this->syncPrimaryAccount($bankAccount);
+        }
+
         if ($request->boolean('register_balance_history') && $request->filled('history_balance')) {
             $historyRecordedAt = $request->input('history_recorded_at') ?: ($bankAccount->balance_updated_at?->format('Y-m-d') ?? now()->toDateString());
 
@@ -119,6 +136,16 @@ class BankAccountController extends Controller
     private function authorizeAccount(BankAccount $bankAccount): void
     {
         $this->ensureResourceBelongsToActiveCondominium(Auth::user(), (int) $bankAccount->condominium_id);
+    }
+
+    private function syncPrimaryAccount(BankAccount $account): void
+    {
+        BankAccount::query()
+            ->where('condominium_id', $account->condominium_id)
+            ->where('id', '!=', $account->id)
+            ->update(['is_primary' => false]);
+
+        $account->forceFill(['is_primary' => true])->save();
     }
 }
 

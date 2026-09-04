@@ -39,9 +39,36 @@ class BankReconciliationController extends Controller
         $preview = null;
         $selectedAccount = null;
         $latestReconciliation = null;
+        $suggestedStartDate = null;
+        $pendingForAccount = null;
 
         if ($filters['account_id']) {
             $selectedAccount = $accounts->firstWhere('id', (int) $filters['account_id']);
+        }
+
+        if ($selectedAccount) {
+            $latestReconciliation = BankAccountReconciliation::where('bank_account_id', $selectedAccount->id)
+                ->where('condominium_id', $condominiumId)
+                ->latest('created_at')
+                ->first();
+
+            $suggestedStartDate = $latestReconciliation
+                ? $latestReconciliation->end_date->copy()->addDay()->format('Y-m-d')
+                : now()->startOfMonth()->format('Y-m-d');
+
+            if (!$filters['start_date']) {
+                $filters['start_date'] = $suggestedStartDate;
+            }
+            if (!$filters['end_date']) {
+                $filters['end_date'] = now()->format('Y-m-d');
+            }
+
+            $pendingForAccount = $this->service->preview(
+                $condominiumId,
+                $selectedAccount,
+                now()->subMonths(12)->startOfDay(),
+                now()->endOfDay()
+            )['totals'];
         }
 
         if ($selectedAccount && $filters['start_date'] && $filters['end_date']) {
@@ -59,13 +86,6 @@ class BankReconciliationController extends Controller
             }
         }
 
-        if ($selectedAccount) {
-            $latestReconciliation = BankAccountReconciliation::where('bank_account_id', $selectedAccount->id)
-                ->where('condominium_id', $condominiumId)
-                ->latest('created_at')
-                ->first();
-        }
-
         $reconciliations = BankAccountReconciliation::with([
                 'bankAccount',
                 'items' => fn ($query) => $query->select('id', 'reconciliation_id', 'label', 'direction', 'amount'),
@@ -81,6 +101,8 @@ class BankReconciliationController extends Controller
             'preview' => $preview,
             'selectedAccount' => $selectedAccount,
             'latestReconciliation' => $latestReconciliation,
+            'suggestedStartDate' => $suggestedStartDate,
+            'pendingForAccount' => $pendingForAccount,
             'reconciliations' => $reconciliations,
         ]);
     }

@@ -14,6 +14,7 @@ use App\Models\Package;
 use App\Models\Entry;
 use App\Models\User;
 use App\Models\Condominium;
+use App\Models\ServiceOrder;
 use App\Services\ActiveCondominiumService;
 use App\Services\SyndicConversationStatsService;
 use Illuminate\Http\Request;
@@ -170,6 +171,34 @@ class DashboardController extends Controller
             ->take(6)
             ->values();
 
+        $serviceOrdersAbertas = ServiceOrder::query()
+            ->where('condominium_id', $condominium->id)
+            ->whereIn('status', ServiceOrder::OPEN_STATUSES)
+            ->count();
+
+        $totalDemandas = $pendingUsersCount
+            + $reservasPendentes
+            + ($syndicConversationStats['pending_response'] ?? 0)
+            + $serviceOrdersAbertas;
+
+        $graficoOperacional = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $graficoOperacional[] = [
+                'dia' => $date->format('d/m'),
+                'reservas' => Reservation::individual()
+                    ->whereHas('space', fn ($q) => $q->where('condominium_id', $condominium->id))
+                    ->whereDate('reservation_date', $date)
+                    ->count(),
+                'entradas' => Entry::where('condominium_id', $condominium->id)
+                    ->whereDate('entry_time', $date)
+                    ->count(),
+                'encomendas' => Package::byCondominium($condominium->id)
+                    ->whereDate('received_at', $date)
+                    ->count(),
+            ];
+        }
+
         $financialMetrics = $this->buildSindicoFinancialMetrics($condominium, $isFinancialFull);
 
         return view('dashboard.sindico', array_merge(
@@ -190,6 +219,9 @@ class DashboardController extends Controller
                 'pendingUsers',
                 'syndicConversationStats',
                 'syndicPendingConversations',
+                'serviceOrdersAbertas',
+                'totalDemandas',
+                'graficoOperacional',
             ),
             $financialMetrics
         ));
@@ -584,6 +616,19 @@ class DashboardController extends Controller
 
         $onlinePaymentsEnabled = $condominium?->acceptsOnlinePayments() ?? false;
 
+        $graficoPagamentos = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $mes = now()->subMonths($i);
+            $graficoPagamentos[] = [
+                'mes' => $mes->translatedFormat('M'),
+                'valor' => (float) Charge::where('unit_id', $user->unit_id)
+                    ->where('status', 'paid')
+                    ->whereMonth('paid_at', $mes->month)
+                    ->whereYear('paid_at', $mes->year)
+                    ->sum('amount'),
+            ];
+        }
+
         return view('dashboard.morador', compact(
             'chargesPendentes',
             'chargesAtrasadas',
@@ -603,6 +648,8 @@ class DashboardController extends Controller
             'isMorador',
             'otherUnitsSummary',
             'onlinePaymentsEnabled',
+            'graficoPagamentos',
+            'condominium',
         ));
     }
 

@@ -1,18 +1,3 @@
-@can('manage_transactions')
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="d-flex gap-2 flex-wrap">
-            <button type="button" class="btn btn-success btn-lg shadow-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#modalRecebimento">
-                <i class="bi bi-cash-coin"></i> RECEBER
-            </button>
-            <button type="button" class="btn btn-danger btn-lg shadow-sm flex-fill flex-md-grow-0" data-bs-toggle="modal" data-bs-target="#modalPagamento">
-                <i class="bi bi-cart-check"></i> COMPRAR/PAGAR
-            </button>
-        </div>
-    </div>
-</div>
-@endcan
-
 <div class="row g-3 mb-4">
     <div class="col-xxl-2 col-lg-4 col-sm-6">
         <div class="sd-kpi sd-kpi--success">
@@ -93,6 +78,37 @@
 </div>
 
 <div class="row g-4 mb-4">
+    <div class="col-xl-5">
+        <div class="sd-panel h-100">
+            <div class="sd-panel__head">
+                <h3><i class="bi bi-pie-chart"></i> Adimplência</h3>
+            </div>
+            <div class="sd-panel__body">
+                <canvas id="graficoAdimplencia" height="200"></canvas>
+                <div class="d-flex justify-content-between mt-3 small">
+                    <span class="text-success"><i class="bi bi-circle-fill"></i> {{ max($totalUnidades - $inadimplentes, 0) }} adimplentes</span>
+                    <span class="text-danger"><i class="bi bi-circle-fill"></i> {{ $inadimplentes }} inadimplentes</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-7">
+        <div class="sd-panel h-100">
+            <div class="sd-panel__head">
+                <h3><i class="bi bi-tags"></i> Despesas por categoria ({{ now()->year }})</h3>
+            </div>
+            <div class="sd-panel__body">
+                @if($categoriasFinanceiras->isNotEmpty())
+                    <canvas id="graficoCategorias" height="120"></canvas>
+                @else
+                    <p class="text-muted text-center py-4 mb-0">Sem movimentações categorizadas neste ano.</p>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
     <div class="col-xl-8">
         <div class="sd-panel h-100">
             <div class="sd-panel__head">
@@ -106,13 +122,28 @@
     <div class="col-xl-4">
         <div class="sd-panel h-100">
             <div class="sd-panel__head">
-                <h3><i class="bi bi-pie-chart"></i> Adimplência</h3>
+                <h3><i class="bi bi-activity"></i> Resumo do mês</h3>
             </div>
             <div class="sd-panel__body">
-                <canvas id="graficoAdimplencia" height="200"></canvas>
-                <div class="d-flex justify-content-between mt-3 small">
-                    <span class="text-success"><i class="bi bi-circle-fill"></i> {{ max($totalUnidades - $inadimplentes, 0) }} adimplentes</span>
-                    <span class="text-danger"><i class="bi bi-circle-fill"></i> {{ $inadimplentes }} inadimplentes</span>
+                <div class="sd-list-item">
+                    <span>Saldo</span>
+                    <strong class="{{ $saldo >= 0 ? 'text-success' : 'text-danger' }}">R$ {{ number_format($saldo, 2, ',', '.') }}</strong>
+                </div>
+                <div class="sd-list-item">
+                    <span>Receitas</span>
+                    <strong>R$ {{ number_format($totalReceitas, 2, ',', '.') }}</strong>
+                </div>
+                <div class="sd-list-item">
+                    <span>Despesas</span>
+                    <strong>R$ {{ number_format($totalDespesas, 2, ',', '.') }}</strong>
+                </div>
+                <div class="sd-list-item">
+                    <span>A receber</span>
+                    <strong class="text-warning">R$ {{ number_format($totalAReceber, 2, ',', '.') }}</strong>
+                </div>
+                <div class="sd-list-item">
+                    <span>Em atraso</span>
+                    <strong class="text-danger">R$ {{ number_format($totalEmAtraso, 2, ',', '.') }}</strong>
                 </div>
             </div>
         </div>
@@ -226,6 +257,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 datasets: [{ data: [dados.adimplentes, dados.inadimplentes], backgroundColor: ['#11998e', '#eb3349'], borderWidth: 0 }],
             },
             options: { responsive: true, cutout: '68%', plugins: { legend: { display: false } } },
+        });
+    }
+
+    const categoriasCanvas = document.getElementById('graficoCategorias');
+    if (categoriasCanvas) {
+        const categorias = @json($categoriasFinanceiras);
+        const palette = ['#3866d2', '#0a1b67', '#11998e', '#f59e0b', '#eb3349', '#8b5cf6'];
+        new Chart(categoriasCanvas, {
+            type: 'bar',
+            data: {
+                labels: categorias.map(c => c.category),
+                datasets: [{
+                    label: 'Despesas',
+                    data: categorias.map(c => c.total_despesas),
+                    backgroundColor: categorias.map((_, i) => palette[i % palette.length]),
+                    borderRadius: 6,
+                }],
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { ticks: { callback: moneyTick } } },
+            },
         });
     }
 });

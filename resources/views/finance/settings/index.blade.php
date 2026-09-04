@@ -75,6 +75,49 @@
                 </form>
             </div>
         </div>
+
+        @if(($currentMode ?? 'full') === 'full' && ($bankAccounts ?? collect())->isNotEmpty())
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-bank"></i> Destino dos recebimentos por conta</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    Defina em qual conta bancária cada tipo de recebimento ou pagamento será registrado.
+                    Taxas individuais podem ter conta própria no cadastro da taxa; aqui você define o padrão por categoria.
+                </p>
+                <form method="POST" action="{{ route('financial.settings.routing-rules') }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="row g-3">
+                        @foreach($routingSourceKeys as $key => $label)
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">{{ $label }}</label>
+                            <select name="rules[{{ $key }}]" class="form-select">
+                                <option value="">Conta principal (padrão)</option>
+                                @foreach($bankAccounts as $bankAccount)
+                                <option value="{{ $bankAccount->id }}"
+                                    @selected((string) old("rules.{$key}", $routingRules[$key]->bank_account_id ?? '') === (string) $bankAccount->id)>
+                                    {{ $bankAccount->name }}
+                                    @if($bankAccount->is_primary) (principal) @endif
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endforeach
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Salvar regras de destino
+                        </button>
+                        <a href="{{ route('financial.bank-accounts.index') }}" class="btn btn-outline-secondary ms-2">
+                            Gerenciar contas bancárias
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        @endif
     </div>
 
     <div class="col-lg-4">

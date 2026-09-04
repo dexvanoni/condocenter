@@ -23,6 +23,7 @@ class BankAccount extends Model implements Auditable
         'type',
         'pix_key',
         'active',
+        'is_primary',
         'current_balance',
         'balance_updated_at',
         'notes',
@@ -30,6 +31,7 @@ class BankAccount extends Model implements Auditable
 
     protected $casts = [
         'active' => 'boolean',
+        'is_primary' => 'boolean',
         'current_balance' => 'decimal:2',
         'balance_updated_at' => 'datetime',
     ];
@@ -52,6 +54,11 @@ class BankAccount extends Model implements Auditable
     public function reconciliations()
     {
         return $this->hasMany(BankAccountReconciliation::class);
+    }
+
+    public function routingRules()
+    {
+        return $this->hasMany(BankAccountRoutingRule::class);
     }
 }
 

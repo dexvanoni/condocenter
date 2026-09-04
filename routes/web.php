@@ -120,6 +120,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     // Ambiente financeiro simplificado — configuração e prestação de contas por upload
     Route::get('/financial/settings', [FinancialSettingsController::class, 'index'])->name('financial.settings.index');
     Route::put('/financial/settings/mode', [FinancialSettingsController::class, 'updateMode'])->name('financial.settings.mode');
+    Route::put('/financial/settings/routing-rules', [FinancialSettingsController::class, 'updateRoutingRules'])->name('financial.settings.routing-rules');
     Route::get('/financial/accountability-uploads', [AccountabilityReportUploadController::class, 'index'])->name('accountability-uploads.index');
     Route::post('/financial/accountability-uploads', [AccountabilityReportUploadController::class, 'store'])->name('accountability-uploads.store');
     Route::post('/financial/accountability-uploads/{upload}/approve', [AccountabilityReportUploadController::class, 'approve'])->name('accountability-uploads.approve');

@@ -18,6 +18,7 @@ class BankReconciliationService
 {
     public function __construct(
         private readonly DatabaseManager $database,
+        private readonly BankAccountRoutingService $bankAccountRoutingService,
     ) {
     }
 
@@ -29,7 +30,8 @@ class BankReconciliationService
             ->where('status', 'paid')
             ->where('type', 'income')
             ->whereBetween('transaction_date', [$startDate, $endDate])
-            ->get();
+            ->get()
+            ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id));
 
         $transactionsExpense = Transaction::withTrashed()
             ->where('condominium_id', $condominiumId)
@@ -37,19 +39,22 @@ class BankReconciliationService
             ->where('status', 'paid')
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$startDate, $endDate])
-            ->get();
+            ->get()
+            ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id));
 
         $accountIncomes = CondominiumAccount::where('condominium_id', $condominiumId)
             ->whereNull('reconciliation_id')
             ->where('type', 'income')
             ->whereBetween('transaction_date', [$startDate, $endDate])
-            ->get();
+            ->get()
+            ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id));
 
         $accountExpenses = CondominiumAccount::where('condominium_id', $condominiumId)
             ->whereNull('reconciliation_id')
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$startDate, $endDate])
-            ->get();
+            ->get()
+            ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id));
 
         $chargeIncomes = $accountIncomes->where('source_type', 'charge')->values();
         $manualIncomes = $accountIncomes->reject(fn (CondominiumAccount $entry) => $entry->source_type === 'charge')->values();
@@ -63,7 +68,7 @@ class BankReconciliationService
                     'source_id' => $transaction->id,
                     'reference_date' => $transaction->transaction_date,
                     'amount' => $transaction->amount,
-                    'label' => 'Receita registrada',
+                    'label' => $transaction->description ?: 'Receita registrada',
                 ])
             ),
             $this->buildGroup(
@@ -74,7 +79,7 @@ class BankReconciliationService
                     'source_id' => $entry->id,
                     'reference_date' => $entry->transaction_date,
                     'amount' => $entry->amount,
-                    'label' => 'Recebimento de taxa',
+                    'label' => $entry->description ?: 'Recebimento de taxa',
                 ])
             ),
             $this->buildGroup(
@@ -85,7 +90,7 @@ class BankReconciliationService
                     'source_id' => $entry->id,
                     'reference_date' => $entry->transaction_date,
                     'amount' => $entry->amount,
-                    'label' => 'Recebimento avulso',
+                    'label' => $entry->description ?: 'Recebimento avulso',
                 ])
             ),
         ])->filter(fn ($group) => $group['count'] > 0)->values();
@@ -99,7 +104,7 @@ class BankReconciliationService
                     'source_id' => $transaction->id,
                     'reference_date' => $transaction->transaction_date,
                     'amount' => $transaction->amount,
-                    'label' => 'Despesa registrada',
+                    'label' => $transaction->description ?: 'Despesa registrada',
                 ])
             ),
             $this->buildGroup(
@@ -110,7 +115,7 @@ class BankReconciliationService
                     'source_id' => $entry->id,
                     'reference_date' => $entry->transaction_date,
                     'amount' => $entry->amount,
-                    'label' => 'Pagamento registrado',
+                    'label' => $entry->description ?: 'Pagamento registrado',
                 ])
             ),
         ])->filter(fn ($group) => $group['count'] > 0)->values();
@@ -308,6 +313,15 @@ class BankReconciliationService
             'count' => $items->count(),
             'items' => $items,
         ];
+    }
+
+    protected function matchesBankAccount(Transaction|CondominiumAccount $entry, int $bankAccountId): bool
+    {
+        $resolved = $entry instanceof Transaction
+            ? $this->bankAccountRoutingService->resolveForTransaction($entry)
+            : $this->bankAccountRoutingService->resolveForCondominiumAccount($entry);
+
+        return (int) $resolved === $bankAccountId;
     }
 }
 

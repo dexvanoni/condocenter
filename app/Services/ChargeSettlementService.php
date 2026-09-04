@@ -17,6 +17,7 @@ class ChargeSettlementService
 {
     public function __construct(
         private readonly DatabaseManager $database,
+        private readonly BankAccountRoutingService $bankAccountRoutingService,
     ) {
     }
 
@@ -65,6 +66,8 @@ class ChargeSettlementService
                 $account->restore();
             }
 
+            $bankAccountId = $this->bankAccountRoutingService->resolveForCharge($charge);
+
             $account->fill([
                 'description' => $charge->title,
                 'amount' => $charge->amount,
@@ -72,6 +75,7 @@ class ChargeSettlementService
                 'payment_method' => $paymentMethod,
                 'notes' => $notes,
                 'created_by' => $userId,
+                'bank_account_id' => $bankAccountId,
             ]);
             $account->save();
 

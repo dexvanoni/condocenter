@@ -1,3 +1,9 @@
+@php
+    use App\Services\BankAccountRoutingService;
+    $modalBankAccounts = app(BankAccountRoutingService::class)->accountsForCondominium(auth()->user()->tenantCondominiumId());
+    $defaultIncomeAccount = app(BankAccountRoutingService::class)->resolveByKey(auth()->user()->tenantCondominiumId(), 'manual_income');
+    $defaultExpenseAccount = app(BankAccountRoutingService::class)->resolveByKey(auth()->user()->tenantCondominiumId(), 'expense');
+@endphp
 <!-- Modal Recebimento Avulso -->
 <div class="modal fade" id="modalRecebimento" tabindex="-1" aria-labelledby="modalRecebimentoLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
@@ -26,6 +32,16 @@
                                 <span class="input-group-text">R$</span>
                                 <input type="text" name="amount" class="form-control money-input" required placeholder="0,00" inputmode="decimal" autocomplete="off">
                             </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Conta bancária</label>
+                            <select name="bank_account_id" class="form-select form-select-lg">
+                                @foreach($modalBankAccounts as $bankAccount)
+                                <option value="{{ $bankAccount->id }}" @selected($defaultIncomeAccount == $bankAccount->id)>
+                                    {{ $bankAccount->name }}
+                                </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold">Método de Pagamento</label>
@@ -109,6 +125,16 @@
                                 <span class="input-group-text">R$</span>
                                 <input type="text" name="amount" class="form-control money-input" required placeholder="0,00" inputmode="decimal" autocomplete="off">
                             </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Conta bancária</label>
+                            <select name="bank_account_id" class="form-select form-select-lg">
+                                @foreach($modalBankAccounts as $bankAccount)
+                                <option value="{{ $bankAccount->id }}" @selected($defaultExpenseAccount == $bankAccount->id)>
+                                    {{ $bankAccount->name }}
+                                </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold">Método de Pagamento</label>

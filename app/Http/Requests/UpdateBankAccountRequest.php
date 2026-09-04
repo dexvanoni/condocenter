@@ -27,6 +27,7 @@ class UpdateBankAccountRequest extends FormRequest
             'balance_updated_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
             'active' => ['sometimes', 'boolean'],
+            'is_primary' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -34,6 +35,7 @@ class UpdateBankAccountRequest extends FormRequest
     {
         $this->merge([
             'active' => $this->boolean('active'),
+            'is_primary' => $this->boolean('is_primary'),
         ]);
     }
 }

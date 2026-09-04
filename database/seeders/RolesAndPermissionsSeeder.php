@@ -151,6 +151,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'export_accountability_reports',
             'export_financial_reports',
             'manage_bank_statements',
+            'view_bank_statements',
+            'view_bank_reconciliation',
             'manage_spaces',
             'view_spaces',
             'manage_reservations',

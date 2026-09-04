@@ -4,28 +4,36 @@
 
 @section('content')
 <div class="container-fluid px-4">
-    <!-- Header -->
-    <div class="dashboard-header">
-        <div class="row align-items-center mb-4">
+    {{-- Hero --}}
+    <div class="md-hero fade-in">
+        <div class="row align-items-center">
             <div class="col-md-8">
-                <h1 class="dashboard-title">
-                    <i class="bi bi-house-heart text-gradient-primary"></i>
-                    Olá, {{ Auth::user()->name }}! 👋
-                </h1>
-                <p class="dashboard-subtitle">
-                    Unidade: <strong>{{ Auth::user()->unit->full_identifier ?? 'N/A' }}</strong>
-                    <span class="text-muted">• {{ now()->translatedFormat('l, d \d\e F \d\e Y') }}</span>
+                <h1 class="md-hero__greeting">Olá, {{ Auth::user()->name }}! 👋</h1>
+                <p class="md-hero__unit mb-1">
+                    Unidade <strong>{{ Auth::user()->unit->full_identifier ?? 'N/A' }}</strong>
+                    @if(isset($condominium))
+                        · {{ $condominium->name }}
+                    @endif
                 </p>
+                <p class="md-hero__date mb-0">{{ now()->translatedFormat('l, d \d\e F \d\e Y') }}</p>
             </div>
-            <div class="col-md-4 text-end">
-                @if($chargesPendentes->count() > 0 || $chargesAtrasadas->count() > 0)
-                <a href="{{ route('my-charges.index') }}" class="btn btn-primary">
-                    <i class="bi bi-credit-card"></i> Pagar Cobranças
-                </a>
+            <div class="col-md-4 mt-3 mt-md-0 text-md-end">
+                @if($totalDebitos > 0)
+                    <div class="d-inline-block text-start text-md-end bg-white bg-opacity-10 rounded-3 px-3 py-2">
+                        <small class="d-block opacity-75">Débitos pendentes</small>
+                        <strong class="fs-4">R$ {{ number_format($totalDebitos, 2, ',', '.') }}</strong>
+                    </div>
+                @else
+                    <div class="d-inline-flex align-items-center gap-2 bg-white bg-opacity-15 rounded-pill px-3 py-2">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span class="fw-semibold">Em dia!</span>
+                    </div>
                 @endif
             </div>
         </div>
     </div>
+
+    @include('dashboard.partials.morador-quick-actions')
 
     <!-- Alerta de Status -->
     <div id="announcementBannerContainer"></div>
@@ -435,7 +443,7 @@
     @endif
 
     <!-- Cards de Status -->
-    <div class="row g-4 mb-4">
+    <div class="row g-4 mb-4 md-stats-row">
         <!-- Total de Débitos -->
         <div class="col-xl-3 col-lg-6">
             <div class="card-stat card-gradient-{{ $totalDebitos > 0 ? 'warning' : 'success' }} stagger-1">
@@ -516,6 +524,13 @@
             </div>
         </div>
     </div>
+
+    @if(isset($graficoPagamentos) && collect($graficoPagamentos)->sum('valor') > 0)
+    <div class="md-chart-panel fade-in">
+        <h6><i class="bi bi-graph-up text-brand"></i> Seus pagamentos nos últimos 6 meses</h6>
+        <canvas id="graficoPagamentosMorador" height="70"></canvas>
+    </div>
+    @endif
 
     <!-- Cobranças Pendentes -->
     @if($chargesPendentes->count() > 0 || $chargesAtrasadas->count() > 0)
@@ -877,4 +892,46 @@
 @if($onlinePaymentsEnabled ?? false)
     @include('charges.partials.payment-checkout')
 @endif
+
+@push('scripts')
+@if(isset($graficoPagamentos) && collect($graficoPagamentos)->sum('valor') > 0)
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const canvas = document.getElementById('graficoPagamentosMorador');
+    if (!canvas) return;
+
+    const data = @json($graficoPagamentos);
+    new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.mes),
+            datasets: [{
+                label: 'Pago',
+                data: data.map(d => d.valor),
+                borderColor: '#3866d2',
+                backgroundColor: 'rgba(56, 102, 210, 0.12)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 5,
+                pointBackgroundColor: '#0a1b67',
+            }],
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR'),
+                    },
+                },
+            },
+        },
+    });
+});
+</script>
+@endif
+@endpush
 @endsection

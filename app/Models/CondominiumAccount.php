@@ -13,6 +13,7 @@ class CondominiumAccount extends Model implements Auditable
 
     protected $fillable = [
         'condominium_id',
+        'bank_account_id',
         'type',
         'source_type',
         'source_id',
@@ -54,6 +55,11 @@ class CondominiumAccount extends Model implements Auditable
     public function bankReconciliation()
     {
         return $this->belongsTo(BankAccountReconciliation::class, 'reconciliation_id');
+    }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class);
     }
 
     public function scopeIncome($query)
