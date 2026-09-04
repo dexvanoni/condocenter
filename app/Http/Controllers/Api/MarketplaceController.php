@@ -47,6 +47,7 @@ class MarketplaceController extends Controller
         }
 
         $items = $query->orderBy('created_at', 'desc')->paginate(12);
+        $items->getCollection()->transform(fn (MarketplaceItem $item) => $this->transformItem($item));
 
         return response()->json($items);
     }
@@ -64,7 +65,7 @@ class MarketplaceController extends Controller
             'condition' => 'required|in:new,used,refurbished,not_applicable',
             'whatsapp' => ['required', 'string', 'regex:/^\d{10,11}$/'],
             'images' => 'nullable|array|max:3',
-            'images.*' => 'image|mimes:jpeg,jpg,png|max:2048',
+            'images.*' => 'image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -77,15 +78,7 @@ class MarketplaceController extends Controller
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
-        // Upload de imagens
-        $imagesPaths = [];
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('marketplace/' . $user->tenantCondominiumId(), 'public');
-                $imagesPaths[] = $path;
-            }
-        }
-
+        $imagesPaths = $this->uploadImages($request, (int) $user->tenantCondominiumId());
         $sanitizedWhatsapp = preg_replace('/\D/', '', $request->whatsapp ?? '');
 
         $item = MarketplaceItem::create([
@@ -104,7 +97,7 @@ class MarketplaceController extends Controller
 
         return response()->json([
             'message' => 'Anúncio criado com sucesso!',
-            'item' => $item->load('seller')
+            'item' => $this->transformItem($item->load('seller')),
         ], 201);
     }
 
@@ -124,7 +117,7 @@ class MarketplaceController extends Controller
         // Incrementar visualizações
         $item->incrementViews();
 
-        return response()->json($item);
+        return response()->json($this->transformItem($item));
     }
 
     /**
@@ -146,29 +139,42 @@ class MarketplaceController extends Controller
             'title' => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
             'price' => 'sometimes|numeric|min:0',
+            'category' => 'sometimes|in:products,services,jobs,real_estate,vehicles,other',
+            'condition' => 'sometimes|in:new,used,refurbished,not_applicable',
             'whatsapp' => ['sometimes', 'string', 'regex:/^\d{10,11}$/'],
             'status' => 'sometimes|in:active,sold,inactive',
+            'keep_images' => 'sometimes|array|max:3',
+            'keep_images.*' => 'string',
+            'images' => 'sometimes|array|max:3',
+            'images.*' => 'image|mimes:jpeg,jpg,png,webp|max:5120',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $sanitizedWhatsapp = $request->has('whatsapp')
-            ? preg_replace('/\D/', '', $request->input('whatsapp'))
-            : null;
+        $payload = $request->only([
+            'title',
+            'description',
+            'price',
+            'category',
+            'condition',
+            'status',
+        ]);
 
-        $payload = $request->all();
+        if ($request->has('whatsapp')) {
+            $payload['whatsapp'] = preg_replace('/\D/', '', $request->input('whatsapp'));
+        }
 
-        if ($sanitizedWhatsapp !== null) {
-            $payload['whatsapp'] = $sanitizedWhatsapp;
+        if ($request->has('keep_images') || $request->hasFile('images')) {
+            $payload['images'] = $this->syncImages($item, $request);
         }
 
         $item->update($payload);
 
         return response()->json([
             'message' => 'Anúncio atualizado com sucesso',
-            'item' => $item
+            'item' => $this->transformItem($item->fresh()->load('seller')),
         ]);
     }
 
@@ -187,17 +193,79 @@ class MarketplaceController extends Controller
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
-        // Deletar imagens do storage
-        if ($item->images) {
-            foreach ($item->images as $imagePath) {
-                Storage::disk('public')->delete($imagePath);
-            }
-        }
+        $this->deleteImages($item->images ?? []);
 
         $item->delete();
 
         return response()->json([
             'message' => 'Anúncio removido com sucesso'
         ]);
+    }
+
+    protected function transformItem(MarketplaceItem $item): MarketplaceItem
+    {
+        $item->setAttribute('image_urls', $item->image_urls);
+
+        return $item;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function uploadImages(Request $request, int $condominiumId): array
+    {
+        $imagesPaths = [];
+
+        if (!$request->hasFile('images')) {
+            return $imagesPaths;
+        }
+
+        foreach ($request->file('images') as $image) {
+            if (!$image || !$image->isValid()) {
+                continue;
+            }
+
+            $imagesPaths[] = $image->store('marketplace/' . $condominiumId, 'public');
+        }
+
+        return array_slice($imagesPaths, 0, 3);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function syncImages(MarketplaceItem $item, Request $request): array
+    {
+        $currentImages = $item->images ?? [];
+        $keepImages = $request->input('keep_images', $currentImages);
+
+        if (!is_array($keepImages)) {
+            $keepImages = [];
+        }
+
+        $keepImages = array_values(array_filter(
+            $keepImages,
+            fn ($path) => is_string($path) && in_array($path, $currentImages, true)
+        ));
+
+        foreach ($currentImages as $path) {
+            if (!in_array($path, $keepImages, true)) {
+                Storage::disk('public')->delete($path);
+            }
+        }
+
+        $newImages = $this->uploadImages($request, (int) $item->condominium_id);
+
+        return array_slice(array_merge($keepImages, $newImages), 0, 3);
+    }
+
+    /**
+     * @param list<string> $images
+     */
+    protected function deleteImages(array $images): void
+    {
+        foreach ($images as $imagePath) {
+            Storage::disk('public')->delete($imagePath);
+        }
     }
 }

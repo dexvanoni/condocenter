@@ -26,12 +26,16 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 
 Route::middleware(['auth:sanctum'])->get('/user/credits', function (Request $request) {
     $user = $request->user();
-    $totalCredits = $user->getTotalCredits();
-    
-    $credits = \App\Models\UserCredit::where('user_id', $user->id)
-        ->available()
-        ->orderBy('created_at', 'asc')
-        ->get();
+    $condominiumId = $user->tenantCondominiumId();
+
+    $creditsQuery = \App\Models\UserCredit::where('user_id', $user->id)->available();
+
+    if ($condominiumId) {
+        $creditsQuery->where('condominium_id', $condominiumId);
+    }
+
+    $credits = $creditsQuery->orderBy('created_at', 'asc')->get();
+    $totalCredits = (float) $credits->sum('amount');
     
     return response()->json([
         'total' => $totalCredits,

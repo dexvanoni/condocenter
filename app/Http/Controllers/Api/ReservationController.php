@@ -10,9 +10,11 @@ use App\Models\Reservation;
 use App\Models\Space;
 use App\Services\CondominiumAsaasSettingsService;
 use App\Services\ReservationChargeService;
+use App\Services\UserCreditService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -22,6 +24,7 @@ class ReservationController extends Controller
     public function __construct(
         private readonly ReservationChargeService $reservationChargeService,
         private readonly CondominiumAsaasSettingsService $condominiumAsaasSettings,
+        private readonly UserCreditService $userCreditService,
     ) {
     }
 
@@ -81,6 +84,8 @@ class ReservationController extends Controller
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
             'notes' => 'nullable|string',
+            'use_credits' => 'sometimes|boolean',
+            'credit_amount' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -220,62 +225,52 @@ class ReservationController extends Controller
         $reservation = Reservation::create($reservationData);
 
         $generatedCharge = null;
-        if ($space->price_per_hour > 0 && $space->approval_type === 'automatic') {
-            $generatedCharge = $this->reservationChargeService->createForReservation(
-                $reservation,
-                $space,
-                context: 'automatic'
-            );
-        }
-
-        $creditUsed = false;
         $totalReservationAmount = $this->reservationChargeService->calculateAmount($reservation, $space);
         $remainingAmount = $totalReservationAmount;
-        
-        // Lógica de pagamento para pré-reservas com taxa
-        if ($space->approval_type === 'prereservation' && $totalReservationAmount > 0) {
-            // Buscar créditos disponíveis do usuário
-            $availableCredits = \App\Models\UserCredit::where('user_id', $user->id)
-                ->where('condominium_id', $user->tenantCondominiumId())
-                ->available()
-                ->orderBy('created_at', 'asc') // FIFO - First In, First Out
-                ->get();
-            
-            $totalCredits = $availableCredits->sum('amount');
-            
-            if ($totalCredits > 0) {
-                // Aplicar créditos
-                $amountToUse = min($totalCredits, $remainingAmount);
-                $remainingToApply = $amountToUse;
-                
-                foreach ($availableCredits as $credit) {
-                    if ($remainingToApply <= 0) break;
-                    
-                    $useAmount = min($credit->amount, $remainingToApply);
-                    
-                    // Marcar crédito como usado
-                    $credit->markAsUsed($reservation->id);
-                    
-                    $remainingToApply -= $useAmount;
-                }
-                
-                $remainingAmount -= $amountToUse;
-                $creditUsed = true;
-                
-                Log::info("Créditos aplicados: R$ {$amountToUse}. Restante a pagar: R$ {$remainingAmount}");
-            }
-            
-            // Se ainda sobrar valor, gerar cobrança e checkout
-            if ($remainingAmount > 0) {
-                $generatedCharge = $this->reservationChargeService->createForReservation(
+        $creditUsed = false;
+        $creditAmount = 0.0;
+
+        $useCredits = $request->boolean('use_credits');
+        $requestedCreditAmount = $request->filled('credit_amount') ? (float) $request->credit_amount : null;
+        $chargeableApproval = in_array($space->approval_type, ['prereservation', 'automatic'], true);
+
+        if ($totalReservationAmount > 0 && $chargeableApproval) {
+            DB::transaction(function () use (
+                $user,
+                $reservation,
+                $space,
+                $totalReservationAmount,
+                $useCredits,
+                $requestedCreditAmount,
+                &$creditUsed,
+                &$creditAmount,
+                &$remainingAmount,
+                &$generatedCharge
+            ) {
+                $creditResult = $this->reservationChargeService->applyCreditsToReservation(
+                    $user,
                     $reservation,
                     $space,
-                    $remainingAmount,
-                    'prereservation'
+                    $totalReservationAmount,
+                    $useCredits,
+                    $requestedCreditAmount
                 );
-            } elseif ($creditUsed) {
-                $reservation->markAsPaid('credits');
-            }
+
+                $creditUsed = $creditResult['credit_used'];
+                $creditAmount = $creditResult['credit_amount'];
+                $remainingAmount = $creditResult['remaining_amount'];
+
+                if ($remainingAmount > 0) {
+                    $generatedCharge = $this->reservationChargeService->createForReservation(
+                        $reservation,
+                        $space,
+                        $remainingAmount,
+                        $space->approval_type === 'prereservation' ? 'prereservation' : 'automatic'
+                    );
+                } elseif ($creditUsed && $space->approval_type === 'prereservation') {
+                    $reservation->markAsPaid('credits');
+                }
+            });
         }
 
         // Enviar notificação apropriada (em modo síncrono para evitar erros)
@@ -336,7 +331,7 @@ class ReservationController extends Controller
 
         // Calcular créditos totais do usuário com tratamento de erro
         try {
-            $totalCredits = $user->getTotalCredits();
+            $totalCredits = $this->userCreditService->getAvailableTotal($user, $user->tenantCondominiumId());
         } catch (\Exception $e) {
             Log::error('Erro ao calcular créditos totais: ' . $e->getMessage());
             $totalCredits = 0;
@@ -691,43 +686,69 @@ class ReservationController extends Controller
         $isSindico = $user->hasRole('Síndico');
         $isOwner = $reservation->user_id === $user->id;
 
-        // Verificar permissão
         if (!$isOwner && !$user->can('manage_reservations')) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
-        // Verificar se existe cobrança associada
-        $cancellationResult = $this->reservationChargeService->handleReservationCancellation($reservation);
-        $creditGenerated = $cancellationResult['credit_generated'];
-        $chargeDeleted = $cancellationResult['charge_cancelled'];
-        $creditAmount = $cancellationResult['credit_amount'];
-
-        // Atualizar status da reserva
-        $reservation->update([
-            'status' => 'cancelled',
-            'cancelled_by' => $user->id,
-            'cancelled_at' => now(),
-            'cancellation_reason' => $isSindico && !$isOwner ? 'Cancelado pela administração' : 'Cancelado pelo usuário'
-        ]);
-
-        // Enviar notificações
-        $this->sendCancellationNotifications($reservation, $user, $isSindico, $isOwner);
-
-        $message = 'Reserva cancelada com sucesso!';
-        
-        if ($creditGenerated) {
-            $message .= " Um crédito de R$ " . number_format($creditAmount, 2, ',', '.') . " foi adicionado à sua carteira. Válido por 12 meses.";
-        } elseif ($chargeDeleted) {
-            $message .= " A cobrança pendente foi removida.";
+        if ($reservation->status === 'cancelled') {
+            return response()->json(['error' => 'Esta reserva já foi cancelada.'], 409);
         }
 
-        return response()->json([
-            'message' => $message,
-            'notifications_sent' => true,
-            'credit_generated' => $creditGenerated,
-            'credit_amount' => $creditGenerated ? $creditAmount : 0,
-            'charge_deleted' => $chargeDeleted
-        ]);
+        try {
+            $cancellationResult = DB::transaction(function () use ($reservation, $user, $isSindico, $isOwner) {
+                $result = $this->reservationChargeService->handleReservationCancellation($reservation, $user->id);
+
+                $reservation->update([
+                    'status' => 'cancelled',
+                    'cancelled_by' => $user->id,
+                    'cancelled_at' => now(),
+                    'cancellation_reason' => $isSindico && !$isOwner
+                        ? 'Cancelado pela administração'
+                        : 'Cancelado pelo usuário',
+                ]);
+
+                return $result;
+            });
+
+            try {
+                $this->sendCancellationNotifications($reservation, $user, $isSindico, $isOwner);
+            } catch (\Exception $e) {
+                Log::error('Erro ao enviar notificações de cancelamento: ' . $e->getMessage(), [
+                    'reservation_id' => $reservation->id,
+                ]);
+            }
+
+            $creditGenerated = $cancellationResult['credit_generated'];
+            $chargeDeleted = $cancellationResult['charge_cancelled'];
+            $creditAmount = $cancellationResult['credit_amount'];
+            $totalCredits = $this->userCreditService->getAvailableTotal($user, $user->tenantCondominiumId());
+
+            $message = 'Reserva cancelada com sucesso!';
+            
+            if ($creditGenerated) {
+                $message .= " Um crédito de R$ " . number_format($creditAmount, 2, ',', '.') . " foi adicionado à sua carteira. Válido por 12 meses.";
+            } elseif ($chargeDeleted) {
+                $message .= " A cobrança pendente foi removida.";
+            }
+
+            return response()->json([
+                'message' => $message,
+                'notifications_sent' => true,
+                'credit_generated' => $creditGenerated,
+                'credit_amount' => $creditGenerated ? $creditAmount : 0,
+                'charge_deleted' => $chargeDeleted,
+                'total_user_credits' => $totalCredits,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Erro ao cancelar reserva: ' . $e->getMessage(), [
+                'reservation_id' => $reservation->id,
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'error' => 'Erro ao cancelar reserva. Tente novamente.',
+            ], 500);
+        }
     }
     
     /**
@@ -743,8 +764,9 @@ class ReservationController extends Controller
                 'type' => 'reservation_cancelled',
                 'title' => 'Reserva Cancelada',
                 'message' => "Sua reserva do(a) {$reservation->space->name} para o dia {$reservation->reservation_date->format('d/m/Y')} foi cancelada pela administração.",
-                'priority' => 'high',
-                'read_at' => null,
+                'channel' => 'database',
+                'sent' => true,
+                'sent_at' => now(),
             ]);
             
             // Enviar email
@@ -770,8 +792,9 @@ class ReservationController extends Controller
                     'type' => 'reservation_cancelled',
                     'title' => 'Reserva Cancelada por Morador',
                     'message' => "{$reservation->user->name} cancelou a reserva do(a) {$reservation->space->name} para {$reservation->reservation_date->format('d/m/Y')}.",
-                    'priority' => 'normal',
-                    'read_at' => null,
+                    'channel' => 'database',
+                    'sent' => true,
+                    'sent_at' => now(),
                 ]);
                 
                 // Enviar email

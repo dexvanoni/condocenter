@@ -50,4 +50,15 @@ class MarketplaceItem extends Model
     {
         $this->update(['status' => 'sold']);
     }
+
+    public function getImageUrlsAttribute(): array
+    {
+        return collect($this->images ?? [])
+            ->filter()
+            ->map(function (string $path) {
+                return asset('storage/' . str_replace('\\', '/', ltrim($path, '/')));
+            })
+            ->values()
+            ->all();
+    }
 }

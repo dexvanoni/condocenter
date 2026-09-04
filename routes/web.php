@@ -191,9 +191,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::get('/reservations', function () {
             $user = Auth::user();
             $condominium = Condominium::query()->find($user?->tenantCondominiumId());
+            $initialUserCredits = app(\App\Services\UserCreditService::class)
+                ->getAvailableTotal($user, $user?->tenantCondominiumId());
 
             return view('reservations.calendar', [
                 'onlinePaymentsEnabled' => $condominium?->acceptsOnlinePayments() ?? false,
+                'initialUserCredits' => $initialUserCredits,
             ]);
         })->name('reservations.index');
     });
@@ -253,7 +256,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
     // Marketplace
     Route::middleware(['check.module.access:marketplace'])->group(function () {
-        Route::get('/marketplace', function() { return view('marketplace.index'); })->name('marketplace.index');
+        Route::get('/marketplace', [\App\Http\Controllers\MarketplaceController::class, 'index'])->name('marketplace.index');
+        Route::get('/marketplace/criar', [\App\Http\Controllers\MarketplaceController::class, 'create'])->name('marketplace.create');
+        Route::get('/marketplace/{item}/editar', [\App\Http\Controllers\MarketplaceController::class, 'edit'])->name('marketplace.edit');
     });
     
     // Portaria / Controle de Acesso

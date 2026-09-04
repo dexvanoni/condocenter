@@ -112,9 +112,9 @@
             <p class="text-muted mb-0">Produtos, serviços e oportunidades compartilhadas pelos moradores do condomínio.</p>
             </div>
             @if(\App\Helpers\SidebarHelper::canCrudModule(Auth::user(), 'marketplace'))
-        <button class="btn btn-primary btn-lg shadow-sm" data-bs-toggle="modal" data-bs-target="#novoAnuncioModal">
+        <a href="{{ route('marketplace.create') }}" class="btn btn-primary btn-lg shadow-sm">
             <i class="bi bi-plus-circle me-2"></i> Novo Anúncio
-            </button>
+            </a>
             @endif
         </div>
 
@@ -163,6 +163,7 @@
 
     <div class="row g-2 d-none" id="marketplaceGrid"
          data-storage-base="{{ asset('storage') }}"
+         data-edit-url-template="{{ route('marketplace.edit', ['item' => 'ITEM_ID']) }}"
          data-current-user-id="{{ $currentUser?->id }}"
          data-is-admin-sindico="{{ $isAdminSindico ? '1' : '0' }}"></div>
 
@@ -385,14 +386,11 @@
         const modalTitle = createModalElement ? createModalElement.querySelector('.modal-title') : null;
 
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('acao') === 'novo' && createModal) {
-            createModal.show();
-            urlParams.delete('acao');
-            const newQuery = urlParams.toString();
-            const newUrl = `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}${window.location.hash}`;
-            window.history.replaceState({}, document.title, newUrl);
+        if (urlParams.get('acao') === 'novo') {
+            window.location.replace('{{ route('marketplace.create') }}');
         }
 
+        const editUrlTemplate = grid?.dataset?.editUrlTemplate || '';
         const currentUserId = Number(grid?.dataset?.currentUserId || 0);
         const isAdminSindico = grid?.dataset?.isAdminSindico === '1';
         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -484,9 +482,17 @@
             return '';
         }
 
-        function normalizeImageUrl(path) {
+        function normalizeImageUrl(path, imageUrls = null) {
+            if (Array.isArray(imageUrls) && imageUrls.length > 0) {
+                return imageUrls[0];
+            }
+
             if (!path) {
                 return config.placeholderImage;
+            }
+
+            if (/^https?:\/\//i.test(String(path))) {
+                return path;
             }
 
             const storageBase = grid?.dataset?.storageBase || '';
@@ -710,7 +716,7 @@
                 const viewsCount = Number.isInteger(item.views) ? item.views : 0;
                 const viewsLabel = `${viewsCount} ${viewsCount === 1 ? 'visualização' : 'visualizações'}`;
                 const imagePath = Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null;
-                const imageUrl = normalizeImageUrl(imagePath);
+                const imageUrl = normalizeImageUrl(imagePath, item.image_urls);
                 const whatsappDigits = String(item.whatsapp || '').replace(/\D/g, '');
                 const hasWhatsapp = /^\d{10,11}$/.test(whatsappDigits);
                 const whatsappFormatted = hasWhatsapp ? formatWhatsapp(whatsappDigits) : '';
@@ -718,9 +724,10 @@
                 const isOwner = sellerId === currentUserId;
                 const canManageItem = isOwner || isAdminSindico;
                 const manageButtons = canManageItem ? `
-                                <button class="btn btn-outline-warning btn-sm" data-action="edit-item" data-item-id="${item.id}" title="Editar" style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
+                                <a href="${editUrlTemplate.replace('ITEM_ID', item.id)}"
+                                   class="btn btn-outline-warning btn-sm" title="Editar" style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
                                     <i class="bi bi-pencil" style="font-size: 0.85rem;"></i>
-                                </button>
+                                </a>
                                 <button class="btn btn-outline-danger btn-sm" data-action="delete-item" data-item-id="${item.id}" title="Excluir" style="font-size: 0.7rem; padding: 0.25rem 0.4rem;">
                                     <i class="bi bi-trash" style="font-size: 0.85rem;"></i>
                                 </button>
@@ -923,7 +930,9 @@
             const imagesContainer = modalFields.images;
             imagesContainer.innerHTML = '';
 
-            currentModalImageUrls = Array.isArray(item.images) ? item.images.map(path => normalizeImageUrl(path)) : [];
+            currentModalImageUrls = Array.isArray(item.image_urls) && item.image_urls.length > 0
+                ? item.image_urls
+                : (Array.isArray(item.images) ? item.images.map(path => normalizeImageUrl(path)) : []);
             currentModalImageTitle = item.title || 'Imagens do anúncio';
 
             if (currentModalImageUrls.length > 0) {
@@ -1237,7 +1246,10 @@
                 }
 
                 if (action === 'edit-item') {
-                    openEditModal(itemId);
+                    const editUrl = editUrlTemplate.replace('ITEM_ID', itemId);
+                    if (editUrl) {
+                        window.location.href = editUrl;
+                    }
                     return;
                 }
 

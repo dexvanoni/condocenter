@@ -1410,13 +1410,13 @@
                         <ul class="nav flex-column inner-nav">
                             @if(SidebarHelper::canCreateMarketplace($user))
                             <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') === 'novo' ? 'active' : '' }}" href="{{ route('marketplace.index', ['acao' => 'novo']) }}">
+                                <a class="nav-link {{ request()->routeIs('marketplace.create') ? 'active' : '' }}" href="{{ route('marketplace.create') }}">
                                     <i class="bi bi-plus-circle"></i> Criar Novo Anúncio
                                 </a>
                             </li>
                             @endif
                             <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') !== 'novo' ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
+                                <a class="nav-link {{ request()->routeIs('marketplace.index') ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
                                     <i class="bi bi-bag"></i> Ver Anúncios
                                 </a>
                             </li>
@@ -2128,15 +2128,22 @@
                             </button>
                             <div class="collapse {{ $menuActive['marketplace'] ? 'show' : '' }}" id="mobileMenuMarketplace" data-bs-parent="#mobileSidebarMenu">
                                 <ul class="nav flex-column inner-nav">
+                                    @if(SidebarHelper::canCreateMarketplace($user))
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('marketplace.index') && request()->get('acao') !== 'novo' ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
+                                        <a class="nav-link {{ request()->routeIs('marketplace.create') ? 'active' : '' }}" href="{{ route('marketplace.create') }}">
+                                            <i class="bi bi-plus-circle"></i> Criar Anúncio
+                                        </a>
+                                    </li>
+                                    @endif
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('marketplace.index') ? 'active' : '' }}" href="{{ route('marketplace.index') }}">
                                             <i class="bi bi-bag"></i> Ver Anúncios
                                         </a>
                                     </li>
                                     @if(Route::has('marketplace.my-ads') && SidebarHelper::canCreateMarketplace($user))
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('marketplace.create') || request()->routeIs('marketplace.my-ads') || (request()->routeIs('marketplace.index') && request()->get('acao') === 'novo') ? 'active' : '' }}" href="{{ route('marketplace.my-ads') }}">
-                                            <i class="bi bi-plus-circle"></i> Meus Anúncios
+                                        <a class="nav-link {{ request()->routeIs('marketplace.my-ads') ? 'active' : '' }}" href="{{ route('marketplace.my-ads') }}">
+                                            <i class="bi bi-list-ul"></i> Meus Anúncios
                                         </a>
                                     </li>
                                     @endif
@@ -2437,9 +2444,9 @@
         // Mobile sidebar já funciona com Bootstrap collapse
         // openPanicModal já está definido no <head> para garantir disponibilidade imediata
 
-        // Auto-hide alerts after 5 seconds (exceto alertas de pânico)
+        // Auto-hide alerts after 5 seconds (exceto alertas de pânico e carteira de créditos)
         setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert:not(.alert-danger):not(.panic-alert)');
+            const alerts = document.querySelectorAll('.alert:not(.alert-danger):not(.panic-alert):not(.credits-wallet-card)');
             alerts.forEach(alert => {
                 const bsAlert = new bootstrap.Alert(alert);
                 bsAlert.close();

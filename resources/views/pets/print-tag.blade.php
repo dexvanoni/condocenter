@@ -1,10 +1,14 @@
+@php
+    $unitLabel = $pet->unit?->full_identifier ?? '—';
+    $phone = $pet->owner?->phone ?? '—';
+    $qrUrl = route('pets.show-qr', $pet->qr_code);
+@endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tag Pet - {{ $pet->name }}</title>
-    
+    <title>Etiqueta — {{ $pet->name }}</title>
     <style>
         * {
             margin: 0;
@@ -13,175 +17,170 @@
         }
 
         body {
-            font-family: 'Arial', 'Helvetica', sans-serif;
-            background: #f5f5f5;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #e2e8f0;
             min-height: 100vh;
-            padding: 20px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 24px;
         }
 
-        /* Container da tag - 3x2cm */
+        /* Etiqueta 3cm × 4cm */
         .pet-tag {
-            width: 2cm;
-            height: 2cm;
-            background: white;
-            border: 1.5px solid #333;
-            border-radius: 4px;
-            padding: 3px;
+            width: 3cm;
+            height: 4cm;
+            background: #fff;
+            border: 0.5pt solid #1e293b;
+            border-radius: 2mm;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            align-items: stretch;
+            overflow: hidden;
             page-break-inside: avoid;
             break-inside: avoid;
         }
 
-        /* Container do QR Code */
-        .qr-container {
-            flex: 1;
+        .pet-tag__qr {
+            flex: 1 1 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            padding: 2px 0;
+            padding: 1.5mm 1mm 1mm;
             min-height: 0;
         }
 
-        .qr-container svg {
-            width: 100%;
-            height: auto;
-            max-width: 1.4cm;
-            max-height: 1.4cm;
+        .pet-tag__qr svg {
+            width: 2.55cm;
+            height: 2.55cm;
             display: block;
         }
 
-        /* Informações do dono */
-        .owner-info {
+        .pet-tag__info {
+            flex: 0 0 auto;
+            border-top: 0.4pt solid #cbd5e1;
+            padding: 1.2mm 1.5mm 1.5mm;
             text-align: center;
-            width: 100%;
-            padding-top: 2px;
-            border-top: 1px solid #ddd;
-            flex-shrink: 0;
+            line-height: 1.15;
         }
 
-        .owner-label {
-            font-size: 5px;
-            color: #666;
-            margin-bottom: 1px;
-            font-weight: bold;
+        .pet-tag__unit {
+            font-size: 6.5pt;
+            font-weight: 700;
+            color: #334155;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.02em;
+            margin-bottom: 0.6mm;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .owner-phone {
-            font-size: 10px;
-            color: #000;
-            font-weight: bold;
+        .pet-tag__phone {
+            font-size: 7.5pt;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: 0.01em;
             word-break: break-all;
-            line-height: 1.2;
-            display: block;
         }
 
-        /* Estilos para impressão */
+        .print-toolbar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 16px 18px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+            max-width: 280px;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        .print-toolbar strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #0f172a;
+        }
+
+        .print-toolbar p {
+            margin: 0 0 8px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .print-toolbar button {
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .print-toolbar button:hover {
+            background: #1d4ed8;
+        }
+
+        .print-toolbar .tag-size {
+            font-size: 12px;
+            color: #64748b;
+        }
+
         @media print {
             body {
+                background: #fff;
                 padding: 0;
                 margin: 0;
-                background: white;
+                display: block;
+            }
+
+            .print-toolbar {
+                display: none !important;
             }
 
             .pet-tag {
-                border: 1.5px solid #000;
-                page-break-inside: avoid;
-                break-inside: avoid;
+                margin: 0;
+                border: 0.5pt solid #000;
                 box-shadow: none;
+                border-radius: 0;
             }
 
             @page {
                 size: auto;
-                margin: 0.5cm;
-            }
-
-            /* Permite múltiplas tags na mesma página */
-            .pet-tag {
-                margin-bottom: 0.5cm;
-            }
-
-            /* Impede quebra de página dentro da tag */
-            .pet-tag * {
-                page-break-inside: avoid;
-            }
-        }
-
-        /* Para visualização em tela */
-        @media screen {
-            .pet-tag {
-                margin: 20px auto;
-            }
-            
-            /* Instruções de impressão */
-            .print-instructions {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #4CAF50;
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-                font-size: 14px;
-                max-width: 300px;
-            }
-            
-            .print-instructions strong {
-                display: block;
-                margin-bottom: 8px;
-                font-size: 16px;
-            }
-            
-            .print-instructions button {
-                margin-top: 10px;
-                background: white;
-                color: #4CAF50;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: bold;
-                width: 100%;
-            }
-            
-            .print-instructions button:hover {
-                background: #f0f0f0;
-            }
-        }
-        
-        @media print {
-            .print-instructions {
-                display: none;
+                margin: 5mm;
             }
         }
     </style>
 </head>
 <body>
-    <div class="print-instructions">
-        <strong>📌 Pronto para imprimir!</strong>
-        <p>Pressione <strong>Ctrl+P</strong> (ou Cmd+P no Mac) para imprimir a tag.</p>
-        <p style="font-size: 12px; margin-top: 8px; opacity: 0.9;">Tamanho: 3x2cm</p>
-        <button onclick="window.print()">🖨️ Imprimir Agora</button>
+    <div class="print-toolbar">
+        <strong>Etiqueta do pet</strong>
+        <p>Imprima em papel adesivo ou papel comum e recorte no tamanho indicado.</p>
+        <p class="tag-size">Tamanho: <strong>3 × 4 cm</strong></p>
+        <button type="button" onclick="window.print()">Imprimir etiqueta</button>
     </div>
 
-    <div class="pet-tag">
-        <div class="qr-container">
-            {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(200)->format('svg')->errorCorrection('H')->generate(url('/pets/qr/' . $pet->qr_code)) !!}
+    <div class="pet-tag" aria-label="Etiqueta QR do pet {{ $pet->name }}">
+        <div class="pet-tag__qr">
+            {!! \SimpleSoftwareIO\QrCode\Facades\QrCode::size(320)->format('svg')->margin(0)->errorCorrection('H')->generate($qrUrl) !!}
         </div>
-        
-        <div class="owner-info">
-            <div class="owner-phone">{{ $pet->owner->phone }}</div>
+
+        <div class="pet-tag__info">
+            <div class="pet-tag__unit">Un. {{ $unitLabel }}</div>
+            <div class="pet-tag__phone">{{ $phone }}</div>
         </div>
     </div>
+
+    @if(!empty($autoPrint))
+    <script>
+        window.addEventListener('load', function () {
+            setTimeout(function () { window.print(); }, 300);
+        });
+    </script>
+    @endif
 </body>
 </html>

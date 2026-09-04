@@ -113,8 +113,8 @@
                     
                     <div class="d-flex gap-2 flex-wrap">
                         <!-- Botão QR Code -->
-                        <a href="{{ route('pets.download-qr', $pet) }}" 
-                           class="btn btn-info btn-sm" title="Baixar QR Code">
+                        <a href="{{ route('pets.print-tag', $pet) }}"
+                           class="btn btn-info btn-sm" title="Etiqueta QR (3×4 cm)" target="_blank">
                             <i class="bi bi-qr-code"></i>
                         </a>
 

@@ -10,7 +10,6 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class PetController extends Controller
 {
@@ -50,12 +49,26 @@ class PetController extends Controller
     {
         $this->authorize('create', Pet::class);
 
-        $units = Unit::byCondominium(Auth::user()->tenantCondominiumId())
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $canSelectOwner = $user->isAdmin() || $user->isSindico();
+
+        $units = Unit::byCondominium($user->tenantCondominiumId())
             ->active()
+            ->orderBy('block')
             ->orderBy('number')
             ->get();
 
-        return view('pets.create', compact('units'));
+        $prefilledUnit = $user->unit;
+        $prefilledOwner = $user;
+
+        return view('pets.create', compact(
+            'units',
+            'user',
+            'canSelectOwner',
+            'prefilledUnit',
+            'prefilledOwner',
+        ));
     }
 
     /**
@@ -65,7 +78,10 @@ class PetController extends Controller
     {
         $this->authorize('create', Pet::class);
 
-        $tenantId = Auth::user()->tenantCondominiumId();
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $tenantId = $user->tenantCondominiumId();
+        $canSelectOwner = $user->isAdmin() || $user->isSindico();
 
         $validated = $request->validate([
             'unit_id' => [
@@ -91,10 +107,21 @@ class PetController extends Controller
             'breed' => 'nullable|string|max:255',
             'color' => 'nullable|string|max:255',
             'size' => 'required|in:small,medium,large',
-            'birth_date' => 'nullable|date',
-            'observations' => 'nullable|string',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'birth_date' => 'nullable|date|before_or_equal:today',
+            'observations' => 'nullable|string|max:2000',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
+
+        if (!$canSelectOwner) {
+            if (!$user->unit_id || $user->isAgregado()) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['owner_id' => 'Sua conta não está vinculada a uma unidade para cadastrar pets.']);
+            }
+
+            $validated['unit_id'] = $user->unit_id;
+            $validated['owner_id'] = $user->id;
+        }
 
         // Verificar se o owner é da unidade selecionada
         $owner = User::findOrFail($validated['owner_id']);
@@ -109,7 +136,6 @@ class PetController extends Controller
 
         $validated['condominium_id'] = $tenantId;
 
-        // Upload da foto
         if ($request->hasFile('photo')) {
             $validated['photo'] = $request->file('photo')->store('pets', 'public');
         }
@@ -139,12 +165,17 @@ class PetController extends Controller
     {
         $this->authorize('update', $pet);
 
-        $units = Unit::byCondominium(Auth::user()->tenantCondominiumId())
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $canSelectOwner = $user->isAdmin() || $user->isSindico();
+
+        $units = Unit::byCondominium($user->tenantCondominiumId())
             ->active()
+            ->orderBy('block')
             ->orderBy('number')
             ->get();
 
-        return view('pets.edit', compact('pet', 'units'));
+        return view('pets.edit', compact('pet', 'units', 'user', 'canSelectOwner'));
     }
 
     /**
@@ -154,6 +185,10 @@ class PetController extends Controller
     {
         $this->authorize('update', $pet);
 
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $canSelectOwner = $user->isAdmin() || $user->isSindico();
+
         $validated = $request->validate([
             'unit_id' => 'required|exists:units,id',
             'owner_id' => 'required|exists:users,id',
@@ -162,10 +197,15 @@ class PetController extends Controller
             'breed' => 'nullable|string|max:255',
             'color' => 'nullable|string|max:255',
             'size' => 'required|in:small,medium,large',
-            'birth_date' => 'nullable|date',
-            'observations' => 'nullable|string',
-            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'birth_date' => 'nullable|date|before_or_equal:today',
+            'observations' => 'nullable|string|max:2000',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ]);
+
+        if (!$canSelectOwner && $pet->owner_id === $user->id) {
+            $validated['unit_id'] = $pet->unit_id;
+            $validated['owner_id'] = $pet->owner_id;
+        }
 
         // Verificar se o owner é da unidade selecionada
         $owner = User::findOrFail($validated['owner_id']);
@@ -240,20 +280,18 @@ class PetController extends Controller
     }
 
     /**
-     * Download QR Code do pet
+     * Abre etiqueta imprimível 3×4 cm com QR Code, unidade e telefone
      */
     public function downloadQrCode(Pet $pet)
     {
         $this->authorize('view', $pet);
 
-        $qrCode = QrCode::format('svg')
-            ->size(400)
-            ->errorCorrection('H')
-            ->generate(route('pets.show-qr', $pet->qr_code));
+        $pet->load(['owner', 'unit', 'condominium']);
 
-        return response($qrCode)
-            ->header('Content-Type', 'image/svg+xml')
-            ->header('Content-Disposition', 'attachment; filename="pet-' . $pet->id . '-qrcode.svg"');
+        return view('pets.print-tag', [
+            'pet' => $pet,
+            'autoPrint' => true,
+        ]);
     }
 
     /**

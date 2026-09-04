@@ -34,13 +34,13 @@
                     </div>
                     
                     <div class="d-grid gap-2">
-                        <a href="{{ route('pets.download-qr', $pet) }}" 
-                           class="btn btn-info">
-                            <i class="bi bi-download"></i> Baixar QR Code
-                        </a>
-                        <a href="/pets/{{ $pet->id }}/print-tag" 
+                        <a href="{{ route('pets.download-qr', $pet) }}"
                            class="btn btn-primary" target="_blank">
-                            <i class="bi bi-printer"></i> Imprimir Tag (3x4cm)
+                            <i class="bi bi-qr-code"></i> Gerar etiqueta (3×4 cm)
+                        </a>
+                        <a href="{{ route('pets.print-tag', $pet) }}"
+                           class="btn btn-outline-primary btn-sm" target="_blank">
+                            <i class="bi bi-eye"></i> Apenas visualizar
                         </a>
                         <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $pet->owner->phone) }}?text=Olá! Encontrei seu pet {{ $pet->name }}!" 
                            class="btn btn-success" target="_blank">

@@ -76,6 +76,14 @@ class Reservation extends Model
         return $query->where('status', 'approved');
     }
 
+    /**
+     * Reservas feitas por moradores (exclui ocorrências geradas por agendamento recorrente do síndico).
+     */
+    public function scopeIndividual($query)
+    {
+        return $query->whereNull('recurring_reservation_id');
+    }
+
     public function approve($userId)
     {
         $this->update([

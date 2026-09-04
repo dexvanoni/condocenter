@@ -8,6 +8,7 @@
     $user = Auth::user();
     $canMakeReservations = SidebarHelper::canMakeReservations($user);
     $canViewReservations = SidebarHelper::canViewReservations($user);
+    $initialUserCredits = (float) ($initialUserCredits ?? 0);
 @endphp
 
 <!-- Variáveis JavaScript para permissões -->
@@ -37,11 +38,11 @@
                 <p class="text-muted mb-0 small">Selecione o espaço e a data desejada</p>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <!-- Saldo de Créditos Compacto -->
-                <div class="alert alert-success py-2 mb-0" id="creditsAlert" style="display: none;">
+                <!-- Saldo de Créditos -->
+                <div class="alert alert-{{ $initialUserCredits > 0 ? 'success' : 'light border' }} py-2 mb-0 credits-wallet-card" id="creditsAlert">
                     <i class="bi bi-wallet2"></i>
                     <strong>Créditos:</strong>
-                    <span id="totalCredits" class="fw-bold">R$ 0,00</span>
+                    <span id="totalCredits" class="fw-bold">R$ {{ number_format($initialUserCredits, 2, ',', '.') }}</span>
                 </div>
                 
                 <!-- Badge de Reservas -->
@@ -267,9 +268,11 @@
                     <textarea class="form-control" id="hourlyNotes" rows="3"></textarea>
                 </div>
                 
-                <div class="alert alert-light border">
+                <div class="alert alert-light border mb-3">
                     <strong>Valor:</strong> <span id="hourlyPrice" class="text-success fw-bold"></span>
                 </div>
+
+                <div id="hourlyCreditPaymentSection" class="credit-payment-section d-none mb-3"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -298,6 +301,8 @@
                 <p><strong>Data:</strong> <span id="confirmDate"></span></p>
                 <p><strong>Horário:</strong> <span id="confirmHours"></span></p>
                 <p><strong>Valor:</strong> <span id="confirmPrice" class="text-success fw-bold"></span></p>
+
+                <div id="confirmCreditPaymentSection" class="credit-payment-section d-none mb-3"></div>
                 
                 <div class="mb-3">
                     <label class="form-label">Observações (opcional)</label>
@@ -675,9 +680,89 @@
     let selectedDate = null;
     let reservations = [];
     let currentReservation = null;
-    let userCredits = 0;
+    let userCredits = @json($initialUserCredits);
     let loadingSteps = 0;
     let totalSteps = 4; // espaços, reservas, créditos, calendário
+
+    function formatCurrency(value) {
+        return `R$ ${parseFloat(value || 0).toFixed(2).replace('.', ',')}`;
+    }
+
+    function renderCreditPaymentSection(containerId, totalPrice) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            return;
+        }
+
+        if (!totalPrice || totalPrice <= 0 || userCredits <= 0) {
+            container.classList.add('d-none');
+            container.innerHTML = '';
+            return;
+        }
+
+        const prefix = containerId.replace('CreditPaymentSection', '');
+        const maxCredit = Math.min(userCredits, totalPrice);
+
+        container.classList.remove('d-none');
+        container.innerHTML = `
+            <div class="alert alert-success py-2 mb-0">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="${prefix}UseCredits">
+                    <label class="form-check-label" for="${prefix}UseCredits">
+                        Usar créditos disponíveis (${formatCurrency(userCredits)})
+                    </label>
+                </div>
+                <div id="${prefix}PartialCreditWrap" class="mt-2 d-none">
+                    <label class="form-label small mb-1" for="${prefix}CreditAmount">Valor em créditos (opcional)</label>
+                    <input type="number" class="form-control form-control-sm" id="${prefix}CreditAmount" min="0.01" max="${maxCredit}" step="0.01" placeholder="Máx. ${formatCurrency(maxCredit)}">
+                    <small class="text-muted">Deixe em branco para usar o máximo possível. O restante pode ser pago via Asaas.</small>
+                </div>
+                <div id="${prefix}CreditSummary" class="small mt-2 text-muted"></div>
+            </div>
+        `;
+
+        const checkbox = document.getElementById(`${prefix}UseCredits`);
+        const partialWrap = document.getElementById(`${prefix}PartialCreditWrap`);
+        const amountInput = document.getElementById(`${prefix}CreditAmount`);
+        const summary = document.getElementById(`${prefix}CreditSummary`);
+
+        const updateSummary = () => {
+            if (!checkbox.checked) {
+                summary.textContent = '';
+                return;
+            }
+
+            let creditToUse = maxCredit;
+            if (amountInput.value) {
+                creditToUse = Math.min(maxCredit, Math.max(0, parseFloat(amountInput.value) || 0));
+            }
+
+            const remaining = Math.max(0, totalPrice - creditToUse);
+            summary.innerHTML = `Crédito: <strong>${formatCurrency(creditToUse)}</strong> · Restante: <strong>${formatCurrency(remaining)}</strong>`;
+        };
+
+        checkbox.addEventListener('change', () => {
+            partialWrap.classList.toggle('d-none', !checkbox.checked);
+            updateSummary();
+        });
+        amountInput.addEventListener('input', updateSummary);
+    }
+
+    function getCreditPaymentPayload(sectionPrefix) {
+        const checkbox = document.getElementById(`${sectionPrefix}UseCredits`);
+        if (!checkbox || !checkbox.checked) {
+            return { use_credits: false };
+        }
+
+        const payload = { use_credits: true };
+        const amountInput = document.getElementById(`${sectionPrefix}CreditAmount`);
+
+        if (amountInput && amountInput.value) {
+            payload.credit_amount = parseFloat(amountInput.value);
+        }
+
+        return payload;
+    }
 
     function normalizeTime(timeStr) {
         if (!timeStr) {
@@ -1256,6 +1341,9 @@
         document.getElementById('confirmPrice').textContent = selectedSpace.price_per_hour > 0 
             ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')}` 
             : 'GRATUITO';
+
+        const totalPrice = selectedSpace.price_per_hour > 0 ? parseFloat(selectedSpace.price_per_hour) : 0;
+        renderCreditPaymentSection('confirmCreditPaymentSection', totalPrice);
         
         // Usar Bootstrap via window ou criar manualmente
         const modalEl = document.getElementById('confirmModal');
@@ -1283,7 +1371,8 @@
                 body: JSON.stringify({
                     space_id: selectedSpace.id,
                     reservation_date: selectedDate,
-                    notes: notes
+                    notes: notes,
+                    ...getCreditPaymentPayload('confirm'),
                 })
             });
             
@@ -1505,11 +1594,16 @@
                 if (result.credit_generated) {
                     cancelMsg += `\n\n💰 Como você já havia pago, geramos um crédito de R$ ${parseFloat(result.credit_amount).toFixed(2).replace('.', ',')} na sua carteira!`;
                     cancelMsg += '\n\n✨ Use este crédito em futuras reservas (válido por 12 meses).';
-                    
-                    // Recarregar créditos
-                    await loadUserCredits();
                 } else if (result.charge_deleted) {
                     cancelMsg += '\n\n📄 A cobrança pendente foi removida.';
+                }
+
+                if (result.total_user_credits !== undefined) {
+                    updateCreditsDisplay(result.total_user_credits);
+                } else if (result.credit_generated) {
+                    const nextTotal = userCredits + (parseFloat(result.credit_amount) || 0);
+                    updateCreditsDisplay(nextTotal);
+                    await loadUserCredits();
                 }
                 
                 alert(cancelMsg);
@@ -1549,6 +1643,8 @@
                 ? `R$ ${parseFloat(selectedSpace.price_per_hour).toFixed(2).replace('.', ',')} por hora` 
                 : 'GRATUITO';
         }
+
+        renderCreditPaymentSection('hourlyCreditPaymentSection', 0);
         
         // Gerar opções de horário
         generateTimeOptions();
@@ -1725,6 +1821,15 @@
             </div>
         `;
         btnConfirm.disabled = false;
+
+        if (selectedSpace.price_per_hour > 0) {
+            const totalPrice = Math.max(1, durationHours) * parseFloat(selectedSpace.price_per_hour);
+            const hourlyPrice = document.getElementById('hourlyPrice');
+            if (hourlyPrice) {
+                hourlyPrice.textContent = `${formatCurrency(totalPrice)} (${durationHours}h)`;
+            }
+            renderCreditPaymentSection('hourlyCreditPaymentSection', totalPrice);
+        }
     }
 
     // Renderizar timeline visual dos horários
@@ -1833,7 +1938,8 @@
                     reservation_date: selectedDate,
                     start_time: startTime,
                     end_time: endTime,
-                    notes: notes
+                    notes: notes,
+                    ...getCreditPaymentPayload('hourly'),
                 })
             });
             
@@ -1883,36 +1989,40 @@
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-            
+
+            if (!response.ok) {
+                return;
+            }
+
             const data = await response.json();
-            const totalCredits = data.total || 0;
-            
-            updateCreditsDisplay(totalCredits);
+            if (typeof data.total === 'number' || typeof data.total === 'string') {
+                updateCreditsDisplay(data.total);
+            }
         } catch (error) {
             console.error('Erro ao carregar créditos:', error);
         }
     }
 
-    // Atualizar display de créditos
+    // Atualizar display de créditos (card sempre visível)
     function updateCreditsDisplay(total) {
-        userCredits = total;
-        
+        const numericTotal = Math.max(0, parseFloat(total) || 0);
+        userCredits = numericTotal;
+
         const alertEl = document.getElementById('creditsAlert');
         const totalEl = document.getElementById('totalCredits');
-        
-        // Verificar se os elementos existem antes de usar
-        if (total > 0) {
-            if (totalEl) {
-                totalEl.textContent = `R$ ${parseFloat(total).toFixed(2).replace('.', ',')}`;
-            }
-            if (alertEl) {
-                alertEl.style.display = 'block';
-            }
-        } else {
-            if (alertEl) {
-                alertEl.style.display = 'none';
-            }
+
+        if (totalEl) {
+            totalEl.textContent = `R$ ${numericTotal.toFixed(2).replace('.', ',')}`;
         }
+
+        if (!alertEl) {
+            return;
+        }
+
+        alertEl.style.display = '';
+        alertEl.classList.toggle('alert-success', numericTotal > 0);
+        alertEl.classList.toggle('alert-light', numericTotal <= 0);
+        alertEl.classList.toggle('border', numericTotal <= 0);
     }
 
     // Mostrar informações de pré-reserva

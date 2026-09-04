@@ -96,6 +96,7 @@ class DashboardController extends Controller
         $totalUnidades = $condominium->units()->count();
 
         $proximasReservas = Reservation::with(['space', 'unit', 'user'])
+            ->individual()
             ->whereHas('space', function ($q) use ($condominium) {
                 $q->where('condominium_id', $condominium->id);
             })
@@ -105,13 +106,15 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $reservasPendentes = Reservation::whereHas('space', function ($q) use ($condominium) {
+        $reservasPendentes = Reservation::individual()
+            ->whereHas('space', function ($q) use ($condominium) {
                 $q->where('condominium_id', $condominium->id);
             })
             ->where('status', 'pending')
             ->count();
 
-        $reservasMes = Reservation::whereHas('space', function ($q) use ($condominium) {
+        $reservasMes = Reservation::individual()
+            ->whereHas('space', function ($q) use ($condominium) {
                 $q->where('condominium_id', $condominium->id);
             })
             ->whereMonth('reservation_date', now()->month)
