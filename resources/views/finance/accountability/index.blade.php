@@ -14,7 +14,11 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
                 <h2 class="mb-1">Prestação de Contas</h2>
-                <p class="text-muted mb-0">Relatório detalhado de receitas e despesas do condomínio.</p>
+                <p class="text-muted mb-0">
+                    Relatório oficial de receitas e despesas do condomínio.
+                    Use os botões ao lado para exportar em PDF, Excel ou imprimir.
+                    Para registrar novos lançamentos, utilize o <a href="{{ route('financial.accounts.index') }}">Caixa do Condomínio</a>.
+                </p>
             </div>
             <form method="GET" class="row g-2 align-items-end">
                 <div class="col-auto">

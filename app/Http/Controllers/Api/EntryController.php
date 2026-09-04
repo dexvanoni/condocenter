@@ -7,20 +7,25 @@ use App\Models\Entry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class EntryController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('can:register_entries');
+    }
+
     /**
      * Lista entradas/saídas
      */
     public function index(Request $request)
     {
         $user = Auth::user();
-        
+
         $query = Entry::with(['unit', 'registeredBy', 'authorizedBy'])
             ->where('condominium_id', $user->tenantCondominiumId());
 
-        // Filtros
         if ($request->has('type')) {
             $query->where('type', $request->type);
         }
@@ -47,8 +52,14 @@ class EntryController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        $condominiumId = $user->tenantCondominiumId();
+
         $validator = Validator::make($request->all(), [
-            'unit_id' => 'required|exists:units,id',
+            'unit_id' => [
+                'required',
+                Rule::exists('units', 'id')->where(fn ($query) => $query->where('condominium_id', $condominiumId)),
+            ],
             'type' => 'required|in:resident,visitor,service_provider,delivery',
             'visitor_name' => 'required_unless:type,resident|string|max:255',
             'visitor_document' => 'nullable|string|max:50',
@@ -62,26 +73,26 @@ class EntryController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = Auth::user();
+        $validated = $validator->validated();
 
         $entry = Entry::create([
-            'condominium_id' => $user->tenantCondominiumId(),
-            'unit_id' => $request->unit_id,
+            'condominium_id' => $condominiumId,
+            'unit_id' => $validated['unit_id'],
             'registered_by' => $user->id,
-            'type' => $request->type,
-            'visitor_name' => $request->visitor_name,
-            'visitor_document' => $request->visitor_document,
-            'visitor_phone' => $request->visitor_phone,
-            'vehicle_plate' => $request->vehicle_plate,
+            'type' => $validated['type'],
+            'visitor_name' => $validated['visitor_name'] ?? null,
+            'visitor_document' => $validated['visitor_document'] ?? null,
+            'visitor_phone' => $validated['visitor_phone'] ?? null,
+            'vehicle_plate' => $validated['vehicle_plate'] ?? null,
             'entry_type' => 'entry',
             'entry_time' => now(),
             'authorized' => $request->boolean('authorized'),
-            'notes' => $request->notes,
+            'notes' => $validated['notes'] ?? null,
         ]);
 
         return response()->json([
             'message' => 'Entrada registrada com sucesso',
-            'entry' => $entry->load('unit')
+            'entry' => $entry->load('unit'),
         ], 201);
     }
 
@@ -91,27 +102,39 @@ class EntryController extends Controller
     public function update(Request $request, $id)
     {
         $entry = Entry::findOrFail($id);
+        $user = Auth::user();
 
-        // Verificar permissão
-        if ($entry->condominium_id !== Auth::user()->tenantCondominiumId()) {
+        if ($entry->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
-        // Se for registrar saída
         if ($request->has('register_exit') && $request->register_exit) {
             $entry->registerExit();
-            
+
             return response()->json([
                 'message' => 'Saída registrada com sucesso',
-                'entry' => $entry
+                'entry' => $entry,
             ]);
         }
 
-        $entry->update($request->all());
+        $validator = Validator::make($request->all(), [
+            'visitor_name' => 'sometimes|string|max:255',
+            'visitor_document' => 'nullable|string|max:50',
+            'visitor_phone' => 'nullable|string|max:20',
+            'vehicle_plate' => 'nullable|string|max:10',
+            'authorized' => 'boolean',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $entry->update($validator->validated());
 
         return response()->json([
             'message' => 'Entrada atualizada com sucesso',
-            'entry' => $entry
+            'entry' => $entry,
         ]);
     }
 
@@ -123,7 +146,6 @@ class EntryController extends Controller
         $entry = Entry::with(['unit', 'registeredBy', 'authorizedBy'])
             ->findOrFail($id);
 
-        // Verificar permissão
         if ($entry->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -132,16 +154,37 @@ class EntryController extends Controller
     }
 
     /**
+     * Registra saída de uma entrada
+     */
+    public function registerExit($id)
+    {
+        $entry = Entry::findOrFail($id);
+        $user = Auth::user();
+
+        if ($entry->condominium_id !== $user->tenantCondominiumId()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        $entry->registerExit();
+
+        return response()->json([
+            'message' => 'Saída registrada com sucesso',
+            'entry' => $entry,
+        ]);
+    }
+
+    /**
      * Remove uma entrada
      */
     public function destroy($id)
     {
         $entry = Entry::findOrFail($id);
-
-        /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Apenas síndico ou admin pode deletar
+        if ($entry->condominium_id !== $user->tenantCondominiumId()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
         if (!$user->isSindico() && !$user->isAdmin()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -149,7 +192,7 @@ class EntryController extends Controller
         $entry->delete();
 
         return response()->json([
-            'message' => 'Registro removido com sucesso'
+            'message' => 'Registro removido com sucesso',
         ]);
     }
 }

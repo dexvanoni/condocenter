@@ -16,6 +16,8 @@ class GenerateAsaasPayment implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $tries = 5;
+
     public function __construct(
         public Charge $charge,
         public User $customer,
@@ -25,7 +27,21 @@ class GenerateAsaasPayment implements ShouldQueue
     public function handle(AsaasService $asaasService): void
     {
         try {
-            $charge = $this->charge->loadMissing('condominium');
+            $charge = $this->charge->fresh()->loadMissing('condominium');
+
+            if (!$charge) {
+                return;
+            }
+
+            if ($charge->asaas_payment_id) {
+                Log::info('Pagamento Asaas já existente para cobrança', [
+                    'charge_id' => $charge->id,
+                    'asaas_payment_id' => $charge->asaas_payment_id,
+                ]);
+
+                return;
+            }
+
             $asaas = $asaasService->forCondominium((int) $charge->condominium_id);
 
             $customerData = [
@@ -96,7 +112,9 @@ class GenerateAsaasPayment implements ShouldQueue
                 'customer_id' => $this->customer->id,
             ]);
 
-            $this->release(60);
+            if ($this->attempts() < $this->tries) {
+                $this->release(60);
+            }
         }
     }
 }

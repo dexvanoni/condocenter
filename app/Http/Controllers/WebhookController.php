@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Charge;
 use App\Models\Condominium;
 use App\Services\AsaasService;
 use App\Services\CondominiumSubscriptionService;
@@ -23,14 +24,22 @@ class WebhookController extends Controller
      */
     public function asaas(Request $request)
     {
-        try {
-            Log::info('Webhook Asaas (condomínio legado) recebido', $request->all());
+        if (!$this->authorizeLegacyWebhook($request)) {
+            return response()->json(['status' => 'unauthorized'], 401);
+        }
 
+        try {
             $paymentId = data_get($request->all(), 'payment.id');
+
+            Log::info('Webhook Asaas (condomínio legado) recebido', [
+                'event' => $request->input('event'),
+                'payment_id' => $paymentId,
+            ]);
+
             $condominiumId = null;
 
             if ($paymentId) {
-                $condominiumId = \App\Models\Charge::where('asaas_payment_id', $paymentId)->value('condominium_id');
+                $condominiumId = Charge::where('asaas_payment_id', $paymentId)->value('condominium_id');
             }
 
             $service = $condominiumId
@@ -90,7 +99,9 @@ class WebhookController extends Controller
         }
 
         try {
-            Log::info('Webhook Asaas (plataforma) recebido', $request->all());
+            Log::info('Webhook Asaas (plataforma) recebido', [
+                'event' => $request->input('event'),
+            ]);
 
             $handled = $this->subscriptionService->handlePlatformWebhook($request->all());
 
@@ -102,26 +113,48 @@ class WebhookController extends Controller
         }
     }
 
+    protected function authorizeLegacyWebhook(Request $request): bool
+    {
+        $paymentId = data_get($request->all(), 'payment.id');
+
+        if ($paymentId) {
+            $condominiumId = Charge::where('asaas_payment_id', $paymentId)->value('condominium_id');
+
+            if ($condominiumId) {
+                $condominium = Condominium::find($condominiumId);
+
+                return $condominium
+                    && $this->validateCondominiumWebhookToken($request, $condominium);
+            }
+        }
+
+        return $this->validatePlatformWebhookToken($request);
+    }
+
     protected function validatePlatformWebhookToken(Request $request): bool
     {
         $expected = $this->platformSettings->getAsaasConfig()['webhook_token'] ?? null;
 
-        if (!$expected) {
-            return true;
-        }
-
-        $provided = $request->header('asaas-access-token')
-            ?: $request->input('accessToken');
-
-        return hash_equals((string) $expected, (string) $provided);
+        return $this->validateWebhookToken($request, $expected, 'plataforma');
     }
 
     protected function validateCondominiumWebhookToken(Request $request, Condominium $condominium): bool
     {
-        $expected = $condominium->asaas_webhook_token;
+        return $this->validateWebhookToken($request, $condominium->asaas_webhook_token, 'condomínio');
+    }
 
+    protected function validateWebhookToken(Request $request, ?string $expected, string $context): bool
+    {
         if (!$expected) {
-            return true;
+            if (app()->environment('local', 'testing')) {
+                Log::warning("Webhook Asaas ({$context}) aceito sem token — permitido apenas em ambiente local/testing.");
+
+                return true;
+            }
+
+            Log::error("Webhook Asaas ({$context}) rejeitado: token não configurado.");
+
+            return false;
         }
 
         $provided = $request->header('asaas-access-token')

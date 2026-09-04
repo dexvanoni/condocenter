@@ -13,15 +13,11 @@ use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\Finance\BankAccountController;
 use App\Http\Controllers\Finance\BankReconciliationController;
 use App\Http\Controllers\Finance\ChargeSettlementController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Condominium;
 use App\Http\Controllers\ConversationWebController;
-
-// Rota de teste absoluta
-Route::get('/test-print-tag/{id}', function($id) {
-    return "Test OK - ID: $id - " . now();
-});
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -37,9 +33,11 @@ Route::get('/apresentacao', function () {
 })->name('apresentacao');
 
 // Webhook routes (public, sem autenticação)
-Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webhooks.asaas');
-Route::post('/webhooks/asaas/platform', [WebhookController::class, 'asaasPlatform'])->name('webhooks.asaas.platform');
-Route::post('/webhooks/asaas/condominium/{condominium}', [WebhookController::class, 'asaasCondominium'])->name('webhooks.asaas.condominium');
+Route::middleware('throttle:webhooks')->group(function () {
+    Route::post('/webhooks/asaas', [WebhookController::class, 'asaas'])->name('webhooks.asaas');
+    Route::post('/webhooks/asaas/platform', [WebhookController::class, 'asaasPlatform'])->name('webhooks.asaas.platform');
+    Route::post('/webhooks/asaas/condominium/{condominium}', [WebhookController::class, 'asaasCondominium'])->name('webhooks.asaas.condominium');
+});
 
 // QR Code público de pets (sem autenticação)
 Route::get('/pets/qr/{qrCode}', [\App\Http\Controllers\PetController::class, 'showQrCode'])->name('pets.show-qr');
@@ -67,120 +65,151 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::post('/condominium/switch', [\App\Http\Controllers\CondominiumSelectorController::class, 'switch'])->name('condominium.switch');
 
     Route::middleware(['require.condominium'])->group(function () {
-    Route::prefix('minha-assinatura')->name('syndic-subscription.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\SyndicSubscriptionController::class, 'show'])->name('show');
-        Route::get('/cobrancas/export', [\App\Http\Controllers\SyndicSubscriptionController::class, 'exportCharges'])->name('charges.export');
-        Route::get('/cobrancas/{paymentId}/pix', [\App\Http\Controllers\SyndicSubscriptionController::class, 'pixCheckout'])->name('charges.pix');
-        Route::post('/pagamento-antecipado', [\App\Http\Controllers\SyndicSubscriptionController::class, 'payEarly'])->name('pay-early');
-        Route::put('/forma-pagamento', [\App\Http\Controllers\SyndicSubscriptionController::class, 'updatePaymentMethod'])->name('payment-method.update');
-    });
-
-    Route::middleware(['ensure.saas.subscription'])->group(function () {
-    // Financeiro — taxas e cobranças (disponível em ambos os ambientes)
-    Route::middleware(['can:view_charges'])->group(function () {
-        Route::get('/minhas-cobrancas', [\App\Http\Controllers\ResidentChargeController::class, 'index'])->name('my-charges.index');
-        Route::get('/minhas-cobrancas/export/pdf', [\App\Http\Controllers\ResidentChargeController::class, 'exportPdf'])->name('my-charges.export-pdf');
-        Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
-        Route::get('/charges/data', [\App\Http\Controllers\ChargeController::class, 'data'])->name('charges.data');
-        Route::get('/charges/{charge}/receipt', [\App\Http\Controllers\ChargeController::class, 'receipt'])->name('charges.receipt');
-        Route::get('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'show'])->name('charges.show');
-        Route::post('/charges/{charge}/checkout', [\App\Http\Controllers\ChargePaymentController::class, 'checkout'])->name('charges.checkout');
-        Route::post('/charges/{charge}/pay-card', [\App\Http\Controllers\ChargePaymentController::class, 'payWithCard'])->name('charges.pay-card');
-        Route::get('/charges/{charge}/payment-status', [\App\Http\Controllers\ChargePaymentController::class, 'status'])->name('charges.payment-status');
-        Route::delete('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'destroy'])
-            ->middleware('can:manage_charges')
-            ->name('charges.destroy');
-    });
-    
-    Route::middleware(['can:view_charges'])->group(function () {
-        Route::resource('fees', FeeController::class);
-        Route::post('fees/{fee}/generate', [FeeController::class, 'generateCharges'])->name('fees.generate');
-        Route::post('fees/{fee}/clone', [FeeController::class, 'cloneFee'])->name('fees.clone');
-        Route::post('fees/{fee}/invalidate', [FeeController::class, 'invalidate'])
-            ->middleware('can:manage_charges')
-            ->name('fees.invalidate');
-    });
-
-    Route::middleware(['can:view_fines'])->group(function () {
-        Route::get('fines', [FineController::class, 'index'])->name('fines.index');
-        Route::get('fines/create', [FineController::class, 'create'])->name('fines.create');
-        Route::post('fines', [FineController::class, 'store'])->name('fines.store');
-        Route::get('fines/{fine}', [FineController::class, 'show'])->name('fines.show');
-        Route::get('fines/{fine}/pdf', [FineController::class, 'exportPdf'])->name('fines.export-pdf');
-        Route::post('fines/{fine}/cancel', [FineController::class, 'cancel'])->name('fines.cancel');
-    });
-
-    Route::post('charges/{charge}/mark-paid', [ChargeSettlementController::class, 'markPaid'])
-        ->name('charges.mark-paid');
-    Route::post('charges/{charge}/revoke-payroll', [ChargeSettlementController::class, 'revokePayroll'])
-        ->name('charges.revoke-payroll');
-    Route::post('fees/{fee}/charges/mark-all-paid', [ChargeSettlementController::class, 'markAllPaid'])
-        ->name('fees.charges.mark-all-paid');
-
-    // Ambiente financeiro simplificado — configuração e prestação de contas por upload
-    Route::get('/financial/settings', [FinancialSettingsController::class, 'index'])->name('financial.settings.index');
-    Route::put('/financial/settings/mode', [FinancialSettingsController::class, 'updateMode'])->name('financial.settings.mode');
-    Route::put('/financial/settings/routing-rules', [FinancialSettingsController::class, 'updateRoutingRules'])->name('financial.settings.routing-rules');
-    Route::get('/financial/accountability-uploads', [AccountabilityReportUploadController::class, 'index'])->name('accountability-uploads.index');
-    Route::post('/financial/accountability-uploads', [AccountabilityReportUploadController::class, 'store'])->name('accountability-uploads.store');
-    Route::post('/financial/accountability-uploads/{upload}/approve', [AccountabilityReportUploadController::class, 'approve'])->name('accountability-uploads.approve');
-    Route::get('/financial/accountability-uploads/{upload}/download', [AccountabilityReportUploadController::class, 'download'])->name('accountability-uploads.download');
-    Route::delete('/financial/accountability-uploads/{upload}', [AccountabilityReportUploadController::class, 'destroy'])->name('accountability-uploads.destroy');
-
-    // Financeiro completo — bloqueado no ambiente simplificado
-    Route::middleware(['ensure.full.financial'])->group(function () {
-        Route::middleware(['can:view_transactions'])->group(function () {
-            Route::get('/transactions', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');
+        Route::prefix('minha-assinatura')->name('syndic-subscription.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\SyndicSubscriptionController::class, 'show'])->name('show');
+            Route::get('/cobrancas/export', [\App\Http\Controllers\SyndicSubscriptionController::class, 'exportCharges'])->name('charges.export');
+            Route::get('/cobrancas/{paymentId}/pix', [\App\Http\Controllers\SyndicSubscriptionController::class, 'pixCheckout'])->name('charges.pix');
+            Route::post('/pagamento-antecipado', [\App\Http\Controllers\SyndicSubscriptionController::class, 'payEarly'])->name('pay-early');
+            Route::put('/forma-pagamento', [\App\Http\Controllers\SyndicSubscriptionController::class, 'updatePaymentMethod'])->name('payment-method.update');
         });
 
-        Route::resource('financial/bank-accounts', BankAccountController::class)
-            ->parameters(['bank-accounts' => 'bankAccount'])
-            ->names('financial.bank-accounts');
+        Route::middleware(['ensure.saas.subscription'])->group(function () {
+            // Financeiro — taxas e cobranças (disponível em ambos os ambientes)
+            Route::middleware(['can:view_charges'])->group(function () {
+                Route::get('/minhas-cobrancas', [\App\Http\Controllers\ResidentChargeController::class, 'index'])->name('my-charges.index');
+                Route::get('/minhas-cobrancas/export/pdf', [\App\Http\Controllers\ResidentChargeController::class, 'exportPdf'])->name('my-charges.export-pdf');
+                Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
+                Route::get('/charges/data', [\App\Http\Controllers\ChargeController::class, 'data'])->name('charges.data');
+                Route::get('/charges/{charge}/receipt', [\App\Http\Controllers\ChargeController::class, 'receipt'])->name('charges.receipt');
+                Route::get('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'show'])->name('charges.show');
+                Route::post('/charges/{charge}/checkout', [\App\Http\Controllers\ChargePaymentController::class, 'checkout'])->name('charges.checkout');
+                Route::post('/charges/{charge}/pay-card', [\App\Http\Controllers\ChargePaymentController::class, 'payWithCard'])->name('charges.pay-card');
+                Route::get('/charges/{charge}/payment-status', [\App\Http\Controllers\ChargePaymentController::class, 'status'])->name('charges.payment-status');
+                Route::delete('/charges/{charge}', [\App\Http\Controllers\ChargeController::class, 'destroy'])
+                    ->middleware('can:manage_charges')
+                    ->name('charges.destroy');
 
-        Route::middleware(['can:view_bank_statements'])->group(function () {
-            Route::get('/financial/reconciliations', [BankReconciliationController::class, 'index'])
-                ->name('bank-reconciliation.index');
-        });
+                Route::resource('fees', FeeController::class);
+                Route::post('fees/{fee}/generate', [FeeController::class, 'generateCharges'])->name('fees.generate');
+                Route::post('fees/{fee}/clone', [FeeController::class, 'cloneFee'])->name('fees.clone');
+                Route::post('fees/{fee}/invalidate', [FeeController::class, 'invalidate'])
+                    ->middleware('can:manage_charges')
+                    ->name('fees.invalidate');
+            });
 
-        Route::middleware(['can:manage_bank_statements'])->group(function () {
-            Route::post('/financial/reconciliations', [BankReconciliationController::class, 'store'])
-                ->name('bank-reconciliation.store');
-            Route::post('/financial/reconciliations/cancel', [BankReconciliationController::class, 'cancel'])
-                ->name('bank-reconciliation.cancel');
-        });
+            Route::middleware(['can:view_fines'])->group(function () {
+                Route::get('fines', [FineController::class, 'index'])->name('fines.index');
+                Route::get('fines/create', [FineController::class, 'create'])->middleware('can:manage_fines')->name('fines.create');
+                Route::post('fines', [FineController::class, 'store'])->middleware('can:manage_fines')->name('fines.store');
+                Route::get('fines/{fine}', [FineController::class, 'show'])->name('fines.show');
+                Route::get('fines/{fine}/pdf', [FineController::class, 'exportPdf'])->name('fines.export-pdf');
+                Route::post('fines/{fine}/cancel', [FineController::class, 'cancel'])->middleware('can:manage_fines')->name('fines.cancel');
+            });
 
-        Route::get('/financial/status', FinancialStatusController::class)->name('financial.status.index');
-        Route::get('/financial/accounts', [CondominiumAccountController::class, 'index'])->name('financial.accounts.index');
-        Route::post('/financial/accounts/income', [CondominiumAccountController::class, 'storeIncome'])
-            ->middleware('can:manage_transactions')
-            ->name('financial.accounts.income.store');
-        Route::post('/financial/accounts/expense', [CondominiumAccountController::class, 'storeExpense'])
-            ->middleware('can:manage_transactions')
-            ->name('financial.accounts.expense.store');
+            Route::middleware(['can:manage_transactions'])->group(function () {
+                Route::post('charges/{charge}/mark-paid', [ChargeSettlementController::class, 'markPaid'])
+                    ->name('charges.mark-paid');
+                Route::post('charges/{charge}/revoke-payroll', [ChargeSettlementController::class, 'revokePayroll'])
+                    ->name('charges.revoke-payroll');
+                Route::post('fees/{fee}/charges/mark-all-paid', [ChargeSettlementController::class, 'markAllPaid'])
+                    ->name('fees.charges.mark-all-paid');
+            });
 
-        Route::get('/financial/accountability', [AccountabilityReportController::class, 'index'])->name('accountability-reports.index');
-        Route::get('/financial/accountability/export/pdf', [AccountabilityReportController::class, 'exportPdf'])
-            ->name('accountability-reports.export.pdf');
-        Route::get('/financial/accountability/export/excel', [AccountabilityReportController::class, 'exportExcel'])
-            ->name('accountability-reports.export.excel');
-        Route::get('/financial/accountability/download-receipts', [AccountabilityReportController::class, 'downloadReceipts'])
-            ->name('accountability-reports.download-receipts');
-        Route::get('/financial/accountability/print', [AccountabilityReportController::class, 'print'])
-            ->name('accountability-reports.print');
+            // Ambiente financeiro simplificado — configuração e prestação de contas por upload
+            Route::get('/financial/settings', [FinancialSettingsController::class, 'index'])->name('financial.settings.index');
+            Route::put('/financial/settings/mode', [FinancialSettingsController::class, 'updateMode'])->name('financial.settings.mode');
+            Route::put('/financial/settings/routing-rules', [FinancialSettingsController::class, 'updateRoutingRules'])->name('financial.settings.routing-rules');
+            Route::get('/financial/accountability-uploads', [AccountabilityReportUploadController::class, 'index'])->name('accountability-uploads.index');
+            Route::post('/financial/accountability-uploads', [AccountabilityReportUploadController::class, 'store'])->name('accountability-uploads.store');
+            Route::post('/financial/accountability-uploads/{upload}/approve', [AccountabilityReportUploadController::class, 'approve'])->name('accountability-uploads.approve');
+            Route::get('/financial/accountability-uploads/{upload}/download', [AccountabilityReportUploadController::class, 'download'])->name('accountability-uploads.download');
+            Route::delete('/financial/accountability-uploads/{upload}', [AccountabilityReportUploadController::class, 'destroy'])->name('accountability-uploads.destroy');
 
-        Route::get('/financial/income-expense', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'index'])
-            ->name('financial.income-expense.index');
-        Route::get('/financial/income-expense/{id}/download-receipt', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'downloadReceipt'])
-            ->name('financial.income-expense.download-receipt');
-        Route::get('/financial/income-expense/export/income-pdf', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportIncomePdf'])
-            ->name('financial.income-expense.export.income-pdf');
-        Route::get('/financial/income-expense/export/income-excel', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportIncomeExcel'])
-            ->name('financial.income-expense.export.income-excel');
-        Route::get('/financial/income-expense/export/expense-pdf', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportExpensePdf'])
-            ->name('financial.income-expense.export.expense-pdf');
-        Route::get('/financial/income-expense/export/expense-excel', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'exportExpenseExcel'])
-            ->name('financial.income-expense.export.expense-excel');
-    });
+            // Financeiro completo — bloqueado no ambiente simplificado
+            Route::middleware(['ensure.full.financial'])->group(function () {
+                Route::middleware(['can:view_transactions'])->group(function () {
+                    Route::get('/transactions', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');
+                });
+
+                Route::resource('financial/bank-accounts', BankAccountController::class)
+                    ->parameters(['bank-accounts' => 'bankAccount'])
+                    ->names('financial.bank-accounts');
+
+                Route::middleware(['can:view_bank_statements'])->group(function () {
+                    Route::get('/financial/reconciliations', [BankReconciliationController::class, 'index'])
+                        ->name('bank-reconciliation.index');
+                });
+
+                Route::middleware(['can:manage_bank_statements'])->group(function () {
+                    Route::post('/financial/reconciliations', [BankReconciliationController::class, 'store'])
+                        ->name('bank-reconciliation.store');
+                    Route::post('/financial/reconciliations/cancel', [BankReconciliationController::class, 'cancel'])
+                        ->name('bank-reconciliation.cancel');
+                });
+
+                Route::get('/financial/status', FinancialStatusController::class)
+                    ->middleware('can:view_financial_reports')
+                    ->name('financial.status.index');
+
+                Route::get('/financial/accounts', [CondominiumAccountController::class, 'index'])->name('financial.accounts.index');
+                Route::post('/financial/accounts/income', [CondominiumAccountController::class, 'storeIncome'])
+                    ->middleware('can:manage_transactions')
+                    ->name('financial.accounts.income.store');
+                Route::post('/financial/accounts/expense', [CondominiumAccountController::class, 'storeExpense'])
+                    ->middleware('can:manage_transactions')
+                    ->name('financial.accounts.expense.store');
+
+                Route::middleware(['can:view_financial_reports'])->group(function () {
+                    Route::get('/financial/accountability', [AccountabilityReportController::class, 'index'])->name('accountability-reports.index');
+                    Route::get('/financial/accountability/export/pdf', [AccountabilityReportController::class, 'exportPdf'])
+                        ->name('accountability-reports.export.pdf');
+                    Route::get('/financial/accountability/export/excel', [AccountabilityReportController::class, 'exportExcel'])
+                        ->name('accountability-reports.export.excel');
+                    Route::get('/financial/accountability/download-receipts', [AccountabilityReportController::class, 'downloadReceipts'])
+                        ->name('accountability-reports.download-receipts');
+                    Route::get('/financial/accountability/print', [AccountabilityReportController::class, 'print'])
+                        ->name('accountability-reports.print');
+                });
+
+                Route::get('/financial/income-expense', function (Request $request) {
+                    $user = Auth::user();
+                    $params = $request->only(['start_date', 'end_date']);
+
+                    if ($user && ($user->can('view_accountability_reports') || $user->can('view_financial_reports'))) {
+                        return redirect()->route('accountability-reports.index', $params);
+                    }
+
+                    return redirect()->route('financial.accounts.index', $params);
+                })->name('financial.income-expense.index');
+
+                Route::get('/financial/income-expense/{id}/download-receipt', [\App\Http\Controllers\Finance\IncomeExpenseController::class, 'downloadReceipt'])
+                    ->name('financial.income-expense.download-receipt');
+
+                $redirectIncomeExpenseExport = fn (Request $request) => redirect()->route(
+                    'accountability-reports.export.pdf',
+                    $request->query()
+                );
+
+                Route::get('/financial/income-expense/export/income-pdf', $redirectIncomeExpenseExport)
+                    ->name('financial.income-expense.export.income-pdf');
+                Route::get('/financial/income-expense/export/income-excel', fn (Request $request) => redirect()->route(
+                    'accountability-reports.export.excel',
+                    $request->query()
+                ))->name('financial.income-expense.export.income-excel');
+                Route::get('/financial/income-expense/export/expense-pdf', $redirectIncomeExpenseExport)
+                    ->name('financial.income-expense.export.expense-pdf');
+                Route::get('/financial/income-expense/export/expense-excel', fn (Request $request) => redirect()->route(
+                    'accountability-reports.export.excel',
+                    $request->query()
+                ))->name('financial.income-expense.export.expense-excel');
+
+                // Rotas legadas — redirecionam para os módulos consolidados
+                Route::get('/revenue', fn () => redirect()->route('financial.accounts.index'))->name('revenue.index');
+                Route::get('/expenses', fn () => redirect()->route('financial.accounts.index'))->name('expenses.index');
+                Route::get('/financial/reports', fn () => redirect()->route('accountability-reports.index'))->name('financial-reports.index');
+                Route::get('/balance', fn () => redirect()->route('accountability-reports.index'))->name('balance.index');
+                Route::get('/my-finances', fn () => redirect()->route('financial.accounts.index'))->name('my-finances');
+            });
 
     // Espaços (Síndico)
     Route::middleware(['can:manage_spaces'])->group(function () {
@@ -366,18 +395,18 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/units/export/{format}', [\App\Http\Controllers\UnitController::class, 'export'])->name('units.export');
     Route::resource('units', \App\Http\Controllers\UnitController::class);
 
-    // Usuários
-    Route::resource('users', \App\Http\Controllers\UserController::class);
+    // Usuários — rotas específicas antes do resource para evitar conflito com {user}
+    Route::get('/users/search/ajax', [\App\Http\Controllers\UserController::class, 'search'])->name('users.search');
     Route::post('/users/{user}/approve', [\App\Http\Controllers\UserController::class, 'approve'])->name('users.approve');
     Route::post('/users/{user}/reject', [\App\Http\Controllers\UserController::class, 'reject'])->name('users.reject');
     Route::post('/users/{user}/activate', [\App\Http\Controllers\UserController::class, 'activate'])->name('users.activate');
     Route::post('/users/{user}/deactivate', [\App\Http\Controllers\UserController::class, 'deactivate'])->name('users.deactivate');
-    Route::get('/users/search/ajax', [\App\Http\Controllers\UserController::class, 'search'])->name('users.search');
     Route::post('/users/{user}/reset-password', [\App\Http\Controllers\UserController::class, 'resetPassword'])->name('users.reset-password');
     Route::get('/users/{user}/history', [\App\Http\Controllers\UserHistoryController::class, 'show'])->name('users.history');
     Route::get('/users/{user}/history/pdf', [\App\Http\Controllers\UserHistoryController::class, 'exportPdf'])->name('users.history.pdf');
     Route::get('/users/{user}/history/excel', [\App\Http\Controllers\UserHistoryController::class, 'exportExcel'])->name('users.history.excel');
     Route::get('/users/{user}/history/print', [\App\Http\Controllers\UserHistoryController::class, 'print'])->name('users.history.print');
+    Route::resource('users', \App\Http\Controllers\UserController::class);
     }); // ensure.saas.subscription
     }); // require.condominium
 

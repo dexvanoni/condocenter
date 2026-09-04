@@ -660,8 +660,12 @@ class ReservationController extends Controller
                 'error' => 'A cobrança desta pré-reserva ainda não foi paga. Utilize Minhas Cobranças para pagar.',
                 'charge_id' => $charge->id,
             ], 400);
+        } elseif ((float) ($reservation->prereservation_amount ?? 0) <= 0) {
+            $reservation->markAsPaid('no_payment_required');
         } else {
-            $reservation->markAsPaid($request->payment_reference ?? 'confirmed');
+            return response()->json([
+                'error' => 'Não foi possível confirmar o pagamento. Cobrança da pré-reserva não encontrada.',
+            ], 400);
         }
 
         // Enviar notificação de confirmação

@@ -1,18 +1,19 @@
 @extends('layouts.app')
 
-@section('title', 'Contas do Condomínio')
+@section('title', 'Caixa do Condomínio')
 
 @section('content')
 <div class="row mb-4">
     <div class="col-12">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
-                <h2 class="mb-1">Contas do Condomínio</h2>
+                <h2 class="mb-1">Caixa do Condomínio</h2>
                 <p class="text-muted mb-0">
                     @if($isMorador)
-                        Suas contribuições e informações financeiras agregadas do condomínio.
+                        Suas contribuições e movimentações do condomínio. Para o relatório completo, acesse <a href="{{ route('accountability-reports.index') }}">Prestação de Contas</a>.
                     @else
-                        Entradas e saídas registradas, com transparência para todos os moradores.
+                        Registre recebimentos e pagamentos (RECEBER/PAGAR) e acompanhe o livro-caixa do período.
+                        Exportações oficiais ficam em <a href="{{ route('accountability-reports.index') }}">Prestação de Contas</a>.
                     @endif
                 </p>
             </div>

@@ -21,25 +21,48 @@ class ChargeSettlementService
     ) {
     }
 
-    public function markAsPaid(Charge $charge, Carbon $paidAt, string $paymentMethod, ?string $notes = null, ?int $userId = null): void
-    {
-        $this->database->transaction(function () use ($charge, $paidAt, $paymentMethod, $notes, $userId) {
-            $metadata = $charge->metadata ?? [];
-            $metadata['manual_settlement'] = true;
-            $metadata['manual_payment_method'] = $paymentMethod;
-            $metadata['manual_settled_at'] = now()->format('Y-m-d H:i:s');
-            if ($userId) {
-                $metadata['manual_settled_by'] = $userId;
+    public function markAsPaid(
+        Charge $charge,
+        Carbon $paidAt,
+        string $paymentMethod,
+        ?string $notes = null,
+        ?int $userId = null,
+        bool $fromPaymentGateway = false,
+    ): void {
+        $this->database->transaction(function () use ($charge, $paidAt, $paymentMethod, $notes, $userId, $fromPaymentGateway) {
+            /** @var Charge|null $lockedCharge */
+            $lockedCharge = Charge::query()
+                ->whereKey($charge->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$lockedCharge || $lockedCharge->status === 'paid') {
+                return;
             }
 
-            $charge->forceFill([
+            $metadata = $lockedCharge->metadata ?? [];
+
+            if ($fromPaymentGateway) {
+                $metadata['gateway_settlement'] = true;
+                $metadata['gateway_payment_method'] = $paymentMethod;
+                $metadata['gateway_settled_at'] = now()->format('Y-m-d H:i:s');
+            } else {
+                $metadata['manual_settlement'] = true;
+                $metadata['manual_payment_method'] = $paymentMethod;
+                $metadata['manual_settled_at'] = now()->format('Y-m-d H:i:s');
+                if ($userId) {
+                    $metadata['manual_settled_by'] = $userId;
+                }
+            }
+
+            $lockedCharge->forceFill([
                 'status' => 'paid',
                 'paid_at' => $paidAt,
                 'metadata' => $metadata,
             ])->save();
 
             $payment = Payment::withTrashed()->firstOrNew([
-                'charge_id' => $charge->id,
+                'charge_id' => $lockedCharge->id,
                 'payment_method' => $paymentMethod,
                 'payment_date' => $paidAt->toDateString(),
             ]);
@@ -50,27 +73,27 @@ class ChargeSettlementService
 
             $payment->fill([
                 'user_id' => $userId,
-                'amount_paid' => $charge->amount,
+                'amount_paid' => $lockedCharge->amount,
                 'notes' => $notes,
             ]);
             $payment->save();
 
             $account = CondominiumAccount::withTrashed()->firstOrNew([
-                'condominium_id' => $charge->condominium_id,
+                'condominium_id' => $lockedCharge->condominium_id,
                 'type' => 'income',
                 'source_type' => 'charge',
-                'source_id' => $charge->id,
+                'source_id' => $lockedCharge->id,
             ]);
 
             if ($account->exists && method_exists($account, 'trashed') && $account->trashed()) {
                 $account->restore();
             }
 
-            $bankAccountId = $this->bankAccountRoutingService->resolveForCharge($charge);
+            $bankAccountId = $this->bankAccountRoutingService->resolveForCharge($lockedCharge);
 
             $account->fill([
-                'description' => $charge->title,
-                'amount' => $charge->amount,
+                'description' => $lockedCharge->title,
+                'amount' => $lockedCharge->amount,
                 'transaction_date' => $paidAt->toDateString(),
                 'payment_method' => $paymentMethod,
                 'notes' => $notes,
@@ -79,7 +102,7 @@ class ChargeSettlementService
             ]);
             $account->save();
 
-            app(ReservationChargeService::class)->syncReservationOnChargePaid($charge->fresh());
+            app(ReservationChargeService::class)->syncReservationOnChargePaid($lockedCharge->fresh());
         });
     }
 

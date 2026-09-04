@@ -36,7 +36,7 @@ Route::post('login', function (\Illuminate\Http\Request $request) {
     return back()->withErrors([
         'email' => 'As credenciais fornecidas não correspondem aos nossos registros.',
     ])->onlyInput('email');
-})->middleware('guest');
+})->middleware(['guest', 'throttle:auth-login']);
 
 Route::get('register', [SelfRegistrationController::class, 'create'])
     ->middleware('guest')
@@ -84,7 +84,7 @@ Route::post('forgot-password', function (\Illuminate\Http\Request $request) {
     return $status === \Illuminate\Support\Facades\Password::RESET_LINK_SENT
         ? back()->with(['status' => __($status)])
         : back()->withErrors(['email' => __($status)]);
-})->middleware('guest')->name('password.email');
+})->middleware(['guest', 'throttle:auth-password-reset'])->name('password.email');
 
 Route::get('reset-password/{token}', function (string $token) {
     return view('auth.reset-password', ['token' => $token]);

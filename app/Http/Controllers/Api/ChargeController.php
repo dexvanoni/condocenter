@@ -10,14 +10,15 @@ use App\Jobs\GenerateAsaasPayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ChargeController extends Controller
 {
-    protected $asaasService;
-
-    public function __construct(AsaasService $asaasService)
-    {
-        $this->asaasService = $asaasService;
+    public function __construct(
+        protected AsaasService $asaasService,
+    ) {
+        $this->middleware('can:view_charges')->only(['index', 'show']);
+        $this->middleware('can:manage_charges')->only(['store', 'update', 'destroy', 'bulkCreate']);
     }
 
     /**
@@ -35,18 +36,14 @@ class ChargeController extends Controller
         $baseQuery = Charge::with(['unit', 'payments'])
             ->where('condominium_id', $condominiumId);
 
-        // Se for morador, mostrar apenas suas cobranças
-        if ($user->isMorador() && $user->unit_id) {
+        if ($user->isMorador() && !$user->can('manage_charges') && $user->unit_id) {
             $baseQuery->where('unit_id', $user->unit_id);
+        } elseif ($request->filled('unit_id') && $user->can('manage_charges')) {
+            $baseQuery->where('unit_id', $request->integer('unit_id'));
         }
 
-        // Filtros
         if ($request->has('status')) {
             $baseQuery->where('status', $request->status);
-        }
-
-        if ($request->has('unit_id')) {
-            $baseQuery->where('unit_id', $request->unit_id);
         }
 
         if ($request->has('start_date') && $request->has('end_date')) {
@@ -77,7 +74,7 @@ class ChargeController extends Controller
         $perPage = $request->integer('per_page', 15);
         $charges = $chargesQuery->orderBy('due_date', 'desc')->paginate($perPage);
 
-        $unitOptions = $user->isMorador() && $user->unit_id
+        $unitOptions = $user->isMorador() && $user->unit_id && !$user->can('manage_charges')
             ? Unit::where('id', $user->unit_id)->get(['id', 'full_identifier'])
             : Unit::where('condominium_id', $condominiumId)
                 ->orderBy('block')
@@ -112,8 +109,14 @@ class ChargeController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+        $condominiumId = $user->tenantCondominiumId();
+
         $validator = Validator::make($request->all(), [
-            'unit_id' => 'required|exists:units,id',
+            'unit_id' => [
+                'required',
+                Rule::exists('units', 'id')->where(fn ($query) => $query->where('condominium_id', $condominiumId)),
+            ],
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'amount' => 'required|numeric|min:0',
@@ -129,27 +132,27 @@ class ChargeController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = Auth::user();
+        $validated = $validator->validated();
 
         $charge = Charge::create([
-            'condominium_id' => $user->tenantCondominiumId(),
-            'unit_id' => $request->unit_id,
-            'title' => $request->title,
-            'description' => $request->description,
-            'amount' => $request->amount,
-            'due_date' => $request->due_date,
-            'recurrence_period' => $request->recurrence_period,
-            'fine_percentage' => $request->fine_percentage ?? 2.00,
-            'interest_rate' => $request->interest_rate ?? 1.00,
-            'type' => $request->type,
+            'condominium_id' => $condominiumId,
+            'unit_id' => $validated['unit_id'],
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'amount' => $validated['amount'],
+            'due_date' => $validated['due_date'],
+            'recurrence_period' => $validated['recurrence_period'] ?? null,
+            'fine_percentage' => $validated['fine_percentage'] ?? 2.00,
+            'interest_rate' => $validated['interest_rate'] ?? 1.00,
+            'type' => $validated['type'],
             'status' => 'pending',
             'generated_by' => 'manual',
-            'metadata' => $request->metadata,
+            'metadata' => $validated['metadata'] ?? null,
         ]);
 
         return response()->json([
             'message' => 'Cobrança criada com sucesso',
-            'charge' => $charge
+            'charge' => $charge,
         ], 201);
     }
 
@@ -177,7 +180,6 @@ class ChargeController extends Controller
         $user = Auth::user();
         $condominiumId = $user->tenantCondominiumId();
 
-        // Buscar unidades
         if ($request->boolean('apply_to_all_units')) {
             $units = Unit::where('condominium_id', $condominiumId)
                 ->where('is_active', true)
@@ -191,7 +193,7 @@ class ChargeController extends Controller
         $chargesCreated = [];
 
         foreach ($units as $unit) {
-            $charge = Charge::create([
+            $chargesCreated[] = Charge::create([
                 'condominium_id' => $condominiumId,
                 'unit_id' => $unit->id,
                 'title' => $request->title,
@@ -206,13 +208,11 @@ class ChargeController extends Controller
                 'generated_by' => 'manual',
                 'metadata' => $request->metadata,
             ]);
-
-            $chargesCreated[] = $charge;
         }
 
         return response()->json([
             'message' => count($chargesCreated) . ' cobranças criadas com sucesso',
-            'charges' => $chargesCreated
+            'charges' => $chargesCreated,
         ], 201);
     }
 
@@ -223,33 +223,27 @@ class ChargeController extends Controller
     {
         $charge = Charge::with('unit.users')->findOrFail($id);
 
-        // Verificar permissão
-        if ($charge->condominium_id !== Auth::user()->tenantCondominiumId()) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
+        $this->authorize('generatePayment', $charge);
 
-        // Verificar se já tem pagamento Asaas
         if ($charge->asaas_payment_id) {
             return response()->json([
-                'error' => 'Esta cobrança já possui um pagamento gerado no Asaas'
+                'error' => 'Esta cobrança já possui um pagamento gerado no Asaas',
             ], 400);
         }
 
-        // Buscar morador da unidade
         $customer = $charge->unit->users()->first();
 
         if (!$customer) {
             return response()->json([
-                'error' => 'Nenhum morador encontrado para esta unidade'
+                'error' => 'Nenhum morador encontrado para esta unidade',
             ], 400);
         }
 
-        // Despachar job para gerar pagamento
         GenerateAsaasPayment::dispatch($charge, $customer);
 
         return response()->json([
             'message' => 'Pagamento está sendo gerado no Asaas. Você receberá uma notificação quando estiver pronto.',
-            'charge' => $charge
+            'charge' => $charge,
         ]);
     }
 
@@ -258,19 +252,9 @@ class ChargeController extends Controller
      */
     public function show($id)
     {
-        $charge = Charge::with(['unit', 'payments', 'condominium'])
-            ->findOrFail($id);
+        $charge = Charge::with(['unit', 'payments', 'condominium'])->findOrFail($id);
 
-        // Verificar permissão
-        $user = Auth::user();
-        if ($charge->condominium_id !== $user->tenantCondominiumId()) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
-
-        // Se for morador, só pode ver suas próprias cobranças
-        if ($user->isMorador() && $charge->unit_id !== $user->unit_id) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
+        $this->authorize('view', $charge);
 
         return response()->json($charge);
     }
@@ -282,27 +266,24 @@ class ChargeController extends Controller
     {
         $charge = Charge::findOrFail($id);
 
-        // Verificar permissão
-        if ($charge->condominium_id !== Auth::user()->tenantCondominiumId()) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
+        $this->authorize('update', $charge);
 
         $validator = Validator::make($request->all(), [
             'title' => 'sometimes|string|max:255',
+            'description' => 'nullable|string',
             'amount' => 'sometimes|numeric|min:0',
             'due_date' => 'sometimes|date',
-            'status' => 'sometimes|in:pending,paid,overdue,cancelled',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $charge->update($request->all());
+        $charge->update($validator->validated());
 
         return response()->json([
             'message' => 'Cobrança atualizada com sucesso',
-            'charge' => $charge
+            'charge' => $charge,
         ]);
     }
 
@@ -313,22 +294,18 @@ class ChargeController extends Controller
     {
         $charge = Charge::findOrFail($id);
 
-        // Verificar permissão
-        if ($charge->condominium_id !== Auth::user()->tenantCondominiumId()) {
-            return response()->json(['error' => 'Não autorizado'], 403);
-        }
+        $this->authorize('delete', $charge);
 
-        // Não permitir deletar cobranças pagas
         if ($charge->status === 'paid') {
             return response()->json([
-                'error' => 'Não é possível remover uma cobrança já paga'
+                'error' => 'Não é possível remover uma cobrança já paga',
             ], 400);
         }
 
         $charge->delete();
 
         return response()->json([
-            'message' => 'Cobrança removida com sucesso'
+            'message' => 'Cobrança removida com sucesso',
         ]);
     }
 }

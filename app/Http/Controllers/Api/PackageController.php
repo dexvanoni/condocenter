@@ -144,24 +144,23 @@ class PackageController extends Controller
     {
         $package = Package::findOrFail($id);
 
-        // Verificar permissão (apenas porteiros e síndicos)
         $user = Auth::user();
         if (!$user->can('register_packages')) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
-        $validator = Validator::make($request->all(), [
+        if ((int) $package->condominium_id !== (int) $user->tenantCondominiumId()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        $validated = $request->validate([
             'sender' => 'sometimes|string|max:255',
             'tracking_code' => 'sometimes|string|max:255',
             'description' => 'sometimes|string',
             'notes' => 'sometimes|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $package->update($request->all());
+        $package->update($validated);
 
         return response()->json([
             'message' => 'Encomenda atualizada com sucesso',
@@ -178,8 +177,11 @@ class PackageController extends Controller
 
         $user = Auth::user();
 
-        // Apenas síndico ou admin pode deletar
         if (!$user->isSindico() && !$user->isAdmin()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        if ((int) $package->condominium_id !== (int) $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 

@@ -431,17 +431,15 @@ class AsaasService
             switch ($event) {
                 case 'PAYMENT_CONFIRMED':
                 case 'PAYMENT_RECEIVED':
-                    if ($charge->status === 'paid') {
-                        return true;
-                    }
-
                     $charge->update(['asaas_payment_id' => $payment['id']]);
 
                     app(ChargeSettlementService::class)->markAsPaid(
-                        $charge->fresh(),
+                        $charge,
                         \Carbon\Carbon::parse($payment['paymentDate'] ?? now()),
                         $this->mapAsaasPaymentMethod($payment['billingType'] ?? null),
-                        'Pagamento confirmado via Asaas.'
+                        'Pagamento confirmado via Asaas.',
+                        null,
+                        true,
                     );
                     break;
 

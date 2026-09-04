@@ -17,6 +17,11 @@ class DefaulterRestrictionService
         'assemblies_vote' => 'Votar em assembleias',
     ];
 
+    private ?int $cachedUserId = null;
+
+    /** @var array<string, mixed>|null */
+    private ?array $cachedContext = null;
+
     public function isEnabled(?Condominium $condominium): bool
     {
         return (bool) ($condominium?->restrict_defaulters ?? false);
@@ -33,17 +38,7 @@ class DefaulterRestrictionService
 
     public function isRestricted(User $user): bool
     {
-        if (!$user || $this->isExemptFromRestrictions($user)) {
-            return false;
-        }
-
-        $condominium = $user->activeCondominium() ?? $user->condominium;
-
-        if (!$this->isEnabled($condominium)) {
-            return false;
-        }
-
-        return $this->hasOverdueCharges($user);
+        return $this->getContextForUser($user)['active'];
     }
 
     public function getOverdueCharges(User $user): Collection
@@ -80,16 +75,42 @@ class DefaulterRestrictionService
             return $empty;
         }
 
-        $overdue = $this->getOverdueCharges($user);
-        $active = $this->isRestricted($user);
+        if ($this->cachedUserId === $user->id && $this->cachedContext !== null) {
+            return $this->cachedContext;
+        }
 
-        return [
+        if ($this->isExemptFromRestrictions($user)) {
+            return $this->rememberContext($user, $empty);
+        }
+
+        $condominium = $user->activeCondominium() ?? $user->condominium;
+
+        if (!$this->isEnabled($condominium)) {
+            return $this->rememberContext($user, $empty);
+        }
+
+        $overdue = $this->getOverdueCharges($user);
+        $active = $overdue->isNotEmpty();
+
+        return $this->rememberContext($user, [
             'active' => $active,
             'overdue_charges' => $overdue,
             'restrictions' => $active ? array_values(self::RESTRICTION_LABELS) : [],
             'regularize_url' => route('my-charges.index', ['status' => 'overdue']),
             'total_overdue' => (float) $overdue->sum('amount'),
-        ];
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return array<string, mixed>
+     */
+    protected function rememberContext(User $user, array $context): array
+    {
+        $this->cachedUserId = $user->id;
+        $this->cachedContext = $context;
+
+        return $context;
     }
 
     public function blocksModuleAccess(User $user, string $module): bool

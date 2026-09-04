@@ -878,7 +878,7 @@
                     @if($isMorador || $filteredFinancialEntries->count() >= 10)
                     <div class="card-footer bg-white border-top text-center">
                         <a href="{{ route('financial.accounts.index') }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-arrow-right"></i> Ver Todas as Transações
+                            <i class="bi bi-arrow-right"></i> Ver Caixa do Condomínio
                         </a>
                     </div>
                     @endif

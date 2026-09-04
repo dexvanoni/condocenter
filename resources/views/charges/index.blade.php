@@ -155,11 +155,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-3">As cobranças são geradas automaticamente a partir das taxas cadastradas. Para lançar uma cobrança manual, utilize a função de <strong>"Recebimento avulso"</strong> em <em>Contas do Condomínio</em>.</p>
+                <p class="mb-3">As cobranças são geradas automaticamente a partir das taxas cadastradas. Para lançar uma cobrança manual, utilize a função de <strong>"Recebimento avulso"</strong> no <em>Caixa do Condomínio</em>.</p>
                 <p class="mb-0">Abra a área financeira para registrar uma entrada manual.</p>
             </div>
             <div class="modal-footer">
-                <a href="{{ route('financial.accounts.index') }}" class="btn btn-primary">Ir para Contas do Condomínio</a>
+                <a href="{{ route('financial.accounts.index') }}" class="btn btn-primary">Ir para Caixa do Condomínio</a>
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>

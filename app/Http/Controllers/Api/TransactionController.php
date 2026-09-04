@@ -7,11 +7,25 @@ use App\Models\Transaction;
 use App\Models\Receipt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class TransactionController extends Controller
 {
+    private const ALLOWED_SORT_COLUMNS = [
+        'transaction_date',
+        'amount',
+        'created_at',
+        'due_date',
+        'status',
+        'category',
+    ];
+
+    public function __construct()
+    {
+        $this->middleware('can:view_transactions')->only(['index', 'show', 'listReceipts']);
+        $this->middleware('can:manage_transactions')->only(['store', 'update', 'destroy', 'uploadReceipt']);
+    }
+
     /**
      * Lista todas as transações do condomínio
      */
@@ -27,7 +41,6 @@ class TransactionController extends Controller
         $query = Transaction::with(['user', 'unit', 'receipts'])
             ->where('condominium_id', $condominiumId);
 
-        // Filtros
         if ($request->has('type')) {
             $query->where('type', $request->type);
         }
@@ -44,12 +57,14 @@ class TransactionController extends Controller
             $query->whereBetween('transaction_date', [$request->start_date, $request->end_date]);
         }
 
-        // Ordenação
         $sortBy = $request->get('sort_by', 'transaction_date');
-        $sortOrder = $request->get('sort_order', 'desc');
+        if (!in_array($sortBy, self::ALLOWED_SORT_COLUMNS, true)) {
+            $sortBy = 'transaction_date';
+        }
+
+        $sortOrder = strtolower((string) $request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortOrder);
 
-        // Paginação
         $perPage = $request->get('per_page', 15);
         $transactions = $query->paginate($perPage);
 
@@ -83,31 +98,32 @@ class TransactionController extends Controller
         }
 
         $user = Auth::user();
-        
+        $validated = $validator->validated();
+
         $transaction = Transaction::create([
             'condominium_id' => $user->tenantCondominiumId(),
             'unit_id' => $request->unit_id,
             'user_id' => $user->id,
-            'type' => $request->type,
-            'category' => $request->category,
-            'subcategory' => $request->subcategory,
-            'description' => $request->description,
-            'amount' => $request->amount,
-            'transaction_date' => $request->transaction_date,
-            'due_date' => $request->due_date,
-            'paid_date' => $request->status === 'paid' ? now() : null,
-            'status' => $request->status,
-            'payment_method' => $request->payment_method,
-            'store_location' => $request->store_location,
+            'type' => $validated['type'],
+            'category' => $validated['category'],
+            'subcategory' => $validated['subcategory'] ?? null,
+            'description' => $validated['description'],
+            'amount' => $validated['amount'],
+            'transaction_date' => $validated['transaction_date'],
+            'due_date' => $validated['due_date'] ?? null,
+            'paid_date' => $validated['status'] === 'paid' ? now() : null,
+            'status' => $validated['status'],
+            'payment_method' => $validated['payment_method'] ?? null,
+            'store_location' => $validated['store_location'] ?? null,
             'is_recurring' => $request->boolean('is_recurring'),
-            'recurrence_period' => $request->recurrence_period,
-            'tags' => $request->tags,
-            'notes' => $request->notes,
+            'recurrence_period' => $validated['recurrence_period'] ?? null,
+            'tags' => $validated['tags'] ?? null,
+            'notes' => $validated['notes'] ?? null,
         ]);
 
         return response()->json([
             'message' => 'Transação criada com sucesso',
-            'transaction' => $transaction->load(['user', 'receipts'])
+            'transaction' => $transaction->load(['user', 'receipts']),
         ], 201);
     }
 
@@ -119,7 +135,6 @@ class TransactionController extends Controller
         $transaction = Transaction::with(['user', 'unit', 'receipts', 'condominium'])
             ->findOrFail($id);
 
-        // Verificar se pertence ao condomínio do usuário
         if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -134,7 +149,6 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::findOrFail($id);
 
-        // Verificar permissão
         if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -142,26 +156,34 @@ class TransactionController extends Controller
         $validator = Validator::make($request->all(), [
             'type' => 'sometimes|in:income,expense',
             'category' => 'sometimes|string|max:255',
+            'subcategory' => 'nullable|string|max:255',
             'description' => 'sometimes|string',
             'amount' => 'sometimes|numeric|min:0',
             'transaction_date' => 'sometimes|date',
+            'due_date' => 'nullable|date',
             'status' => 'sometimes|in:pending,paid,overdue,cancelled',
+            'payment_method' => 'nullable|in:cash,pix,bank_transfer,credit_card,debit_card,check,boleto,other',
+            'store_location' => 'nullable|string|max:255',
+            'is_recurring' => 'boolean',
+            'recurrence_period' => 'nullable|string|in:monthly,yearly',
+            'tags' => 'nullable|array',
+            'notes' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $transaction->update($request->all());
+        $validated = $validator->validated();
+        $transaction->update($validated);
 
-        // Se mudou para pago, atualizar data
-        if ($request->status === 'paid' && !$transaction->paid_date) {
+        if (($validated['status'] ?? null) === 'paid' && !$transaction->paid_date) {
             $transaction->update(['paid_date' => now()]);
         }
 
         return response()->json([
             'message' => 'Transação atualizada com sucesso',
-            'transaction' => $transaction->load(['user', 'receipts'])
+            'transaction' => $transaction->load(['user', 'receipts']),
         ]);
     }
 
@@ -172,7 +194,6 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::findOrFail($id);
 
-        // Verificar permissão
         if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -180,7 +201,7 @@ class TransactionController extends Controller
         $transaction->delete();
 
         return response()->json([
-            'message' => 'Transação removida com sucesso'
+            'message' => 'Transação removida com sucesso',
         ]);
     }
 
@@ -191,13 +212,12 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::findOrFail($id);
 
-        // Verificar permissão
         if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
         $validator = Validator::make($request->all(), [
-            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // 5MB
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'description' => 'nullable|string|max:255',
         ]);
 
@@ -206,11 +226,9 @@ class TransactionController extends Controller
         }
 
         $file = $request->file('file');
-        
-        // Salvar arquivo
+
         $path = $file->store('receipts/' . $transaction->condominium_id, 'public');
 
-        // Criar registro
         $receipt = Receipt::create([
             'transaction_id' => $transaction->id,
             'original_filename' => $file->getClientOriginalName(),
@@ -222,7 +240,7 @@ class TransactionController extends Controller
 
         return response()->json([
             'message' => 'Comprovante enviado com sucesso',
-            'receipt' => $receipt
+            'receipt' => $receipt,
         ], 201);
     }
 
@@ -233,13 +251,10 @@ class TransactionController extends Controller
     {
         $transaction = Transaction::findOrFail($id);
 
-        // Verificar permissão
         if ($transaction->condominium_id !== Auth::user()->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
-        $receipts = $transaction->receipts;
-
-        return response()->json($receipts);
+        return response()->json($transaction->receipts);
     }
 }

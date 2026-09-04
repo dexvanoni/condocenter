@@ -14,7 +14,10 @@ use App\Services\AccessAlertService;
 use App\Services\DefaulterRestrictionService;
 use App\Services\RideAlertService;
 use App\Support\TenantContext;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
@@ -45,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         $this->registerTenantRouteBindings();
+        $this->configureRateLimiting();
 
         Notification::observe(NotificationObserver::class);
 
@@ -62,7 +66,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('accessAlerts', $accessAlerts);
         });
 
-        View::composer('*', function ($view) {
+        View::composer('layouts.app', function ($view) {
             $user = Auth::user();
 
             if ($user) {
@@ -71,6 +75,29 @@ class AppServiceProvider extends ServiceProvider
                     app(DefaulterRestrictionService::class)->getContextForUser($user)
                 );
             }
+        });
+    }
+
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('auth-login', function (Request $request) {
+            $email = (string) $request->input('email');
+
+            return Limit::perMinute(5)->by($request->ip() . '|' . strtolower($email));
+        });
+
+        RateLimiter::for('auth-password-reset', function (Request $request) {
+            return Limit::perMinute(3)->by($request->ip() . '|' . strtolower((string) $request->input('email')));
+        });
+
+        RateLimiter::for('webhooks', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
+
+        RateLimiter::for('user-search', function (Request $request) {
+            $userId = $request->user()?->id ?? 'guest';
+
+            return Limit::perMinute(30)->by($userId . '|' . $request->ip());
         });
     }
 

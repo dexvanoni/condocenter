@@ -331,10 +331,12 @@ class ChargePaymentService
 
         try {
             $this->settlementService->markAsPaid(
-                $charge->fresh(),
+                $charge,
                 Carbon::parse($payment['paymentDate'] ?? $payment['clientPaymentDate'] ?? now()),
                 $this->mapAsaasPaymentMethod($payment['billingType'] ?? null),
-                'Pagamento confirmado via Asaas.'
+                'Pagamento confirmado via Asaas.',
+                null,
+                true,
             );
         } catch (\Throwable $e) {
             Log::error('Erro ao sincronizar pagamento da cobrança: ' . $e->getMessage(), [

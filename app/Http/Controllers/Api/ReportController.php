@@ -12,6 +12,11 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('can:view_financial_reports');
+    }
+
     /**
      * Relatório financeiro
      */

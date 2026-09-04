@@ -44,19 +44,8 @@ Route::middleware(['auth:sanctum'])->get('/user/credits', function (Request $req
 });
 
 // API Routes com autenticação Sanctum (aceita sessão web também)
-Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
-    // Financeiro
-    Route::apiResource('transactions', TransactionController::class)->names([
-        'index' => 'api.transactions.index',
-        'store' => 'api.transactions.store',
-        'show' => 'api.transactions.show',
-        'update' => 'api.transactions.update',
-        'destroy' => 'api.transactions.destroy',
-    ]);
-    Route::post('transactions/{transaction}/receipts', [TransactionController::class, 'uploadReceipt'])->name('api.transactions.receipts.upload');
-    Route::get('transactions/{transaction}/receipts', [TransactionController::class, 'listReceipts'])->name('api.transactions.receipts.list');
-    
-    // Cobranças
+Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscription'])->group(function () {
+    // Cobranças (disponível em ambos os modos financeiros)
     Route::apiResource('charges', ChargeController::class)->names([
         'index' => 'api.charges.index',
         'store' => 'api.charges.store',
@@ -66,6 +55,24 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
     ]);
     Route::post('charges/bulk-create', [ChargeController::class, 'bulkCreate'])->name('api.charges.bulk-create');
     Route::post('charges/{charge}/generate-asaas', [ChargeController::class, 'generateAsaasPayment'])->name('api.charges.generate-asaas');
+
+    // Financeiro completo
+    Route::middleware(['ensure.full.financial'])->group(function () {
+        Route::apiResource('transactions', TransactionController::class)->names([
+            'index' => 'api.transactions.index',
+            'store' => 'api.transactions.store',
+            'show' => 'api.transactions.show',
+            'update' => 'api.transactions.update',
+            'destroy' => 'api.transactions.destroy',
+        ]);
+        Route::post('transactions/{transaction}/receipts', [TransactionController::class, 'uploadReceipt'])->name('api.transactions.receipts.upload');
+        Route::get('transactions/{transaction}/receipts', [TransactionController::class, 'listReceipts'])->name('api.transactions.receipts.list');
+
+        Route::get('reports/financial', [ReportController::class, 'financial'])->name('api.reports.financial');
+        Route::get('reports/defaulters', [ReportController::class, 'defaulters'])->name('api.reports.defaulters');
+        Route::get('reports/balance', [ReportController::class, 'balance'])->name('api.reports.balance');
+        Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('api.reports.cash-flow');
+    });
     
     // Reservas
     // IMPORTANTE: Rotas específicas ANTES das rotas com parâmetros
@@ -146,11 +153,13 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
 
     // Conversas (novo módulo de mensagens)
     Route::get('conversations', [ConversationController::class, 'index'])->name('api.conversations.index');
-    Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
     Route::post('conversations/announcement', [ConversationController::class, 'storeAnnouncement'])->name('api.conversations.announcement');
     Route::post('conversations/direct', [ConversationController::class, 'storeDirect'])->name('api.conversations.direct');
+    Route::get('conversations/announcement/latest', [ConversationController::class, 'latestAnnouncement'])->name('api.conversations.latest-announcement');
+    Route::get('conversations/announcement/list', [ConversationController::class, 'listAnnouncements'])->name('api.conversations.list-announcements');
     Route::get('conversations/syndic/stats', [\App\Http\Controllers\Api\SyndicConversationController::class, 'stats'])->name('api.conversations.syndic.stats');
     Route::post('conversations/syndic', [\App\Http\Controllers\Api\SyndicConversationController::class, 'store'])->name('api.conversations.syndic.store');
+    Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('api.conversations.show');
     Route::post('conversations/{conversation}/participants', [ConversationController::class, 'addParticipant'])->name('api.conversations.participants.add');
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'storeMessage'])->name('api.conversations.messages.store');
     Route::post('conversations/{conversation}/messages/{message}/attachments', [ConversationController::class, 'uploadAttachment'])->name('api.conversations.messages.attachments');
@@ -159,8 +168,6 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
     Route::get('conversations/{conversation}/export.pdf', [ConversationController::class, 'exportPdf'])->name('api.conversations.export.pdf');
     Route::post('conversations/{conversation}/status', [ConversationController::class, 'updateStatus'])->name('api.conversations.status');
     Route::delete('conversations/{conversation}', [ConversationController::class, 'destroy'])->name('api.conversations.destroy');
-    Route::get('conversations/announcement/latest', [ConversationController::class, 'latestAnnouncement'])->name('api.conversations.latest-announcement');
-    Route::get('conversations/announcement/list', [ConversationController::class, 'listAnnouncements'])->name('api.conversations.list-announcements');
     Route::post('conversations/{conversation}/close', [ConversationController::class, 'close'])->name('api.conversations.close');
 
     // Busca de usuários (AJAX) com filtro de papéis
@@ -201,11 +208,7 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
         Route::delete('ride-bookings/{rideBooking}', [\App\Http\Controllers\Api\RideBookingController::class, 'destroy'])->name('api.ride-bookings.destroy');
     });
 
-    // Relatórios
-    Route::get('reports/financial', [ReportController::class, 'financial'])->name('api.reports.financial');
-    Route::get('reports/defaulters', [ReportController::class, 'defaulters'])->name('api.reports.defaulters');
-    Route::get('reports/balance', [ReportController::class, 'balance'])->name('api.reports.balance');
-    Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('api.reports.cash-flow');
+    // Relatórios movidos para o grupo ensure.full.financial acima
 
     // Controle de Acesso
     Route::prefix('access-control')->name('api.access-control.')->group(function () {

@@ -4,63 +4,61 @@ namespace App\Policies;
 
 use App\Models\Charge;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class ChargePolicy
 {
-    /**
-     * Determine whether the user can view any models.
-     */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->can('view_charges');
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, Charge $charge): bool
     {
-        return false;
+        if ((int) $charge->condominium_id !== (int) $user->tenantCondominiumId()) {
+            return false;
+        }
+
+        if ($user->can('manage_charges')) {
+            return true;
+        }
+
+        if ($user->isMorador() && $user->unit_id) {
+            return $user->can('view_charges')
+                && (int) $charge->unit_id === (int) $user->unit_id;
+        }
+
+        return $user->can('view_charges');
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
     public function create(User $user): bool
     {
-        return false;
+        return $user->can('manage_charges') && (bool) $user->tenantCondominiumId();
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, Charge $charge): bool
     {
-        return false;
+        return $user->can('manage_charges')
+            && (int) $charge->condominium_id === (int) $user->tenantCondominiumId();
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, Charge $charge): bool
     {
-        return false;
+        return $this->update($user, $charge);
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
-    public function restore(User $user, Charge $charge): bool
+    public function generatePayment(User $user, Charge $charge): bool
     {
-        return false;
-    }
+        if ((int) $charge->condominium_id !== (int) $user->tenantCondominiumId()) {
+            return false;
+        }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
-    public function forceDelete(User $user, Charge $charge): bool
-    {
-        return false;
+        if ($user->can('manage_charges')) {
+            return true;
+        }
+
+        return $user->can('view_charges')
+            && $user->isMorador()
+            && $user->unit_id
+            && (int) $charge->unit_id === (int) $user->unit_id;
     }
 }
