@@ -34,7 +34,9 @@
 
     @include('dashboard.partials.access-alerts')
 
-    @if($chargesAtrasadas->count() > 0)
+    @include('dashboard.partials.defaulter-restriction-card')
+
+    @if(($chargesAtrasadas->count() > 0) && !($defaulterRestriction['active'] ?? false))
     <div class="row mb-4">
         <div class="col-12">
             <div class="widget-notification danger fade-in">

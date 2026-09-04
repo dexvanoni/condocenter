@@ -73,10 +73,12 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
     Route::post('reservations/{reservation}/approve', [ReservationController::class, 'approve'])->name('api.reservations.approve');
     Route::post('reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('api.reservations.reject');
     Route::post('reservations/{reservation}/confirm-payment', [ReservationController::class, 'confirmPayment'])->name('api.reservations.confirm-payment');
-    
-    Route::apiResource('reservations', ReservationController::class)->names([
+
+    Route::post('reservations', [ReservationController::class, 'store'])
+        ->middleware('restrict.defaulters:reservations.create')
+        ->name('api.reservations.store');
+    Route::apiResource('reservations', ReservationController::class)->except(['store'])->names([
         'index' => 'api.reservations.index',
-        'store' => 'api.reservations.store',
         'show' => 'api.reservations.show',
         'update' => 'api.reservations.update',
         'destroy' => 'api.reservations.destroy',
@@ -95,13 +97,15 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
     Route::post('packages/{package}/collect', [PackageController::class, 'collect'])->name('api.packages.collect');
     
     // Marketplace
-    Route::apiResource('marketplace', MarketplaceController::class)->names([
-        'index' => 'api.marketplace.index',
-        'store' => 'api.marketplace.store',
-        'show' => 'api.marketplace.show',
-        'update' => 'api.marketplace.update',
-        'destroy' => 'api.marketplace.destroy',
-    ]);
+    Route::middleware(['restrict.defaulters:marketplace'])->group(function () {
+        Route::apiResource('marketplace', MarketplaceController::class)->names([
+            'index' => 'api.marketplace.index',
+            'store' => 'api.marketplace.store',
+            'show' => 'api.marketplace.show',
+            'update' => 'api.marketplace.update',
+            'destroy' => 'api.marketplace.destroy',
+        ]);
+    });
     
     // Portaria (Entradas/Saídas)
     Route::apiResource('entries', EntryController::class)->names([
@@ -121,7 +125,9 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
         'update' => 'api.assemblies.update',
         'destroy' => 'api.assemblies.destroy',
     ]);
-    Route::post('assemblies/{assembly}/items/{item}/vote', [AssemblyController::class, 'vote'])->name('api.assemblies.items.vote');
+    Route::post('assemblies/{assembly}/items/{item}/vote', [AssemblyController::class, 'vote'])
+        ->middleware('restrict.defaulters:assemblies.vote')
+        ->name('api.assemblies.items.vote');
     Route::post('assemblies/{assembly}/start', [AssemblyController::class, 'start'])->name('api.assemblies.start');
     Route::post('assemblies/{assembly}/complete', [AssemblyController::class, 'complete'])->name('api.assemblies.complete');
     Route::post('assemblies/{assembly}/cancel', [AssemblyController::class, 'cancel'])->name('api.assemblies.cancel');
@@ -186,12 +192,14 @@ Route::middleware(['auth:sanctum', 'require.condominium'])->group(function () {
         'destroy' => 'api.pets.destroy',
     ]);
     
-    Route::get('rides', [\App\Http\Controllers\Api\RideController::class, 'index'])->name('api.rides.index');
-    Route::post('rides', [\App\Http\Controllers\Api\RideController::class, 'store'])->name('api.rides.store');
-    Route::get('rides/{ride}', [\App\Http\Controllers\Api\RideController::class, 'show'])->name('api.rides.show');
-    Route::delete('rides/{ride}', [\App\Http\Controllers\Api\RideController::class, 'destroy'])->name('api.rides.destroy');
-    Route::post('rides/{ride}/bookings', [\App\Http\Controllers\Api\RideController::class, 'book'])->name('api.rides.bookings.store');
-    Route::delete('ride-bookings/{rideBooking}', [\App\Http\Controllers\Api\RideBookingController::class, 'destroy'])->name('api.ride-bookings.destroy');
+    Route::middleware(['restrict.defaulters:rides'])->group(function () {
+        Route::get('rides', [\App\Http\Controllers\Api\RideController::class, 'index'])->name('api.rides.index');
+        Route::post('rides', [\App\Http\Controllers\Api\RideController::class, 'store'])->name('api.rides.store');
+        Route::get('rides/{ride}', [\App\Http\Controllers\Api\RideController::class, 'show'])->name('api.rides.show');
+        Route::delete('rides/{ride}', [\App\Http\Controllers\Api\RideController::class, 'destroy'])->name('api.rides.destroy');
+        Route::post('rides/{ride}/bookings', [\App\Http\Controllers\Api\RideController::class, 'book'])->name('api.rides.bookings.store');
+        Route::delete('ride-bookings/{rideBooking}', [\App\Http\Controllers\Api\RideBookingController::class, 'destroy'])->name('api.ride-bookings.destroy');
+    });
 
     // Relatórios
     Route::get('reports/financial', [ReportController::class, 'financial'])->name('api.reports.financial');

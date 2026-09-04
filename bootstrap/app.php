@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.agregado.permission' => \App\Http\Middleware\CheckAgregadoPermission::class,
             'check.reservation.access' => \App\Http\Middleware\CheckReservationAccess::class,
             'check.module.access' => \App\Http\Middleware\CheckModuleAccess::class,
+            'restrict.defaulters' => \App\Http\Middleware\RestrictDefaulters::class,
             'ensure.full.financial' => \App\Http\Middleware\EnsureFullFinancialMode::class,
             'ensure.saas.subscription' => \App\Http\Middleware\EnsureActiveSaasSubscription::class,
             'resolve.condominium' => \App\Http\Middleware\ResolveActiveCondominium::class,

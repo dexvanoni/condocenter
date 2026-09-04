@@ -34,6 +34,7 @@ class Condominium extends Model implements Auditable
         'asaas_webhook_token',
         'asaas_setup_completed_at',
         'marketplace_allow_agregados',
+        'restrict_defaulters',
         'registration_code',
         'whatsapp_enabled',
         'evolution_api_url',
@@ -46,6 +47,7 @@ class Condominium extends Model implements Auditable
     protected $casts = [
         'is_active' => 'boolean',
         'marketplace_allow_agregados' => 'boolean',
+        'restrict_defaulters' => 'boolean',
         'whatsapp_enabled' => 'boolean',
         'asaas_sandbox' => 'boolean',
         'asaas_api_key' => 'encrypted',

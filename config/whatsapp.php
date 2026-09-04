@@ -85,6 +85,18 @@ return [
                 'ride_full',
             ],
         ],
+        'service_orders' => [
+            'label' => 'Ordens de serviço',
+            'description' => 'Solicitações de manutenção, reparo e vistoria; atualizações de status, mensagens e cobranças de ressarcimento.',
+            'recipients' => 'Síndico/administração (nova OS e mensagens do morador); solicitante (status, mensagens e cobrança gerada).',
+            'types' => [
+                'service_order_created',
+                'service_order_status_updated',
+                'service_order_message',
+                'service_order_items_added',
+                'service_order_charge_created',
+            ],
+        ],
         'subscription' => [
             'label' => 'Assinatura SaaS',
             'description' => 'Cobranças da plataforma para condomínios contratantes.',

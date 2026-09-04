@@ -5,11 +5,13 @@ namespace App\Providers;
 use App\Models\Notification;
 use App\Models\Fine;
 use App\Models\Pet;
+use App\Models\ServiceOrder;
 use App\Models\ServiceProvider as AccessServiceProvider;
 use App\Models\Unit;
 use App\Models\User as UserModel;
 use App\Observers\NotificationObserver;
 use App\Services\AccessAlertService;
+use App\Services\DefaulterRestrictionService;
 use App\Services\RideAlertService;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Auth;
@@ -59,6 +61,17 @@ class AppServiceProvider extends ServiceProvider
             $view->with('rideAlerts', $rideAlerts);
             $view->with('accessAlerts', $accessAlerts);
         });
+
+        View::composer('*', function ($view) {
+            $user = Auth::user();
+
+            if ($user) {
+                $view->with(
+                    'defaulterRestriction',
+                    app(DefaulterRestrictionService::class)->getContextForUser($user)
+                );
+            }
+        });
     }
 
     protected function shouldForceHttpsUrls(): bool
@@ -92,6 +105,10 @@ class AppServiceProvider extends ServiceProvider
 
         Route::bind('pet', function (string $value) use ($scopeByTenant) {
             return $scopeByTenant(Pet::query()->whereKey($value))->firstOrFail();
+        });
+
+        Route::bind('serviceOrder', function (string $value) use ($scopeByTenant) {
+            return $scopeByTenant(ServiceOrder::query()->whereKey($value))->firstOrFail();
         });
 
         Route::bind('fine', function (string $value) use ($scopeByTenant) {

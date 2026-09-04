@@ -102,6 +102,34 @@
             </div>
         </div>
 
+        @can('update', $condominium)
+        <div class="card shadow-sm mb-4 border-warning">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Restrição de inadimplentes</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    Quando ativada, moradores com cobranças <strong>vencidas</strong> ficam impedidos de reservar espaços,
+                    abrir ordens de serviço, usar o marketplace, ver caronas e votar em assembleias até regularizar os débitos.
+                </p>
+                <form method="POST" action="{{ route('condominiums.settings.restrict-defaulters.update', $condominium) }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="restrict_defaulters" value="1" id="restrict_defaulters"
+                               @checked(old('restrict_defaulters', $condominium->restrict_defaulters))>
+                        <label class="form-check-label" for="restrict_defaulters">
+                            Restringir inadimplentes
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-outline-warning btn-sm mt-3">
+                        <i class="bi bi-check2"></i> Salvar configuração
+                    </button>
+                </form>
+            </div>
+        </div>
+        @endcan
+
         @if($isAdmin)
         <div class="card shadow-sm mb-4 border-primary">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">

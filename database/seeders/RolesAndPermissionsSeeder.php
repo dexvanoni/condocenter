@@ -92,6 +92,11 @@ class RolesAndPermissionsSeeder extends Seeder
             // Pets
             'register_pets',
             'view_pets',
+
+            // Ordens de Serviço
+            'view_service_orders',
+            'create_service_orders',
+            'manage_service_orders',
             
             // Assembleias
             'create_assemblies',
@@ -166,6 +171,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage_access_lists',
             'manage_service_providers',
             'view_pets',
+            'view_service_orders',
+            'create_service_orders',
+            'manage_service_orders',
             'create_assemblies',
             'manage_assemblies',
             'view_assemblies',
@@ -205,6 +213,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'book_rides',
             'register_pets',
             'view_pets',
+            'view_service_orders',
+            'create_service_orders',
             'vote_assemblies',
             'view_assemblies',
             'contact_sindico',

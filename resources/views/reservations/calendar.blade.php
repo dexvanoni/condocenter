@@ -9,18 +9,30 @@
     $canMakeReservations = SidebarHelper::canMakeReservations($user);
     $canViewReservations = SidebarHelper::canViewReservations($user);
     $initialUserCredits = (float) ($initialUserCredits ?? 0);
+    $defaulterBlocksReservations = $defaulterRestriction['active'] ?? false;
 @endphp
 
 <!-- Variáveis JavaScript para permissões -->
 <script>
     window.userPermissions = {
-        canMakeReservations: @json($canMakeReservations),
+        canMakeReservations: @json($canMakeReservations && !$defaulterBlocksReservations),
         canViewReservations: @json($canViewReservations),
         isAgregado: @json($user->isAgregado()),
         userName: @json($user->name),
         onlinePaymentsEnabled: @json($onlinePaymentsEnabled ?? false),
+        defaulterRestricted: @json($defaulterBlocksReservations),
+        regularizeUrl: @json($defaulterRestriction['regularize_url'] ?? route('my-charges.index', ['status' => 'overdue'])),
     };
 </script>
+
+@if($defaulterBlocksReservations)
+<div class="alert alert-danger mb-3">
+    <i class="bi bi-shield-exclamation"></i>
+    <strong>Acesso restrito por inadimplência.</strong>
+    Novas reservas estão bloqueadas até a regularização dos débitos vencidos.
+    <a href="{{ $defaulterRestriction['regularize_url'] }}" class="alert-link fw-semibold">Regularizar agora</a>
+</div>
+@endif
 
 @if(!($onlinePaymentsEnabled ?? false))
 <div class="alert alert-info mb-3">
@@ -1288,6 +1300,12 @@
     function handleDateClick(dateStr) {
         // Verificar se o usuário tem permissão para fazer reservas
         if (!window.userPermissions.canMakeReservations) {
+            if (window.userPermissions.defaulterRestricted) {
+                alert('❌ Novas reservas bloqueadas por inadimplência.\n\nRegularize suas cobranças vencidas para liberar o acesso.');
+                window.location.href = window.userPermissions.regularizeUrl;
+                return;
+            }
+
             alert('❌ Você não tem permissão para fazer reservas.\n\nApenas visualização permitida.');
             return;
         }
@@ -1398,6 +1416,11 @@
                 handleReservationChargeResult(result, successMsg);
             } else {
                 console.error('Erro na resposta:', result);
+                if (result.restricted && result.regularize_url) {
+                    alert((result.error || 'Acesso restrito por inadimplência.') + '\n\nVocê será redirecionado para regularizar seus débitos.');
+                    window.location.href = result.regularize_url;
+                    return;
+                }
                 alert(result.error || 'Erro ao criar reserva. Verifique o console para mais detalhes.');
             }
         } catch (error) {

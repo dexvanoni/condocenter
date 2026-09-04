@@ -1333,6 +1333,13 @@
                 }
 
                 if (!response.ok) {
+                    if (response.status === 403 && data.restricted && data.regularize_url) {
+                        this.showVoteError(data.error ?? 'Acesso restrito por inadimplência.');
+                        setTimeout(() => {
+                            window.location.href = data.regularize_url;
+                        }, 2000);
+                        return;
+                    }
                     if (response.status === 422 && data.errors) {
                         const message = Object.values(data.errors).flat().join('<br>');
                         this.showVoteError(message);

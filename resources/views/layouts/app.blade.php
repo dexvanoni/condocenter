@@ -978,6 +978,7 @@
             'marketplace' => request()->routeIs('marketplace.*'),
             'caronas' => request()->routeIs('rides.*'),
             'pets' => request()->routeIs('pets.*'),
+            'service_orders' => request()->routeIs('service-orders.*'),
             'assemblies' => request()->routeIs('assemblies.*'),
             'documents' => request()->routeIs('internal-regulations.*'),
             'packages' => request()->routeIs('packages.*'),
@@ -1400,7 +1401,7 @@
                 </li>
                 @endif
 
-                @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace'))
+                @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace') && !($defaulterRestriction['active'] ?? false))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['marketplace'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuMarketplace" aria-expanded="{{ $menuActive['marketplace'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-shop me-2"></i>Marketplace</span>
@@ -1432,7 +1433,7 @@
                 </li>
                 @endif
 
-                @if(Route::has('rides.index') && SidebarHelper::canAccessRides($user))
+                @if(Route::has('rides.index') && SidebarHelper::canAccessRides($user) && !($defaulterRestriction['active'] ?? false))
                 <li class="nav-item">
                     <a class="nav-link {{ $menuActive['caronas'] ? 'active' : '' }}" href="{{ route('rides.index') }}">
                         <i class="bi bi-car-front"></i> Caronas
@@ -1460,6 +1461,40 @@
                                 </a>
                             </li>
                             @endif
+                        </ul>
+                    </div>
+                </li>
+                @endif
+
+                @if(Route::has('service-orders.index') && SidebarHelper::canAccessModule($user, 'service_orders'))
+                <li class="nav-item nav-item-group">
+                    <button class="nav-link-toggle {{ $menuActive['service_orders'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuServiceOrders" aria-expanded="{{ $menuActive['service_orders'] ? 'true' : 'false' }}">
+                        <span><i class="bi bi-tools me-2"></i>Ordens de Serviço</span>
+                        <i class="bi bi-chevron-down toggle-icon"></i>
+                    </button>
+                    <div class="collapse {{ $menuActive['service_orders'] ? 'show' : '' }}" id="menuServiceOrders" data-bs-parent="#sidebarMenu">
+                        <ul class="nav flex-column inner-nav">
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('service-orders.index') || request()->routeIs('service-orders.show') || request()->routeIs('service-orders.create') ? 'active' : '' }}" href="{{ route('service-orders.index') }}">
+                                    <i class="bi bi-list-task"></i> Minhas OS
+                                </a>
+                            </li>
+                            @can('create', App\Models\ServiceOrder::class)
+                            @unless($defaulterRestriction['active'] ?? false)
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('service-orders.create') ? 'active' : '' }}" href="{{ route('service-orders.create') }}">
+                                    <i class="bi bi-plus-circle"></i> Nova solicitação
+                                </a>
+                            </li>
+                            @endunless
+                            @endcan
+                            @can('manage', App\Models\ServiceOrder::class)
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('service-orders.manage.*') ? 'active' : '' }}" href="{{ route('service-orders.manage.index') }}">
+                                    <i class="bi bi-clipboard-check"></i> Gestão (síndico)
+                                </a>
+                            </li>
+                            @endcan
                         </ul>
                     </div>
                 </li>
@@ -1698,7 +1733,7 @@
                         
                         <!-- Quick Actions -->
                         <div class="btn-group me-3">
-                            @if(Route::has('marketplace.create') && SidebarHelper::canCreateMarketplace($user))
+                            @if(Route::has('marketplace.create') && SidebarHelper::canCreateMarketplace($user) && !($defaulterRestriction['active'] ?? false))
                             <a href="{{ route('marketplace.create') }}" class="btn btn-sm btn-outline-success" title="Novo Anúncio">
                                 <i class="bi bi-plus-circle"></i>
                             </a>
@@ -2120,7 +2155,7 @@
                         </li>
                         @endif
 
-                        @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace'))
+                        @if(Route::has('marketplace.index') && SidebarHelper::canAccessModule($user, 'marketplace') && !($defaulterRestriction['active'] ?? false))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['marketplace'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuMarketplace" aria-expanded="{{ $menuActive['marketplace'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-shop me-2"></i>Marketplace</span>
@@ -2159,7 +2194,7 @@
                         </li>
                         @endif
 
-                        @if(Route::has('rides.index') && SidebarHelper::canAccessRides($user))
+                        @if(Route::has('rides.index') && SidebarHelper::canAccessRides($user) && !($defaulterRestriction['active'] ?? false))
                         <li class="nav-item mt-2">
                             <a class="nav-link {{ $menuActive['caronas'] ? 'active' : '' }}" href="{{ route('rides.index') }}">
                                 <i class="bi bi-car-front"></i> Caronas
@@ -2187,6 +2222,40 @@
                                         </a>
                                     </li>
                                     @endif
+                                </ul>
+                            </div>
+                        </li>
+                        @endif
+
+                        @if(Route::has('service-orders.index') && SidebarHelper::canAccessModule($user, 'service_orders'))
+                        <li class="nav-item nav-item-group mt-2">
+                            <button class="nav-link-toggle {{ $menuActive['service_orders'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuServiceOrders" aria-expanded="{{ $menuActive['service_orders'] ? 'true' : 'false' }}">
+                                <span><i class="bi bi-tools me-2"></i>Ordens de Serviço</span>
+                                <i class="bi bi-chevron-down toggle-icon"></i>
+                            </button>
+                            <div class="collapse {{ $menuActive['service_orders'] ? 'show' : '' }}" id="mobileMenuServiceOrders" data-bs-parent="#mobileSidebarMenu">
+                                <ul class="nav flex-column inner-nav">
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('service-orders.index') || request()->routeIs('service-orders.show') ? 'active' : '' }}" href="{{ route('service-orders.index') }}">
+                                            <i class="bi bi-list-task"></i> Minhas OS
+                                        </a>
+                                    </li>
+                                    @can('create', App\Models\ServiceOrder::class)
+                                    @unless($defaulterRestriction['active'] ?? false)
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('service-orders.create') ? 'active' : '' }}" href="{{ route('service-orders.create') }}">
+                                            <i class="bi bi-plus-circle"></i> Nova solicitação
+                                        </a>
+                                    </li>
+                                    @endunless
+                                    @endcan
+                                    @can('manage', App\Models\ServiceOrder::class)
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('service-orders.manage.*') ? 'active' : '' }}" href="{{ route('service-orders.manage.index') }}">
+                                            <i class="bi bi-clipboard-check"></i> Gestão (síndico)
+                                        </a>
+                                    </li>
+                                    @endcan
                                 </ul>
                             </div>
                         </li>

@@ -411,6 +411,10 @@
         });
 
         const payParam = new URLSearchParams(window.location.search).get('pay');
+        const statusParam = new URLSearchParams(window.location.search).get('status');
+        if (statusParam) {
+            document.getElementById('filterStatus').value = statusParam;
+        }
         loadCharges();
         if (payParam && typeof window.openChargeCheckout === 'function') {
             window.openChargeCheckout(payParam);

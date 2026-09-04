@@ -26,6 +26,7 @@ class Charge extends Model implements Auditable
         'status',
         'type',
         'generated_by',
+        'service_order_id',
         'asaas_payment_id',
         'boleto_url',
         'pix_code',
@@ -61,6 +62,16 @@ class Charge extends Model implements Auditable
     public function fee()
     {
         return $this->belongsTo(Fee::class);
+    }
+
+    public function serviceOrder()
+    {
+        return $this->belongsTo(ServiceOrder::class);
+    }
+
+    public function serviceOrderItems()
+    {
+        return $this->hasMany(ServiceOrderItem::class);
     }
 
     public function payments()

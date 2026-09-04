@@ -257,8 +257,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     // Marketplace
     Route::middleware(['check.module.access:marketplace'])->group(function () {
         Route::get('/marketplace', [\App\Http\Controllers\MarketplaceController::class, 'index'])->name('marketplace.index');
-        Route::get('/marketplace/criar', [\App\Http\Controllers\MarketplaceController::class, 'create'])->name('marketplace.create');
-        Route::get('/marketplace/{item}/editar', [\App\Http\Controllers\MarketplaceController::class, 'edit'])->name('marketplace.edit');
+        Route::get('/marketplace/criar', [\App\Http\Controllers\MarketplaceController::class, 'create'])
+            ->middleware('restrict.defaulters:marketplace')
+            ->name('marketplace.create');
+        Route::get('/marketplace/{item}/editar', [\App\Http\Controllers\MarketplaceController::class, 'edit'])
+            ->middleware('restrict.defaulters:marketplace')
+            ->name('marketplace.edit');
     });
     
     // Portaria / Controle de Acesso
@@ -287,6 +291,30 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::get('/pets/owners/{unit}', [\App\Http\Controllers\PetController::class, 'getOwnersByUnit'])->name('pets.owners');
         
         Route::resource('pets', \App\Http\Controllers\PetController::class);
+    });
+
+    // Ordens de Serviço
+    Route::middleware(['check.module.access:service_orders'])->prefix('ordens-de-servico')->name('service-orders.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ServiceOrderController::class, 'index'])->name('index');
+        Route::get('/nova', [\App\Http\Controllers\ServiceOrderController::class, 'create'])
+            ->middleware('restrict.defaulters:service_orders.create')
+            ->name('create');
+        Route::post('/', [\App\Http\Controllers\ServiceOrderController::class, 'store'])
+            ->middleware('restrict.defaulters:service_orders.create')
+            ->name('store');
+
+        Route::prefix('gestao')->name('manage.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\ServiceOrderManagementController::class, 'index'])->name('index');
+            Route::get('/{serviceOrder}', [\App\Http\Controllers\ServiceOrderManagementController::class, 'show'])->name('show');
+            Route::patch('/{serviceOrder}/status', [\App\Http\Controllers\ServiceOrderManagementController::class, 'updateStatus'])->name('status.update');
+            Route::post('/{serviceOrder}/mensagens', [\App\Http\Controllers\ServiceOrderManagementController::class, 'storeMessage'])->name('messages.store');
+            Route::post('/{serviceOrder}/itens', [\App\Http\Controllers\ServiceOrderManagementController::class, 'storeItem'])->name('items.store');
+            Route::delete('/{serviceOrder}/itens/{item}', [\App\Http\Controllers\ServiceOrderManagementController::class, 'destroyItem'])->name('items.destroy');
+            Route::post('/{serviceOrder}/cobranca', [\App\Http\Controllers\ServiceOrderManagementController::class, 'generateCharge'])->name('charge.generate');
+        });
+
+        Route::get('/{serviceOrder}', [\App\Http\Controllers\ServiceOrderController::class, 'show'])->name('show');
+        Route::post('/{serviceOrder}/mensagens', [\App\Http\Controllers\ServiceOrderController::class, 'storeMessage'])->name('messages.store');
     });
     
     // Assembleias
@@ -372,6 +400,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->name('condominiums.settings.receiving.mode');
     Route::put('/condominiums/{condominium}/settings/receiving/credentials', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'updateCredentials'])
         ->name('condominiums.settings.receiving.credentials');
+    Route::put('/condominiums/{condominium}/settings/restrict-defaulters', [\App\Http\Controllers\CondominiumDefaulterSettingsController::class, 'update'])
+        ->name('condominiums.settings.restrict-defaulters.update');
     Route::post('/condominiums/{condominium}/settings/receiving/test', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'test'])
         ->name('condominiums.settings.receiving.test');
     Route::post('/condominiums/{condominium}/settings/receiving/complete', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'completeSetup'])
