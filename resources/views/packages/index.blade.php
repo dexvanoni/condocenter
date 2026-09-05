@@ -140,9 +140,24 @@
                         </div>
                     </div>
                 </div>
+                <div id="registerPackageProgress" class="package-submit-progress d-none px-3" aria-live="polite" aria-busy="false">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="fw-semibold text-primary" id="registerPackageProgressLabel">Registrando encomenda...</small>
+                        <small class="text-muted" id="registerPackageProgressPct">0%</small>
+                    </div>
+                    <div class="progress package-submit-progress__bar">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                             id="registerPackageProgressBar"
+                             role="progressbar"
+                             style="width: 0%"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100"></div>
+                    </div>
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="registerSubmitButton">
                         <i class="bi bi-check-lg"></i> Confirmar registro
                     </button>
                 </div>
@@ -174,6 +189,21 @@
                 <p class="text-muted small mb-0">
                     A retirada será registrada com a hora atual. Os moradores e agregados serão avisados imediatamente.
                 </p>
+                <div id="collectPackageProgress" class="package-submit-progress package-submit-progress--success mt-3 d-none" aria-live="polite" aria-busy="false">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="fw-semibold text-success" id="collectPackageProgressLabel">Registrando retirada...</small>
+                        <small class="text-muted" id="collectPackageProgressPct">0%</small>
+                    </div>
+                    <div class="progress package-submit-progress__bar">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                             id="collectPackageProgressBar"
+                             role="progressbar"
+                             style="width: 0%"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100"></div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -327,6 +357,34 @@
             border-radius: 12px;
         }
     }
+
+    .package-submit-progress {
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(13, 110, 253, 0.2);
+        border-radius: 0.75rem;
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.06), rgba(13, 110, 253, 0.02));
+    }
+
+    .package-submit-progress--success {
+        border-color: rgba(25, 135, 84, 0.2);
+        background: linear-gradient(135deg, rgba(25, 135, 84, 0.06), rgba(25, 135, 84, 0.02));
+    }
+
+    .package-submit-progress__bar {
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(13, 110, 253, 0.12);
+    }
+
+    .package-submit-progress--success .package-submit-progress__bar {
+        background: rgba(25, 135, 84, 0.12);
+    }
+
+    .package-submit-progress__bar .progress-bar {
+        border-radius: 999px;
+        transition: width 0.25s ease;
+    }
 </style>
 @endpush
 
@@ -348,6 +406,11 @@
         const registerModalEl = document.getElementById('registerPackageModal');
         const registerModal = new bootstrap.Modal(registerModalEl);
         const registerForm = document.getElementById('registerPackageForm');
+        const registerSubmitButton = document.getElementById('registerSubmitButton');
+        const registerProgressWrap = document.getElementById('registerPackageProgress');
+        const registerProgressBar = document.getElementById('registerPackageProgressBar');
+        const registerProgressLabel = document.getElementById('registerPackageProgressLabel');
+        const registerProgressPct = document.getElementById('registerPackageProgressPct');
         const registerUnitId = document.getElementById('registerUnitId');
         const registerUnitLabel = document.getElementById('registerUnitLabel');
         const registerUnitResidents = document.getElementById('registerUnitResidents');
@@ -358,10 +421,74 @@
         const collectUnitLabel = document.getElementById('collectUnitLabel');
         const collectPackageSummary = document.getElementById('collectPackageSummary');
         const confirmCollectButton = document.getElementById('confirmCollectButton');
+        const collectProgressWrap = document.getElementById('collectPackageProgress');
+        const collectProgressBar = document.getElementById('collectPackageProgressBar');
+        const collectProgressLabel = document.getElementById('collectPackageProgressLabel');
+        const collectProgressPct = document.getElementById('collectPackageProgressPct');
 
         let unitsCache = [];
         let selectedPackage = null;
         let debounceTimeout = null;
+        let progressTimer = null;
+
+        function updatePackageProgress(scope, value) {
+            const pct = Math.round(value);
+            scope.bar.style.width = `${pct}%`;
+            scope.bar.setAttribute('aria-valuenow', String(pct));
+            scope.pct.textContent = `${pct}%`;
+        }
+
+        function startPackageProgress(scope, label) {
+            clearInterval(progressTimer);
+            scope.wrap.classList.remove('d-none');
+            scope.wrap.setAttribute('aria-busy', 'true');
+            scope.label.textContent = label;
+            scope.value = 8;
+            updatePackageProgress(scope, scope.value);
+
+            progressTimer = setInterval(() => {
+                if (scope.value < 92) {
+                    scope.value = Math.min(92, scope.value + Math.random() * 7 + 3);
+                    updatePackageProgress(scope, scope.value);
+                }
+            }, 180);
+        }
+
+        function finishPackageProgress(scope) {
+            clearInterval(progressTimer);
+            updatePackageProgress(scope, 100);
+
+            setTimeout(() => {
+                scope.wrap.classList.add('d-none');
+                scope.wrap.setAttribute('aria-busy', 'false');
+                scope.value = 0;
+                updatePackageProgress(scope, 0);
+            }, 350);
+        }
+
+        function stopPackageProgress(scope) {
+            clearInterval(progressTimer);
+            scope.wrap.classList.add('d-none');
+            scope.wrap.setAttribute('aria-busy', 'false');
+            scope.value = 0;
+            updatePackageProgress(scope, 0);
+        }
+
+        const registerProgressScope = {
+            wrap: registerProgressWrap,
+            bar: registerProgressBar,
+            label: registerProgressLabel,
+            pct: registerProgressPct,
+            value: 0,
+        };
+
+        const collectProgressScope = {
+            wrap: collectProgressWrap,
+            bar: collectProgressBar,
+            label: collectProgressLabel,
+            pct: collectProgressPct,
+            value: 0,
+        };
 
         async function loadSummary(search = '') {
             showLoading();
@@ -685,6 +812,8 @@
                 }
 
                 registerForm.reset();
+                stopPackageProgress(registerProgressScope);
+                registerSubmitButton.disabled = false;
                 registerModal.show();
                 return;
             }
@@ -709,6 +838,7 @@
                 `;
 
                 confirmCollectButton.disabled = false;
+                stopPackageProgress(collectProgressScope);
                 collectModal.show();
             }
         });
@@ -717,6 +847,9 @@
             event.preventDefault();
             const unitId = registerUnitId.value;
             const type = registerForm.packageType.value;
+
+            registerSubmitButton.disabled = true;
+            startPackageProgress(registerProgressScope, 'Registrando encomenda e notificando moradores...');
 
             try {
                 const response = await fetch('/api/packages', {
@@ -745,11 +878,15 @@
                     throw new Error(Array.isArray(firstError) ? firstError[0] : firstError || 'Erro ao registrar a encomenda.');
                 }
 
+                finishPackageProgress(registerProgressScope);
                 registerModal.hide();
                 showAlert('success', 'Encomenda registrada e moradores notificados.');
                 await loadSummary(searchField.value);
             } catch (error) {
+                stopPackageProgress(registerProgressScope);
                 showAlert('danger', error.message || 'Erro ao registrar a encomenda.');
+            } finally {
+                registerSubmitButton.disabled = false;
             }
         });
 
@@ -760,6 +897,7 @@
             }
 
             confirmCollectButton.disabled = true;
+            startPackageProgress(collectProgressScope, 'Registrando retirada e notificando moradores...');
             try {
                 const response = await fetch(`/api/packages/${selectedPackage}/collect`, {
                     method: 'POST',
@@ -784,15 +922,27 @@
                     throw new Error(Array.isArray(firstError) ? firstError[0] : firstError || 'Erro ao registrar retirada.');
                 }
 
+                finishPackageProgress(collectProgressScope);
                 collectModal.hide();
                 showAlert('success', 'Retirada registrada com sucesso.');
                 await loadSummary(searchField.value);
             } catch (error) {
+                stopPackageProgress(collectProgressScope);
                 showAlert('danger', error.message || 'Erro ao registrar retirada.');
             } finally {
                 confirmCollectButton.disabled = false;
                 selectedPackage = null;
             }
+        });
+
+        registerModalEl.addEventListener('hidden.bs.modal', () => {
+            stopPackageProgress(registerProgressScope);
+            registerSubmitButton.disabled = false;
+        });
+
+        collectModalEl.addEventListener('hidden.bs.modal', () => {
+            stopPackageProgress(collectProgressScope);
+            confirmCollectButton.disabled = false;
         });
 
         // Inicialização

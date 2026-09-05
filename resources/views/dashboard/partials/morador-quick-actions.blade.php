@@ -21,11 +21,10 @@
     </a>
     @endif
 
-    @if(Route::has('packages.index'))
-    <a href="{{ route('packages.index') }}" class="md-quick-tile">
-        @if(($encomendas->count() ?? 0) > 0)<span class="md-quick-tile__badge">{{ $encomendas->count() }}</span>@endif
-        <span class="md-quick-tile__icon md-quick-tile__icon--package"><i class="bi bi-box-seam"></i></span>
-        <span>Encomendas</span>
+    @if(Route::has('access-control.index') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
+    <a href="{{ route('access-control.index') }}" class="md-quick-tile">
+        <span class="md-quick-tile__icon md-quick-tile__icon--package"><i class="bi bi-person-badge"></i></span>
+        <span>Liberar Visitante</span>
     </a>
     @endif
 
@@ -67,8 +66,10 @@
     </a>
     @endif
 
-    <a href="{{ route('my-charges.index') }}" class="md-quick-tile">
-        <span class="md-quick-tile__icon md-quick-tile__icon--charges"><i class="bi bi-receipt"></i></span>
-        <span>Cobranças</span>
+    @if(Route::has('service-orders.index') && SidebarHelper::canAccessModule($user, 'service_orders') && !$isRestricted)
+    <a href="{{ route('service-orders.index') }}" class="md-quick-tile">
+        <span class="md-quick-tile__icon md-quick-tile__icon--charges"><i class="bi bi-tools"></i></span>
+        <span>Ordem de Serviço</span>
     </a>
+    @endif
 </div>
