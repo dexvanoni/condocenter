@@ -35,46 +35,75 @@ class BankReconciliationController extends Controller
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
         ];
+        $pendingOnly = $request->boolean('pending_only');
 
         $preview = null;
         $selectedAccount = null;
         $latestReconciliation = null;
         $suggestedStartDate = null;
         $pendingForAccount = null;
+        $accountPeriodDefaults = [];
+
+        foreach ($accounts as $account) {
+            $accountPeriodDefaults[$account->id] = $this->defaultPeriodForAccount(
+                $condominiumId,
+                $account
+            );
+        }
 
         if ($filters['account_id']) {
             $selectedAccount = $accounts->firstWhere('id', (int) $filters['account_id']);
         }
 
         if ($selectedAccount) {
+            $defaults = $accountPeriodDefaults[$selectedAccount->id] ?? $this->defaultPeriodForAccount(
+                $condominiumId,
+                $selectedAccount
+            );
+
             $latestReconciliation = BankAccountReconciliation::where('bank_account_id', $selectedAccount->id)
                 ->where('condominium_id', $condominiumId)
                 ->latest('created_at')
                 ->first();
 
-            $suggestedStartDate = $latestReconciliation
-                ? $latestReconciliation->end_date->copy()->addDay()->format('Y-m-d')
-                : now()->startOfMonth()->format('Y-m-d');
+            $suggestedStartDate = $defaults['start_date'];
 
             if (!$filters['start_date']) {
-                $filters['start_date'] = $suggestedStartDate;
+                $filters['start_date'] = $defaults['start_date'];
             }
+
             if (!$filters['end_date']) {
-                $filters['end_date'] = now()->format('Y-m-d');
+                $filters['end_date'] = $defaults['end_date'];
             }
+
+            $this->normalizePeriodFilters($filters);
 
             $pendingForAccount = $this->service->preview(
                 $condominiumId,
                 $selectedAccount,
-                now()->subMonths(12)->startOfDay(),
-                now()->endOfDay()
+                null,
+                null
             )['totals'];
         }
 
-        if ($selectedAccount && $filters['start_date'] && $filters['end_date']) {
+        if ($selectedAccount && $pendingOnly) {
+            $preview = $this->service->preview($condominiumId, $selectedAccount, null, null);
+
+            if (($preview['totals']['count_entries'] ?? 0) > 0) {
+                [$periodStart, $periodEnd] = $this->service->resolvePeriodFromPreview($preview);
+                $filters['start_date'] = $periodStart->format('Y-m-d');
+                $filters['end_date'] = $periodEnd->format('Y-m-d');
+            }
+        } elseif ($selectedAccount && $filters['start_date'] && $filters['end_date']) {
             $validator = Validator::make($filters, [
                 'start_date' => ['required', 'date'],
                 'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            ], [
+                'start_date.required' => 'Informe a data inicial do período.',
+                'start_date.date' => 'A data inicial é inválida.',
+                'end_date.required' => 'Informe a data final do período.',
+                'end_date.date' => 'A data final é inválida.',
+                'end_date.after_or_equal' => 'A data final deve ser igual ou posterior à data inicial.',
             ]);
 
             if ($validator->passes()) {
@@ -103,17 +132,65 @@ class BankReconciliationController extends Controller
             'latestReconciliation' => $latestReconciliation,
             'suggestedStartDate' => $suggestedStartDate,
             'pendingForAccount' => $pendingForAccount,
+            'accountPeriodDefaults' => $accountPeriodDefaults,
+            'pendingOnly' => $pendingOnly,
             'reconciliations' => $reconciliations,
         ]);
+    }
+
+    /**
+     * @return array{start_date: string, end_date: string}
+     */
+    private function defaultPeriodForAccount(int $condominiumId, BankAccount $account): array
+    {
+        $latestReconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
+            ->where('condominium_id', $condominiumId)
+            ->latest('created_at')
+            ->first();
+
+        $start = $latestReconciliation
+            ? $latestReconciliation->end_date->copy()->addDay()->startOfDay()
+            : now()->startOfMonth()->startOfDay();
+
+        $end = $start->copy()->max(now()->startOfDay());
+
+        return [
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $end->format('Y-m-d'),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     */
+    private function normalizePeriodFilters(array &$filters): void
+    {
+        if (empty($filters['start_date']) || empty($filters['end_date'])) {
+            return;
+        }
+
+        $start = Carbon::parse($filters['start_date'])->startOfDay();
+        $end = Carbon::parse($filters['end_date'])->startOfDay();
+
+        if ($end->lt($start)) {
+            $filters['end_date'] = $start->copy()->max(now()->startOfDay())->format('Y-m-d');
+        }
     }
 
     public function store(Request $request)
     {
         $user = Auth::user();
+        $pendingOnly = $request->boolean('pending_only');
+
         $data = $request->validate([
             'account_id' => ['required', 'integer'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'start_date' => [$pendingOnly ? 'nullable' : 'required', 'date'],
+            'end_date' => [$pendingOnly ? 'nullable' : 'required', 'date', 'after_or_equal:start_date'],
+            'pending_only' => ['sometimes', 'boolean'],
+        ], [
+            'start_date.required' => 'Informe a data inicial do período.',
+            'end_date.required' => 'Informe a data final do período.',
+            'end_date.after_or_equal' => 'A data final deve ser igual ou posterior à data inicial.',
         ]);
 
         $condominiumId = $this->activeCondominiumId($user);
@@ -122,60 +199,31 @@ class BankReconciliationController extends Controller
             ->where('id', $data['account_id'])
             ->firstOrFail();
 
+        if ($pendingOnly) {
+            $preview = $this->service->preview($condominiumId, $account, null, null);
+
+            if (($preview['totals']['count_entries'] ?? 0) === 0) {
+                return redirect()
+                    ->route('bank-reconciliation.index', ['account_id' => $account->id])
+                    ->withErrors([
+                        'period' => 'Não há lançamentos pendentes de conciliação nesta conta.',
+                    ]);
+            }
+
+            [$startDate, $endDate] = $this->service->resolvePeriodFromPreview($preview);
+            $this->service->reconcile($user, $account, $startDate, $endDate, $preview);
+
+            return redirect()
+                ->route('bank-reconciliation.index', ['account_id' => $account->id])
+                ->with('success', sprintf(
+                    'Conciliação de pendências registrada com sucesso (%s a %s).',
+                    $startDate->format('d/m/Y'),
+                    $endDate->format('d/m/Y')
+                ));
+        }
+
         $startDate = Carbon::parse($data['start_date'])->startOfDay();
         $endDate = Carbon::parse($data['end_date'])->endOfDay();
-
-        // Validação: Verifica se já existe conciliação com sobreposição de período
-        $existingReconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
-            ->where('condominium_id', $condominiumId)
-            ->where(function ($query) use ($startDate, $endDate) {
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function ($q) use ($startDate, $endDate) {
-                        $q->where('start_date', '<=', $startDate)
-                            ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->first();
-
-        if ($existingReconciliation) {
-            return redirect()
-                ->route('bank-reconciliation.index', [
-                    'account_id' => $account->id,
-                    'start_date' => $startDate->format('Y-m-d'),
-                    'end_date' => $endDate->format('Y-m-d'),
-                ])
-                ->withErrors([
-                    'period' => sprintf(
-                        'Já existe uma conciliação para este período: %s a %s. Por favor, selecione um período diferente ou cancele a conciliação existente.',
-                        $existingReconciliation->start_date->format('d/m/Y'),
-                        $existingReconciliation->end_date->format('d/m/Y')
-                    ),
-                ]);
-        }
-
-        // Sugestão de período baseado na última conciliação
-        $latestReconciliation = BankAccountReconciliation::where('bank_account_id', $account->id)
-            ->where('condominium_id', $condominiumId)
-            ->latest('created_at')
-            ->first();
-
-        if ($latestReconciliation && $startDate->lessThanOrEqualTo($latestReconciliation->end_date)) {
-            $suggestedStart = $latestReconciliation->end_date->copy()->addDay();
-            return redirect()
-                ->route('bank-reconciliation.index', [
-                    'account_id' => $account->id,
-                    'start_date' => $startDate->format('Y-m-d'),
-                    'end_date' => $endDate->format('Y-m-d'),
-                ])
-                ->withErrors([
-                    'period' => sprintf(
-                        'O período selecionado sobrepõe ou antecede a última conciliação. Sugestão de período: %s a %s.',
-                        $suggestedStart->format('d/m/Y'),
-                        $endDate->format('d/m/Y')
-                    ),
-                ]);
-        }
 
         $this->service->reconcile($user, $account, $startDate, $endDate);
 

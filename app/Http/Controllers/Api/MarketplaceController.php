@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Helpers\SidebarHelper;
 use App\Http\Controllers\Controller;
 use App\Models\MarketplaceItem;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class MarketplaceController extends Controller
@@ -17,6 +17,7 @@ class MarketplaceController extends Controller
      */
     public function index(Request $request)
     {
+        /** @var User $user */
         $user = Auth::user();
         
         $query = MarketplaceItem::with(['seller', 'unit'])
@@ -72,6 +73,7 @@ class MarketplaceController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        /** @var User $user */
         $user = Auth::user();
 
         if (!SidebarHelper::canCreateMarketplace($user)) {
@@ -106,11 +108,14 @@ class MarketplaceController extends Controller
      */
     public function show($id)
     {
+        /** @var User $user */
+        $user = Auth::user();
+
         $item = MarketplaceItem::with(['seller.unit', 'unit'])
             ->findOrFail($id);
 
         // Verificar se pertence ao condomínio
-        if ($item->condominium_id !== Auth::user()->tenantCondominiumId()) {
+        if ($item->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
@@ -127,7 +132,7 @@ class MarketplaceController extends Controller
     {
         $item = MarketplaceItem::findOrFail($id);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
         // Apenas o vendedor ou síndico pode editar
@@ -166,7 +171,7 @@ class MarketplaceController extends Controller
             $payload['whatsapp'] = preg_replace('/\D/', '', $request->input('whatsapp'));
         }
 
-        if ($request->has('keep_images') || $request->hasFile('images')) {
+        if ($request->boolean('images_sync') || $request->has('keep_images') || $request->hasFile('images')) {
             $payload['images'] = $this->syncImages($item, $request);
         }
 
@@ -185,7 +190,7 @@ class MarketplaceController extends Controller
     {
         $item = MarketplaceItem::findOrFail($id);
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = Auth::user();
 
         // Apenas o vendedor ou síndico pode deletar
@@ -237,7 +242,12 @@ class MarketplaceController extends Controller
     protected function syncImages(MarketplaceItem $item, Request $request): array
     {
         $currentImages = $item->images ?? [];
-        $keepImages = $request->input('keep_images', $currentImages);
+
+        if ($request->boolean('images_sync') || $request->has('keep_images')) {
+            $keepImages = $request->input('keep_images', []);
+        } else {
+            $keepImages = $currentImages;
+        }
 
         if (!is_array($keepImages)) {
             $keepImages = [];
@@ -250,7 +260,7 @@ class MarketplaceController extends Controller
 
         foreach ($currentImages as $path) {
             if (!in_array($path, $keepImages, true)) {
-                Storage::disk('public')->delete($path);
+                $this->deletePublicStorageFile($path);
             }
         }
 
@@ -265,7 +275,20 @@ class MarketplaceController extends Controller
     protected function deleteImages(array $images): void
     {
         foreach ($images as $imagePath) {
-            Storage::disk('public')->delete($imagePath);
+            $this->deletePublicStorageFile($imagePath);
+        }
+    }
+
+    protected function deletePublicStorageFile(string $path): void
+    {
+        if ($path === '') {
+            return;
+        }
+
+        $fullPath = storage_path('app/public/' . ltrim($path, '/'));
+
+        if (is_file($fullPath)) {
+            unlink($fullPath);
         }
     }
 }

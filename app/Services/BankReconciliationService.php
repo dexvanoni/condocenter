@@ -22,37 +22,21 @@ class BankReconciliationService
     ) {
     }
 
-    public function preview(int $condominiumId, BankAccount $account, Carbon $startDate, Carbon $endDate): array
+    public function preview(int $condominiumId, BankAccount $account, ?Carbon $startDate = null, ?Carbon $endDate = null): array
     {
-        $transactionsIncome = Transaction::withTrashed()
-            ->where('condominium_id', $condominiumId)
-            ->whereNull('reconciliation_id')
-            ->where('status', 'paid')
-            ->where('type', 'income')
-            ->whereBetween('transaction_date', [$startDate, $endDate])
+        $transactionsIncome = $this->pendingTransactionsQuery($condominiumId, 'income', $startDate, $endDate)
             ->get()
             ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id));
 
-        $transactionsExpense = Transaction::withTrashed()
-            ->where('condominium_id', $condominiumId)
-            ->whereNull('reconciliation_id')
-            ->where('status', 'paid')
-            ->where('type', 'expense')
-            ->whereBetween('transaction_date', [$startDate, $endDate])
+        $transactionsExpense = $this->pendingTransactionsQuery($condominiumId, 'expense', $startDate, $endDate)
             ->get()
             ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id));
 
-        $accountIncomes = CondominiumAccount::where('condominium_id', $condominiumId)
-            ->whereNull('reconciliation_id')
-            ->where('type', 'income')
-            ->whereBetween('transaction_date', [$startDate, $endDate])
+        $accountIncomes = $this->pendingCondominiumAccountsQuery($condominiumId, 'income', $startDate, $endDate)
             ->get()
             ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id));
 
-        $accountExpenses = CondominiumAccount::where('condominium_id', $condominiumId)
-            ->whereNull('reconciliation_id')
-            ->where('type', 'expense')
-            ->whereBetween('transaction_date', [$startDate, $endDate])
+        $accountExpenses = $this->pendingCondominiumAccountsQuery($condominiumId, 'expense', $startDate, $endDate)
             ->get()
             ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id));
 
@@ -137,10 +121,10 @@ class BankReconciliationService
         ];
     }
 
-    public function reconcile(User $user, BankAccount $account, Carbon $startDate, Carbon $endDate): BankAccountReconciliation
+    public function reconcile(User $user, BankAccount $account, Carbon $startDate, Carbon $endDate, ?array $preview = null): BankAccountReconciliation
     {
         $condominiumId = $user->tenantCondominiumId();
-        $preview = $this->preview($condominiumId, $account, $startDate, $endDate);
+        $preview ??= $this->preview($condominiumId, $account, $startDate, $endDate);
 
         if ($preview['totals']['count_entries'] === 0) {
             throw ValidationException::withMessages([
@@ -296,6 +280,58 @@ class BankReconciliationService
 
             return $reconciliation;
         });
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    public function resolvePeriodFromPreview(array $preview): array
+    {
+        $dates = collect($preview['income_groups'])
+            ->merge($preview['expense_groups'])
+            ->flatMap(fn (array $group) => $group['items'])
+            ->pluck('reference_date')
+            ->filter()
+            ->map(fn ($date) => Carbon::parse($date)->startOfDay());
+
+        if ($dates->isEmpty()) {
+            $today = now()->startOfDay();
+
+            return [$today->copy(), $today->copy()->endOfDay()];
+        }
+
+        return [
+            $dates->min()->copy()->startOfDay(),
+            $dates->max()->copy()->endOfDay(),
+        ];
+    }
+
+    private function pendingTransactionsQuery(int $condominiumId, string $type, ?Carbon $startDate, ?Carbon $endDate)
+    {
+        $query = Transaction::withTrashed()
+            ->where('condominium_id', $condominiumId)
+            ->whereNull('reconciliation_id')
+            ->where('status', 'paid')
+            ->where('type', $type);
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('transaction_date', [$startDate, $endDate]);
+        }
+
+        return $query;
+    }
+
+    private function pendingCondominiumAccountsQuery(int $condominiumId, string $type, ?Carbon $startDate, ?Carbon $endDate)
+    {
+        $query = CondominiumAccount::where('condominium_id', $condominiumId)
+            ->whereNull('reconciliation_id')
+            ->where('type', $type);
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('transaction_date', [$startDate, $endDate]);
+        }
+
+        return $query;
     }
 
     private function buildGroup(string $label, string $direction, string $sourceType, Collection $items): array

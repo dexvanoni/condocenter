@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (submitMethod.toUpperCase() === 'PUT') {
             formData.append('_method', 'PUT');
+            formData.append('images_sync', '1');
         }
 
         const originalHtml = submitBtn.innerHTML;

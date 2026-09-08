@@ -98,11 +98,10 @@ class StoreUserRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             if ($this->has('roles')) {
-                $restrictedRoles = ['Síndico', 'Conselho Fiscal'];
                 $requestedRoles = $this->input('roles', []);
 
-                if (array_intersect($restrictedRoles, $requestedRoles) && !$this->user()->hasRole('Administrador')) {
-                    $validator->errors()->add('roles', 'Apenas administradores podem atribuir os perfis de Síndico ou Conselho Fiscal.');
+                if (in_array('Administrador', $requestedRoles, true) && !$this->user()->hasRole('Administrador')) {
+                    $validator->errors()->add('roles', 'Apenas administradores podem atribuir o perfil de Administrador.');
                 }
             }
 

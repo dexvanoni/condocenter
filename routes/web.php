@@ -106,6 +106,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             Route::middleware(['can:view_fines'])->group(function () {
                 Route::get('fines', [FineController::class, 'index'])->name('fines.index');
                 Route::get('fines/create', [FineController::class, 'create'])->middleware('can:manage_fines')->name('fines.create');
+                Route::get('fines/search-infractors', [FineController::class, 'searchInfractors'])->middleware('can:manage_fines')->name('fines.search-infractors');
                 Route::post('fines', [FineController::class, 'store'])->middleware('can:manage_fines')->name('fines.store');
                 Route::get('fines/{fine}', [FineController::class, 'show'])->name('fines.show');
                 Route::get('fines/{fine}/pdf', [FineController::class, 'exportPdf'])->name('fines.export-pdf');

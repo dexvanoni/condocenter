@@ -74,9 +74,31 @@ class FineController extends Controller
 
     public function create()
     {
-        $eligibleUsers = $this->fineService->eligibleInfractors($this->activeCondominiumId(Auth::user()));
+        $condominiumId = $this->activeCondominiumId(Auth::user());
+        $preselectedInfractors = $this->fineService->infractorsByIds(
+            $condominiumId,
+            array_map('intval', (array) old('user_ids', []))
+        );
 
-        return view('fines.create', compact('eligibleUsers'));
+        return view('fines.create', compact('preselectedInfractors'));
+    }
+
+    public function searchInfractors(Request $request)
+    {
+        $this->authorize('create', Fine::class);
+
+        $term = trim((string) $request->query('term', ''));
+
+        if (strlen($term) < 2) {
+            return response()->json([]);
+        }
+
+        $results = $this->fineService->searchEligibleInfractors(
+            $this->activeCondominiumId($request->user()),
+            $term
+        );
+
+        return response()->json($results->values());
     }
 
     public function store(StoreFineRequest $request)

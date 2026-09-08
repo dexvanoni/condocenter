@@ -102,15 +102,28 @@ class UserHistoryService
     }
 
     /**
+     * Unidade vinculada ao usuário (null se inexistente ou removida).
+     */
+    protected function resolveUserUnit(User $user)
+    {
+        if (!$user->unit_id) {
+            return null;
+        }
+
+        return $user->unit;
+    }
+
+    /**
      * Histórico de cobranças
      */
     protected function getChargesHistory(User $user): Collection
     {
-        if (!$user->unit_id) {
+        $unit = $this->resolveUserUnit($user);
+        if (!$unit) {
             return collect();
         }
 
-        return $user->unit->charges()
+        return $unit->charges()
             ->orderBy('due_date', 'desc')
             ->get()
             ->map(fn($c) => [
@@ -129,11 +142,12 @@ class UserHistoryService
      */
     protected function getPaymentsHistory(User $user): Collection
     {
-        if (!$user->unit_id) {
+        $unit = $this->resolveUserUnit($user);
+        if (!$unit) {
             return collect();
         }
 
-        return $user->unit->charges()
+        return $unit->charges()
             ->where('status', 'paid')
             ->with('payments')
             ->orderBy('due_date', 'desc')
@@ -195,11 +209,12 @@ class UserHistoryService
      */
     protected function getPackagesHistory(User $user): Collection
     {
-        if (!$user->unit_id) {
+        $unit = $this->resolveUserUnit($user);
+        if (!$unit) {
             return collect();
         }
 
-        return $user->unit->packages()
+        return $unit->packages()
             ->orderBy('received_at', 'desc')
             ->get()
             ->map(fn($p) => [
@@ -250,11 +265,12 @@ class UserHistoryService
      */
     protected function getEntriesHistory(User $user): Collection
     {
-        if (!$user->unit_id) {
+        $unit = $this->resolveUserUnit($user);
+        if (!$unit) {
             return collect();
         }
 
-        return $user->unit->entries()
+        return $unit->entries()
             ->orderBy('entry_time', 'desc')
             ->get()
             ->map(fn($e) => [

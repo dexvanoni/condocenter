@@ -87,16 +87,18 @@
 
 @php
     $step = 1;
-    if ($selectedAccount) $step = 2;
-    if ($selectedAccount && ($filters['start_date'] ?? null) && ($filters['end_date'] ?? null)) $step = 3;
-    if ($preview) $step = 4;
+    if ($selectedAccount) {
+        $step = 2;
+    }
+    if ($preview) {
+        $step = 3;
+    }
 @endphp
 
 <div class="recon-steps">
     <div class="recon-step {{ $step >= 1 ? ($step > 1 ? 'done' : 'active') : '' }}">1. Conta</div>
     <div class="recon-step {{ $step >= 2 ? ($step > 2 ? 'done' : 'active') : '' }}">2. Período</div>
-    <div class="recon-step {{ $step >= 3 ? ($step > 3 ? 'done' : 'active') : '' }}">3. Pré-visualizar</div>
-    <div class="recon-step {{ $step >= 4 ? 'active' : '' }}">4. Confirmar</div>
+    <div class="recon-step {{ $step >= 3 ? 'active' : '' }}">3. Pré-visualizar e confirmar</div>
 </div>
 
 @if (session('success'))
@@ -144,8 +146,11 @@
                 <label class="form-label fw-semibold">Conta bancária</label>
                 <div class="row g-2">
                     @foreach($accounts as $account)
+                    @php
+                        $accountDefaults = $accountPeriodDefaults[$account->id] ?? [];
+                    @endphp
                     <div class="col-md-4 col-sm-6">
-                        <a href="{{ route('bank-reconciliation.index', ['account_id' => $account->id]) }}"
+                        <a href="{{ route('bank-reconciliation.index', array_merge(['account_id' => $account->id], $accountDefaults)) }}"
                            class="recon-account-card {{ ($filters['account_id'] ?? null) == $account->id ? 'selected' : '' }}">
                             <strong>{{ $account->name }}</strong>
                             <small class="d-block text-muted">{{ $account->institution ?? 'Conta' }}</small>
@@ -161,28 +166,42 @@
                 <label for="filterStart" class="form-label">Início do período</label>
                 <input type="date" class="form-control" id="filterStart" name="start_date" value="{{ $filters['start_date'] }}" required>
                 @if($latestReconciliation)
-                <small class="text-muted">Última conciliação: {{ $latestReconciliation->end_date->format('d/m/Y') }}</small>
+                <small class="text-muted d-block mt-1">Última conciliação: {{ $latestReconciliation->end_date->format('d/m/Y') }}</small>
                 @endif
             </div>
             <div class="col-md-4">
                 <label for="filterEnd" class="form-label">Fim do período</label>
-                <input type="date" class="form-control" id="filterEnd" name="end_date" value="{{ $filters['end_date'] }}" required>
+                <input type="date" class="form-control" id="filterEnd" name="end_date" value="{{ $filters['end_date'] }}" min="{{ $filters['start_date'] }}" required>
             </div>
             <div class="col-md-4">
                 <input type="hidden" name="account_id" value="{{ $selectedAccount->id }}">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search"></i> Pré-visualizar período
-                </button>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Pré-visualizar período
+                    </button>
+                    @if(($pendingForAccount['count_entries'] ?? 0) > 0)
+                        <a href="{{ route('bank-reconciliation.index', ['account_id' => $selectedAccount->id, 'pending_only' => 1]) }}"
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-clock-history"></i> Conciliar todas as pendências
+                        </a>
+                    @endif
+                </div>
             </div>
-            @if($pendingForAccount)
+            @if($pendingForAccount && ($pendingForAccount['count_entries'] ?? 0) > 0)
             <div class="col-12">
                 <div class="alert alert-info mb-0 py-2 small">
                     <i class="bi bi-info-circle"></i>
-                    Pendente de conciliar nesta conta (últimos 12 meses):
+                    Pendente de conciliar nesta conta:
                     <strong class="text-success">+R$ {{ number_format($pendingForAccount['income'] ?? 0, 2, ',', '.') }}</strong>
                     ·
                     <strong class="text-danger">-R$ {{ number_format($pendingForAccount['expense'] ?? 0, 2, ',', '.') }}</strong>
                     · {{ $pendingForAccount['count_entries'] ?? 0 }} lançamento(s)
+                    @if($latestReconciliation)
+                        <span class="d-block mt-1">
+                            Alguns lançamentos podem ter datas anteriores à última conciliação ({{ $latestReconciliation->end_date->format('d/m/Y') }}).
+                            Use <strong>Conciliar todas as pendências</strong> para incluí-los sem alterar o período já fechado item a item.
+                        </span>
+                    @endif
                 </div>
             </div>
             @endif
@@ -196,129 +215,167 @@
     @php
         $currentBalance = $selectedAccount->current_balance ?? 0;
         $projectedBalance = $currentBalance + $preview['totals']['net'];
+        $pendingEntries = collect($preview['income_groups'])
+            ->flatMap(fn ($group) => $group['items']->map(fn ($item) => array_merge($item, [
+                'group_label' => $group['label'],
+                'direction' => 'income',
+            ])))
+            ->merge(collect($preview['expense_groups'])->flatMap(fn ($group) => $group['items']->map(fn ($item) => array_merge($item, [
+                'group_label' => $group['label'],
+                'direction' => 'expense',
+            ]))))
+            ->sortBy('reference_date')
+            ->values();
+        $hasPendingEntries = $pendingEntries->isNotEmpty();
     @endphp
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="recon-kpi">
-                    <span class="text-muted d-block">Saldo atual (antes)</span>
-                    <h4 class="mb-0 mt-2 text-primary">R$ {{ number_format($currentBalance, 2, ',', '.') }}</h4>
-                    <small class="text-muted">
-                        Atualizado em {{ optional($selectedAccount->balance_updated_at)->format('d/m/Y H:i') ?? '—' }}
+
+    <div class="card border-0 shadow-sm mb-4" id="reconciliationPreview">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h5 class="mb-0">
+                    @if($pendingOnly ?? false)
+                        Pré-visualização das pendências acumuladas
+                    @else
+                        Pré-visualização do período
+                    @endif
+                </h5>
+                <small class="text-muted">
+                    {{ \Carbon\Carbon::parse($filters['start_date'])->format('d/m/Y') }}
+                    –
+                    {{ \Carbon\Carbon::parse($filters['end_date'])->format('d/m/Y') }}
+                    · {{ $selectedAccount->name }}
+                </small>
+                @if($pendingOnly ?? false)
+                    <small class="d-block text-primary mt-1">
+                        Período calculado automaticamente com base nas datas dos lançamentos pendentes.
                     </small>
+                @endif
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="recon-kpi border-success">
-                    <span class="text-muted d-block">Entradas conciliáveis</span>
-                    <h4 class="mb-0 mt-2 text-success">R$ {{ number_format($preview['totals']['income'], 2, ',', '.') }}</h4>
-                    <small class="text-muted">{{ $preview['income_groups']->sum('count') }} lançamento(s)</small>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="recon-kpi border-danger">
-                    <span class="text-muted d-block">Saídas conciliáveis</span>
-                    <h4 class="mb-0 mt-2 text-danger">R$ {{ number_format($preview['totals']['expense'], 2, ',', '.') }}</h4>
-                    <small class="text-muted">{{ $preview['expense_groups']->sum('count') }} lançamento(s)</small>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="recon-kpi {{ $preview['totals']['net'] >= 0 ? 'border-success' : 'border-danger' }}">
-                    <span class="text-muted d-block">Saldo projetado</span>
-                    <h4 class="mb-0 mt-2 {{ $preview['totals']['net'] >= 0 ? 'text-success' : 'text-danger' }}">
-                        R$ {{ number_format($projectedBalance, 2, ',', '.') }}
-                    </h4>
-                    <small class="text-muted">
-                        Resultado do período: {{ $preview['totals']['net'] >= 0 ? '+' : '-' }}R$ {{ number_format(abs($preview['totals']['net']), 2, ',', '.') }}
-                    </small>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-xl-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="bi bi-arrow-down-right text-success me-2"></i>Entradas do período</h5>
-                </div>
-                <div class="card-body">
-                    @forelse ($preview['income_groups'] as $group)
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-semibold">{{ $group['label'] }}</span>
-                                <span class="text-success">R$ {{ number_format($group['total'], 2, ',', '.') }}</span>
-                            </div>
-                            <small class="text-muted">{{ $group['count'] }} lançamento(s)</small>
-                            <ul class="list-unstyled small bg-light rounded p-2 mt-2 mb-0">
-                                @foreach ($group['items'] as $item)
-                                    <li class="d-flex justify-content-between">
-                                        <span>{{ $item['label'] }} • {{ \Carbon\Carbon::parse($item['reference_date'])->format('d/m/Y') }}</span>
-                                        <span class="text-success">R$ {{ number_format($item['amount'], 2, ',', '.') }}</span>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @empty
-                        <p class="text-muted mb-0">Nenhuma entrada disponível para conciliação.</p>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-6">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0"><i class="bi bi-arrow-up-right text-danger me-2"></i>Saídas do período</h5>
-                </div>
-                <div class="card-body">
-                    @forelse ($preview['expense_groups'] as $group)
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-semibold">{{ $group['label'] }}</span>
-                                <span class="text-danger">R$ {{ number_format($group['total'], 2, ',', '.') }}</span>
-                            </div>
-                            <small class="text-muted">{{ $group['count'] }} lançamento(s)</small>
-                            <ul class="list-unstyled small bg-light rounded p-2 mt-2 mb-0">
-                                @foreach ($group['items'] as $item)
-                                    <li class="d-flex justify-content-between">
-                                        <span>{{ $item['label'] }} • {{ \Carbon\Carbon::parse($item['reference_date'])->format('d/m/Y') }}</span>
-                                        <span class="text-danger">R$ {{ number_format($item['amount'], 2, ',', '.') }}</span>
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @empty
-                        <p class="text-muted mb-0">Nenhuma saída disponível para conciliação.</p>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-    </div>
-
-    @can('manage_bank_statements')
-        <div class="alert alert-warning mb-4">
-            <strong>Atenção:</strong> a conciliação bancaria é definitiva. Após confirmar, os lançamentos consolidados não poderão ser utilizados novamente. Apenas a conciliação mais recente pode ser cancelada.
-        </div>
-
-        <div class="d-flex flex-wrap gap-2 mb-5">
-            <form method="POST" action="{{ route('bank-reconciliation.store') }}">
-                @csrf
-                <input type="hidden" name="account_id" value="{{ $selectedAccount->id }}">
-                <input type="hidden" name="start_date" value="{{ $filters['start_date'] }}">
-                <input type="hidden" name="end_date" value="{{ $filters['end_date'] }}">
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-check-circle"></i> Confirmar conciliação
-                </button>
-            </form>
-            @if($latestReconciliation && $latestReconciliation->bank_account_id === $selectedAccount->id)
-                <form method="POST" action="{{ route('bank-reconciliation.cancel') }}" onsubmit="return confirm('Cancelar a última conciliação? Esta ação reverte o saldo da conta.');">
-                    @csrf
-                    <input type="hidden" name="account_id" value="{{ $selectedAccount->id }}">
-                    <button type="submit" class="btn btn-outline-danger">
-                        <i class="bi bi-arrow-counterclockwise"></i> Cancelar última conciliação
-                    </button>
-                </form>
+            @if($hasPendingEntries)
+                <span class="badge bg-primary">{{ $pendingEntries->count() }} lançamento(s) pendente(s)</span>
             @endif
         </div>
-    @endcan
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="recon-kpi">
+                        <span class="text-muted d-block">Saldo atual (antes)</span>
+                        <h4 class="mb-0 mt-2 text-primary">R$ {{ number_format($currentBalance, 2, ',', '.') }}</h4>
+                        <small class="text-muted">
+                            Atualizado em {{ optional($selectedAccount->balance_updated_at)->format('d/m/Y H:i') ?? '—' }}
+                        </small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="recon-kpi border-success">
+                        <span class="text-muted d-block">Entradas conciliáveis</span>
+                        <h4 class="mb-0 mt-2 text-success">R$ {{ number_format($preview['totals']['income'], 2, ',', '.') }}</h4>
+                        <small class="text-muted">{{ $preview['income_groups']->sum('count') }} lançamento(s)</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="recon-kpi border-danger">
+                        <span class="text-muted d-block">Saídas conciliáveis</span>
+                        <h4 class="mb-0 mt-2 text-danger">R$ {{ number_format($preview['totals']['expense'], 2, ',', '.') }}</h4>
+                        <small class="text-muted">{{ $preview['expense_groups']->sum('count') }} lançamento(s)</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="recon-kpi {{ $preview['totals']['net'] >= 0 ? 'border-success' : 'border-danger' }}">
+                        <span class="text-muted d-block">Saldo projetado</span>
+                        <h4 class="mb-0 mt-2 {{ $preview['totals']['net'] >= 0 ? 'text-success' : 'text-danger' }}">
+                            R$ {{ number_format($projectedBalance, 2, ',', '.') }}
+                        </h4>
+                        <small class="text-muted">
+                            Resultado do período: {{ $preview['totals']['net'] >= 0 ? '+' : '-' }}R$ {{ number_format(abs($preview['totals']['net']), 2, ',', '.') }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="fw-semibold mb-3">Lançamentos pendentes de conciliação</h6>
+
+            @if($hasPendingEntries)
+                <div class="table-responsive mb-4">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Data</th>
+                                <th>Descrição</th>
+                                <th>Origem</th>
+                                <th>Tipo</th>
+                                <th class="text-end">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($pendingEntries as $entry)
+                                <tr>
+                                    <td>{{ \Carbon\Carbon::parse($entry['reference_date'])->format('d/m/Y') }}</td>
+                                    <td>{{ $entry['label'] }}</td>
+                                    <td>{{ $entry['group_label'] }}</td>
+                                    <td>
+                                        @if($entry['direction'] === 'income')
+                                            <span class="badge bg-success-subtle text-success">Entrada</span>
+                                        @else
+                                            <span class="badge bg-danger-subtle text-danger">Saída</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end fw-semibold {{ $entry['direction'] === 'income' ? 'text-success' : 'text-danger' }}">
+                                        {{ $entry['direction'] === 'income' ? '+' : '-' }}R$ {{ number_format($entry['amount'], 2, ',', '.') }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="4" class="text-end">Resultado do período</th>
+                                <th class="text-end {{ $preview['totals']['net'] >= 0 ? 'text-success' : 'text-danger' }}">
+                                    {{ $preview['totals']['net'] >= 0 ? '+' : '-' }}R$ {{ number_format(abs($preview['totals']['net']), 2, ',', '.') }}
+                                </th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            @else
+                <div class="alert alert-light border mb-4">
+                    <i class="bi bi-inbox me-1"></i>
+                    Nenhum lançamento elegível para conciliação neste período. Ajuste as datas ou aguarde novos movimentos.
+                </div>
+            @endif
+
+            @can('manage_bank_statements')
+                <div class="alert alert-warning mb-4">
+                    <strong>Atenção:</strong> a conciliação bancária é definitiva. Após confirmar, os lançamentos consolidados não poderão ser utilizados novamente. Apenas a conciliação mais recente pode ser cancelada.
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <form method="POST" action="{{ route('bank-reconciliation.store') }}">
+                        @csrf
+                        <input type="hidden" name="account_id" value="{{ $selectedAccount->id }}">
+                        @if($pendingOnly ?? false)
+                            <input type="hidden" name="pending_only" value="1">
+                        @else
+                            <input type="hidden" name="start_date" value="{{ $filters['start_date'] }}">
+                            <input type="hidden" name="end_date" value="{{ $filters['end_date'] }}">
+                        @endif
+                        <button type="submit" class="btn btn-success" @disabled(!$hasPendingEntries)>
+                            <i class="bi bi-check-circle"></i>
+                            {{ ($pendingOnly ?? false) ? 'Confirmar conciliação das pendências' : 'Confirmar conciliação' }}
+                        </button>
+                    </form>
+                    @if($latestReconciliation && $latestReconciliation->bank_account_id === $selectedAccount->id)
+                        <form method="POST" action="{{ route('bank-reconciliation.cancel') }}" onsubmit="return confirm('Cancelar a última conciliação? Esta ação reverte o saldo da conta.');">
+                            @csrf
+                            <input type="hidden" name="account_id" value="{{ $selectedAccount->id }}">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="bi bi-arrow-counterclockwise"></i> Cancelar última conciliação
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @endcan
+        </div>
+    </div>
 @endif
 
 <div class="card">
@@ -403,4 +460,36 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const startInput = document.getElementById('filterStart');
+    const endInput = document.getElementById('filterEnd');
+
+    if (!startInput || !endInput) {
+        return;
+    }
+
+    const syncEndMinimum = () => {
+        if (!startInput.value) {
+            return;
+        }
+
+        endInput.min = startInput.value;
+
+        if (endInput.value && endInput.value < startInput.value) {
+            endInput.value = startInput.value;
+        }
+    };
+
+    startInput.addEventListener('change', syncEndMinimum);
+    syncEndMinimum();
+
+    @if($preview ?? null)
+    document.getElementById('reconciliationPreview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    @endif
+});
+</script>
+@endpush
 

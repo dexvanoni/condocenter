@@ -180,6 +180,77 @@ class FineService
             ->get();
     }
 
+    public function searchEligibleInfractors(int $condominiumId, string $term, int $limit = 15): Collection
+    {
+        $term = trim($term);
+
+        if (strlen($term) < 2) {
+            return collect();
+        }
+
+        return User::query()
+            ->with(['unit', 'moradorVinculado.unit', 'roles'])
+            ->active()
+            ->byCondominium($condominiumId)
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Morador', 'Agregado']))
+            ->where(function ($query) use ($term) {
+                $query->where('name', 'like', "%{$term}%")
+                    ->orWhere('cpf', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%")
+                    ->orWhereHas('unit', function ($unitQuery) use ($term) {
+                        $unitQuery->where('number', 'like', "%{$term}%")
+                            ->orWhere('block', 'like', "%{$term}%");
+                    })
+                    ->orWhereHas('moradorVinculado.unit', function ($unitQuery) use ($term) {
+                        $unitQuery->where('number', 'like', "%{$term}%")
+                            ->orWhere('block', 'like', "%{$term}%");
+                    });
+            })
+            ->orderBy('name')
+            ->limit($limit)
+            ->get()
+            ->map(fn (User $user) => $this->formatInfractorForPicker($user));
+    }
+
+    /**
+     * @param  list<int|string>  $userIds
+     */
+    public function infractorsByIds(int $condominiumId, array $userIds): Collection
+    {
+        if ($userIds === []) {
+            return collect();
+        }
+
+        return User::query()
+            ->with(['unit', 'moradorVinculado.unit', 'roles'])
+            ->active()
+            ->byCondominium($condominiumId)
+            ->whereIn('id', $userIds)
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Morador', 'Agregado']))
+            ->get()
+            ->map(fn (User $user) => $this->formatInfractorForPicker($user));
+    }
+
+    public function formatInfractorForPicker(User $user): array
+    {
+        $isAgregado = $user->isAgregado();
+        $responsible = $isAgregado ? $user->moradorVinculado : $user;
+        $unitLabel = $user->unit?->full_identifier
+            ?? $user->moradorVinculado?->unit?->full_identifier
+            ?? '—';
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'cpf' => $user->cpf,
+            'email' => $user->email,
+            'role' => $isAgregado ? 'Agregado' : 'Morador',
+            'role_class' => $isAgregado ? 'info' : 'primary',
+            'unit' => $unitLabel,
+            'notified_name' => ($isAgregado && $responsible) ? $responsible->name : null,
+        ];
+    }
+
     protected function generateReference(int $condominiumId): string
     {
         $year = now()->format('Y');

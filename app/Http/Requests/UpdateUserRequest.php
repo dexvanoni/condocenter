@@ -88,13 +88,21 @@ class UpdateUserRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            // Validar que apenas admin pode editar Síndico ou Conselho Fiscal
             if ($this->has('roles')) {
-                $restrictedRoles = ['Síndico', 'Conselho Fiscal'];
                 $requestedRoles = $this->input('roles', []);
-                
-                if (array_intersect($restrictedRoles, $requestedRoles) && !$this->user()->hasRole('Administrador')) {
-                    $validator->errors()->add('roles', 'Apenas administradores podem atribuir os perfis de Síndico ou Conselho Fiscal.');
+                $targetUser = $this->route('user');
+                $actorIsAdmin = $this->user()->hasRole('Administrador');
+                $requestedHasAdmin = in_array('Administrador', $requestedRoles, true);
+                $targetHasAdmin = $targetUser->hasRole('Administrador');
+
+                if (!$actorIsAdmin) {
+                    if ($requestedHasAdmin && !$targetHasAdmin) {
+                        $validator->errors()->add('roles', 'Apenas administradores podem atribuir o perfil de Administrador.');
+                    }
+
+                    if ($targetHasAdmin && !$requestedHasAdmin) {
+                        $validator->errors()->add('roles', 'Apenas administradores podem remover o perfil de Administrador.');
+                    }
                 }
             }
 

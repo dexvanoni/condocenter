@@ -165,17 +165,15 @@
             },
             appendToFormData(formData) {
                 formData.delete('images[]');
+                formData.delete('keep_images[]');
 
                 this.getFiles().forEach((file) => {
                     formData.append('images[]', file);
                 });
 
-                if (this.getKeepImages().length > 0) {
-                    formData.delete('keep_images[]');
-                    this.getKeepImages().forEach((path) => {
-                        formData.append('keep_images[]', path);
-                    });
-                }
+                this.getKeepImages().forEach((path) => {
+                    formData.append('keep_images[]', path);
+                });
             },
         });
 
