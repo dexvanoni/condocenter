@@ -1,0 +1,291 @@
+@media (min-width: 768px) {
+    .landing-nav-links {
+        display: flex;
+    }
+
+    .landing-menu-toggle {
+        display: none;
+    }
+
+    #avisos-carousel .landing-card:has(.landing-card-media),
+    #noticias-carousel .landing-card:has(.landing-card-media) {
+        grid-template-columns: 36% minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 1120px) {
+    .landing-nav {
+        width: min(calc(100% - 1rem), 1180px);
+    }
+
+    .landing-nav-links a {
+        padding-inline: 0.72rem;
+    }
+}
+
+@media (max-width: 991px) {
+    .landing-grid-2,
+    .landing-grid-3,
+    .landing-grid-4,
+    .landing-footer-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-hero {
+        min-height: auto;
+        padding: 5.5rem 0 3.5rem;
+    }
+
+    .landing-hero-grid,
+    .landing-about {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-hero-showcase {
+        min-height: 180px;
+        order: -1;
+    }
+
+    .landing-showcase-main {
+        min-height: 180px;
+    }
+
+    .landing-hero-title {
+        max-width: 14ch;
+    }
+
+    .landing-about-copy::before {
+        display: none;
+    }
+
+    .landing-footer-grid {
+        gap: 1.4rem;
+    }
+}
+
+@media (max-width: 767px) {
+    html {
+        scroll-padding-top: 86px;
+    }
+
+    .landing-ambient {
+        width: 24rem;
+        height: 24rem;
+    }
+
+    .landing-nav {
+        top: 0.5rem;
+        width: calc(100% - 0.75rem);
+        border-radius: 1.25rem;
+    }
+
+    .landing-nav.is-scrolled {
+        top: 0.35rem;
+    }
+
+    .landing-nav-inner {
+        padding-inline: 0.65rem;
+    }
+
+    .landing-brand > span:last-child {
+        max-width: 48vw;
+        font-size: 0.9rem;
+    }
+
+    .landing-brand-mark {
+        width: 38px;
+        height: 38px;
+    }
+
+    .landing-hero {
+        padding: 5rem 0 3rem;
+    }
+
+    .landing-hero-content,
+    .landing-container {
+        width: min(100% - 1.2rem, 1180px);
+    }
+
+    .landing-hero-showcase {
+        min-height: 160px;
+    }
+
+    .landing-showcase-main {
+        min-height: 160px;
+        padding: 1rem;
+    }
+
+    .landing-eyebrow {
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+    }
+
+    .landing-eyebrow span {
+        width: 1.6rem;
+    }
+
+    .landing-hero-title {
+        max-width: 14ch;
+        font-size: clamp(1.65rem, 8vw, 2.15rem);
+    }
+
+    .landing-hero-subtitle {
+        font-size: 0.88rem;
+        line-height: 1.6;
+    }
+
+    .landing-hero-actions,
+    .landing-hero-actions .landing-btn {
+        width: 100%;
+    }
+
+    .landing-hero-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-stat-card {
+        min-height: auto;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+    }
+
+    .landing-stat-card strong {
+        font-size: 1.35rem;
+    }
+
+    .landing-section {
+        padding: 2.75rem 0;
+    }
+
+    .landing-section-head {
+        margin-bottom: 1.6rem;
+    }
+
+    .landing-section-title {
+        font-size: clamp(1.25rem, 6vw, 1.55rem);
+    }
+
+    .landing-section-desc {
+        font-size: 0.85rem;
+    }
+
+    .landing-card-body {
+        padding: 0.85rem;
+    }
+
+    .landing-carousel-slide {
+        padding: 0 0.15rem;
+    }
+
+    #avisos-carousel .landing-card:has(.landing-card-media),
+    #noticias-carousel .landing-card:has(.landing-card-media) {
+        grid-template-columns: 1fr;
+    }
+
+    #avisos-carousel .landing-card-media,
+    #noticias-carousel .landing-card-media {
+        aspect-ratio: 16 / 7;
+        height: auto;
+    }
+
+    .landing-carousel-controls {
+        justify-content: center;
+    }
+
+    :root {
+        --landing-carousel-card-height: 13rem;
+    }
+
+    .landing-event-card {
+        grid-template-columns: 1fr;
+    }
+
+    .landing-event-date {
+        width: max-content;
+    }
+
+    .landing-feed-item {
+        align-items: flex-start;
+    }
+
+    .landing-feed-item .landing-btn {
+        width: auto;
+        margin-left: auto;
+    }
+
+    .landing-slideshow::before {
+        display: none;
+    }
+
+    .landing-slideshow-viewport {
+        border-radius: 24px;
+        aspect-ratio: 4 / 5;
+    }
+
+    .landing-slideshow-btn {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+
+    .landing-slideshow-caption {
+        padding: 1rem;
+    }
+
+    .landing-cta {
+        margin-bottom: 3rem;
+        border-radius: 28px;
+    }
+
+    .landing-cta-promo {
+        align-items: flex-start;
+        border-radius: 22px;
+    }
+
+    .landing-news-modal,
+    .landing-gallery-modal,
+    .landing-popup {
+        padding: 0.75rem;
+    }
+
+    .landing-news-modal-dialog,
+    .landing-popup-card,
+    .landing-gallery-modal-image {
+        border-radius: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .landing-feed-item {
+        flex-wrap: wrap;
+    }
+
+    .landing-feed-item .landing-btn {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .landing-mobile-panel {
+        width: 100%;
+    }
+
+    .landing-scroll-cue {
+        display: none;
+    }
+}
+
+@media print {
+    .landing-nav,
+    .landing-mobile-drawer,
+    .landing-cta,
+    .landing-popup,
+    .landing-carousel-controls,
+    .landing-slideshow-btn,
+    .landing-slideshow-dots {
+        display: none !important;
+    }
+
+    .landing-card {
+        break-inside: avoid;
+        box-shadow: none;
+    }
+}

@@ -10,9 +10,19 @@ use Illuminate\Support\Str;
 
 class CondominiumLandingPage extends Model
 {
+    public const TEMPLATE_CLASSIC = 'classic';
+
+    public const TEMPLATE_CONNECT = 'connect';
+
+    public const TEMPLATES = [
+        self::TEMPLATE_CLASSIC => 'Clássica',
+        self::TEMPLATE_CONNECT => 'Connect',
+    ];
+
     protected $fillable = [
         'condominium_id',
         'slug',
+        'template',
         'custom_domain',
         'is_published',
         'hero_title',
@@ -106,6 +116,23 @@ class CondominiumLandingPage extends Model
         }
 
         return route('condominium.landing', $this->slug);
+    }
+
+    public function resolvedTemplate(): string
+    {
+        $template = $this->attributes['template'] ?? self::TEMPLATE_CLASSIC;
+
+        return array_key_exists($template, self::TEMPLATES)
+            ? $template
+            : self::TEMPLATE_CLASSIC;
+    }
+
+    public function publicView(): string
+    {
+        return match ($this->resolvedTemplate()) {
+            self::TEMPLATE_CONNECT => 'landing.connect',
+            default => 'landing.show',
+        };
     }
 
     public static function normalizeDomain(?string $domain): ?string

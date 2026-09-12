@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\CondominiumLandingPage;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,6 +20,11 @@ class UpdateCondominiumLandingPageRequest extends FormRequest
             ->value('id');
 
         return [
+            'template' => [
+                'nullable',
+                'string',
+                Rule::in(array_keys(CondominiumLandingPage::TEMPLATES)),
+            ],
             'slug' => [
                 'nullable',
                 'string',

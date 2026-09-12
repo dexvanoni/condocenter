@@ -7,8 +7,16 @@
       "app.css"
     ]
   },
+  "resources/css/landing-connect.css": {
+    "file": "assets/landing-connect-CSUPuMqF.css",
+    "src": "resources/css/landing-connect.css",
+    "isEntry": true,
+    "names": [
+      "landing-connect.css"
+    ]
+  },
   "resources/css/landing.css": {
-    "file": "assets/landing-BMabywD5.css",
+    "file": "assets/landing-FQLWY6EG.css",
     "src": "resources/css/landing.css",
     "isEntry": true,
     "names": [
@@ -19,6 +27,12 @@
     "file": "assets/app-C73PN8vr.js",
     "name": "app",
     "src": "resources/js/app.js",
+    "isEntry": true
+  },
+  "resources/js/landing-connect.js": {
+    "file": "assets/landing-connect-9XmM5tva.js",
+    "name": "landing-connect",
+    "src": "resources/js/landing-connect.js",
     "isEntry": true
   },
   "resources/js/landing.js": {

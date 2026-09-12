@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicAssetUrl;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -73,7 +74,7 @@ class CondominiumLandingItem extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($path);
+        return PublicAssetUrl::storage($path);
     }
 
     public function imageUrls(): array
@@ -86,7 +87,7 @@ class CondominiumLandingItem extends Model
 
         foreach ($this->images ?? [] as $image) {
             if (is_string($image) && $image !== '') {
-                $urls[] = Storage::disk('public')->url($image);
+                $urls[] = PublicAssetUrl::storage($image);
             }
         }
 

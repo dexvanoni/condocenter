@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\PublicAssetUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
 
 class PlatformAnnouncement extends Model
 {
@@ -48,6 +48,6 @@ class PlatformAnnouncement extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->image_path);
+        return PublicAssetUrl::storage($this->image_path);
     }
 }

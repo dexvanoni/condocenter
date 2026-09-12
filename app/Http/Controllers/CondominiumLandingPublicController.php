@@ -20,6 +20,6 @@ class CondominiumLandingPublicController extends Controller
 
         $payload = $this->landingService->buildPublicPayload($page);
 
-        return view('landing.show', $payload);
+        return view($page->publicView(), $payload);
     }
 }

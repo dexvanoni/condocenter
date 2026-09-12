@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 10/09/2026 (módulos do condomínio)
+- **Última revisão:** 12/09/2026 (template Connect na landing page)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -521,6 +521,12 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-12 — Segundo template de landing page (Connect)
+
+- Instalação nova: o `migrate` do Passo 5 (Parte 1) cria `condominium_landing_pages.template` (padrão `classic`).
+- Atualização: Parte 2 (`git pull` + `npm run build` + `php artisan migrate --force`). Sem variável de `.env` nova.
+- O síndico escolhe o modelo em Landing Page → aba Geral → **Modelo visual** (Clássica ou Connect). Conteúdos e integrações permanecem os mesmos.
 
 ### 2026-09-10 — Módulos do condomínio (síndico liga/desliga)
 

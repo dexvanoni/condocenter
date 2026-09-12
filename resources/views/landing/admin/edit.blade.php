@@ -44,6 +44,34 @@
                         @method('PUT')
 
                         <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label d-block mb-2">Modelo visual</label>
+                                <div class="row g-3">
+                                    @foreach(\App\Models\CondominiumLandingPage::TEMPLATES as $templateValue => $templateLabel)
+                                        <div class="col-md-6">
+                                            <label class="d-block h-100 border rounded-3 p-3 {{ old('template', $page->template ?? 'classic') === $templateValue ? 'border-primary bg-light' : '' }}">
+                                                <span class="d-flex align-items-start gap-2">
+                                                    <input type="radio"
+                                                        name="template"
+                                                        value="{{ $templateValue }}"
+                                                        class="form-check-input mt-1"
+                                                        @checked(old('template', $page->template ?? 'classic') === $templateValue)>
+                                                    <span>
+                                                        <strong class="d-block">{{ $templateLabel }}</strong>
+                                                        <span class="text-muted small">
+                                                            @if($templateValue === \App\Models\CondominiumLandingPage::TEMPLATE_CLASSIC)
+                                                                Layout editorial com hero panorâmico, carrosséis e seções modulares.
+                                                            @else
+                                                                Portal moderno com card hero, grids e visual inspirado no Condo Connect Hub.
+                                                            @endif
+                                                        </span>
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
                             <div class="col-md-8">
                                 <label class="form-label">Título principal</label>
                                 <input type="text" name="hero_title" class="form-control" value="{{ old('hero_title', $page->hero_title) }}">

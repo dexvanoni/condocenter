@@ -1,84 +1,10 @@
 @extends('layouts.landing')
 
-@php
-    $heroImages = collect($page->hero_gallery ?? [])
-        ->when($page->hero_image, fn ($c) => $c->prepend($page->hero_image))
-        ->map(fn ($path) => \Illuminate\Support\Facades\Storage::disk('public')->url($path))
-        ->filter()
-        ->values();
-
-    if ($heroImages->isEmpty()) {
-        $heroImages = collect([
-            'https://images.unsplash.com/photo-1545324417-cc1a3fa10c00?auto=format&fit=crop&w=1600&q=80',
-        ]);
-    }
-
-    $gallerySlides = $gallery->flatMap(function ($photo) {
-        return collect($photo->imageUrls())->map(fn ($url) => [
-            'url' => $url,
-            'title' => $photo->title,
-            'caption' => $photo->subtitle,
-        ]);
-    })->values();
-
-    $landingDeepLink = function (string $routeName, array $params = []): string {
-        $url = route($routeName, $params);
-
-        if (auth()->check()) {
-            return $url;
-        }
-
-        return route('login', ['redirect' => $url]);
-    };
-
-    $marketplaceCategories = [
-        'products' => 'Produtos',
-        'services' => 'Serviços',
-        'jobs' => 'Empregos',
-        'real_estate' => 'Imóveis',
-        'vehicles' => 'Veículos',
-        'other' => 'Outros',
-    ];
-
-    $landingNewsItems = collect();
-
-    foreach ($platformNews as $item) {
-        $landingNewsItems["platform-{$item->id}"] = [
-            'tag' => $item->badge_label ?? 'SindCon',
-            'tag_icon' => 'bi-stars',
-            'title' => $item->title,
-            'subtitle' => null,
-            'content' => strip_tags($item->content ?? ''),
-            'image' => $item->imageUrl(),
-            'link_url' => $item->link_url,
-        ];
-    }
-
-    foreach ($news as $item) {
-        $landingNewsItems["news-{$item->id}"] = [
-            'tag' => 'Notícia',
-            'tag_icon' => 'bi-newspaper',
-            'title' => $item->title,
-            'subtitle' => $item->subtitle,
-            'content' => $item->content ?? '',
-            'image' => $item->image_path ? $item->imageUrl() : null,
-            'link_url' => null,
-        ];
-    }
-
-    $sections = collect([
-        ['id' => 'sobre', 'label' => 'Sobre', 'visible' => filled($page->about_content) || filled($page->about_title)],
-        ['id' => 'avisos', 'label' => 'Avisos', 'visible' => $notices->isNotEmpty() || $announcements->isNotEmpty()],
-        ['id' => 'noticias', 'label' => 'Notícias', 'visible' => $news->isNotEmpty() || $platformNews->isNotEmpty()],
-        ['id' => 'eventos', 'label' => 'Eventos', 'visible' => $events->isNotEmpty()],
-        ['id' => 'obras', 'label' => 'Obras', 'visible' => $construction->isNotEmpty()],
-        ['id' => 'galeria', 'label' => 'Galeria', 'visible' => $gallery->isNotEmpty()],
-        ['id' => 'comunidade', 'label' => 'Comunidade', 'visible' => $rides->isNotEmpty() || $marketplace->isNotEmpty()],
-    ])->where('visible', true);
-@endphp
-
 @section('content')
 <div class="landing-shell">
+    <div class="landing-ambient landing-ambient-one"></div>
+    <div class="landing-ambient landing-ambient-two"></div>
+
     <header class="landing-nav">
         <div class="landing-nav-inner">
             <a href="#" class="landing-brand">
@@ -88,7 +14,7 @@
 
             <nav class="landing-nav-links">
                 @foreach($sections as $section)
-                    <a href="#{{ $section['id'] }}">{{ $section['label'] }}</a>
+                    <a href="#{{ $section['id'] }}"><span>{{ $section['label'] }}</span></a>
                 @endforeach
             </nav>
 
@@ -125,38 +51,59 @@
         </div>
         <div class="landing-hero-overlay"></div>
         <div class="landing-hero-content landing-reveal is-visible">
-            @if($page->tagline)
-                <div class="landing-hero-badge"><i class="bi bi-stars"></i> {{ $page->tagline }}</div>
-            @endif
-            <h1 class="landing-hero-title">{{ $page->hero_title ?? $condominium->name }}</h1>
-            <p class="landing-hero-subtitle">
-                {{ $page->hero_subtitle ?? 'Portal oficial do condomínio — avisos, eventos, obras e novidades da comunidade em um só lugar.' }}
-            </p>
-            <div class="landing-hero-actions">
-                <a href="#avisos" class="landing-btn landing-btn-primary"><i class="bi bi-megaphone"></i> Ver avisos</a>
-                <a href="{{ route('login') }}" class="landing-btn landing-btn-ghost"><i class="bi bi-box-arrow-in-right"></i> Acessar moradores</a>
-            </div>
-            <div class="landing-hero-stats">
-                <div class="landing-stat-card">
-                    <strong>{{ $notices->count() + $announcements->count() }}</strong>
-                    <span>Avisos ativos</span>
+            <div class="landing-hero-grid">
+                <div class="landing-hero-copy">
+                    <div class="landing-eyebrow">
+                        <span></span>
+                        Portal oficial do condomínio
+                    </div>
+                    @if($page->tagline)
+                        <div class="landing-hero-badge"><i class="bi bi-stars"></i> {{ $page->tagline }}</div>
+                    @endif
+                    <h1 class="landing-hero-title">{{ $page->hero_title ?? $condominium->name }}</h1>
+                    <p class="landing-hero-subtitle">
+                        {{ $page->hero_subtitle ?? 'Portal oficial do condomínio — avisos, eventos, obras e novidades da comunidade em um só lugar.' }}
+                    </p>
+                    <div class="landing-hero-actions">
+                        <a href="#avisos" class="landing-btn landing-btn-primary"><i class="bi bi-megaphone"></i> Ver avisos</a>
+                        <a href="{{ route('login') }}" class="landing-btn landing-btn-ghost"><i class="bi bi-box-arrow-in-right"></i> Acessar moradores</a>
+                    </div>
+                    <div class="landing-hero-stats">
+                        <div class="landing-stat-card">
+                            <span>Avisos ativos</span>
+                            <strong>{{ $notices->count() + $announcements->count() }}</strong>
+                        </div>
+                        <div class="landing-stat-card">
+                            <span>Eventos publicados</span>
+                            <strong>{{ $events->count() }}</strong>
+                        </div>
+                        <div class="landing-stat-card">
+                            <span>Fases de obras</span>
+                            <strong>{{ $construction->count() }}</strong>
+                        </div>
+                    </div>
                 </div>
-                <div class="landing-stat-card">
-                    <strong>{{ $events->count() }}</strong>
-                    <span>Eventos publicados</span>
-                </div>
-                <div class="landing-stat-card">
-                    <strong>{{ $construction->count() }}</strong>
-                    <span>Fases de obras</span>
-                </div>
+
+                <aside class="landing-hero-showcase" aria-label="Resumo da comunidade">
+                    <div class="landing-showcase-card landing-showcase-main">
+                        <div class="landing-showcase-icon"><i class="bi bi-building"></i></div>
+                        <span>Portal oficial</span>
+                        <strong>{{ $condominium->name }}</strong>
+                        <p>Avisos, eventos e serviços da comunidade em um só lugar.</p>
+                    </div>
+                </aside>
             </div>
         </div>
+        <a href="#sobre" class="landing-scroll-cue" aria-label="Rolar para o conteúdo">
+            <span></span>
+            Explorar
+        </a>
     </section>
 
     @if(filled($page->about_content) || filled($page->about_title))
-    <section class="landing-section" id="sobre">
+    <section class="landing-section landing-section-soft" id="sobre">
         <div class="landing-container landing-about landing-reveal">
-            <div>
+            <div class="landing-about-copy">
                 <span class="landing-section-kicker">Conheça</span>
                 <h2 class="landing-section-title">{{ $page->about_title ?? 'Sobre o condomínio' }}</h2>
                 <p class="landing-section-desc">{!! nl2br(e($page->about_content ?? $condominium->description)) !!}</p>
@@ -170,7 +117,8 @@
                 </div>
             </div>
             <div class="landing-about-panel">
-                <h3 class="h5 mb-3">Informações rápidas</h3>
+                <span class="landing-panel-label">Informações rápidas</span>
+                <h3>Um portal pensado para simplificar o dia a dia.</h3>
                 <div class="landing-feed-list">
                     <div class="landing-feed-item">
                         <div class="landing-feed-icon"><i class="bi bi-building"></i></div>
@@ -204,12 +152,13 @@
     @endif
 
     @if($notices->isNotEmpty() || $announcements->isNotEmpty())
-    <section class="landing-section" id="avisos" style="background:#fff;">
+    <section class="landing-section landing-section-white" id="avisos">
         <div class="landing-container landing-reveal">
             <div class="landing-section-head">
                 <div>
                     <span class="landing-section-kicker">Importante</span>
                     <h2 class="landing-section-title">Avisos do condomínio</h2>
+                    <p class="landing-section-desc">Comunicados relevantes aparecem com destaque, leitura confortável e navegação fluida.</p>
                 </div>
             </div>
             @component('landing.partials.card-carousel', ['carouselId' => 'avisos-carousel'])
@@ -246,12 +195,13 @@
     @endif
 
     @if($news->isNotEmpty() || $platformNews->isNotEmpty())
-    <section class="landing-section" id="noticias">
+    <section class="landing-section landing-section-soft" id="noticias">
         <div class="landing-container landing-reveal">
             <div class="landing-section-head">
                 <div>
                     <span class="landing-section-kicker">Novidades</span>
                     <h2 class="landing-section-title">Notícias e atualizações</h2>
+                    <p class="landing-section-desc">Atualizações em cards editoriais, com abertura em modal para manter a experiência no contexto da página.</p>
                 </div>
             </div>
             @component('landing.partials.card-carousel', ['carouselId' => 'noticias-carousel'])
@@ -317,12 +267,13 @@
     @endif
 
     @if($events->isNotEmpty())
-    <section class="landing-section" id="eventos" style="background:#fff;">
+    <section class="landing-section landing-section-white" id="eventos">
         <div class="landing-container landing-reveal">
             <div class="landing-section-head">
                 <div>
                     <span class="landing-section-kicker">Agenda</span>
                     <h2 class="landing-section-title">Eventos e encontros</h2>
+                    <p class="landing-section-desc">A agenda ganha presença visual para destacar datas importantes sem perder simplicidade.</p>
                 </div>
             </div>
             <div class="landing-grid landing-grid-2">
@@ -352,7 +303,7 @@
     @endif
 
     @if($construction->isNotEmpty())
-    <section class="landing-section" id="obras">
+    <section class="landing-section landing-section-soft" id="obras">
         <div class="landing-container landing-reveal">
             <div class="landing-section-head">
                 <div>
@@ -387,12 +338,13 @@
     @endif
 
     @if($gallery->isNotEmpty())
-    <section class="landing-section" id="galeria" style="background:#fff;">
+    <section class="landing-section landing-section-white landing-gallery-section" id="galeria">
         <div class="landing-container landing-reveal">
             <div class="landing-section-head">
                 <div>
                     <span class="landing-section-kicker">Galeria</span>
                     <h2 class="landing-section-title">Momentos do condomínio</h2>
+                    <p class="landing-section-desc">Imagens em formato imersivo, com navegação suave e ampliação em tela cheia.</p>
                 </div>
             </div>
             @if($gallerySlides->isNotEmpty())
@@ -465,18 +417,19 @@
     @endif
 
     @if($rides->isNotEmpty() || $marketplace->isNotEmpty())
-    <section class="landing-section" id="comunidade">
+    <section class="landing-section landing-section-soft" id="comunidade">
         <div class="landing-container landing-reveal">
             <div class="landing-section-head">
                 <div>
                     <span class="landing-section-kicker">Comunidade</span>
                     <h2 class="landing-section-title">Caronas e marketplace</h2>
+                    <p class="landing-section-desc">Conexões úteis entre moradores, com caminhos rápidos para acessar as oportunidades publicadas.</p>
                 </div>
             </div>
             <div class="landing-grid landing-grid-2">
                 @if($rides->isNotEmpty())
-                    <div>
-                        <h3 class="h5 mb-3"><i class="bi bi-car-front"></i> Caronas disponíveis</h3>
+                    <div class="landing-community-column">
+                        <h3 class="landing-block-title"><i class="bi bi-car-front"></i> Caronas disponíveis</h3>
                         <div class="landing-feed-list">
                             @foreach($rides as $ride)
                                 <div class="landing-feed-item">
@@ -494,8 +447,8 @@
                     </div>
                 @endif
                 @if($marketplace->isNotEmpty())
-                    <div>
-                        <h3 class="h5 mb-3"><i class="bi bi-shop"></i> Marketplace</h3>
+                    <div class="landing-community-column">
+                        <h3 class="landing-block-title"><i class="bi bi-shop"></i> Marketplace</h3>
                         <div class="landing-grid landing-grid-2">
                             @foreach($marketplace as $item)
                                 @php $itemImage = $item->image_urls[0] ?? null; @endphp

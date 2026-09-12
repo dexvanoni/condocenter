@@ -10,6 +10,8 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/css/landing.css',
                 'resources/js/landing.js',
+                'resources/css/landing-connect.css',
+                'resources/js/landing-connect.js',
             ],
             refresh: true,
         }),

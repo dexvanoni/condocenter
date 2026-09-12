@@ -37,7 +37,7 @@ class ResolveCondominiumLandingDomain
         if (in_array($request->path(), ['', '/'], true) || $request->path() === '/') {
             $payload = $this->landingService->buildPublicPayload($landing);
 
-            return response()->view('landing.show', $payload);
+            return response()->view($landing->publicView(), $payload);
         }
 
         if ($request->path() === 'login') {
