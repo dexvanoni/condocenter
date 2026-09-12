@@ -104,8 +104,9 @@
                     <tr>
                         <th>Unidade</th>
                         <th>Título</th>
+                        <th>Competência</th>
                         <th>Vencimento</th>
-                        <th>Pago em</th>
+                        <th>Recebimento</th>
                         <th>Valor</th>
                         <th>Status</th>
                         <th>Ações</th>
@@ -113,7 +114,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="7" class="text-center py-4">
+                        <td colspan="8" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Carregando...</span>
                             </div>
@@ -185,8 +186,14 @@
                     <dt class="col-sm-4">Valor</dt>
                     <dd class="col-sm-8" id="detailChargeAmount">—</dd>
 
+                    <dt class="col-sm-4">Competência</dt>
+                    <dd class="col-sm-8" id="detailChargeCompetence">—</dd>
+
                     <dt class="col-sm-4">Vencimento</dt>
                     <dd class="col-sm-8" id="detailChargeDueDate">—</dd>
+
+                    <dt class="col-sm-4">Recebimento</dt>
+                    <dd class="col-sm-8" id="detailChargeReceivedAt">—</dd>
 
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8" id="detailChargeStatus">—</dd>
@@ -334,7 +341,14 @@
         return date.toLocaleDateString('pt-BR');
     }
 
-    function statusBadge(status) {
+    function statusBadge(charge) {
+        if (charge && charge.display_status) {
+            const info = charge.display_status;
+            const textClass = info.color === 'warning' ? ' text-dark' : '';
+            return `<span class="badge bg-${info.color}${textClass}">${info.label}</span>`;
+        }
+
+        const status = typeof charge === 'string' ? charge : charge?.status;
         const map = {
             pending: { label: 'Pendente', color: 'warning' },
             overdue: { label: 'Em Atraso', color: 'danger' },
@@ -343,7 +357,20 @@
         };
 
         const info = map[status] || { label: status ?? '—', color: 'secondary' };
-        return `<span class="badge bg-${info.color}">${info.label}</span>`;
+        const textClass = info.color === 'warning' ? ' text-dark' : '';
+        return `<span class="badge bg-${info.color}${textClass}">${info.label}</span>`;
+    }
+
+    function formatReceivedAt(charge) {
+        if (charge.paid_at) {
+            return formatDate(charge.paid_at);
+        }
+
+        if (charge.payment_channel === 'payroll' && ['pending', 'overdue'].includes(charge.status)) {
+            return `<span class="text-muted">Previsto ${formatDate(charge.due_date)}</span>`;
+        }
+
+        return '—';
     }
 
     function buildMonthRange(monthValue) {
@@ -370,7 +397,7 @@
         const tbody = document.querySelector('#chargesTable tbody');
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center py-4">
+                <td colspan="8" class="text-center py-4">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Carregando...</span>
                     </div>
@@ -497,7 +524,7 @@
                 const tbody = document.querySelector('#chargesTable tbody');
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" class="text-center text-danger py-4">
+                        <td colspan="8" class="text-center text-danger py-4">
                             Não foi possível carregar as cobranças. Tente novamente.
                         </td>
                     </tr>
@@ -602,7 +629,7 @@
         if (charges.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">
+                    <td colspan="8" class="text-center text-muted py-4">
                         Nenhuma cobrança encontrada para os filtros selecionados.
                     </td>
                 </tr>
@@ -615,10 +642,11 @@
                 tr.innerHTML = `
                     <td>${charge.unit?.full_identifier ?? '—'}</td>
                     <td>${charge.title}</td>
+                    <td>${charge.competence_label ?? charge.recurrence_period ?? '—'}</td>
                     <td>${formatDate(charge.due_date)}</td>
-                    <td>${formatDate(charge.paid_at)}</td>
+                    <td>${formatReceivedAt(charge)}</td>
                     <td>${formatCurrency(charge.amount)}</td>
-                    <td>${statusBadge(charge.status)}</td>
+                    <td>${statusBadge(charge)}</td>
                     <td>${buildActions(charge)}</td>
                 `;
                 tbody.appendChild(tr);
@@ -633,7 +661,9 @@
         document.getElementById('detailChargeTitle').textContent = 'Carregando...';
         document.getElementById('detailChargeUnit').textContent = '—';
         document.getElementById('detailChargeAmount').textContent = '—';
+        document.getElementById('detailChargeCompetence').textContent = '—';
         document.getElementById('detailChargeDueDate').textContent = '—';
+        document.getElementById('detailChargeReceivedAt').textContent = '—';
         document.getElementById('detailChargeStatus').innerHTML = statusBadge(null);
         document.getElementById('detailChargeFee').textContent = '—';
         document.getElementById('detailChargeNotes').textContent = '—';
@@ -664,8 +694,10 @@
                 document.getElementById('detailChargeTitle').textContent = charge.title ?? '—';
                 document.getElementById('detailChargeUnit').textContent = charge.unit?.full_identifier ?? '—';
                 document.getElementById('detailChargeAmount').textContent = formatCurrency(charge.amount);
+                document.getElementById('detailChargeCompetence').textContent = charge.competence_label ?? charge.competence_period ?? charge.recurrence_period ?? '—';
                 document.getElementById('detailChargeDueDate').textContent = formatDate(charge.due_date);
-                document.getElementById('detailChargeStatus').innerHTML = statusBadge(charge.status);
+                document.getElementById('detailChargeReceivedAt').innerHTML = formatReceivedAt(charge);
+                document.getElementById('detailChargeStatus').innerHTML = statusBadge(charge);
                 document.getElementById('detailChargeFee').textContent = charge.fee?.name ?? '—';
                 document.getElementById('detailChargeNotes').textContent = charge.description ?? '—';
 

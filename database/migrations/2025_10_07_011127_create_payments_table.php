@@ -17,7 +17,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null'); // quem pagou
             $table->decimal('amount_paid', 15, 2);
             $table->date('payment_date');
-            $table->enum('payment_method', ['cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'other']);
+            $table->enum('payment_method', ['cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'payroll', 'other']);
             $table->string('asaas_payment_id')->nullable(); // ID do pagamento no Asaas
             $table->string('transaction_id')->nullable(); // ID da transação bancária
             $table->text('notes')->nullable();

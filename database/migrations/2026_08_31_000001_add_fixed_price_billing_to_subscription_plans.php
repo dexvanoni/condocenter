@@ -17,6 +17,10 @@ return new class extends Migration
             $table->decimal('fixed_price', 10, 2)->default(0)->after('user_price');
         });
 
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE subscription_plans MODIFY billing_metric ENUM('unit', 'user', 'fixed') NOT NULL DEFAULT 'unit'");
         DB::statement("ALTER TABLE condominium_subscriptions MODIFY billing_metric ENUM('unit', 'user', 'fixed') NOT NULL DEFAULT 'unit'");
     }
@@ -25,6 +29,18 @@ return new class extends Migration
     {
         DB::table('subscription_plans')->where('billing_metric', 'fixed')->update(['billing_metric' => 'unit']);
         DB::table('condominium_subscriptions')->where('billing_metric', 'fixed')->update(['billing_metric' => 'unit']);
+
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            Schema::table('condominium_subscriptions', function (Blueprint $table) {
+                $table->dropColumn('fixed_price');
+            });
+
+            Schema::table('subscription_plans', function (Blueprint $table) {
+                $table->dropColumn('fixed_price');
+            });
+
+            return;
+        }
 
         DB::statement("ALTER TABLE subscription_plans MODIFY billing_metric ENUM('unit', 'user') NOT NULL DEFAULT 'unit'");
         DB::statement("ALTER TABLE condominium_subscriptions MODIFY billing_metric ENUM('unit', 'user') NOT NULL DEFAULT 'unit'");

@@ -19,7 +19,7 @@ class SelfRegisterRequest extends FormRequest
     {
         return [
             'registration_code' => ['required', 'string', 'max:20'],
-            'registration_type' => ['required', Rule::in(['compossuidor', 'dependente'])],
+            'registration_type' => ['required', Rule::in(['morador', 'dependente'])],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
@@ -36,7 +36,7 @@ class SelfRegisterRequest extends FormRequest
     {
         return [
             'registration_code.required' => 'Informe o código de cadastro do condomínio.',
-            'registration_type.required' => 'Selecione se você é compossuidor ou dependente.',
+            'registration_type.required' => 'Selecione se você é morador ou dependente.',
             'registration_type.in' => 'Tipo de cadastro inválido.',
             'name.required' => 'Informe seu nome completo.',
             'email.required' => 'Informe seu e-mail.',
@@ -55,6 +55,13 @@ class SelfRegisterRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('registration_type') === 'compossuidor') {
+            $this->merge(['registration_type' => 'morador']);
+        }
+    }
+
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
@@ -68,7 +75,7 @@ class SelfRegisterRequest extends FormRequest
                 return;
             }
 
-            if ($this->input('registration_type') === 'compossuidor' && !$this->input('unit_id')) {
+            if ($this->input('registration_type') === 'morador' && !$this->input('unit_id')) {
                 $validator->errors()->add('unit_id', 'Selecione a unidade do condomínio.');
             }
 

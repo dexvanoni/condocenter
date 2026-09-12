@@ -106,6 +106,75 @@ class ChargeSettlementService
         });
     }
 
+    public function settlePayrollCharge(Charge $charge, ?Carbon $paidAt = null): void
+    {
+        $paymentChannel = $charge->metadata['payment_channel'] ?? 'system';
+
+        if ($paymentChannel !== 'payroll') {
+            throw ValidationException::withMessages([
+                'charge' => 'A cobrança selecionada não está configurada para desconto em folha.',
+            ]);
+        }
+
+        if ($charge->status === 'paid') {
+            return;
+        }
+
+        if (! in_array($charge->status, ['pending', 'overdue'], true)) {
+            throw ValidationException::withMessages([
+                'charge' => 'Somente cobranças pendentes ou em atraso podem ser liquidadas via folha.',
+            ]);
+        }
+
+        $paidAt = ($paidAt ?? $charge->due_date ?? now())->copy()->startOfDay();
+
+        if ($charge->due_date && $paidAt->lt($charge->due_date->copy()->startOfDay())) {
+            throw ValidationException::withMessages([
+                'charge' => 'A liquidação em folha só pode ocorrer a partir da data de vencimento.',
+            ]);
+        }
+
+        $metadata = $charge->metadata ?? [];
+        $metadata['payroll_auto_settled'] = true;
+        $metadata['payroll_settled_at'] = $paidAt->format('Y-m-d');
+
+        $charge->forceFill(['metadata' => $metadata])->save();
+
+        $this->markAsPaid(
+            $charge->fresh(),
+            $paidAt,
+            'payroll',
+            'Liquidação automática via desconto em folha',
+            null
+        );
+    }
+
+    public function settleDuePayrollCharges(?Carbon $referenceDate = null): int
+    {
+        $referenceDate = ($referenceDate ?? now())->copy()->startOfDay();
+        $settled = 0;
+
+        Charge::query()
+            ->with('unit')
+            ->where('generated_by', 'fee')
+            ->whereIn('status', ['pending', 'overdue'])
+            ->whereDate('due_date', '<=', $referenceDate->toDateString())
+            ->whereHas('fee', fn ($query) => $query->where('billing_type', 'condominium_fee'))
+            ->orderBy('id')
+            ->chunkById(100, function ($charges) use (&$settled, $referenceDate) {
+                foreach ($charges as $charge) {
+                    if (($charge->metadata['payment_channel'] ?? 'system') !== 'payroll') {
+                        continue;
+                    }
+
+                    $this->settlePayrollCharge($charge, $charge->due_date ?? $referenceDate);
+                    $settled++;
+                }
+            });
+
+        return $settled;
+    }
+
     public function revokePayrollSettlement(Charge $charge, ?string $reason, ?int $userId = null): void
     {
         $paymentChannel = $charge->metadata['payment_channel'] ?? 'system';

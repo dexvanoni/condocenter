@@ -22,9 +22,6 @@
             'unit_id' => $config->unit_id,
             'payment_channel' => $config->payment_channel,
             'custom_amount' => $config->custom_amount,
-            'starts_at' => optional($config->starts_at)->format('Y-m-d'),
-            'ends_at' => optional($config->ends_at)->format('Y-m-d'),
-            'notes' => $config->notes,
         ])->keyBy('unit_id')->toArray()
         : [];
 
@@ -46,49 +43,63 @@
 
 @once
     @push('styles')
-        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
         <style>
             .fee-units-table-container {
                 width: 100%;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
                 border-radius: .375rem;
                 border: 1px solid #dee2e6;
                 background: #fff;
             }
-            .fee-units-table-container .dataTables_wrapper {
+            .fee-units-table-container table {
                 width: 100%;
-                padding: .75rem;
+                table-layout: fixed;
             }
-            .fee-units-table-container table.dataTable {
-                width: 100% !important;
-                margin: 0 !important;
+            #units-table th, #units-table td {
+                vertical-align: middle;
+                word-wrap: break-word;
             }
-            #units-table { min-width: 1080px; }
-            #units-table th, #units-table td { vertical-align: middle; }
-            #units-table .unit-col-payment { min-width: 130px; }
-            #units-table .unit-col-amount { min-width: 140px; }
-            #units-table .unit-col-dates { min-width: 150px; }
-            #units-table .unit-col-notes { min-width: 160px; max-width: 220px; }
-            #units-table .unit-col-unit { min-width: 200px; }
+            #units-table .unit-col-check { width: 72px; }
+            #units-table .unit-col-amount { width: 140px; }
+            .fee-payment-option {
+                border: 2px solid #dee2e6;
+                border-radius: .5rem;
+                padding: .85rem 1rem;
+                cursor: pointer;
+                transition: border-color .15s, background .15s;
+                height: 100%;
+            }
+            .fee-payment-option:has(input:checked) {
+                border-color: #0d6efd;
+                background: #e7f1ff;
+            }
+            .fee-payment-option input { margin-top: .2rem; }
+            .fee-scope-option {
+                border: 1px solid #dee2e6;
+                border-radius: .5rem;
+                padding: .75rem 1rem;
+                cursor: pointer;
+            }
+            .fee-scope-option:has(input:checked) {
+                border-color: #198754;
+                background: #d1e7dd;
+            }
+            .fee-auto-units-list {
+                max-height: 220px;
+                overflow-y: auto;
+            }
             .fee-preview-card .preview-value { font-size: 1.35rem; font-weight: 700; }
             .fee-hint { font-size: .85rem; color: #6c757d; }
         </style>
     @endpush
 @endonce
 
-@once
-    @push('scripts')
-        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-        <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-        @include('partials.datatables-helper')
-    @endpush
-@endonce
-
 @php
     $totalUnits = $units->count();
     $autoEligibleUnitsCount = $autoEligibleUnitsCount ?? $units->filter(fn ($u) => $u->isEligibleForAutomaticFee())->count();
+    $defaultPaymentChannel = old('default_payment_channel', ($fee->metadata['default_payment_channel'] ?? null) ?? 'system');
     $defaultApplyAll = old('apply_all_units', ($wizardMode ?? false) ? '1' : (empty($existingConfigurations) ? '1' : '0'));
+    $defaultUnitScope = filter_var($defaultApplyAll, FILTER_VALIDATE_BOOLEAN) ? 'automatic' : 'manual';
+    $defaultUnitScope = old('unit_scope', $defaultUnitScope);
 @endphp
 
 <input type="hidden" name="apply_all_units" id="apply_all_units" value="{{ $defaultApplyAll }}">
@@ -313,199 +324,170 @@
 @if($wizardMode)
 </div>
 <div class="fee-wizard-pane" data-pane="2">
+    <div class="mb-4">
+        <h4 class="mb-1">Pagamento e unidades</h4>
+        <p class="text-muted mb-0">Defina como a taxa será paga e quais unidades receberão a cobrança.</p>
+    </div>
 @endif
 
 @error('unit_configurations')
     <div class="alert alert-danger">{{ $message }}</div>
 @enderror
+@error('default_payment_channel')
+    <div class="alert alert-danger">{{ $message }}</div>
+@enderror
 
-<div id="units-simple-panel" class="mb-4">
-    <div class="card border-success border-opacity-50 bg-success bg-opacity-10">
-        <div class="card-body">
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-                <div>
-                    <h5 class="mb-2"><i class="bi bi-buildings me-1"></i> Unidades habitadas com morador</h5>
-                    <p class="text-muted mb-2">
-                        Esta taxa será aplicada automaticamente às <strong id="units-total-label">{{ $autoEligibleUnitsCount }}</strong> unidades elegíveis
-                        (habitadas com morador ativo<span id="fee-models-filter-hint">{{ empty($selectedUnitModels) ? '' : ' nos modelos selecionados' }}</span>), usando a forma de pagamento padrão de cada uma (folha ou sistema).
-                        @if($totalUnits > $autoEligibleUnitsCount)
-                            <span class="d-block mt-1 small">
-                                O condomínio possui {{ $totalUnits }} unidades no total; as demais podem ser incluídas manualmente.
-                            </span>
-                        @endif
-                    </p>
-                    <span class="badge bg-success" id="apply-all-status-badge">
-                        <i class="bi bi-check-circle me-1"></i> Modo padrão: automação (habitadas + morador)
-                    </span>
-                </div>
-                <button type="button" class="btn btn-outline-primary" id="btn-show-units">
-                    <i class="bi bi-list-ul"></i> Mostrar unidades
-                </button>
-            </div>
+<div class="mb-4">
+    <label class="form-label fw-semibold">Forma de pagamento padrão desta taxa *</label>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="fee-payment-option d-flex gap-2 mb-0">
+                <input type="radio" name="default_payment_channel" value="system" class="form-check-input flex-shrink-0"
+                    {{ $defaultPaymentChannel === 'system' ? 'checked' : '' }}>
+                <span>
+                    <strong>Sistema (online)</strong>
+                    <span class="d-block small text-muted">Morador paga em Minhas Cobranças via PIX, cartão ou boleto.</span>
+                </span>
+            </label>
+        </div>
+        <div class="col-md-6">
+            <label class="fee-payment-option d-flex gap-2 mb-0">
+                <input type="radio" name="default_payment_channel" value="payroll" class="form-check-input flex-shrink-0"
+                    {{ $defaultPaymentChannel === 'payroll' ? 'checked' : '' }}>
+                <span>
+                    <strong>Desconto em folha</strong>
+                    <span class="d-block small text-muted">Liquidação automática na folha (taxa condominial).</span>
+                </span>
+            </label>
         </div>
     </div>
 </div>
 
-<div id="units-custom-panel" class="d-none mb-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-        <div>
-            <h5 class="mb-1">Personalizar unidades</h5>
-            <p class="text-muted small mb-0">
-                Por padrão, todas as unidades habitadas com morador ativo recebem a taxa.
-                Marque unidades adicionais (vazias ou com outro status) ou ajuste valor, pagamento e vigência por unidade.
-            </p>
-        </div>
+<div class="mb-4">
+    <label class="form-label fw-semibold">Quem recebe esta cobrança? *</label>
+    <div class="d-flex flex-column gap-2">
+        <label class="fee-scope-option d-flex gap-2 mb-0">
+            <input type="radio" name="unit_scope" value="automatic" class="form-check-input flex-shrink-0 mt-1"
+                {{ $defaultUnitScope === 'automatic' ? 'checked' : '' }}>
+            <span>
+                <strong>Todas as unidades habitadas com morador</strong>
+                <span class="d-block small text-muted">
+                    <span id="units-total-label">{{ $autoEligibleUnitsCount }}</span> unidade(s) incluídas automaticamente
+                    <span id="fee-models-filter-hint">{{ empty($selectedUnitModels) ? '' : ' (modelos selecionados)' }}</span>.
+                </span>
+            </span>
+        </label>
+        <label class="fee-scope-option d-flex gap-2 mb-0">
+            <input type="radio" name="unit_scope" value="manual" class="form-check-input flex-shrink-0 mt-1"
+                {{ $defaultUnitScope === 'manual' ? 'checked' : '' }}>
+            <span>
+                <strong>Escolher unidades manualmente</strong>
+                <span class="d-block small text-muted">Marque abaixo somente quem deve receber a cobrança.</span>
+            </span>
+        </label>
+    </div>
+</div>
+
+<div id="units-auto-summary" class="card border-success border-opacity-50 bg-success bg-opacity-10 mb-4 {{ $defaultUnitScope === 'manual' ? 'd-none' : '' }}">
+    <div class="card-body">
+        <h6 class="mb-2"><i class="bi bi-check2-circle me-1"></i> Unidades que receberão a cobrança</h6>
+        <p class="small text-muted mb-2">Pagamento: <strong id="auto-payment-label">{{ $defaultPaymentChannel === 'payroll' ? 'Desconto em folha' : 'Sistema (online)' }}</strong></p>
+        <div class="fee-auto-units-list" id="auto-units-list"></div>
+    </div>
+</div>
+
+<div id="units-manual-panel" class="mb-4 {{ $defaultUnitScope === 'automatic' ? 'd-none' : '' }}">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+        <p class="text-muted small mb-0">Marque <strong>Cobrar</strong> para incluir a unidade. Pagamento conforme padrão definido acima.</p>
         <div class="d-flex flex-wrap gap-2 align-items-center">
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-use-all-units">
-                <i class="bi bi-arrow-counterclockwise"></i> Voltar ao resumo
-            </button>
-            <div class="form-check form-switch mb-0 ms-1">
-                <input class="form-check-input" type="checkbox" id="only_selected_units" value="1">
-                <label class="form-check-label small" for="only_selected_units">Somente unidades marcadas</label>
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-units">Selecionar todas</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-units">Limpar seleção</button>
-            <span class="badge bg-primary align-self-center" id="selected-units-count">0 selecionadas</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="select-all-units">Marcar todas</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-all-units">Desmarcar todas</button>
+            <span class="badge bg-primary" id="selected-units-count">0 selecionadas</span>
         </div>
     </div>
 
     <div class="input-group input-group-sm mb-3" style="max-width: 360px;">
         <span class="input-group-text"><i class="bi bi-search"></i></span>
-        <input type="text" id="unit-filter" class="form-control" placeholder="Filtrar por bloco, número ou morador">
-    </div>
-
-    <div class="mb-3" style="max-width: 360px;">
-        <select id="unit-model-filter" class="form-select form-select-sm">
-            <option value="">Todos os modelos</option>
-            @foreach($unitModelOptions as $value => $label)
-                <option value="{{ $value }}">{{ $label }}</option>
-            @endforeach
-        </select>
+        <input type="text" id="unit-filter" class="form-control" placeholder="Buscar unidade ou morador">
     </div>
 
     <div class="fee-units-table-container">
-        <table id="units-table" class="table table-hover mb-0 align-middle w-100">
-        <thead class="table-light">
-            <tr>
-                <th class="text-center" style="width: 44px;"></th>
-                <th class="unit-col-unit">Unidade</th>
-                <th class="unit-col-payment">Pagamento</th>
-                <th class="unit-col-amount">Valor</th>
-                <th class="unit-col-dates">Vigência</th>
-                <th class="unit-col-notes">Notas</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($units as $unit)
-                @php
-                    $config = $unitConfigurations->get($unit->id, []);
-                    $isSelected = !empty($config);
-                    $paymentChannel = Arr::get($config, 'payment_channel', $unit->default_payment_channel ?? 'system');
-                    $autoEligible = $unit->isEligibleForAutomaticFee();
-                    $searchBlob = strtolower(trim(($unit->full_identifier ?? '') . ' ' . (optional($unit->morador)->name ?? '') . ' ' . $unit->situacao_label));
-                @endphp
-                <tr class="unit-row {{ $autoEligible ? '' : 'table-light' }}"
-                    data-search="{{ $searchBlob }}"
-                    data-unit-id="{{ $unit->id }}"
-                    data-unit-model="{{ $unit->unit_model }}"
-                    data-auto-eligible="{{ $autoEligible ? '1' : '0' }}">
-                    <td>
-                        <div class="form-check">
+        <table id="units-table" class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="unit-col-check text-center">Cobrar</th>
+                    <th>Unidade / Morador</th>
+                    <th class="unit-col-amount">Valor diferente</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($units as $unit)
+                    @php
+                        $config = $unitConfigurations->get($unit->id, []);
+                        $isSelected = !empty($config);
+                        $autoEligible = $unit->isEligibleForAutomaticFee();
+                        $searchBlob = strtolower(trim(($unit->full_identifier ?? '') . ' ' . (optional($unit->morador)->name ?? '') . ' ' . $unit->situacao_label));
+                        $manualChecked = $defaultUnitScope === 'manual' ? $isSelected : false;
+                    @endphp
+                    <tr class="unit-row {{ $autoEligible ? '' : 'table-light' }}"
+                        data-search="{{ $searchBlob }}"
+                        data-unit-id="{{ $unit->id }}"
+                        data-unit-model="{{ $unit->unit_model }}"
+                        data-auto-eligible="{{ $autoEligible ? '1' : '0' }}">
+                        <td class="text-center">
                             <input class="form-check-input unit-toggle"
                                    type="checkbox"
                                    value="1"
                                    data-target="unit-config-{{ $unit->id }}"
                                    data-unit-id="{{ $unit->id }}"
-                                   {{ $isSelected ? 'checked' : '' }}>
+                                   {{ $manualChecked ? 'checked' : '' }}>
                             <input type="hidden"
                                    name="unit_configurations[{{ $unit->id }}][unit_id]"
                                    value="{{ $unit->id }}"
-                                   class="unit-config-{{ $unit->id }} unit-config-input"
+                                   class="unit-config-{{ $unit->id }} unit-config-input unit-id-input"
                                    data-unit-id="{{ $unit->id }}"
-                                   {{ $isSelected ? '' : 'disabled' }}>
+                                   disabled>
+                            <input type="hidden"
+                                   name="unit_configurations[{{ $unit->id }}][payment_channel]"
+                                   value="{{ $defaultPaymentChannel }}"
+                                   class="unit-config-{{ $unit->id }} unit-config-input unit-payment-input"
+                                   data-unit-id="{{ $unit->id }}"
+                                   disabled>
                             @if(isset($config['id']))
                                 <input type="hidden"
                                        name="unit_configurations[{{ $unit->id }}][id]"
                                        value="{{ $config['id'] }}"
                                        class="unit-config-{{ $unit->id }} unit-config-input"
                                        data-unit-id="{{ $unit->id }}"
-                                       {{ $isSelected ? '' : 'disabled' }}>
+                                       disabled>
                             @endif
-                        </div>
-                    </td>
-                    <td>
-                        <div class="fw-semibold">{{ $unit->full_identifier }}</div>
-                        <div class="d-flex flex-wrap gap-1 mt-1 mb-1">
-                            <span class="badge bg-secondary">{{ $unit->unit_model_label }}</span>
-                            <span class="badge {{ $unit->situacao === 'habitado' ? 'bg-success' : 'bg-secondary' }}">
-                                {{ $unit->situacao_label }}
-                            </span>
-                            @if($autoEligible)
-                                <span class="badge bg-primary">Automação</span>
-                            @else
-                                <span class="badge bg-warning text-dark">Manual</span>
-                            @endif
-                        </div>
-                        <small class="text-muted d-block">
-                            Morador atual: {{ optional($unit->morador)->name ?? 'Não cadastrado' }}
-                        </small>
-                        @if($unit->default_payment_channel)
-                            <small class="text-muted">Preferência padrão: {{ strtoupper($unit->default_payment_channel) }}</small>
-                        @endif
-                    </td>
-                    <td class="unit-col-payment">
-                        <select name="unit_configurations[{{ $unit->id }}][payment_channel]"
-                                class="form-select form-select-sm unit-config-{{ $unit->id }} unit-config-input"
-                                data-unit-id="{{ $unit->id }}"
-                                {{ $isSelected ? '' : 'disabled' }}>
-                            <option value="payroll" {{ $paymentChannel === 'payroll' ? 'selected' : '' }}>Folha</option>
-                            <option value="system" {{ $paymentChannel === 'system' ? 'selected' : '' }}>Sistema</option>
-                        </select>
-                    </td>
-                    <td class="unit-col-amount">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">R$</span>
-                            <input type="number"
-                                   step="0.01"
-                                   min="0"
-                                   class="form-control unit-config-{{ $unit->id }} unit-config-input"
-                                   data-unit-id="{{ $unit->id }}"
-                                   name="unit_configurations[{{ $unit->id }}][custom_amount]"
-                                   value="{{ Arr::get($config, 'custom_amount') }}"
-                                   placeholder="Usar valor padrão"
-                                   {{ $isSelected ? '' : 'disabled' }}>
-                        </div>
-                    </td>
-                    <td class="unit-col-dates">
-                        <div class="fee-units-dates-stack d-flex flex-column gap-1">
-                            <input type="date"
-                                   class="form-control form-control-sm unit-config-{{ $unit->id }} unit-config-input"
-                                   data-unit-id="{{ $unit->id }}"
-                                   name="unit_configurations[{{ $unit->id }}][starts_at]"
-                                   value="{{ Arr::get($config, 'starts_at') }}"
-                                   title="Início"
-                                   {{ $isSelected ? '' : 'disabled' }}>
-                            <input type="date"
-                                   class="form-control form-control-sm unit-config-{{ $unit->id }} unit-config-input"
-                                   data-unit-id="{{ $unit->id }}"
-                                   name="unit_configurations[{{ $unit->id }}][ends_at]"
-                                   value="{{ Arr::get($config, 'ends_at') }}"
-                                   title="Fim"
-                                   {{ $isSelected ? '' : 'disabled' }}>
-                        </div>
-                    </td>
-                    <td class="unit-col-notes">
-                        <textarea class="form-control form-control-sm unit-config-{{ $unit->id }} unit-config-input"
-                                  data-unit-id="{{ $unit->id }}"
-                                  name="unit_configurations[{{ $unit->id }}][notes]"
-                                  rows="2"
-                                  placeholder="Opcional"
-                                  {{ $isSelected ? '' : 'disabled' }}>{{ Arr::get($config, 'notes') }}</textarea>
-                    </td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ $unit->full_identifier }}</div>
+                            <small class="text-muted">{{ optional($unit->morador)->name ?? 'Sem morador' }}</small>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <span class="badge bg-secondary">{{ $unit->unit_model_label }}</span>
+                                <span class="badge {{ $unit->situacao === 'habitado' ? 'bg-success' : 'bg-secondary' }}">{{ $unit->situacao_label }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">R$</span>
+                                <input type="number"
+                                       step="0.01"
+                                       min="0"
+                                       class="form-control unit-config-{{ $unit->id }} unit-config-input"
+                                       data-unit-id="{{ $unit->id }}"
+                                       name="unit_configurations[{{ $unit->id }}][custom_amount]"
+                                       value="{{ Arr::get($config, 'custom_amount') }}"
+                                       placeholder="Padrão"
+                                       disabled>
+                            </div>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -588,14 +570,6 @@
 
         const autoEligibleUnits = Number(document.getElementById('fee-units-auto-total')?.dataset.total || 0);
 
-        const countManuallyAddedUnits = () => {
-            let count = 0;
-            document.querySelectorAll('.unit-row[data-auto-eligible="0"]:not(.d-none) .unit-toggle:checked').forEach(() => {
-                count += 1;
-            });
-            return count;
-        };
-
         const getSelectedFeeUnitModels = () => {
             return Array.from(document.querySelectorAll('.fee-unit-model-checkbox:checked'))
                 .map(checkbox => checkbox.value);
@@ -620,13 +594,21 @@
         };
 
         const countSelectedUnits = () => {
-            if (applyAllField?.value === '1') {
-                return countAutoEligibleUnits() + countManuallyAddedUnits();
+            if (getUnitScope() === 'automatic') {
+                return countAutoEligibleUnits();
             }
             return document.querySelectorAll('.unit-row:not(.d-none) .unit-toggle:checked').length;
         };
 
-        const isCustomizationPanelVisible = () => !customPanel?.classList.contains('d-none');
+        const getUnitScope = () => {
+            return document.querySelector('input[name="unit_scope"]:checked')?.value || 'automatic';
+        };
+
+        const getDefaultPaymentChannel = () => {
+            return document.querySelector('input[name="default_payment_channel"]:checked')?.value || 'system';
+        };
+
+        const paymentChannelLabel = (channel) => channel === 'payroll' ? 'Desconto em folha' : 'Sistema (online)';
 
         const updatePreview = () => {
             const name = document.querySelector('[name="name"]')?.value?.trim() || '—';
@@ -640,7 +622,7 @@
             document.getElementById('preview-recurrence')?.replaceChildren(document.createTextNode(recurrenceLabels[recurrence] ?? '—'));
             document.getElementById('preview-units')?.replaceChildren(document.createTextNode(String(units)));
             document.getElementById('preview-total')?.replaceChildren(document.createTextNode(formatMoney(total)));
-            selectedUnitsBadge && (selectedUnitsBadge.textContent = `${units} selecionadas`);
+            selectedUnitsBadge && (selectedUnitsBadge.textContent = `${units} selecionada(s)`);
 
             const actions = [];
             if (document.getElementById('generate_charges_now')?.checked) {
@@ -664,6 +646,8 @@
                         <li><strong>Taxa:</strong> ${name}</li>
                         <li><strong>Tipo:</strong> ${billingLabels[document.querySelector('[name="billing_type"]')?.value] ?? '—'}</li>
                         <li><strong>Valor base:</strong> ${formatMoney(amount)}</li>
+                        <li><strong>Pagamento:</strong> ${paymentChannelLabel(getDefaultPaymentChannel())}</li>
+                        <li><strong>Escopo:</strong> ${getUnitScope() === 'automatic' ? 'Todas habitadas com morador' : 'Unidades selecionadas'}</li>
                         <li><strong>Unidades:</strong> ${units}</li>
                         <li><strong>Total estimado:</strong> ${formatMoney(total)}</li>
                     </ul>`;
@@ -684,12 +668,7 @@
             syncWizardLayout();
             if (currentStep === 2) {
                 applyUnitModelTableFilter();
-            }
-            if (currentStep === 2 && isCustomizationPanelVisible()) {
-                setTimeout(() => {
-                    initUnitsDataTable();
-                    adjustUnitsTable();
-                }, 120);
+                syncScopeUI();
             }
             updatePreview();
         };
@@ -702,16 +681,15 @@
                 if (!amount?.value || Number(amount.value) < 0) { amount?.focus(); return false; }
             }
             if (step === 2) {
-                if (applyAllMode) {
-                    if (countAutoEligibleUnits() === 0 && countManuallyAddedUnits() === 0) {
-                        alert('Não há unidades elegíveis para automação. Marque ao menos uma unidade na tabela.');
+                if (getUnitScope() === 'automatic') {
+                    if (countAutoEligibleUnits() === 0) {
+                        alert('Não há unidades habitadas com morador para este filtro. Escolha unidades manualmente.');
                         return false;
                     }
                     return true;
                 }
-                const units = countSelectedUnits();
-                if (units === 0) {
-                    alert('Selecione ao menos uma unidade ou use o modo padrão (unidades habitadas com morador).');
+                if (countSelectedUnits() === 0) {
+                    alert('Marque ao menos uma unidade para receber a cobrança.');
                     return false;
                 }
             }
@@ -731,145 +709,25 @@
 
         const feeForm = document.getElementById('fee-form');
         const applyAllField = document.getElementById('apply_all_units');
-        const simplePanel = document.getElementById('units-simple-panel');
-        const customPanel = document.getElementById('units-custom-panel');
-        const btnShowUnits = document.getElementById('btn-show-units');
-        const btnUseAllUnits = document.getElementById('btn-use-all-units');
-        const onlySelectedToggle = document.getElementById('only_selected_units');
+        const autoSummary = document.getElementById('units-auto-summary');
+        const manualPanel = document.getElementById('units-manual-panel');
+        const scopeRadios = document.querySelectorAll('input[name="unit_scope"]');
+        const paymentRadios = document.querySelectorAll('input[name="default_payment_channel"]');
         const selectAllButton = document.getElementById('select-all-units');
         const clearAllButton = document.getElementById('clear-all-units');
         const filterInput = document.getElementById('unit-filter');
-        const unitModelFilter = document.getElementById('unit-model-filter');
-        const unitsTable = $('#units-table');
-
-        let applyAllMode = applyAllField?.value === '1';
-        let unitsDataTable = null;
         const checkboxState = {};
-        const modifiedUnits = new Set();
 
         const syncWizardLayout = () => {
             if (!wizardMode || !feeForm) {
                 return;
             }
-            feeForm.classList.toggle('fee-wizard-step-units', currentStep === 2 && isCustomizationPanelVisible());
+            feeForm.classList.toggle('fee-wizard-step-units', currentStep === 2 && getUnitScope() === 'manual');
         };
-
-        const adjustUnitsTable = () => {
-            if (unitsDataTable) {
-                unitsDataTable.columns.adjust();
-            }
-        };
-
-        const initUnitsDataTable = () => {
-            if (unitsDataTable || !unitsTable.length || customPanel?.classList.contains('d-none')) {
-                return;
-            }
-
-            unitsDataTable = initSafeDataTable('#units-table', {
-                paging: true,
-                pageLength: 50,
-                lengthMenu: [[25, 50, 100, -1], [25, 50, 100, 'Todas']],
-                ordering: false,
-                searching: true,
-                scrollX: true,
-                autoWidth: false,
-                dom: 'lrtip',
-                language: {
-                    url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/pt-BR.json',
-                    emptyTable: 'Nenhuma unidade cadastrada no condomínio.',
-                },
-                drawCallback: function () {
-                    applyStateToAllCheckboxes();
-                }
-            });
-        };
-
-        const setApplyAllMode = (enabled) => {
-            applyAllMode = enabled;
-            if (applyAllField) {
-                applyAllField.value = enabled ? '1' : '0';
-            }
-            if (onlySelectedToggle) {
-                onlySelectedToggle.checked = !enabled;
-            }
-
-            if (enabled) {
-                document.querySelectorAll('.unit-config-input').forEach(input => {
-                    input.disabled = true;
-                });
-            } else if (isCustomizationPanelVisible()) {
-                applyStateToAllCheckboxes();
-            }
-
-            updatePreview();
-        };
-
-        const showCustomizationPanel = () => {
-            simplePanel?.classList.add('d-none');
-            customPanel?.classList.remove('d-none');
-            setApplyAllMode(onlySelectedToggle?.checked ? false : true);
-            syncWizardLayout();
-            setTimeout(() => {
-                initUnitsDataTable();
-                adjustUnitsTable();
-                applyUnitModelTableFilter();
-            }, 120);
-            updatePreview();
-        };
-
-        const hideCustomizationPanel = () => {
-            customPanel?.classList.add('d-none');
-            simplePanel?.classList.remove('d-none');
-            if (onlySelectedToggle) {
-                onlySelectedToggle.checked = false;
-            }
-            setApplyAllMode(true);
-            syncWizardLayout();
-            updatePreview();
-        };
-
-        btnShowUnits?.addEventListener('click', () => showCustomizationPanel());
-        btnUseAllUnits?.addEventListener('click', () => {
-            document.querySelectorAll('.unit-toggle').forEach(checkbox => {
-                checkboxState[checkbox.dataset.unitId] = false;
-                checkbox.checked = false;
-                checkbox.disabled = false;
-            });
-            modifiedUnits.clear();
-            hideCustomizationPanel();
-        });
-
-        onlySelectedToggle?.addEventListener('change', () => {
-            setApplyAllMode(!onlySelectedToggle.checked);
-            if (isCustomizationPanelVisible()) {
-                applyStateToAllCheckboxes();
-            }
-            updatePreview();
-        });
 
         const toggleInputs = (targetClass, enabled) => {
             document.querySelectorAll('.' + targetClass).forEach(input => {
-                if (applyAllMode && isCustomizationPanelVisible()) {
-                    input.disabled = !enabled;
-                    return;
-                }
-
-                if (applyAllMode) {
-                    input.disabled = true;
-                    return;
-                }
-
                 input.disabled = !enabled;
-
-                if (!enabled) {
-                    if (input.type === 'checkbox') {
-                        input.checked = false;
-                    } else if (input.tagName === 'SELECT') {
-                        input.selectedIndex = 0;
-                    } else if (input.type !== 'hidden') {
-                        input.value = '';
-                    }
-                }
             });
         };
 
@@ -878,7 +736,6 @@
 
             const unitId = checkbox.dataset.unitId;
             const row = checkbox.closest('.unit-row');
-            const isAutoEligible = row?.dataset.autoEligible === '1';
             const matchesFeeModels = unitMatchesFeeModels(row?.dataset.unitModel);
 
             if (!matchesFeeModels) {
@@ -889,32 +746,17 @@
                 return;
             }
 
+            if (getUnitScope() === 'automatic') {
+                checkbox.disabled = true;
+                checkbox.checked = false;
+                toggleInputs(checkbox.dataset.target, false);
+                return;
+            }
+
             checkbox.disabled = false;
-
-            if (applyAllMode && !isCustomizationPanelVisible()) {
-                checkbox.checked = true;
-                return;
-            }
-
-            if (applyAllMode) {
-                const isChecked = checkboxState.hasOwnProperty(unitId)
-                    ? checkboxState[unitId]
-                    : checkbox.checked;
-
-                checkbox.checked = isChecked;
-
-                if (isAutoEligible) {
-                    toggleInputs(checkbox.dataset.target, isChecked || modifiedUnits.has(unitId));
-                } else {
-                    toggleInputs(checkbox.dataset.target, isChecked);
-                }
-                return;
-            }
-
-            const isChecked = checkboxState.hasOwnProperty(unitId)
+            const isChecked = Object.prototype.hasOwnProperty.call(checkboxState, unitId)
                 ? checkboxState[unitId]
                 : checkbox.checked;
-
             checkbox.checked = isChecked;
             toggleInputs(checkbox.dataset.target, isChecked);
         };
@@ -923,53 +765,83 @@
             document.querySelectorAll('.unit-toggle').forEach(applyStateToCheckbox);
         };
 
-        const markUnitAsModified = (unitId) => {
-            if (!unitId) return;
-            modifiedUnits.add(unitId);
+        const syncPaymentInputs = () => {
+            const channel = getDefaultPaymentChannel();
+            document.querySelectorAll('.unit-payment-input').forEach(input => {
+                input.value = channel;
+            });
+            const label = document.getElementById('auto-payment-label');
+            if (label) {
+                label.textContent = paymentChannelLabel(channel);
+            }
         };
+
+        const buildAutoUnitsList = () => {
+            const list = document.getElementById('auto-units-list');
+            if (!list) return;
+
+            const items = [];
+            document.querySelectorAll('.unit-row[data-auto-eligible="1"]').forEach(row => {
+                if (!unitMatchesFeeModels(row.dataset.unitModel)) {
+                    return;
+                }
+                const unit = row.querySelector('.fw-semibold')?.textContent?.trim() || '—';
+                const morador = row.querySelector('small.text-muted')?.textContent?.trim() || 'Sem morador';
+                items.push(`<div class="small py-1 border-bottom">${unit} <span class="text-muted">— ${morador}</span></div>`);
+            });
+
+            list.innerHTML = items.length
+                ? items.join('')
+                : '<div class="small text-muted">Nenhuma unidade elegível com os filtros atuais.</div>';
+        };
+
+        const syncScopeUI = () => {
+            const automatic = getUnitScope() === 'automatic';
+            if (applyAllField) {
+                applyAllField.value = automatic ? '1' : '0';
+            }
+            autoSummary?.classList.toggle('d-none', !automatic);
+            manualPanel?.classList.toggle('d-none', automatic);
+            syncPaymentInputs();
+            if (automatic) {
+                buildAutoUnitsList();
+            }
+            applyStateToAllCheckboxes();
+            syncWizardLayout();
+            updatePreview();
+        };
+
+        scopeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (getUnitScope() === 'manual') {
+                    document.querySelectorAll('.unit-row[data-auto-eligible="1"]:not(.d-none) .unit-toggle').forEach(checkbox => {
+                        if (!Object.prototype.hasOwnProperty.call(checkboxState, checkbox.dataset.unitId)) {
+                            checkboxState[checkbox.dataset.unitId] = true;
+                        }
+                    });
+                }
+                syncScopeUI();
+            });
+        });
+
+        paymentRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                syncPaymentInputs();
+                updatePreview();
+            });
+        });
 
         document.addEventListener('change', function (event) {
             if (event.target.classList?.contains('unit-toggle')) {
-                const unitId = event.target.dataset.unitId;
-                checkboxState[unitId] = event.target.checked;
+                checkboxState[event.target.dataset.unitId] = event.target.checked;
                 applyStateToCheckbox(event.target);
                 updatePreview();
-            }
-
-            if (event.target.classList?.contains('unit-config-input') && event.target.type !== 'hidden') {
-                markUnitAsModified(event.target.dataset.unitId);
-                if (applyAllMode && isCustomizationPanelVisible()) {
-                    const row = event.target.closest('.unit-row');
-                    const checkbox = row?.querySelector('.unit-toggle');
-                    if (checkbox && row?.dataset.autoEligible === '1') {
-                        toggleInputs(checkbox.dataset.target, true);
-                    }
-                }
-            }
-        });
-
-        document.addEventListener('input', function (event) {
-            if (event.target.classList?.contains('unit-config-input')) {
-                markUnitAsModified(event.target.dataset.unitId);
-                if (applyAllMode && isCustomizationPanelVisible()) {
-                    const row = event.target.closest('.unit-row');
-                    const checkbox = row?.querySelector('.unit-toggle');
-                    if (checkbox && row?.dataset.autoEligible === '1') {
-                        toggleInputs(checkbox.dataset.target, true);
-                    }
-                }
             }
         });
 
         selectAllButton?.addEventListener('click', () => {
-            if (applyAllMode && !onlySelectedToggle?.checked) {
-                return;
-            }
+            if (getUnitScope() !== 'manual') return;
             getVisibleUnitCheckboxes().forEach(checkbox => {
-                const row = checkbox.closest('.unit-row');
-                if (!row || !unitMatchesFeeModels(row.dataset.unitModel)) {
-                    return;
-                }
                 checkboxState[checkbox.dataset.unitId] = true;
             });
             applyStateToAllCheckboxes();
@@ -977,9 +849,7 @@
         });
 
         clearAllButton?.addEventListener('click', () => {
-            if (applyAllMode && !onlySelectedToggle?.checked) {
-                return;
-            }
+            if (getUnitScope() !== 'manual') return;
             getVisibleUnitCheckboxes().forEach(checkbox => {
                 checkboxState[checkbox.dataset.unitId] = false;
             });
@@ -1019,21 +889,15 @@
             recurrenceSelect.addEventListener('change', toggleRecurrenceFields);
         }
 
-        if (unitsTable.length && !wizardMode) {
-            initUnitsDataTable();
-        }
-
         if (filterInput) {
             filterInput.addEventListener('input', () => {
-                if (unitsDataTable) {
-                    unitsDataTable.search(filterInput.value).draw();
-                }
-            });
-        }
-
-        if (unitModelFilter) {
-            unitModelFilter.addEventListener('change', () => {
-                applyUnitModelTableFilter();
+                const query = filterInput.value.trim().toLowerCase();
+                document.querySelectorAll('.unit-row').forEach(row => {
+                    const matchesSearch = !query || (row.dataset.search || '').includes(query);
+                    const matchesModels = unitMatchesFeeModels(row.dataset.unitModel);
+                    row.classList.toggle('d-none', !(matchesSearch && matchesModels));
+                });
+                applyStateToAllCheckboxes();
             });
         }
 
@@ -1049,15 +913,11 @@
         });
 
         const applyUnitModelTableFilter = () => {
-            const tableModel = unitModelFilter?.value || '';
-
             document.querySelectorAll('.unit-row').forEach(row => {
                 const rowModel = row.dataset.unitModel;
                 const matchesFeeModels = unitMatchesFeeModels(rowModel);
-                const matchesTableFilter = !tableModel || tableModel === rowModel;
-                const isVisible = matchesFeeModels && matchesTableFilter;
 
-                row.classList.toggle('d-none', !isVisible);
+                row.classList.toggle('d-none', !matchesFeeModels);
 
                 if (!matchesFeeModels) {
                     const unitId = row.dataset.unitId;
@@ -1084,9 +944,10 @@
                 totalLabel.textContent = String(eligibleCount);
             }
 
-            if (unitsDataTable) {
-                unitsDataTable.draw(false);
+            if (getUnitScope() === 'automatic') {
+                buildAutoUnitsList();
             }
+            applyStateToAllCheckboxes();
         };
 
         const getVisibleUnitCheckboxes = () => {
@@ -1097,17 +958,8 @@
             checkboxState[checkbox.dataset.unitId] = checkbox.checked;
         });
 
-        if (onlySelectedToggle && applyAllField?.value === '0') {
-            onlySelectedToggle.checked = true;
-        }
-
-        setApplyAllMode(applyAllField?.value === '1');
-
-        if (filterInput) {
-            filterInput.dispatchEvent(new Event('input'));
-        }
-
         applyUnitModelTableFilter();
+        syncScopeUI();
         updatePreview();
 
         if (wizardMode) {
@@ -1116,24 +968,16 @@
 
         if (feeForm) {
             feeForm.addEventListener('submit', () => {
+                const automatic = getUnitScope() === 'automatic';
                 document.querySelectorAll('.unit-row').forEach(row => {
                     const unitId = row.dataset.unitId;
                     const checkbox = row.querySelector('.unit-toggle');
                     const matchesFeeModels = unitMatchesFeeModels(row.dataset.unitModel);
-                    const isChecked = checkboxState.hasOwnProperty(unitId)
+                    const isChecked = Object.prototype.hasOwnProperty.call(checkboxState, unitId)
                         ? checkboxState[unitId]
                         : checkbox?.checked;
                     const inputs = row.querySelectorAll('.unit-config-input');
-
-                    let shouldSubmit = false;
-
-                    if (!matchesFeeModels) {
-                        shouldSubmit = false;
-                    } else if (applyAllMode) {
-                        shouldSubmit = isChecked || modifiedUnits.has(unitId);
-                    } else {
-                        shouldSubmit = Boolean(isChecked);
-                    }
+                    const shouldSubmit = matchesFeeModels && !automatic && Boolean(isChecked);
 
                     inputs.forEach(input => {
                         input.disabled = !shouldSubmit;

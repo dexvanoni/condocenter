@@ -115,8 +115,9 @@ class FeeService
             foreach ($fee->configurations as $configuration) {
                 $newConfiguration = $configuration->replicate();
                 $newConfiguration->fee_id = $newFee->id;
-                $newConfiguration->starts_at = $configuration->starts_at ? $configuration->starts_at->copy()->addMonth() : null;
-                $newConfiguration->ends_at = $configuration->ends_at ? $configuration->ends_at->copy()->addMonth() : null;
+                $newConfiguration->starts_at = null;
+                $newConfiguration->ends_at = null;
+                $newConfiguration->notes = null;
                 $newConfiguration->save();
             }
 
@@ -200,15 +201,23 @@ class FeeService
             return 0;
         }
 
-        $recurrencePeriod = $this->calculateRecurrencePeriod($fee, $dueDate);
-        $titleSuffix = $this->formatPeriodLabel($fee, $dueDate);
+        if ($fee->ends_at && $dueDate->gt($fee->ends_at)) {
+            return 0;
+        }
+
+        $recurrencePeriod = $this->resolveCompetencePeriod($fee, $dueDate);
+
+        if (! $this->shouldGenerateForCompetencePeriod($recurrencePeriod, $referenceDate)) {
+            return 0;
+        }
+
+        $titleSuffix = $this->formatCompetenceLabel($fee, $recurrencePeriod);
         $type = $fee->billing_type === 'condominium_fee' ? 'regular' : 'extra';
 
         $configurations = $fee->configurations()
             ->with('unit')
             ->whereNull('deleted_at')
-            ->get()
-            ->filter(fn (FeeUnitConfiguration $config) => $config->isActiveForDate($dueDate));
+            ->get();
 
         $chargesCreated = 0;
 
@@ -244,23 +253,82 @@ class FeeService
                 'generated_by' => 'fee',
                 'metadata' => [
                     'payment_channel' => $configuration->payment_channel,
+                    'competence_period' => $recurrencePeriod,
                     'custom_amount' => $configuration->custom_amount,
                 ],
             ]);
 
-            $shouldAutoSettle = $configuration->payment_channel === 'payroll'
-                && $fee->billing_type === 'condominium_fee';
-
-            if ($shouldAutoSettle) {
-                $this->autoSettlePayrollCharge($charge, $configuration, $dueDate, $amount);
-            } else {
-                $chargesCreated++;
-            }
+            $chargesCreated++;
         }
 
         $fee->update(['last_generated_at' => now()]);
 
         return $chargesCreated;
+    }
+
+    /**
+     * Gera cobranças para todas as taxas ativas com auto_generate_charges.
+     *
+     * @return array{fees_processed: int, charges_created: int, fees_skipped: int}
+     */
+    public function generateUpcomingChargesForActiveFees(?Carbon $referenceDate = null, ?int $condominiumId = null): array
+    {
+        $referenceDate = ($referenceDate ?? now())->copy()->startOfDay();
+
+        $fees = Fee::query()
+            ->where('active', true)
+            ->where('auto_generate_charges', true)
+            ->when($condominiumId, fn ($query) => $query->where('condominium_id', $condominiumId))
+            ->orderBy('id')
+            ->get();
+
+        $feesProcessed = 0;
+        $chargesCreated = 0;
+        $feesSkipped = 0;
+
+        foreach ($fees as $fee) {
+            if (! $fee->isActiveForDate($referenceDate)) {
+                continue;
+            }
+
+            $dueDate = $this->resolveNextDueDate($fee, $referenceDate);
+
+            if (! $dueDate) {
+                continue;
+            }
+
+            $competencePeriod = $this->resolveCompetencePeriod($fee, $dueDate);
+
+            if (! $this->shouldGenerateForCompetencePeriod($competencePeriod, $referenceDate)) {
+                $feesSkipped++;
+
+                continue;
+            }
+
+            $created = $this->generateUpcomingCharges($fee, $referenceDate);
+
+            if ($created > 0) {
+                $feesProcessed++;
+                $chargesCreated += $created;
+            }
+        }
+
+        return [
+            'fees_processed' => $feesProcessed,
+            'charges_created' => $chargesCreated,
+            'fees_skipped' => $feesSkipped,
+        ];
+    }
+
+    private function shouldGenerateForCompetencePeriod(string $competencePeriod, Carbon $referenceDate): bool
+    {
+        if (! preg_match('/^\d{4}-\d{2}$/', $competencePeriod)) {
+            return true;
+        }
+
+        $competenceStart = Carbon::createFromFormat('Y-m', $competencePeriod)->startOfMonth();
+
+        return $referenceDate->copy()->startOfDay()->greaterThanOrEqualTo($competenceStart);
     }
 
     private function syncUnitConfigurations(Fee $fee, Collection $configurations, bool $isUpdate = false): void
@@ -271,21 +339,20 @@ class FeeService
                 $customAmount = null;
             }
 
-            $startsAt = $configuration['starts_at'] ?? null;
-            $endsAt = $configuration['ends_at'] ?? null;
-
-            $startsAt = $startsAt === '' ? null : $startsAt;
-            $endsAt = $endsAt === '' ? null : $endsAt;
+            $paymentChannel = $configuration['payment_channel'] ?? $fee->defaultPaymentChannel();
+            if (! in_array($paymentChannel, ['system', 'payroll'], true)) {
+                $paymentChannel = $fee->defaultPaymentChannel();
+            }
 
             return [
                 'id' => $configuration['id'] ?? null,
                 'fee_id' => $fee->id,
                 'unit_id' => (int) $configuration['unit_id'],
-                'payment_channel' => $configuration['payment_channel'],
+                'payment_channel' => $paymentChannel,
                 'custom_amount' => $customAmount,
-                'starts_at' => $startsAt,
-                'ends_at' => $endsAt,
-                'notes' => isset($configuration['notes']) && $configuration['notes'] !== '' ? $configuration['notes'] : null,
+                'starts_at' => null,
+                'ends_at' => null,
+                'notes' => null,
             ];
         });
 
@@ -394,59 +461,17 @@ class FeeService
             $data['unit_models'] = UnitModels::normalizeSelection(is_array($data['unit_models']) ? $data['unit_models'] : []);
         }
 
+        $defaultChannel = $data['default_payment_channel'] ?? 'system';
+        unset($data['default_payment_channel']);
+        if (! in_array($defaultChannel, ['system', 'payroll'], true)) {
+            $defaultChannel = 'system';
+        }
+
+        $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
+        $metadata['default_payment_channel'] = $defaultChannel;
+        $data['metadata'] = $metadata;
+
         return $data;
-    }
-
-    private function autoSettlePayrollCharge(Charge $charge, FeeUnitConfiguration $configuration, Carbon $dueDate, float $amount): void
-    {
-        $metadata = $charge->metadata ?? [];
-        $metadata['payment_channel'] = $configuration->payment_channel;
-        $metadata['payroll_auto_settled'] = true;
-        $metadata['payroll_settled_at'] = $dueDate->copy()->format('Y-m-d');
-
-        $charge->forceFill([
-            'status' => 'paid',
-            'paid_at' => $dueDate->copy(),
-            'metadata' => $metadata,
-        ])->save();
-
-        $unit = $configuration->unit;
-
-        $payment = Payment::withTrashed()->firstOrNew([
-            'charge_id' => $charge->id,
-            'payment_method' => 'payroll',
-            'payment_date' => $dueDate->toDateString(),
-        ]);
-
-        if ($payment->exists && method_exists($payment, 'trashed') && $payment->trashed()) {
-            $payment->restore();
-        }
-
-        $payment->fill([
-            'amount_paid' => $amount,
-            'notes' => 'Liquidação automática via desconto em folha',
-        ]);
-        $payment->save();
-
-        $account = CondominiumAccount::withTrashed()->firstOrNew([
-            'condominium_id' => $charge->condominium_id,
-            'type' => 'income',
-            'source_type' => 'charge',
-            'source_id' => $charge->id,
-        ]);
-
-        if ($account->exists && method_exists($account, 'trashed') && $account->trashed()) {
-            $account->restore();
-        }
-
-        $account->fill([
-            'description' => sprintf('%s - %s (Folha)', $charge->title, optional($unit)->full_identifier ?? 'Unidade'),
-            'amount' => $amount,
-            'transaction_date' => $dueDate->toDateString(),
-            'payment_method' => 'payroll',
-            'notes' => 'Liquidação automática via desconto em folha',
-        ]);
-        $account->save();
     }
 
     private function buildApplyAllConfigurations(Fee $fee, Collection $overrides, bool $isUpdate = false): Collection
@@ -483,7 +508,7 @@ class FeeService
 
         return $eligibleUnits
             ->union($manualUnits)
-            ->map(function (Unit $unit) use ($overridesByUnit, $existingByUnit) {
+            ->map(function (Unit $unit) use ($fee, $overridesByUnit, $existingByUnit) {
                 $override = $overridesByUnit->get($unit->id, []);
                 $existing = $existingByUnit->get($unit->id);
 
@@ -492,32 +517,16 @@ class FeeService
                     $customAmount = null;
                 }
 
-                $startsAt = $override['starts_at'] ?? optional($existing?->starts_at)->format('Y-m-d');
-                $endsAt = $override['ends_at'] ?? optional($existing?->ends_at)->format('Y-m-d');
-
-                if ($startsAt === '') {
-                    $startsAt = null;
-                }
-
-                if ($endsAt === '') {
-                    $endsAt = null;
-                }
-
-                $notes = $override['notes'] ?? ($existing?->notes);
-                if ($notes === '') {
-                    $notes = null;
-                }
-
                 return [
                     'id' => $override['id'] ?? ($existing?->id),
                     'unit_id' => $unit->id,
                     'payment_channel' => $override['payment_channel']
                         ?? ($existing?->payment_channel)
-                        ?? ($unit->default_payment_channel ?? 'payroll'),
+                        ?? $fee->defaultPaymentChannel(),
                     'custom_amount' => $customAmount,
-                    'starts_at' => $startsAt,
-                    'ends_at' => $endsAt,
-                    'notes' => $notes,
+                    'starts_at' => null,
+                    'ends_at' => null,
+                    'notes' => null,
                 ];
             })
             ->values();
@@ -535,6 +544,37 @@ class FeeService
             'custom' => $this->nextCustomDate($fee, $referenceDate),
             default => null,
         };
+    }
+
+    private function resolveCompetencePeriod(Fee $fee, Carbon $dueDate): string
+    {
+        if ($fee->recurrence !== 'monthly') {
+            return $this->calculateRecurrencePeriod($fee, $dueDate);
+        }
+
+        $lastPeriod = Charge::where('fee_id', $fee->id)
+            ->whereNotNull('recurrence_period')
+            ->orderByDesc('recurrence_period')
+            ->value('recurrence_period');
+
+        if ($lastPeriod && preg_match('/^\d{4}-\d{2}$/', $lastPeriod)) {
+            return Carbon::createFromFormat('Y-m', $lastPeriod)->addMonth()->format('Y-m');
+        }
+
+        if ($fee->starts_at) {
+            return $fee->starts_at->format('Y-m');
+        }
+
+        return $dueDate->copy()->subMonth()->format('Y-m');
+    }
+
+    private function formatCompetenceLabel(Fee $fee, string $competencePeriod): string
+    {
+        if ($fee->recurrence === 'monthly' && preg_match('/^\d{4}-\d{2}$/', $competencePeriod)) {
+            return Carbon::createFromFormat('Y-m', $competencePeriod)->translatedFormat('F Y');
+        }
+
+        return $competencePeriod;
     }
 
     private function calculateRecurrencePeriod(Fee $fee, Carbon $dueDate): string
@@ -562,14 +602,25 @@ class FeeService
     private function nextMonthlyDate(Fee $fee, Carbon $referenceDate, Carbon $startDate): Carbon
     {
         $dueDay = (int) ($fee->due_day ?: $startDate->day);
+        $lastDueDate = Charge::where('fee_id', $fee->id)->max('due_date');
 
-        $candidate = $referenceDate->copy()->setDay($dueDay);
+        if ($lastDueDate) {
+            $candidate = Carbon::parse($lastDueDate)->addMonth();
+        } elseif ($fee->starts_at) {
+            $candidate = $fee->starts_at->copy();
 
-        if ($candidate->lessThanOrEqualTo($referenceDate)) {
-            $candidate->addMonth()->setDay(min($dueDay, $candidate->daysInMonth));
+            if ($fee->starts_at->day >= $dueDay) {
+                $candidate->addMonth();
+            }
         } else {
-            $candidate->setDay(min($dueDay, $candidate->daysInMonth));
+            $candidate = $referenceDate->copy()->setDay(min($dueDay, $referenceDate->daysInMonth));
+
+            if ($candidate->lessThan($referenceDate->copy()->startOfDay())) {
+                $candidate->addMonth()->setDay(min($dueDay, $candidate->daysInMonth));
+            }
         }
+
+        $candidate->setDay(min($dueDay, $candidate->daysInMonth));
 
         if ($fee->due_offset_days) {
             $candidate = $candidate->copy()->subDays($fee->due_offset_days);

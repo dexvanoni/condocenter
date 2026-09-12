@@ -260,6 +260,11 @@
                         @endswitch
                     </dd>
 
+                    <dt class="col-5">Pagamento padrão</dt>
+                    <dd class="col-7">
+                        {{ $fee->defaultPaymentChannel() === 'payroll' ? 'Desconto em folha' : 'Sistema (online)' }}
+                    </dd>
+
                     <dt class="col-5">Modelos de unidade</dt>
                     <dd class="col-7">{{ \App\Support\UnitModels::formatList($fee->unit_models) }}</dd>
 
@@ -309,10 +314,7 @@
                             <tr>
                                 <th>Unidade</th>
                                 <th>Morador</th>
-                                <th>Forma de pagamento</th>
                                 <th>Valor</th>
-                                <th>Vigência</th>
-                                <th>Notas</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -320,9 +322,6 @@
                                 <tr>
                                     <td class="fw-semibold">{{ $configuration->unit->full_identifier }}</td>
                                     <td>{{ optional($configuration->unit->morador)->name ?? 'Não cadastrado' }}</td>
-                                    <td class="text-uppercase">
-                                        {{ $configuration->payment_channel === 'system' ? 'Sistema' : 'Desconto em folha' }}
-                                    </td>
                                     <td>
                                         @if($configuration->custom_amount)
                                             <span class="text-success fw-semibold">
@@ -332,18 +331,6 @@
                                             <span class="text-muted">Valor padrão</span>
                                         @endif
                                     </td>
-                                    <td>
-                                        @if($configuration->starts_at || $configuration->ends_at)
-                                            <span class="badge bg-light text-dark">
-                                                {{ $configuration->starts_at ? $configuration->starts_at->format('d/m/Y') : 'Início' }}
-                                                &rarr;
-                                                {{ $configuration->ends_at ? $configuration->ends_at->format('d/m/Y') : 'Indef.' }}
-                                            </span>
-                                        @else
-                                            <span class="text-muted">Padrão</span>
-                                        @endif
-                                    </td>
-                                    <td>{{ $configuration->notes ?: '—' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -371,10 +358,11 @@
                             <tr>
                                 <th>Unidade</th>
                                 <th>Título</th>
+                                <th>Competência</th>
                                 <th>Vencimento</th>
+                                <th>Recebimento</th>
                                 <th>Valor</th>
                                 <th>Status</th>
-                                <th>Período</th>
                                 @can('manage_transactions')
                                     <th class="text-end">Ações</th>
                                 @endcan
@@ -382,33 +370,46 @@
                         </thead>
                         <tbody>
                             @foreach($charges as $charge)
+                                @php
+                                    $displayStatus = $charge->displayStatus();
+                                    $paymentChannel = $charge->paymentChannel();
+                                @endphp
                                 <tr>
                                     <td>{{ optional($charge->unit)->full_identifier ?? '—' }}</td>
                                     <td>{{ $charge->title }}</td>
-                                    <td>{{ $charge->due_date?->format('d/m/Y') }}</td>
+                                    <td>
+                                        <span class="fw-semibold">{{ $charge->competenceLabel() }}</span>
+                                        @if($charge->recurrence_period && $charge->recurrence_period !== $charge->competencePeriod())
+                                            <small class="d-block text-muted">{{ $charge->recurrence_period }}</small>
+                                        @endif
+                                    </td>
+                                    <td>{{ $charge->due_date?->format('d/m/Y') ?? '—' }}</td>
+                                    <td>
+                                        @if($charge->receivedAt())
+                                            {{ $charge->receivedAt()->format('d/m/Y') }}
+                                        @elseif($charge->isPayrollChannel() && in_array($charge->status, ['pending', 'overdue'], true))
+                                            <span class="text-muted">Previsto {{ $charge->due_date?->format('d/m/Y') ?? '—' }}</span>
+                                        @else
+                                            <span class="text-muted">—</span>
+                                        @endif
+                                    </td>
                                     <td>R$ {{ number_format($charge->amount, 2, ',', '.') }}</td>
                                     <td>
-                                        <span class="badge
-                                            @if($charge->status === 'paid') bg-success
-                                            @elseif($charge->status === 'overdue') bg-danger
-                                            @elseif($charge->status === 'cancelled') bg-secondary
-                                            @else bg-warning text-dark
-                                            @endif">
-                                            {{ ucfirst($charge->status) }}
+                                        <span class="badge bg-{{ $displayStatus['color'] }}{{ $displayStatus['color'] === 'warning' ? ' text-dark' : '' }}">
+                                            {{ $displayStatus['label'] }}
                                         </span>
+                                        @if($paymentChannel === 'payroll')
+                                            <small class="d-block text-muted">Desconto em folha</small>
+                                        @endif
                                     </td>
-                                    <td>{{ $charge->recurrence_period ?? '—' }}</td>
                                     @can('manage_transactions')
-                                        @php
-                                            $paymentChannel = $charge->metadata['payment_channel'] ?? 'system';
-                                        @endphp
                                         <td class="text-end">
-                                            @if($paymentChannel === 'payroll' && $charge->status === 'paid')
+                                            @if($charge->isPayrollAutoSettled())
                                                 <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#revokePayrollModal-{{ $charge->id }}">
                                                     Revogar desconto
                                                 </button>
                                             @endif
-                                            @if($charge->status !== 'paid')
+                                            @if(in_array($charge->status, ['pending', 'overdue'], true))
                                                 <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#markPaidModal-{{ $charge->id }}">
                                                     Efetivar pagamento
                                                 </button>
@@ -521,7 +522,7 @@
         initSafeDataTable('#fee-charges-table', {
             paging: true,
             pageLength: 15,
-            order: [[2, 'desc']],
+            order: [[3, 'desc']],
             language: {
                 url: languageUrl,
                 emptyTable: 'Nenhuma cobrança gerada para esta taxa.',

@@ -6,7 +6,7 @@
 @endphp
 
 <div class="md-quick-grid fade-in">
-    @if($chargesCount > 0)
+    @if($chargesCount > 0 && SidebarHelper::moduleEnabled($user, 'financial'))
     <a href="{{ route('my-charges.index', ['status' => ($chargesAtrasadas->count() ?? 0) > 0 ? 'overdue' : 'pending']) }}" class="md-quick-tile">
         @if($chargesCount > 0)<span class="md-quick-tile__badge">{{ $chargesCount }}</span>@endif
         <span class="md-quick-tile__icon md-quick-tile__icon--pay"><i class="bi bi-credit-card"></i></span>
@@ -21,14 +21,14 @@
     </a>
     @endif
 
-    @if(Route::has('access-control.index') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
+    @if(Route::has('access-control.index') && SidebarHelper::moduleEnabled($user, 'access_control') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
     <a href="{{ route('access-control.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--package"><i class="bi bi-person-badge"></i></span>
         <span>Liberar Visitante</span>
     </a>
     @endif
 
-    @if(Route::has('assemblies.index') && ($assembliesPendentes->count() ?? 0) > 0 && !$isRestricted)
+    @if(Route::has('assemblies.index') && SidebarHelper::moduleEnabled($user, 'assemblies') && ($assembliesPendentes->count() ?? 0) > 0 && !$isRestricted)
     <a href="{{ route('assemblies.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__badge">{{ $assembliesPendentes->count() }}</span>
         <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-check2-square"></i></span>
@@ -36,7 +36,7 @@
     </a>
     @endif
 
-    @if(Route::has('syndic-conversations.start'))
+    @if(Route::has('syndic-conversations.start') && SidebarHelper::moduleEnabled($user, 'communication'))
     <a href="{{ route('syndic-conversations.start') }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--message"><i class="bi bi-chat-dots"></i></span>
         <span>Síndico</span>
@@ -44,7 +44,7 @@
     @endif
 
     @can('create', App\Models\OccurrenceBookEntry::class)
-    @if(Route::has('occurrence-book.index') && !($user->isAdmin() && !$user->isSindico()))
+    @if(Route::has('occurrence-book.index') && SidebarHelper::moduleEnabled($user, 'communication') && !($user->isAdmin() && !$user->isSindico()))
     <a href="{{ route('occurrence-book.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-journal-check"></i></span>
         <span>Ocorrências</span>
@@ -52,7 +52,7 @@
     @endif
     @endcan
 
-    @if(Route::has('occurrence-book.public.index') && ($condominium->occurrence_book_public_enabled ?? false) && ($user->isMorador() || $user->isAgregado()) && !($user->isAdmin() && !$user->isSindico()))
+    @if(Route::has('occurrence-book.public.index') && SidebarHelper::moduleEnabled($user, 'communication') && ($condominium->occurrence_book_public_enabled ?? false) && ($user->isMorador() || $user->isAgregado()) && !($user->isAdmin() && !$user->isSindico()))
     <a href="{{ route('occurrence-book.public.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-journal-text"></i></span>
         <span>Livro público</span>

@@ -25,11 +25,11 @@ class SelfRegistrationController extends Controller
     public function store(SelfRegisterRequest $request)
     {
         $condominium = $request->condominium();
-        $role = $request->input('registration_type') === 'compossuidor' ? 'Morador' : 'Agregado';
+        $role = $request->input('registration_type') === 'morador' ? 'Morador' : 'Agregado';
 
         $user = User::create([
             'condominium_id' => $condominium->id,
-            'unit_id' => $request->input('registration_type') === 'compossuidor' ? $request->input('unit_id') : null,
+            'unit_id' => $request->input('registration_type') === 'morador' ? $request->input('unit_id') : null,
             'morador_vinculado_id' => $request->input('registration_type') === 'dependente'
                 ? $request->input('morador_vinculado_id')
                 : null,

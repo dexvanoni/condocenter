@@ -5,11 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Reservation;
 use App\Models\Space;
 use App\Models\User;
+use App\Services\ChargeDueDateService;
+use App\Services\ReservationChargeService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ReservationManagementController extends Controller
 {
+    public function __construct(
+        private readonly ReservationChargeService $reservationChargeService,
+        private readonly ChargeDueDateService $chargeDueDateService,
+    ) {
+    }
+
     /**
      * Listar todas as reservas do condomínio
      */
@@ -210,9 +219,18 @@ class ReservationManagementController extends Controller
             ->where('is_active', true)
             ->get();
 
+        $charge = $this->reservationChargeService->findForReservation($reservation);
+
         return response()->json([
             'reservation' => $reservation,
-            'spaces' => $spaces
+            'spaces' => $spaces,
+            'charge' => $charge ? [
+                'id' => $charge->id,
+                'status' => $charge->status,
+                'amount' => (float) $charge->amount,
+                'due_date' => optional($charge->due_date)->format('Y-m-d'),
+                'editable' => in_array($charge->status, ['pending', 'overdue'], true),
+            ] : null,
         ]);
     }
 
@@ -234,6 +252,9 @@ class ReservationManagementController extends Controller
             'status' => 'required|in:approved,pending,rejected,cancelled',
             'notes' => 'nullable|string|max:1000',
             'admin_reason' => 'nullable|string|max:1000',
+            'charge_due_date' => 'nullable|date|after_or_equal:today',
+        ], [
+            'charge_due_date.after_or_equal' => 'O vencimento do pagamento não pode ser anterior a hoje.',
         ]);
 
         // Verificar se é uma mudança significativa que requer notificação
@@ -260,10 +281,43 @@ class ReservationManagementController extends Controller
             'admin_action_at' => $hasSignificantChanges ? now() : null,
         ]);
 
+        $chargeMessage = $this->applyChargeDueDate($reservation, $validated['charge_due_date'] ?? null);
+
         return response()->json([
             'success' => true,
-            'message' => 'Reserva atualizada com sucesso!'
+            'message' => 'Reserva atualizada com sucesso!' . $chargeMessage,
         ]);
+    }
+
+    /**
+     * Propaga o novo vencimento informado pelo síndico para a cobrança da reserva.
+     */
+    protected function applyChargeDueDate(Reservation $reservation, ?string $newDueDate): string
+    {
+        if (!$newDueDate) {
+            return '';
+        }
+
+        $charge = $this->reservationChargeService->findForReservation($reservation);
+
+        if (!$charge || !in_array($charge->status, ['pending', 'overdue'], true)) {
+            return '';
+        }
+
+        $date = Carbon::parse($newDueDate)->startOfDay();
+
+        if ($charge->due_date && $charge->due_date->isSameDay($date)) {
+            return '';
+        }
+
+        $this->chargeDueDateService->updateDueDate($charge, $date);
+
+        // Pré-reserva aguardando pagamento: estende o prazo para não expirar antes do novo vencimento.
+        if ($reservation->isPrereservation() && $reservation->isPendingPayment()) {
+            $reservation->update(['payment_deadline' => $date->copy()->endOfDay()]);
+        }
+
+        return ' Vencimento da cobrança alterado para ' . $date->format('d/m/Y') . '.';
     }
 
     /**

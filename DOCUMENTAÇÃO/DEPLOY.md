@@ -1,4 +1,6 @@
-﻿# 🚀 Guia de Deploy - SindCON
+# 🚀 Guia de Deploy - SindCON
+
+> **Fonte da verdade (VPS):** use `DOCUMENTAÇÃO/INSTALACAO_VPS.md` para instalação, cron, filas e comandos de produção. Este arquivo permanece como referência complementar (Hostinger compartilhada). Toda implementação nova deve atualizar o tutorial da VPS.
 
 ## Deploy na Hostinger (Produção)
 

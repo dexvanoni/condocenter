@@ -105,6 +105,10 @@ class ChargeController extends Controller
                 $payload['can_pay_online'] = $userCanPayOnline
                     && (int) $charge->unit_id === (int) $user->unit_id
                     && in_array($charge->status, ['pending', 'overdue'], true);
+                $payload['competence_period'] = $charge->competencePeriod();
+                $payload['competence_label'] = $charge->competenceLabel();
+                $payload['display_status'] = $charge->displayStatus();
+                $payload['payment_channel'] = $charge->paymentChannel();
 
                 return $payload;
             })->values(),
@@ -167,7 +171,12 @@ class ChargeController extends Controller
             && in_array($charge->status, ['pending', 'overdue'], true);
 
         return response()->json([
-            'charge' => $charge,
+            'charge' => array_merge($charge->toArray(), [
+                'competence_period' => $charge->competencePeriod(),
+                'competence_label' => $charge->competenceLabel(),
+                'display_status' => $charge->displayStatus(),
+                'payment_channel' => $charge->paymentChannel(),
+            ]),
             'payment_summary' => $paymentSummary,
             'can_manage' => $user->can('manage_charges'),
             'can_pay_online' => $canPayOnline,

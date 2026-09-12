@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('description');
             $table->decimal('amount', 15, 2);
             $table->date('transaction_date');
-            $table->enum('payment_method', ['cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'other'])->nullable();
+            $table->enum('payment_method', ['cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'payroll', 'other'])->nullable();
             $table->unsignedTinyInteger('installments_total')->nullable();
             $table->unsignedTinyInteger('installment_number')->nullable();
             $table->string('document_path')->nullable();

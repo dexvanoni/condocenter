@@ -12,7 +12,9 @@
         <th>Saldo Inicial</th>
         <th>Entradas (Taxas)</th>
         <th>Entradas (Avulsas)</th>
-        <th>Saídas</th>
+        <th>Saídas (Avulsas)</th>
+        <th>Despesas Pessoal</th>
+        <th>Saídas (Total)</th>
         <th>Resultado</th>
     </tr>
     <tr>
@@ -20,12 +22,32 @@
         <td>{{ number_format($data['totals']['charges_income'], 2, ',', '.') }}</td>
         <td>{{ number_format($data['totals']['manual_income'], 2, ',', '.') }}</td>
         <td>{{ number_format($data['totals']['manual_expense'], 2, ',', '.') }}</td>
+        <td>{{ number_format($data['totals']['employee_payroll'], 2, ',', '.') }}</td>
+        <td>{{ number_format($data['totals']['total_expense'], 2, ',', '.') }}</td>
         <td>{{ number_format($data['totals']['balance_period'], 2, ',', '.') }}</td>
     </tr>
 </table>
 
 <table>
-    <tr><th colspan="4">Entradas - Taxas Recebidas</th></tr>
+    <tr><th colspan="3">Entradas - Taxas Recebidas (por dia)</th></tr>
+    <tr>
+        <th>Data</th>
+        <th>Cobranças</th>
+        <th>Total do dia</th>
+    </tr>
+    @forelse($data['charge_daily_summary'] ?? collect() as $group)
+        <tr>
+            <td>{{ $group['date']->format('d/m/Y') }}</td>
+            <td>{{ $group['count'] }}</td>
+            <td>{{ number_format($group['total'], 2, ',', '.') }}</td>
+        </tr>
+    @empty
+        <tr><td colspan="3">Nenhuma taxa recebida.</td></tr>
+    @endforelse
+</table>
+
+<table>
+    <tr><th colspan="4">Entradas - Taxas Recebidas (por tipo)</th></tr>
     <tr>
         <th>Taxa</th>
         <th>Cobranças</th>
@@ -41,40 +63,65 @@
 </table>
 
 <table>
-    <tr><th colspan="4">Entradas - Avulsas</th></tr>
+    <tr><th colspan="3">Entradas - Avulsas (por dia)</th></tr>
     <tr>
         <th>Data</th>
-        <th>Descrição</th>
-        <th>Método</th>
-        <th>Valor</th>
+        <th>Lançamentos</th>
+        <th>Total do dia</th>
     </tr>
-    @foreach($data['manual_incomes'] as $income)
+    @forelse($data['manual_income_daily'] ?? collect() as $group)
         <tr>
-            <td>{{ optional($income->transaction_date)->format('d/m/Y') }}</td>
-            <td>{{ $income->description }}</td>
-            <td>{{ strtoupper($income->payment_method ?? '') }}</td>
-            <td>{{ number_format($income->amount, 2, ',', '.') }}</td>
+            <td>{{ $group['date']->format('d/m/Y') }}</td>
+            <td>{{ $group['count'] }}</td>
+            <td>{{ number_format($group['total'], 2, ',', '.') }}</td>
         </tr>
-    @endforeach
+    @empty
+        <tr><td colspan="3">Nenhuma entrada avulsa.</td></tr>
+    @endforelse
 </table>
 
 <table>
-    <tr><th colspan="4">Saídas</th></tr>
+    <tr><th colspan="3">Saídas (por dia)</th></tr>
     <tr>
         <th>Data</th>
-        <th>Descrição</th>
-        <th>Método</th>
-        <th>Valor</th>
+        <th>Lançamentos</th>
+        <th>Total computado</th>
     </tr>
-    @foreach($data['manual_expenses'] as $expense)
+    @forelse($data['manual_expense_daily'] ?? collect() as $group)
         <tr>
-            <td>{{ optional($expense->transaction_date)->format('d/m/Y') }}</td>
-            <td>{{ $expense->description }}</td>
-            <td>{{ strtoupper($expense->payment_method ?? '') }}</td>
-            <td>{{ number_format($expense->amount, 2, ',', '.') }}</td>
+            <td>{{ $group['date']->format('d/m/Y') }}</td>
+            <td>{{ $group['count'] }}@if($group['cancelled_count'] > 0) ({{ $group['cancelled_count'] }} cancel.)@endif</td>
+            <td>{{ number_format($group['active_total'], 2, ',', '.') }}</td>
+        </tr>
+    @empty
+        <tr><td colspan="3">Nenhuma saída avulsa.</td></tr>
+    @endforelse
+</table>
+
+@php $employeePayroll = $data['employee_payroll'] ?? null; @endphp
+@if(!empty($employeePayroll) && ($employeePayroll['by_employee'] ?? collect())->isNotEmpty())
+<table>
+    <tr><th colspan="4">Despesas com Pessoal (por funcionário)</th></tr>
+    <tr>
+        <th>Funcionário</th>
+        <th>Cargo</th>
+        <th>Lançamentos</th>
+        <th>Total líquido</th>
+    </tr>
+    @foreach($employeePayroll['by_employee'] as $employeeRow)
+        <tr>
+            <td>{{ $employeeRow['name'] }}</td>
+            <td>{{ $employeeRow['position'] }}</td>
+            <td>{{ $employeeRow['count'] }}</td>
+            <td>{{ number_format($employeeRow['total'], 2, ',', '.') }}</td>
         </tr>
     @endforeach
+    <tr>
+        <th colspan="3">Total despesas com pessoal</th>
+        <th>{{ number_format($employeePayroll['totals']['net'] ?? 0, 2, ',', '.') }}</th>
+    </tr>
 </table>
+@endif
 
 <table>
     <tr><th colspan="3">Pagamentos Recebidos (Resumo)</th></tr>

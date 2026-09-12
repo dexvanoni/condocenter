@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE condominium_accounts MODIFY payment_method ENUM('cash','pix','bank_transfer','credit_card','debit_card','boleto','payroll','other') NULL DEFAULT NULL");
     }
 
@@ -20,6 +24,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE condominium_accounts MODIFY payment_method ENUM('cash','pix','bank_transfer','credit_card','debit_card','boleto','other') NULL DEFAULT NULL");
     }
 };

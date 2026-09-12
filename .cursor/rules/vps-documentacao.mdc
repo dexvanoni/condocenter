@@ -1,0 +1,32 @@
+---
+description: Toda implementação que afete produção deve atualizar DOCUMENTAÇÃO/INSTALACAO_VPS.md
+alwaysApply: true
+---
+
+# Tutorial VPS — fonte única
+
+O arquivo canônico de instalação e operação em VPS é `DOCUMENTAÇÃO/INSTALACAO_VPS.md`.
+
+## Quando atualizar (obrigatório)
+
+Atualize **esse mesmo arquivo** sempre que a implementação:
+
+- criar ou alterar comando Artisan de operação/cron;
+- alterar `routes/console.php` (scheduler);
+- exigir worker de fila, Supervisor, Nginx, PHP ou pacote do SO;
+- adicionar variável de `.env` usada em produção;
+- exigir `php artisan migrate` (ou seed) após o deploy;
+- mudar permissões, `storage:link`, webhooks ou integrações (Asaas, WhatsApp);
+- mudar o fluxo de deploy/atualização.
+
+## Como atualizar
+
+1. Coloque o comando **no passo cronológico certo** da Parte 1 (instalação) ou da Parte 2 (atualização). Não acrescente listas soltas de Artisan.
+2. Acrescente uma entrada na **Parte 4 (changelog)** com a data e o que produção precisa fazer.
+3. Atualize a data **Última revisão** no topo.
+4. **Não** crie outro `.md` de deploy/VPS paralelo.
+
+## O que não colocar
+
+- Detalhes só de desenvolvimento local (Laragon), salvo se contrastar com produção.
+- Scripts one-off ou SQL de reset de dados de teste.

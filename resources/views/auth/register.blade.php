@@ -228,10 +228,10 @@
                             <p class="help-text mb-4">Escolha a opção que melhor descreve você no condomínio.</p>
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
-                                    <div class="choice-card" data-type="compossuidor">
+                                    <div class="choice-card" data-type="morador">
                                         <div class="icon-wrap"><i class="bi bi-house-door"></i></div>
-                                        <h5 class="fw-bold mb-2">Compossuidor</h5>
-                                        <p class="help-text mb-0">Sou titular/responsável pela unidade.<br><small>Perfil: Morador</small></p>
+                                        <h5 class="fw-bold mb-2">Morador</h5>
+                                        <p class="help-text mb-0">Sou titular ou responsável pela unidade.</p>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -310,7 +310,7 @@
                         <!-- Passo 4: Vínculo -->
                         <div class="wizard-step" data-step="4">
                             <h4 class="fw-bold mb-2">4. Vínculo no condomínio</h4>
-                            <div id="compossuidorFields" class="d-none">
+                            <div id="moradorFields" class="d-none">
                                 <p class="help-text mb-3">Selecione a unidade à qual você está vinculado.</p>
                                 <label class="form-label fw-semibold">Unidade *</label>
                                 <select class="form-select mb-3" name="unit_id" id="unit_id">
@@ -409,6 +409,10 @@
     let currentStep = 1;
     let codeValidated = false;
     let selectedType = document.getElementById('registration_type').value || '';
+    if (selectedType === 'compossuidor') {
+        selectedType = 'morador';
+        document.getElementById('registration_type').value = 'morador';
+    }
     let selectedMorador = null;
     let searchTimer = null;
     let cameraStream = null;
@@ -745,10 +749,10 @@
     });
 
     async function prepareLinkStep() {
-        const compossuidor = selectedType === 'compossuidor';
-        document.getElementById('compossuidorFields').classList.toggle('d-none', !compossuidor);
-        document.getElementById('dependenteFields').classList.toggle('d-none', compossuidor);
-        if (compossuidor) {
+        const isMorador = selectedType === 'morador';
+        document.getElementById('moradorFields').classList.toggle('d-none', !isMorador);
+        document.getElementById('dependenteFields').classList.toggle('d-none', isMorador);
+        if (isMorador) {
             const select = document.getElementById('unit_id');
             select.innerHTML = '<option value="">Carregando...</option>';
             const res = await fetch(`{{ route('register.units') }}?registration_code=${encodeURIComponent(codeInput.value.trim())}`);
@@ -765,7 +769,7 @@
     }
 
     function validateLinkStep() {
-        if (selectedType === 'compossuidor') {
+        if (selectedType === 'morador') {
             if (!document.getElementById('unit_id').value) {
                 alert('Selecione sua unidade.');
                 return false;
@@ -808,10 +812,10 @@
     });
 
     function buildReview() {
-        const typeLabel = selectedType === 'compossuidor' ? 'Compossuidor (Morador)' : 'Dependente (Agregado)';
+        const typeLabel = selectedType === 'morador' ? 'Morador' : 'Dependente (Agregado)';
         const unitSelect = document.getElementById('unit_id');
         let linkInfo = '-';
-        if (selectedType === 'compossuidor') {
+        if (selectedType === 'morador') {
             linkInfo = unitSelect.options[unitSelect.selectedIndex]?.text || '-';
         } else if (selectedMorador) {
             linkInfo = `${selectedMorador.name} (${selectedMorador.cpf || 'CPF não informado'})`;

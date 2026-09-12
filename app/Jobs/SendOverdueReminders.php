@@ -24,7 +24,7 @@ class SendOverdueReminders implements ShouldQueue
             // Buscar cobranças vencidas
             $overdueCharges = Charge::with(['unit.users', 'condominium'])
                 ->where('status', 'pending')
-                ->where('due_date', '<', now())
+                ->whereDate('due_date', '<', now()->toDateString())
                 ->get();
 
             foreach ($overdueCharges as $charge) {

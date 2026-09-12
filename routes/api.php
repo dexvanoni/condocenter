@@ -46,6 +46,7 @@ Route::middleware(['auth:sanctum'])->get('/user/credits', function (Request $req
 // API Routes com autenticação Sanctum (aceita sessão web também)
 Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscription'])->group(function () {
     // Cobranças (disponível em ambos os modos financeiros)
+    Route::middleware('condominium.module:financial')->group(function () {
     Route::apiResource('charges', ChargeController::class)->names([
         'index' => 'api.charges.index',
         'store' => 'api.charges.store',
@@ -73,9 +74,10 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         Route::get('reports/balance', [ReportController::class, 'balance'])->name('api.reports.balance');
         Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('api.reports.cash-flow');
     });
+    });
     
     // Reservas
-    // IMPORTANTE: Rotas específicas ANTES das rotas com parâmetros
+    Route::middleware('condominium.module:spaces')->group(function () {
     Route::get('reservations/availability/{spaceId}', [ReservationController::class, 'availability'])->name('api.reservations.availability');
     Route::post('reservations/{reservation}/approve', [ReservationController::class, 'approve'])->name('api.reservations.approve');
     Route::post('reservations/{reservation}/reject', [ReservationController::class, 'reject'])->name('api.reservations.reject');
@@ -90,8 +92,10 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         'update' => 'api.reservations.update',
         'destroy' => 'api.reservations.destroy',
     ]);
+    });
     
     // Encomendas
+    Route::middleware('condominium.module:packages')->group(function () {
     Route::get('packages/summary/units', [PackageController::class, 'summary'])->name('api.packages.summary');
     Route::get('packages/residents/search', [PackageController::class, 'residents'])->name('api.packages.residents');
     Route::apiResource('packages', PackageController::class)->names([
@@ -102,9 +106,10 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         'destroy' => 'api.packages.destroy',
     ]);
     Route::post('packages/{package}/collect', [PackageController::class, 'collect'])->name('api.packages.collect');
+    });
     
     // Marketplace
-    Route::middleware(['restrict.defaulters:marketplace'])->group(function () {
+    Route::middleware(['restrict.defaulters:marketplace', 'condominium.module:marketplace'])->group(function () {
         Route::apiResource('marketplace', MarketplaceController::class)->names([
             'index' => 'api.marketplace.index',
             'store' => 'api.marketplace.store',
@@ -115,6 +120,7 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
     });
     
     // Portaria (Entradas/Saídas)
+    Route::middleware('condominium.module:access_control')->group(function () {
     Route::apiResource('entries', EntryController::class)->names([
         'index' => 'api.entries.index',
         'store' => 'api.entries.store',
@@ -123,8 +129,10 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         'destroy' => 'api.entries.destroy',
     ]);
     Route::post('entries/{entry}/exit', [EntryController::class, 'registerExit'])->name('api.entries.exit');
+    });
     
     // Assembleias
+    Route::middleware('condominium.module:assemblies')->group(function () {
     Route::apiResource('assemblies', AssemblyController::class)->names([
         'index' => 'api.assemblies.index',
         'store' => 'api.assemblies.store',
@@ -140,8 +148,10 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
     Route::post('assemblies/{assembly}/cancel', [AssemblyController::class, 'cancel'])->name('api.assemblies.cancel');
     Route::post('assemblies/{assembly}/reopen', [AssemblyController::class, 'reopen'])->name('api.assemblies.reopen');
     Route::get('assemblies/{assembly}/minutes/export', [AssemblyController::class, 'exportMinutes'])->name('api.assemblies.minutes.export');
-    
-    // Mensagens
+    });
+
+    // Mensagens / conversas / notificações
+    Route::middleware('condominium.module:communication')->group(function () {
     Route::apiResource('messages', MessageController::class)->names([
         'index' => 'api.messages.index',
         'store' => 'api.messages.store',
@@ -169,6 +179,7 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
     Route::post('conversations/{conversation}/status', [ConversationController::class, 'updateStatus'])->name('api.conversations.status');
     Route::delete('conversations/{conversation}', [ConversationController::class, 'destroy'])->name('api.conversations.destroy');
     Route::post('conversations/{conversation}/close', [ConversationController::class, 'close'])->name('api.conversations.close');
+    });
 
     // Busca de usuários (AJAX) com filtro de papéis
     Route::get('users/search', [UserSearchController::class, 'search'])->name('api.users.search');
@@ -182,6 +193,7 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
     Route::post('notifications/access-alerts/{id}/read', [NotificationController::class, 'markAccessAlertAsRead'])->name('api.notifications.access-alerts.read');
     
     // Espaços
+    Route::middleware('condominium.module:spaces')->group(function () {
     Route::apiResource('spaces', SpaceController::class)->names([
         'index' => 'api.spaces.index',
         'store' => 'api.spaces.store',
@@ -189,8 +201,10 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         'update' => 'api.spaces.update',
         'destroy' => 'api.spaces.destroy',
     ]);
+    });
     
     // Pets
+    Route::middleware('condominium.module:pets')->group(function () {
     Route::apiResource('pets', PetController::class)->names([
         'index' => 'api.pets.index',
         'store' => 'api.pets.store',
@@ -198,8 +212,9 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         'update' => 'api.pets.update',
         'destroy' => 'api.pets.destroy',
     ]);
-    
-    Route::middleware(['restrict.defaulters:rides'])->group(function () {
+    });
+
+    Route::middleware(['restrict.defaulters:rides', 'condominium.module:rides'])->group(function () {
         Route::get('rides', [\App\Http\Controllers\Api\RideController::class, 'index'])->name('api.rides.index');
         Route::post('rides', [\App\Http\Controllers\Api\RideController::class, 'store'])->name('api.rides.store');
         Route::get('rides/{ride}', [\App\Http\Controllers\Api\RideController::class, 'show'])->name('api.rides.show');
@@ -211,7 +226,7 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
     // Relatórios movidos para o grupo ensure.full.financial acima
 
     // Controle de Acesso
-    Route::prefix('access-control')->name('api.access-control.')->group(function () {
+    Route::prefix('access-control')->name('api.access-control.')->middleware('condominium.module:access_control')->group(function () {
         Route::get('porteiro/panel', [\App\Http\Controllers\Api\AccessControlController::class, 'porteiroPanel'])->name('porteiro.panel');
         Route::get('authorizations', [\App\Http\Controllers\Api\AccessControlController::class, 'myAuthorizations'])->name('authorizations.index');
         Route::post('authorizations', [\App\Http\Controllers\Api\AccessControlController::class, 'storeAuthorization'])->name('authorizations.store');

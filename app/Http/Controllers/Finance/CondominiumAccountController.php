@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
+use App\Http\Requests\CancelCondominiumAccountExpenseRequest;
 use App\Models\Charge;
 use App\Models\CondominiumAccount;
 use App\Services\BankAccountRoutingService;
+use App\Services\CondominiumAccountService;
+use App\Support\FinancialEntryGrouper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -19,6 +22,7 @@ class CondominiumAccountController extends Controller
 
     public function __construct(
         private readonly BankAccountRoutingService $bankAccountRoutingService,
+        private readonly CondominiumAccountService $condominiumAccountService,
     ) {
     }
 
@@ -38,14 +42,20 @@ class CondominiumAccountController extends Controller
             ? Carbon::parse($request->input('end_date'))->endOfDay()
             : now()->endOfMonth();
 
-        $entriesQuery = CondominiumAccount::with('creator')
+        $entriesQuery = CondominiumAccount::with(['creator', 'cancelledBy'])
             ->byCondominium($condominiumId)
             ->whereBetween('transaction_date', [$startDate, $endDate])
             ->orderByDesc('transaction_date')
             ->orderByDesc('created_at');
 
         $incomeEntries = (clone $entriesQuery)->where('type', 'income')->get();
-        $expenseEntries = (clone $entriesQuery)->where('type', 'expense')->get();
+        $expenseEntries = (clone $entriesQuery)
+            ->where('type', 'expense')
+            ->where(function ($query) {
+                $query->whereNull('source_type')
+                    ->orWhere('source_type', '!=', 'employee_payroll');
+            })
+            ->get();
         $chargeIncomeEntries = $incomeEntries->filter(fn (CondominiumAccount $entry) => $entry->source_type === 'charge');
         $manualIncomeEntries = $incomeEntries->reject(fn (CondominiumAccount $entry) => $entry->source_type === 'charge');
 
@@ -58,7 +68,7 @@ class CondominiumAccountController extends Controller
         $summary = [
             'income_manual' => $manualIncomeEntries->sum('amount'),
             'income_charges' => $chargeIncomeEntries->sum('amount'),
-            'expenses_manual' => $expenseEntries->sum('amount'),
+            'expenses_manual' => $expenseEntries->filter(fn (CondominiumAccount $entry) => $entry->isActive())->sum('amount'),
         ];
 
         $summary['total_income'] = $summary['income_manual'] + $summary['income_charges'];
@@ -128,30 +138,50 @@ class CondominiumAccountController extends Controller
                 'installments_total' => $account->installments_total,
                 'installment_number' => $account->installment_number,
                 'created_by' => optional($account->creator)->name,
+                'is_cancelled' => $account->isCancelled(),
+                'is_cancellable' => $account->isCancellableManualExpense(),
+                'cancellation_reason' => $account->cancellation_reason,
+                'cancelled_at' => $account->cancelled_at,
+                'cancelled_by' => optional($account->cancelledBy)->name,
             ];
         });
 
         // Se for morador, filtrar taxEntries para mostrar apenas da própria unidade
-        // Moradores não podem ver detalhes de outras unidades para proteger privacidade
-        $filteredTaxEntries = $isMorador 
-            ? $taxIncomeTimeline->filter(fn($entry) => $entry['is_own_unit'] ?? false)
+        $filteredTaxEntries = $isMorador
+            ? $taxIncomeTimeline->filter(fn ($entry) => $entry['is_own_unit'] ?? false)
             : $taxIncomeTimeline;
+
+        $groupedTaxEntries = FinancialEntryGrouper::groupByDate($filteredTaxEntries);
+
+        $manualIncomeTimeline = $manualIncomeEntries->map(function (CondominiumAccount $account) {
+            return [
+                'id' => $account->id,
+                'title' => $account->description,
+                'amount' => $account->amount,
+                'transaction_date' => $account->transaction_date,
+                'source' => 'manual',
+                'payment_channel' => $account->payment_method,
+            ];
+        });
+
+        $groupedManualIncomes = FinancialEntryGrouper::groupByDate($manualIncomeTimeline);
 
         return view('finance.accounts.index', [
             'canManage' => $user->can('manage_transactions'),
             'isMorador' => $isMorador,
             'timelineIncomes' => $timelineIncomes,
             'timelineExpenses' => $timelineExpenses,
+            'groupedTaxEntries' => $groupedTaxEntries,
+            'groupedManualIncomes' => $groupedManualIncomes,
             'summary' => $summary,
             'startDate' => $startDate,
             'endDate' => $endDate,
             'openingBalance' => $openingBalance,
             'closingBalance' => $openingBalance + $summary['balance'],
-            'taxEntries' => $filteredTaxEntries,
-            // Para moradores, mostrar apenas total agregado de outras unidades (sem detalhes)
+            'taxEntriesCount' => $filteredTaxEntries->count(),
             'otherUnitsSummary' => $isMorador ? [
-                'count' => $taxIncomeTimeline->filter(fn($entry) => !($entry['is_own_unit'] ?? false))->count(),
-                'total' => $taxIncomeTimeline->filter(fn($entry) => !($entry['is_own_unit'] ?? false))->sum('amount'),
+                'count' => $taxIncomeTimeline->filter(fn ($entry) => ! ($entry['is_own_unit'] ?? false))->count(),
+                'total' => $taxIncomeTimeline->filter(fn ($entry) => ! ($entry['is_own_unit'] ?? false))->sum('amount'),
             ] : null,
         ]);
     }
@@ -188,6 +218,7 @@ class CondominiumAccountController extends Controller
             'condominium_id' => $condominiumId,
             'bank_account_id' => $bankAccountId,
             'type' => 'expense',
+            'status' => CondominiumAccount::STATUS_ACTIVE,
             'description' => $validated['description'],
             'amount' => $validated['amount'],
             'transaction_date' => $validated['transaction_date'],
@@ -248,6 +279,22 @@ class CondominiumAccountController extends Controller
             ->with('success', 'Recebimento registrado com sucesso!');
     }
 
+    public function cancelExpense(CancelCondominiumAccountExpenseRequest $request, CondominiumAccount $account)
+    {
+        $user = Auth::user();
+        $this->ensureResourceBelongsToActiveCondominium($user, (int) $account->condominium_id);
+
+        $this->condominiumAccountService->cancelManualExpense(
+            $account,
+            $user,
+            $request->validated('cancellation_reason')
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Pagamento cancelado. O registro permanece na prestação de contas como cancelado e não será computado nos totais.');
+    }
+
     protected function calculateBalanceUntil(int $condominiumId, Carbon $date): float
     {
         if ($date->isPast() === false) {
@@ -261,6 +308,7 @@ class CondominiumAccountController extends Controller
 
         $expenses = CondominiumAccount::byCondominium($condominiumId)
             ->where('type', 'expense')
+            ->countsInBalance()
             ->where('transaction_date', '<=', $date)
             ->sum('amount');
 

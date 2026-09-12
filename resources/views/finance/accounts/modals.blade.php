@@ -200,6 +200,53 @@
     </div>
 </div>
 
+<!-- Modal Cancelar Pagamento -->
+<div class="modal fade" id="modalCancelarPagamento" tabindex="-1" aria-labelledby="modalCancelarPagamentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="modalCancelarPagamentoLabel">
+                    <i class="bi bi-x-circle text-warning"></i> Cancelar Pagamento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="POST" id="formCancelarPagamento">
+                @csrf
+                <div class="modal-body">
+                    <p class="mb-3">
+                        O pagamento <strong id="cancelExpenseDescription"></strong> não será excluído.
+                        Ele permanecerá na prestação de contas como <strong>cancelado</strong> e o valor
+                        <strong>não será computado</strong> nos totais.
+                    </p>
+                    <div class="mb-0">
+                        <label for="cancellation_reason" class="form-label fw-semibold">
+                            Motivo do cancelamento <span class="text-danger">*</span>
+                        </label>
+                        <textarea name="cancellation_reason"
+                                  id="cancellation_reason"
+                                  class="form-control @error('cancellation_reason') is-invalid @enderror"
+                                  rows="4"
+                                  required
+                                  minlength="10"
+                                  maxlength="1000"
+                                  placeholder="Ex.: erro de digitação, extorno bancário, nota fiscal cancelada...">{{ old('cancellation_reason') }}</textarea>
+                        @error('cancellation_reason')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <small class="text-muted">Este motivo aparecerá na prestação de contas.</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-top bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Voltar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-x-circle"></i> Confirmar Cancelamento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // Função para capturar foto com câmera
 function captureCamera(inputId) {
@@ -273,6 +320,23 @@ function clearPreview(inputId, previewId) {
 
 // Máscara de dinheiro para inputs
 document.addEventListener('DOMContentLoaded', function() {
+    const cancelModal = document.getElementById('modalCancelarPagamento');
+    if (cancelModal) {
+        cancelModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const form = document.getElementById('formCancelarPagamento');
+            const description = document.getElementById('cancelExpenseDescription');
+
+            if (form && button) {
+                form.action = button.getAttribute('data-cancel-url') || '';
+            }
+
+            if (description && button) {
+                description.textContent = button.getAttribute('data-cancel-description') || 'selecionado';
+            }
+        });
+    }
+
     const moneyInputs = document.querySelectorAll('.money-input');
     
     moneyInputs.forEach(input => {

@@ -937,11 +937,14 @@
     @php
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
+        $modOn = fn (string $key) => SidebarHelper::moduleEnabled($user, $key);
         $activeRoleName = $user->getActiveRoleName() ?? session('active_role') ?? optional($user->roles->first())->name;
         $isAdminProfile = $activeRoleName === 'Administrador';
-        $hasAccessControlMenu = (Route::has('access-control.porteiro') && $user->can('process_access'))
+        $hasAccessControlMenu = $modOn('access_control') && (
+            (Route::has('access-control.porteiro') && $user->can('process_access'))
             || (Route::has('access-control.index') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
-            || (Route::has('access-control.reports') && $user->can('view_access_movements'));
+            || (Route::has('access-control.reports') && $user->can('view_access_movements'))
+        );
         $activeCondominiumContext = $activeCondominiumContext ?? [
             'id' => null,
             'condominium' => null,
@@ -950,15 +953,15 @@
             'show_selector' => false,
         ];
             $menuActive = [
-            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show') || request()->routeIs('condominiums.settings.whatsapp*') || request()->routeIs('condominiums.settings.receiving*'),
+            'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show') || request()->routeIs('condominiums.settings.whatsapp*') || request()->routeIs('condominiums.settings.receiving*') || request()->routeIs('financial.employees.*'),
             'plataforma' => request()->routeIs('condominiums.index') || request()->routeIs('condominiums.create') || request()->routeIs('condominiums.edit') || request()->routeIs('condominiums.settings.whatsapp*'),
             'configuracoes_globais' => request()->routeIs('platform.*'),
-            'financeiro' => request()->routeIs('transactions.*')
-                || request()->routeIs('fees.*')
+            'financeiro' => request()->routeIs('fees.*')
                 || request()->routeIs('fines.*')
                 || request()->routeIs('charges.*')
                 || request()->routeIs('my-charges.*')
                 || request()->routeIs('financial.status.*')
+                || request()->routeIs('monthly-closing.*')
                 || request()->routeIs('financial.accounts.*')
                 || request()->routeIs('revenue.*')
                 || request()->routeIs('expenses.*')
@@ -1137,7 +1140,12 @@
                     </a>
                 </li>
 
-                @if(SidebarHelper::isAdminOrSindico($user))
+                @php
+                    $isFinancialSimplifiedGestao = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
+                    $canSeeGestao = SidebarHelper::isAdminOrSindico($user)
+                        || (Route::has('financial.employees.index') && $user->can('view_employees') && ! $isFinancialSimplifiedGestao);
+                @endphp
+                @if($canSeeGestao)
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['gestao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuGestao" aria-expanded="{{ $menuActive['gestao'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-gear me-2"></i>Gestão</span>
@@ -1159,6 +1167,13 @@
                                 </a>
                             </li>
                             @endcan
+                            @if($modOn('financial') && !$isFinancialSimplifiedGestao && Route::has('financial.employees.index') && $user->can('view_employees'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('financial.employees.*') ? 'active' : '' }}" href="{{ route('financial.employees.index') }}">
+                                    <i class="bi bi-person-badge"></i> Quadro de Funcionários
+                                </a>
+                            </li>
+                            @endif
                             @if(SidebarHelper::canViewOwnCondominium($user))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('condominiums.show') ? 'active' : '' }}" href="{{ route('condominiums.show', $activeCondominiumContext['id'] ?? $user->condominium_id) }}">
@@ -1191,7 +1206,7 @@
                     $isFinancialSimplified = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
                     $canViewFinance = !$user->isAgregado() && ($isFinanceAdmin || $isFinanceResident || $user->can('view_fines') || $user->can('view_transactions'));
                 @endphp
-                @if($canViewFinance)
+                @if($canViewFinance && $modOn('financial'))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['financeiro'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuFinanceiro" aria-expanded="{{ $menuActive['financeiro'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-cash-coin me-2"></i>Financeiro</span>
@@ -1207,13 +1222,6 @@
                             </li>
                             @endif
                             @if($isFinanceAdmin)
-                                @if(!$isFinancialSimplified && Route::has('transactions.index') && $user->can('view_transactions'))
-                                <li class="nav-item">
-                                    <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
-                                        <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
-                                    </a>
-                                </li>
-                                @endif
                                 @if(Route::has('fees.index') && $user->can('view_charges'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
@@ -1239,6 +1247,13 @@
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
                                         <i class="bi bi-graph-up"></i> Painel de Adimplência
+                                    </a>
+                                </li>
+                                @endif
+                                @if(!$isFinancialSimplified && Route::has('monthly-closing.index') && $user->can('view_financial_reports'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('monthly-closing.*') ? 'active' : '' }}" href="{{ route('monthly-closing.index') }}">
+                                        <i class="bi bi-check2-square"></i> Fechamento do Mês
                                     </a>
                                 </li>
                                 @endif
@@ -1321,7 +1336,7 @@
                 </li>
                 @endif
 
-                @if(SidebarHelper::canViewReservations($user) || SidebarHelper::canManageSpaces($user))
+                @if($modOn('spaces') && (SidebarHelper::canViewReservations($user) || SidebarHelper::canManageSpaces($user)))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['espacos'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuEspacos" aria-expanded="{{ $menuActive['espacos'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-calendar-event me-2"></i>Espaços</span>
@@ -1461,7 +1476,7 @@
                 </li>
                 @endif
 
-                @if(Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
+                @if($modOn('assemblies') && Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['assemblies'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuAssemblies" aria-expanded="{{ $menuActive['assemblies'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-people me-2"></i>Assembleias</span>
@@ -1488,7 +1503,7 @@
                 </li>
                 @endif
 
-                @if(Route::has('internal-regulations.index'))
+                @if($modOn('documents') && Route::has('internal-regulations.index'))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['documents'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuDocumentos" aria-expanded="{{ $menuActive['documents'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-file-earmark-text me-2"></i>Documentos</span>
@@ -1586,7 +1601,7 @@
                     @endcan
                 @endif --}}
 
-                @if(Route::has('messages.index'))
+                @if($modOn('communication') && Route::has('messages.index'))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['comunicacao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuComunicacao" aria-expanded="{{ $menuActive['comunicacao'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-chat-dots me-2"></i>Comunicação</span>
@@ -1897,7 +1912,12 @@
                             </a>
                         </li>
 
-                        @if(SidebarHelper::isAdminOrSindico($user))
+                        @php
+                            $mobileFinancialSimplifiedGestao = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
+                            $mobileCanSeeGestao = SidebarHelper::isAdminOrSindico($user)
+                                || (Route::has('financial.employees.index') && $user->can('view_employees') && ! $mobileFinancialSimplifiedGestao);
+                        @endphp
+                        @if($mobileCanSeeGestao)
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['gestao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuGestao" aria-expanded="{{ $menuActive['gestao'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-gear me-2"></i>Gestão</span>
@@ -1919,6 +1939,13 @@
                                         </a>
                                     </li>
                                     @endcan
+                                    @if($modOn('financial') && !$mobileFinancialSimplifiedGestao && Route::has('financial.employees.index') && $user->can('view_employees'))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('financial.employees.*') ? 'active' : '' }}" href="{{ route('financial.employees.index') }}">
+                                            <i class="bi bi-person-badge"></i> Quadro de Funcionários
+                                        </a>
+                                    </li>
+                                    @endif
                                     @if(SidebarHelper::canViewOwnCondominium($user))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('condominiums.show') ? 'active' : '' }}" href="{{ route('condominiums.show', $activeCondominiumContext['id'] ?? $user->condominium_id) }}">
@@ -1951,7 +1978,7 @@
                             $mobileFinancialSimplified = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
                             $mobileCanSeeFinance = !$user->isAgregado() && ($mobileFinanceAdmin || $mobileFinanceResident || $user->can('view_fines') || $user->can('view_transactions'));
                         @endphp
-                        @if($mobileCanSeeFinance)
+                        @if($mobileCanSeeFinance && $modOn('financial'))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['financeiro'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuFinanceiro" aria-expanded="{{ $menuActive['financeiro'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-cash-coin me-2"></i>Financeiro</span>
@@ -1967,13 +1994,6 @@
                                     </li>
                                     @endif
                                     @if($mobileFinanceAdmin)
-                                        @if(!$mobileFinancialSimplified && Route::has('transactions.index') && $user->can('view_transactions'))
-                                        <li class="nav-item">
-                                            <a class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}" href="{{ route('transactions.index') }}">
-                                                <i class="bi bi-cash-stack"></i> {{ $user->can('manage_transactions') ? 'Gerenciar Transações' : 'Transações' }}
-                                            </a>
-                                        </li>
-                                        @endif
                                         @if(Route::has('fees.index') && $user->can('view_charges'))
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('fees.*') ? 'active' : '' }}" href="{{ route('fees.index') }}">
@@ -1999,6 +2019,13 @@
                                         <li class="nav-item">
                                             <a class="nav-link {{ request()->routeIs('financial.status.*') ? 'active' : '' }}" href="{{ route('financial.status.index') }}">
                                                 <i class="bi bi-graph-up"></i> Painel de Adimplência
+                                            </a>
+                                        </li>
+                                        @endif
+                                        @if(!$mobileFinancialSimplified && Route::has('monthly-closing.index') && $user->can('view_financial_reports'))
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('monthly-closing.*') ? 'active' : '' }}" href="{{ route('monthly-closing.index') }}">
+                                                <i class="bi bi-check2-square"></i> Fechamento do Mês
                                             </a>
                                         </li>
                                         @endif
@@ -2081,7 +2108,7 @@
                         </li>
                         @endif
 
-                        @if(SidebarHelper::canViewReservations($user) || SidebarHelper::canManageSpaces($user))
+                        @if($modOn('spaces') && (SidebarHelper::canViewReservations($user) || SidebarHelper::canManageSpaces($user)))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['espacos'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuEspacos" aria-expanded="{{ $menuActive['espacos'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-calendar-event me-2"></i>Espaços</span>
@@ -2228,7 +2255,7 @@
                         </li>
                         @endif
 
-                        @if(Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
+                        @if($modOn('assemblies') && Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['assemblies'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuAssemblies" aria-expanded="{{ $menuActive['assemblies'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-people me-2"></i>Assembleias</span>
@@ -2255,7 +2282,7 @@
                         </li>
                         @endif
 
-                        @if(Route::has('internal-regulations.index'))
+                        @if($modOn('documents') && Route::has('internal-regulations.index'))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['documents'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuDocumentos" aria-expanded="{{ $menuActive['documents'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-file-earmark-text me-2"></i>Documentos</span>
@@ -2353,7 +2380,7 @@
                             @endcan
                         @endif --}}
 
-                        @if(Route::has('messages.index'))
+                        @if($modOn('communication') && Route::has('messages.index'))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['comunicacao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuComunicacao" aria-expanded="{{ $menuActive['comunicacao'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-chat-dots me-2"></i>Comunicação</span>

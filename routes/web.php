@@ -7,6 +7,7 @@ use App\Http\Controllers\FineController;
 use App\Http\Controllers\Finance\AccountabilityReportController;
 use App\Http\Controllers\Finance\AccountabilityReportUploadController;
 use App\Http\Controllers\Finance\CondominiumAccountController;
+use App\Http\Controllers\Finance\EmployeeController;
 use App\Http\Controllers\Finance\FinancialSettingsController;
 use App\Http\Controllers\Finance\FinancialStatusController;
 use App\Http\Controllers\WebhookController;
@@ -24,6 +25,11 @@ use App\Http\Controllers\CondominiumLandingAdminController;
 Route::get('/', function () {
     return redirect()->route('login');
 });
+
+Route::get('/dev/docs/{token}', [\App\Http\Controllers\DevDocumentationController::class, 'vpsGuide'])
+    ->middleware('throttle:20,1')
+    ->where('token', '[A-Za-z0-9]{32,128}')
+    ->name('dev.docs.vps');
 
 // Página de apresentação do sistema (pública)
 Route::get('/apresentacao', function () {
@@ -81,7 +87,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
         Route::middleware(['ensure.saas.subscription'])->group(function () {
             // Financeiro — taxas e cobranças (disponível em ambos os ambientes)
-            Route::middleware(['can:view_charges'])->group(function () {
+            Route::middleware(['can:view_charges', 'condominium.module:financial'])->group(function () {
                 Route::get('/minhas-cobrancas', [\App\Http\Controllers\ResidentChargeController::class, 'index'])->name('my-charges.index');
                 Route::get('/minhas-cobrancas/export/pdf', [\App\Http\Controllers\ResidentChargeController::class, 'exportPdf'])->name('my-charges.export-pdf');
                 Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
@@ -103,7 +109,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                     ->name('fees.invalidate');
             });
 
-            Route::middleware(['can:view_fines'])->group(function () {
+            Route::middleware(['can:view_fines', 'condominium.module:financial'])->group(function () {
                 Route::get('fines', [FineController::class, 'index'])->name('fines.index');
                 Route::get('fines/create', [FineController::class, 'create'])->middleware('can:manage_fines')->name('fines.create');
                 Route::get('fines/search-infractors', [FineController::class, 'searchInfractors'])->middleware('can:manage_fines')->name('fines.search-infractors');
@@ -111,9 +117,10 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                 Route::get('fines/{fine}', [FineController::class, 'show'])->name('fines.show');
                 Route::get('fines/{fine}/pdf', [FineController::class, 'exportPdf'])->name('fines.export-pdf');
                 Route::post('fines/{fine}/cancel', [FineController::class, 'cancel'])->middleware('can:manage_fines')->name('fines.cancel');
+                Route::put('fines/{fine}/due-date', [FineController::class, 'updateDueDate'])->middleware('can:manage_fines')->name('fines.due-date.update');
             });
 
-            Route::middleware(['can:manage_transactions'])->group(function () {
+            Route::middleware(['can:manage_transactions', 'condominium.module:financial'])->group(function () {
                 Route::post('charges/{charge}/mark-paid', [ChargeSettlementController::class, 'markPaid'])
                     ->name('charges.mark-paid');
                 Route::post('charges/{charge}/revoke-payroll', [ChargeSettlementController::class, 'revokePayroll'])
@@ -123,6 +130,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             });
 
             // Ambiente financeiro simplificado — configuração e prestação de contas por upload
+            Route::middleware(['condominium.module:financial'])->group(function () {
             Route::get('/financial/settings', [FinancialSettingsController::class, 'index'])->name('financial.settings.index');
             Route::put('/financial/settings/mode', [FinancialSettingsController::class, 'updateMode'])->name('financial.settings.mode');
             Route::put('/financial/settings/routing-rules', [FinancialSettingsController::class, 'updateRoutingRules'])->name('financial.settings.routing-rules');
@@ -134,10 +142,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
             // Financeiro completo — bloqueado no ambiente simplificado
             Route::middleware(['ensure.full.financial'])->group(function () {
-                Route::middleware(['can:view_transactions'])->group(function () {
-                    Route::get('/transactions', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transactions.index');
-                });
-
+                Route::get('/transactions', fn () => redirect()->route('financial.accounts.index'))->name('transactions.index');
                 Route::resource('financial/bank-accounts', BankAccountController::class)
                     ->parameters(['bank-accounts' => 'bankAccount'])
                     ->names('financial.bank-accounts');
@@ -158,6 +163,21 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                     ->middleware('can:view_financial_reports')
                     ->name('financial.status.index');
 
+                Route::get('/financial/monthly-closing', [\App\Http\Controllers\Finance\MonthlyClosingController::class, 'index'])
+                    ->middleware('can:view_financial_reports')
+                    ->name('monthly-closing.index');
+
+                Route::middleware(['can:manage_transactions'])->group(function () {
+                    Route::post('/financial/monthly-closing/steps/{stepKey}/confirm', [\App\Http\Controllers\Finance\MonthlyClosingController::class, 'confirmStep'])
+                        ->name('monthly-closing.steps.confirm');
+                    Route::delete('/financial/monthly-closing/steps/{stepKey}/confirm', [\App\Http\Controllers\Finance\MonthlyClosingController::class, 'unconfirmStep'])
+                        ->name('monthly-closing.steps.unconfirm');
+                    Route::post('/financial/monthly-closing/complete', [\App\Http\Controllers\Finance\MonthlyClosingController::class, 'complete'])
+                        ->name('monthly-closing.complete');
+                    Route::post('/financial/monthly-closing/reopen', [\App\Http\Controllers\Finance\MonthlyClosingController::class, 'reopen'])
+                        ->name('monthly-closing.reopen');
+                });
+
                 Route::get('/financial/accounts', [CondominiumAccountController::class, 'index'])->name('financial.accounts.index');
                 Route::post('/financial/accounts/income', [CondominiumAccountController::class, 'storeIncome'])
                     ->middleware('can:manage_transactions')
@@ -165,6 +185,24 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                 Route::post('/financial/accounts/expense', [CondominiumAccountController::class, 'storeExpense'])
                     ->middleware('can:manage_transactions')
                     ->name('financial.accounts.expense.store');
+                Route::post('/financial/accounts/expense/{account}/cancel', [CondominiumAccountController::class, 'cancelExpense'])
+                    ->middleware('can:manage_transactions')
+                    ->name('financial.accounts.expense.cancel');
+
+                Route::middleware(['can:view_employees'])->group(function () {
+                    Route::get('/financial/employees', [EmployeeController::class, 'index'])->name('financial.employees.index');
+
+                    Route::middleware(['can:manage_employees'])->group(function () {
+                        Route::get('/financial/employees/create', [EmployeeController::class, 'create'])->name('financial.employees.create');
+                        Route::post('/financial/employees', [EmployeeController::class, 'store'])->name('financial.employees.store');
+                        Route::get('/financial/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('financial.employees.edit');
+                        Route::put('/financial/employees/{employee}', [EmployeeController::class, 'update'])->name('financial.employees.update');
+                        Route::post('/financial/employees/{employee}/entries', [EmployeeController::class, 'storeEntry'])->name('financial.employees.entries.store');
+                        Route::post('/financial/employees/entries/{entry}/cancel', [EmployeeController::class, 'cancelEntry'])->name('financial.employees.entries.cancel');
+                    });
+
+                    Route::get('/financial/employees/{employee}', [EmployeeController::class, 'show'])->name('financial.employees.show');
+                });
 
                 Route::middleware(['can:view_financial_reports'])->group(function () {
                     Route::get('/financial/accountability', [AccountabilityReportController::class, 'index'])->name('accountability-reports.index');
@@ -217,14 +255,15 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                 Route::get('/balance', fn () => redirect()->route('accountability-reports.index'))->name('balance.index');
                 Route::get('/my-finances', fn () => redirect()->route('financial.accounts.index'))->name('my-finances');
             });
+            });
 
     // Espaços (Síndico)
-    Route::middleware(['can:manage_spaces'])->group(function () {
+    Route::middleware(['can:manage_spaces', 'condominium.module:spaces'])->group(function () {
         Route::resource('spaces', \App\Http\Controllers\SpaceController::class);
     });
     
     // Reservas
-    Route::middleware(['check.reservation.access:view'])->group(function () {
+    Route::middleware(['check.reservation.access:view', 'condominium.module:spaces'])->group(function () {
         Route::get('/reservations', function () {
             $user = Auth::user();
             $condominium = Condominium::query()->find($user?->tenantCondominiumId());
@@ -240,7 +279,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     
     
     // Gerenciar Reservas (Síndico/Admin)
-    Route::middleware(['can:manage_reservations'])->group(function () {
+    Route::middleware(['can:manage_reservations', 'condominium.module:spaces'])->group(function () {
         Route::get('/reservations/manage', [\App\Http\Controllers\ReservationManagementController::class, 'index'])->name('reservations.manage');
         Route::get('/reservations/manage/{id}', [\App\Http\Controllers\ReservationManagementController::class, 'show'])->name('reservations.manage.show');
         Route::get('/reservations/manage/{id}/edit', [\App\Http\Controllers\ReservationManagementController::class, 'edit'])->name('reservations.manage.edit');
@@ -251,12 +290,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
 
     // Reservas Recorrentes (Síndico/Admin)
-    Route::middleware(['can:approve_reservations'])->group(function () {
+    Route::middleware(['can:approve_reservations', 'condominium.module:spaces'])->group(function () {
         Route::resource('recurring-reservations', \App\Http\Controllers\RecurringReservationController::class);
     });
     
     // Administração de Reservas (Síndico/Admin)
-    Route::middleware(['can:approve_reservations'])->group(function () {
+    Route::middleware(['can:approve_reservations', 'condominium.module:spaces'])->group(function () {
         Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/reservations', [\App\Http\Controllers\AdminReservationController::class, 'index'])->name('reservations.index');
             Route::get('/reservations/{id}', [\App\Http\Controllers\AdminReservationController::class, 'show'])->name('reservations.show');
@@ -270,6 +309,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     
     Route::prefix('marketplace/admin')
         ->name('marketplace.admin.')
+        ->middleware('check.module.access:marketplace')
         ->group(function () {
             Route::get('/', [MarketplaceAdminController::class, 'index'])->name('index');
             Route::post('/settings/toggle-aggregados', [MarketplaceAdminController::class, 'toggleAggregados'])->name('settings.toggle');
@@ -303,11 +343,13 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     // Portaria / Controle de Acesso
-    Route::middleware(['can:process_access'])->group(function () {
+    Route::middleware(['can:process_access', 'condominium.module:access_control'])->group(function () {
         Route::get('/access-control/porteiro', [\App\Http\Controllers\AccessControlWebController::class, 'porteiroPanel'])->name('access-control.porteiro');
     });
-    Route::get('/access-control', [\App\Http\Controllers\AccessControlWebController::class, 'residentIndex'])->name('access-control.index');
-    Route::middleware(['can:view_access_movements'])->group(function () {
+    Route::get('/access-control', [\App\Http\Controllers\AccessControlWebController::class, 'residentIndex'])
+        ->middleware('condominium.module:access_control')
+        ->name('access-control.index');
+    Route::middleware(['can:view_access_movements', 'condominium.module:access_control'])->group(function () {
         Route::get('/access-control/reports', [\App\Http\Controllers\AccessControlWebController::class, 'reports'])->name('access-control.reports');
         Route::get('/access-control/reports/export-pdf', [\App\Http\Controllers\AccessControlWebController::class, 'exportPdf'])->name('access-control.reports.pdf');
     });
@@ -355,17 +397,17 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     // Assembleias
-    Route::middleware(['can:view_assemblies'])->group(function () {
+    Route::middleware(['can:view_assemblies', 'condominium.module:assemblies'])->group(function () {
         Route::get('/assemblies', function() { return view('assemblies.index'); })->name('assemblies.index');
     });
     
     // Conversas - Formulário de Aviso (Síndico/Admin)
     Route::get('/conversations/announcement', [ConversationWebController::class, 'announcementForm'])
-        ->middleware('can:send_announcements')
+        ->middleware(['can:send_announcements', 'condominium.module:communication'])
         ->name('conversations.announcement');
 
     // Landing page do condomínio (Síndico)
-    Route::prefix('condominium/landing')->name('condominium.landing.')->middleware('can:manage_landing_page')->group(function () {
+    Route::prefix('condominium/landing')->name('condominium.landing.')->middleware(['can:manage_landing_page', 'condominium.module:communication'])->group(function () {
         Route::get('/', [CondominiumLandingAdminController::class, 'edit'])->name('edit');
         Route::put('/', [CondominiumLandingAdminController::class, 'update'])->name('update');
         Route::post('/items', [CondominiumLandingAdminController::class, 'storeItem'])->name('items.store');
@@ -380,15 +422,16 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
     // Canal sigiloso com o Síndico (separado das mensagens gerais)
     Route::get('/conversations/syndic/start', [\App\Http\Controllers\SyndicConversationWebController::class, 'start'])
-        ->middleware('can:contact_sindico')
+        ->middleware(['can:contact_sindico', 'condominium.module:communication'])
         ->name('syndic-conversations.start');
     Route::get('/conversations/syndic/chat', [\App\Http\Controllers\SyndicConversationWebController::class, 'chat'])
-        ->middleware('can:contact_sindico')
+        ->middleware(['can:contact_sindico', 'condominium.module:communication'])
         ->name('syndic-conversations.chat');
     Route::get('/conversations/syndic/manage', [\App\Http\Controllers\SyndicConversationWebController::class, 'manage'])
+        ->middleware('condominium.module:communication')
         ->name('syndic-conversations.manage');
 
-    Route::prefix('occurrence-book')->name('occurrence-book.')->group(function () {
+    Route::prefix('occurrence-book')->name('occurrence-book.')->middleware('condominium.module:communication')->group(function () {
         Route::middleware('can:create_occurrence_book')->group(function () {
             Route::get('/', [\App\Http\Controllers\OccurrenceBookController::class, 'index'])->name('index');
             Route::get('/novo', [\App\Http\Controllers\OccurrenceBookController::class, 'create'])->name('create');
@@ -421,7 +464,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->name('conversations.direct.start');
     
     // Regimento Interno (todos os usuários podem ver, apenas admin/síndico pode editar)
-    Route::prefix('internal-regulations')->name('internal-regulations.')->group(function () {
+    Route::prefix('internal-regulations')->name('internal-regulations.')->middleware('condominium.module:documents')->group(function () {
         Route::get('/', [\App\Http\Controllers\InternalRegulationController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\InternalRegulationController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\InternalRegulationController::class, 'store'])->name('store');
@@ -434,7 +477,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     // Mensagens
-    Route::get('/messages', function() { return view('messages.index'); })->name('messages.index');
+    Route::get('/messages', function() { return view('messages.index'); })
+        ->middleware('condominium.module:communication')
+        ->name('messages.index');
     
     // Notificações
     Route::get('/notifications', function() { return view('notifications.index'); })->name('notifications.index');
@@ -481,6 +526,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->name('condominiums.settings.receiving.credentials');
     Route::put('/condominiums/{condominium}/settings/restrict-defaulters', [\App\Http\Controllers\CondominiumDefaulterSettingsController::class, 'update'])
         ->name('condominiums.settings.restrict-defaulters.update');
+    Route::put('/condominiums/{condominium}/settings/modules', [\App\Http\Controllers\CondominiumModulesSettingsController::class, 'update'])
+        ->name('condominiums.settings.modules.update');
     Route::post('/condominiums/{condominium}/settings/receiving/test', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'test'])
         ->name('condominiums.settings.receiving.test');
     Route::post('/condominiums/{condominium}/settings/receiving/complete', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'completeSetup'])

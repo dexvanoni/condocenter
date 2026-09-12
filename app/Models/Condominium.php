@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CondominiumModules;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -35,6 +36,7 @@ class Condominium extends Model implements Auditable
         'asaas_setup_completed_at',
         'marketplace_allow_agregados',
         'restrict_defaulters',
+        'enabled_modules',
         'occurrence_book_public_enabled',
         'registration_code',
         'whatsapp_enabled',
@@ -49,6 +51,7 @@ class Condominium extends Model implements Auditable
         'is_active' => 'boolean',
         'marketplace_allow_agregados' => 'boolean',
         'restrict_defaulters' => 'boolean',
+        'enabled_modules' => 'array',
         'occurrence_book_public_enabled' => 'boolean',
         'whatsapp_enabled' => 'boolean',
         'asaas_sandbox' => 'boolean',
@@ -58,6 +61,21 @@ class Condominium extends Model implements Auditable
         'whatsapp_notify_groups' => 'array',
         'evolution_api_key' => 'encrypted',
     ];
+
+    public function hasModule(string $module): bool
+    {
+        if (! CondominiumModules::isValid($module)) {
+            return true;
+        }
+
+        $enabled = $this->enabled_modules;
+
+        if ($enabled === null) {
+            return true;
+        }
+
+        return in_array($module, $enabled, true);
+    }
 
     public function isFinancialSimplified(): bool
     {

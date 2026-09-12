@@ -44,7 +44,7 @@ class IncomeExpenseController extends Controller
             ->orderByDesc('created_at');
 
         // Saídas
-        $expenseQuery = CondominiumAccount::with('creator')
+        $expenseQuery = CondominiumAccount::with(['creator', 'cancelledBy'])
             ->byCondominium($condominiumId)
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$startDate, $endDate])
@@ -141,13 +141,19 @@ class IncomeExpenseController extends Controller
                 'description' => $entry->description,
                 'amount' => $entry->amount,
                 'payment_method' => $entry->payment_method,
-                'installments' => $entry->installments_total 
-                    ? ($entry->installment_number ?? 1) . '/' . $entry->installments_total 
+                'installments' => $entry->installments_total
+                    ? ($entry->installment_number ?? 1) . '/' . $entry->installments_total
                     : null,
                 'created_by' => $entry->creator?->name,
                 'notes' => $entry->notes,
                 'document_path' => $entry->document_path,
                 'captured_image_path' => $entry->captured_image_path,
+                'is_cancelled' => $entry->isCancelled(),
+                'is_cancellable' => $entry->isCancellableManualExpense(),
+                'cancellation_reason' => $entry->cancellation_reason,
+                'cancelled_at' => $entry->cancelled_at,
+                'cancelled_by' => $entry->cancelledBy?->name,
+                'counts_in_total' => $entry->isActive(),
             ];
         });
 
@@ -157,7 +163,9 @@ class IncomeExpenseController extends Controller
 
         // Resumo
         $incomeTotal = $incomeCollection->sum('amount');
-        $expenseTotal = $expenseCollection->sum('amount');
+        $expenseTotal = $expenseCollection
+            ->filter(fn (array $entry) => $entry['counts_in_total'])
+            ->sum('amount');
         $balance = $incomeTotal - $expenseTotal;
 
         return view('finance.income-expense.index', compact(
@@ -399,7 +407,7 @@ class IncomeExpenseController extends Controller
     {
         $condominiumId = $this->activeCondominiumId($user);
 
-        $expenses = CondominiumAccount::with('creator')
+        $expenses = CondominiumAccount::with(['creator', 'cancelledBy'])
             ->byCondominium($condominiumId)
             ->where('type', 'expense')
             ->whereBetween('transaction_date', [$startDate, $endDate])
@@ -414,17 +422,24 @@ class IncomeExpenseController extends Controller
                 'description' => $entry->description,
                 'amount' => $entry->amount,
                 'payment_method' => $entry->payment_method,
-                'installments' => $entry->installments_total 
-                    ? ($entry->installment_number ?? 1) . '/' . $entry->installments_total 
+                'installments' => $entry->installments_total
+                    ? ($entry->installment_number ?? 1) . '/' . $entry->installments_total
                     : null,
                 'created_by' => $entry->creator?->name,
                 'notes' => $entry->notes,
                 'document_path' => $entry->document_path,
                 'captured_image_path' => $entry->captured_image_path,
+                'is_cancelled' => $entry->isCancelled(),
+                'cancellation_reason' => $entry->cancellation_reason,
+                'cancelled_at' => $entry->cancelled_at,
+                'cancelled_by' => $entry->cancelledBy?->name,
+                'counts_in_total' => $entry->isActive(),
             ];
         });
 
-        $total = $expenseData->sum('amount');
+        $total = $expenseData
+            ->filter(fn (array $entry) => $entry['counts_in_total'])
+            ->sum('amount');
 
         return [
             'data' => $expenseData,

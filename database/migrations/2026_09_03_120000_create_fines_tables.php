@@ -11,7 +11,7 @@ return new class extends Migration
     {
         Schema::create('fines', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('condominium_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('condominium_id')->constrained('condominiums')->cascadeOnDelete();
             $table->string('reference', 40);
             $table->text('motivo');
             $table->string('enquadramento');
@@ -44,14 +44,14 @@ return new class extends Migration
             $table->unique(['fine_id', 'user_id']);
         });
 
-        if (Schema::hasColumn('charges', 'generated_by')) {
+        if (Schema::hasColumn('charges', 'generated_by') && Schema::getConnection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE charges MODIFY generated_by ENUM('manual','fee','reservation','import','fine') NOT NULL DEFAULT 'manual'");
         }
     }
 
     public function down(): void
     {
-        if (Schema::hasColumn('charges', 'generated_by')) {
+        if (Schema::hasColumn('charges', 'generated_by') && Schema::getConnection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE charges MODIFY generated_by ENUM('manual','fee','reservation','import') NOT NULL DEFAULT 'manual'");
         }
 

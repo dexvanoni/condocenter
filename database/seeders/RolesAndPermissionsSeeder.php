@@ -56,6 +56,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_expenses',
             'view_balance',
             'view_own_financial',
+            'manage_employees',
+            'view_employees',
             
             // Reservas
             'manage_spaces',
@@ -157,6 +159,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage_bank_statements',
             'view_bank_statements',
             'view_bank_reconciliation',
+            'manage_employees',
+            'view_employees',
             'manage_spaces',
             'view_spaces',
             'manage_reservations',
@@ -211,6 +215,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_revenue',
             'view_expenses',
             'view_balance',
+            'view_employees',
             // Demais permissões
             'view_spaces',
             'make_reservations',
@@ -270,6 +275,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_expenses',
             'view_balance',
             'approve_expenses',
+            'view_employees',
             // Outras
             'view_assemblies',
             'view_messages',
@@ -287,6 +293,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_units',
             'view_transactions',
             'view_charges',
+            'view_employees',
             'view_reservations',
             'view_entries',
             'view_packages',

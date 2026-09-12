@@ -39,8 +39,13 @@ return new class extends Migration
             ['name' => 'manage_landing_page', 'guard_name' => 'web']
         );
 
-        Role::findByName('Síndico', 'web')?->givePermissionTo($permission);
-        Role::findByName('Administrador', 'web')?->givePermissionTo($permission);
+        foreach (['Síndico', 'Administrador'] as $roleName) {
+            Role::query()
+                ->where('name', $roleName)
+                ->where('guard_name', 'web')
+                ->first()
+                ?->givePermissionTo($permission);
+        }
     }
 
     public function down(): void

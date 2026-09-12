@@ -73,7 +73,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        if (Schema::hasColumn('charges', 'generated_by')) {
+        if (Schema::hasColumn('charges', 'generated_by') && Schema::getConnection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE charges MODIFY generated_by ENUM('manual','fee','reservation','import','fine','service_order') NOT NULL DEFAULT 'manual'");
         }
     }
@@ -84,7 +84,7 @@ return new class extends Migration
         Schema::dropIfExists('service_order_messages');
         Schema::dropIfExists('service_orders');
 
-        if (Schema::hasColumn('charges', 'generated_by')) {
+        if (Schema::hasColumn('charges', 'generated_by') && Schema::getConnection()->getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE charges MODIFY generated_by ENUM('manual','fee','reservation','import','fine') NOT NULL DEFAULT 'manual'");
         }
     }

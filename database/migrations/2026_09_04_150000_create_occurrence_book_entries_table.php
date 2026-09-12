@@ -42,14 +42,16 @@ return new class extends Migration
             Permission::firstOrCreate(['name' => $permission], ['guard_name' => 'web']);
         }
 
-        Role::findByName('Síndico')?->givePermissionTo([
-            'manage_occurrence_book',
-            'export_occurrence_book',
-        ]);
+        Role::query()->where('name', 'Síndico')->where('guard_name', 'web')->first()
+            ?->givePermissionTo([
+                'manage_occurrence_book',
+                'export_occurrence_book',
+            ]);
 
-        Role::findByName('Morador')?->givePermissionTo([
-            'create_occurrence_book',
-        ]);
+        Role::query()->where('name', 'Morador')->where('guard_name', 'web')->first()
+            ?->givePermissionTo([
+                'create_occurrence_book',
+            ]);
     }
 
     public function down(): void

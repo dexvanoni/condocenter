@@ -6,12 +6,19 @@ use App\Models\Charge;
 use App\Models\CondominiumAccount;
 use App\Models\BankAccount;
 use App\Models\Payment;
+use App\Services\EmployeeService;
 use App\Support\PaymentMethods;
+use App\Support\FinancialEntryGrouper;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class AccountabilityReportService
 {
+    public function __construct(
+        private readonly EmployeeService $employeeService,
+    ) {
+    }
+
     public function generate(int $condominiumId, Carbon $startDate, Carbon $endDate): array
     {
         $manualIncomes = CondominiumAccount::with('creator')
@@ -25,9 +32,13 @@ class AccountabilityReportService
             ->orderBy('transaction_date')
             ->get();
 
-        $manualExpenses = CondominiumAccount::with('creator')
+        $manualExpenses = CondominiumAccount::with(['creator', 'cancelledBy'])
             ->where('condominium_id', $condominiumId)
             ->where('type', 'expense')
+            ->where(function ($query) {
+                $query->whereNull('source_type')
+                    ->orWhere('source_type', '!=', 'employee_payroll');
+            })
             ->whereBetween('transaction_date', [$startDate, $endDate])
             ->orderBy('transaction_date')
             ->get();
@@ -46,6 +57,9 @@ class AccountabilityReportService
             ->keyBy('id');
 
         $chargeSummary = $this->buildChargeSummary($chargeIncomeEntries, $chargesById);
+        $chargeDailySummary = $this->buildChargeDailySummary($chargeIncomeEntries);
+        $manualIncomeDaily = FinancialEntryGrouper::groupByDate($manualIncomes);
+        $manualExpenseDaily = FinancialEntryGrouper::groupByDate($manualExpenses);
 
         $payments = Payment::query()
             ->whereHas('charge', function ($query) use ($condominiumId) {
@@ -87,16 +101,22 @@ class AccountabilityReportService
             });
 
         $openingBalance = $this->calculateBalanceUntil($condominiumId, $startDate->copy()->subDay());
+        $employeePayroll = $this->employeeService->accountabilitySummary($condominiumId, $startDate, $endDate);
 
         $totals = [
             'manual_income' => $manualIncomes->sum('amount'),
-            'manual_expense' => $manualExpenses->sum('amount'),
+            'manual_expense' => $manualExpenses->filter(fn (CondominiumAccount $entry) => $entry->isActive())->sum('amount'),
+            'manual_expense_cancelled_count' => $manualExpenses->filter(fn (CondominiumAccount $entry) => $entry->isCancelled())->count(),
+            'employee_payroll' => $employeePayroll['totals']['net'],
+            'employee_payroll_gross' => $employeePayroll['totals']['gross'],
+            'employee_payroll_deductions' => $employeePayroll['totals']['deductions'],
+            'employee_payroll_cancelled_count' => $employeePayroll['totals']['cancelled_count'],
             'charges_income' => $chargeIncomeEntries->sum('amount'),
             'charges_received_count' => $chargeIncomeEntries->count(),
         ];
 
         $totals['total_income'] = $totals['manual_income'] + $totals['charges_income'];
-        $totals['total_expense'] = $totals['manual_expense'];
+        $totals['total_expense'] = $totals['manual_expense'] + $totals['employee_payroll'];
         $totals['balance_period'] = $totals['total_income'] - $totals['total_expense'];
         $totals['opening_balance'] = $openingBalance;
         $totals['closing_balance'] = $openingBalance + $totals['balance_period'];
@@ -107,6 +127,10 @@ class AccountabilityReportService
             'manual_income_details' => $this->buildAccountDetails($manualIncomes, 'income'),
             'manual_expense_details' => $this->buildAccountDetails($manualExpenses, 'expense'),
             'charge_summary' => $chargeSummary,
+            'charge_daily_summary' => $chargeDailySummary,
+            'manual_income_daily' => $manualIncomeDaily,
+            'manual_expense_daily' => $manualExpenseDaily,
+            'employee_payroll' => $employeePayroll,
             'payments_summary' => $paymentsSummary,
             'bank_accounts' => $bankAccounts,
             'totals' => $totals,
@@ -131,6 +155,11 @@ class AccountabilityReportService
                 'installments' => $account->installments_total
                     ? "{$account->installment_number}/{$account->installments_total}"
                     : null,
+                'is_cancelled' => $account->isCancelled(),
+                'status_label' => $account->isCancelled() ? 'Cancelado (não calculado)' : 'Ativo',
+                'cancellation_reason' => $account->cancellation_reason,
+                'cancelled_at' => optional($account->cancelled_at)->format('d/m/Y H:i'),
+                'cancelled_by' => $account->cancelledBy?->name,
             ];
         })->values();
     }
@@ -140,6 +169,7 @@ class AccountabilityReportService
         return match ($account->source_type) {
             'charge' => 'Cobrança de taxa',
             'manual_income' => 'Entrada avulsa',
+            'employee_payroll' => 'Folha de pagamento',
             default => $account->type === 'income' ? 'Entrada avulsa' : 'Despesa',
         };
     }
@@ -157,10 +187,24 @@ class AccountabilityReportService
 
         $expenses = CondominiumAccount::where('condominium_id', $condominiumId)
             ->where('type', 'expense')
+            ->countsInBalance()
             ->where('transaction_date', '<=', $date)
             ->sum('amount');
 
         return $income - $expenses;
+    }
+
+    /**
+     * Agrupa recebimentos de taxas por dia.
+     */
+    private function buildChargeDailySummary(Collection $chargeIncomeEntries): Collection
+    {
+        return FinancialEntryGrouper::groupByDate(
+            $chargeIncomeEntries->map(fn (CondominiumAccount $entry) => [
+                'transaction_date' => $entry->transaction_date,
+                'amount' => (float) $entry->amount,
+            ])
+        );
     }
 
     /**

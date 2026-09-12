@@ -74,7 +74,7 @@ class Fee extends Model implements Auditable
         return $query->where('condominium_id', $condominiumId);
     }
 
-    public function isActiveForDate(Carbon $date): bool
+    public function isActiveForDate(\Carbon\CarbonInterface $date): bool
     {
         if (!$this->active) {
             return false;
@@ -132,6 +132,13 @@ class Fee extends Model implements Auditable
     public function canBeModified(): bool
     {
         return !$this->hasPaidCharges() && !$this->isInvalidated();
+    }
+
+    public function defaultPaymentChannel(): string
+    {
+        $channel = $this->metadata['default_payment_channel'] ?? 'system';
+
+        return in_array($channel, ['system', 'payroll'], true) ? $channel : 'system';
     }
 }
 

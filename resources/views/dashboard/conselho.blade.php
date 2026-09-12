@@ -371,9 +371,11 @@
                         <h5 class="section-title mb-0">
                             <i class="bi bi-receipt text-brand"></i> Transações do Mês ({{ $totalTransacoes }})
                         </h5>
-                        <a href="{{ route('transactions.index') }}" class="btn btn-sm btn-outline-primary">
-                            Ver Todas <i class="bi bi-arrow-right"></i>
+                        @if(Route::has('accountability-reports.index'))
+                        <a href="{{ route('accountability-reports.index') }}" class="btn btn-sm btn-outline-primary">
+                            Prestação de Contas <i class="bi bi-arrow-right"></i>
                         </a>
+                        @endif
                     </div>
                 </div>
                 <div class="card-body p-0">

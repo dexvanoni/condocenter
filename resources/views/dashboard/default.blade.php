@@ -248,15 +248,17 @@
                         @endcan
                         
                         @can('view_financial')
+                        @if(Route::has('financial.accounts.index'))
                         <div class="col-md-3">
-                            <a href="{{ route('transactions.index') }}" class="text-decoration-none">
+                            <a href="{{ route('financial.accounts.index') }}" class="text-decoration-none">
                                 <div class="text-center p-3 border rounded h-100 hover-shadow">
-                                    <i class="bi bi-cash-coin fs-2 mb-2 d-block" style="color: #20c997;"></i>
-                                    <h6>Financeiro</h6>
-                                    <small class="text-muted">Receitas e despesas</small>
+                                    <i class="bi bi-safe fs-2 mb-2 d-block" style="color: #20c997;"></i>
+                                    <h6>Caixa</h6>
+                                    <small class="text-muted">Entradas e saídas</small>
                                 </div>
                             </a>
                         </div>
+                        @endif
                         @endcan
                     </div>
                 </div>

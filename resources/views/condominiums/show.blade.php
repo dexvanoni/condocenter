@@ -130,6 +130,47 @@
         </div>
         @endcan
 
+        @can('update', $condominium)
+        @php
+            $moduleCatalog = \App\Support\CondominiumModules::catalog();
+            $enabledModules = $condominium->enabled_modules ?? array_keys($moduleCatalog);
+        @endphp
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Ferramentas do condomínio</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Marque o que este condomínio vai usar. O que ficar desmarcado some do menu e fica bloqueado para todos os moradores e a equipe.
+                    Gestão (unidades, usuários e este cadastro) permanece sempre disponível.
+                </p>
+                <form method="POST" action="{{ route('condominiums.settings.modules.update', $condominium) }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="row g-3">
+                        @foreach($moduleCatalog as $key => $module)
+                            <div class="col-md-6">
+                                <label class="border rounded p-3 d-flex gap-3 h-100 mb-0" style="cursor: pointer;">
+                                    <input class="form-check-input mt-1 flex-shrink-0" type="checkbox" name="modules[]" value="{{ $key }}"
+                                           @checked(in_array($key, $enabledModules, true))>
+                                    <span>
+                                        <span class="d-block fw-semibold">
+                                            <i class="bi {{ $module['icon'] }} me-1"></i>{{ $module['label'] }}
+                                        </span>
+                                        <small class="text-muted">{{ $module['description'] }}</small>
+                                    </span>
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">
+                        <i class="bi bi-check2"></i> Salvar ferramentas
+                    </button>
+                </form>
+            </div>
+        </div>
+        @endcan
+
         @if($isAdmin)
         <div class="card shadow-sm mb-4 border-primary">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">

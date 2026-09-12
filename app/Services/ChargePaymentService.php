@@ -373,6 +373,18 @@ class ChargePaymentService
     }
 
     /**
+     * Remove o pagamento Asaas pendente vinculado à cobrança (ex.: alteração de vencimento).
+     */
+    public function resetPendingAsaasPayment(Charge $charge): void
+    {
+        if (!$charge->asaas_payment_id) {
+            return;
+        }
+
+        $this->assertCanReplacePendingPayment($charge, $this->asaasForCharge($charge), 'due_date');
+    }
+
+    /**
      * Cancela cobrança Asaas pendente/vencida vinculada à charge local antes de criar outra.
      */
     protected function assertCanReplacePendingPayment(Charge $charge, AsaasService $asaas, string $errorKey = 'payment'): void

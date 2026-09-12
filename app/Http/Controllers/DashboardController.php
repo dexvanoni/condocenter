@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Condominium;
 use App\Models\ServiceOrder;
 use App\Services\ActiveCondominiumService;
+use App\Services\MonthlyClosingChecklistService;
 use App\Services\OccurrenceBookService;
 use App\Services\SyndicConversationStatsService;
 use Illuminate\Http\Request;
@@ -206,10 +207,15 @@ class DashboardController extends Controller
 
         $financialMetrics = $this->buildSindicoFinancialMetrics($condominium, $isFinancialFull);
 
+        $monthlyClosing = $isFinancialFull && $user->can('view_financial_reports')
+            ? app(MonthlyClosingChecklistService::class)->summary($condominium->id)
+            : null;
+
         return view('dashboard.sindico', array_merge(
             compact(
                 'condominium',
                 'isFinancialFull',
+                'monthlyClosing',
                 'totalUnidades',
                 'proximasReservas',
                 'reservasPendentes',
@@ -423,6 +429,7 @@ class DashboardController extends Controller
             + CondominiumAccount::where('condominium_id', $condominium->id)
                 ->whereNull('reconciliation_id')
                 ->where('type', 'expense')
+                ->countsInBalance()
                 ->where('transaction_date', '>=', $periodStart)
                 ->sum('amount');
 

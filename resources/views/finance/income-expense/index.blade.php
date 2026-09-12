@@ -251,9 +251,17 @@
                                 </thead>
                                 <tbody>
                                     @forelse($expenseCollection as $expense)
-                                        <tr>
+                                        <tr @class(['table-secondary text-muted' => $expense['is_cancelled'] ?? false])>
                                             <td>{{ $expense['date']->format('d/m/Y') }}</td>
-                                            <td>{{ $expense['description'] }}</td>
+                                            <td>
+                                                {{ $expense['description'] }}
+                                                @if($expense['is_cancelled'] ?? false)
+                                                    <span class="badge bg-secondary ms-1">Cancelado</span>
+                                                    @if(!empty($expense['cancellation_reason']))
+                                                        <div class="small mt-1">Motivo: {{ $expense['cancellation_reason'] }}</div>
+                                                    @endif
+                                                @endif
+                                            </td>
                                             <td>
                                                 <span class="badge bg-secondary">
                                                     {{ strtoupper($expense['payment_method'] ?? 'N/A') }}
@@ -266,8 +274,11 @@
                                                     —
                                                 @endif
                                             </td>
-                                            <td class="text-end text-danger fw-semibold">
+                                            <td @class(['text-end fw-semibold', ($expense['is_cancelled'] ?? false) ? 'text-muted text-decoration-line-through' : 'text-danger'])>
                                                 R$ {{ number_format($expense['amount'], 2, ',', '.') }}
+                                                @if($expense['is_cancelled'] ?? false)
+                                                    <div class="small fw-normal">Não calculado</div>
+                                                @endif
                                             </td>
                                             <td class="text-center">
                                                 @if(!empty($expense['document_path']) || !empty($expense['captured_image_path']))

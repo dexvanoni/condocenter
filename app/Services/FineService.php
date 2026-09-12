@@ -7,6 +7,7 @@ use App\Models\Fine;
 use App\Models\FineRecipient;
 use App\Models\Notification;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +17,7 @@ class FineService
     public function __construct(
         private readonly DatabaseManager $database,
         private readonly ChargeSettlementService $chargeSettlementService,
+        private readonly ChargeDueDateService $chargeDueDateService,
     ) {
     }
 
@@ -94,6 +96,50 @@ class FineService
             }
 
             return $fine->load([
+                'recipients.user',
+                'recipients.unit',
+                'recipients.notifiedUser',
+                'recipients.charge',
+                'appliedBy',
+            ]);
+        });
+    }
+
+    /**
+     * Altera o vencimento da multa e propaga para as cobranças pendentes/em atraso.
+     */
+    public function updateDueDate(Fine $fine, User $updatedBy, string $newDueDate): Fine
+    {
+        if ($fine->isCancelled()) {
+            throw ValidationException::withMessages([
+                'due_date' => 'Não é possível alterar o vencimento de uma multa cancelada.',
+            ]);
+        }
+
+        $date = Carbon::parse($newDueDate)->startOfDay();
+
+        return $this->database->transaction(function () use ($fine, $date) {
+            $fine->load('recipients.charge', 'recipients.notifiedUser');
+
+            $updatable = $fine->recipients->filter(
+                fn (FineRecipient $recipient) => $recipient->charge
+                    && in_array($recipient->charge->status, ['pending', 'overdue'], true)
+            );
+
+            if ($updatable->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'due_date' => 'Nenhuma cobrança desta multa está pendente. Cobranças pagas ou canceladas não podem ter o vencimento alterado.',
+                ]);
+            }
+
+            $fine->update(['due_date' => $date->toDateString()]);
+
+            foreach ($updatable as $recipient) {
+                $this->chargeDueDateService->updateDueDate($recipient->charge, $date);
+                $this->notifyDueDateChanged($fine, $recipient, $date);
+            }
+
+            return $fine->fresh([
                 'recipients.user',
                 'recipients.unit',
                 'recipients.notifiedUser',
@@ -278,6 +324,34 @@ class FineService
             "Infrator: {$infractor->name} ({$role})",
             "Motivo: {$fine->motivo}",
         ]));
+    }
+
+    protected function notifyDueDateChanged(Fine $fine, FineRecipient $recipient, Carbon $newDueDate): void
+    {
+        $notifiedUser = $recipient->notifiedUser;
+
+        if (! $notifiedUser) {
+            return;
+        }
+
+        $amount = number_format((float) $fine->amount, 2, ',', '.');
+
+        Notification::create([
+            'condominium_id' => $fine->condominium_id,
+            'user_id' => $notifiedUser->id,
+            'type' => 'fine_due_date_updated',
+            'title' => 'Vencimento alterado — ' . $fine->reference,
+            'message' => "O vencimento da multa {$fine->reference} (R$ {$amount}) foi alterado para {$newDueDate->format('d/m/Y')}.",
+            'data' => [
+                'fine_id' => $fine->id,
+                'fine_reference' => $fine->reference,
+                'charge_id' => $recipient->charge_id,
+                'due_date' => $newDueDate->format('Y-m-d'),
+            ],
+            'channel' => 'database',
+            'sent' => true,
+            'sent_at' => now(),
+        ]);
     }
 
     protected function notifyFineIssued(Fine $fine, User $infractor, User $notifiedUser, Charge $charge): void

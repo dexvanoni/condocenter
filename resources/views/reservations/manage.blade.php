@@ -288,6 +288,17 @@
                         </div>
                     </div>
                     
+                    <div class="row" id="editChargeRow" style="display: none;">
+                        <div class="col-md-6 mb-3">
+                            <label for="editChargeDueDate" class="form-label">Vencimento do pagamento</label>
+                            <input type="date" class="form-control" id="editChargeDueDate" name="charge_due_date">
+                            <small class="text-muted">A cobrança da reserva será atualizada automaticamente.</small>
+                        </div>
+                        <div class="col-md-6 mb-3 d-flex align-items-center">
+                            <span id="editChargeInfo" class="small text-muted"></span>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="editAdminReason" class="form-label">Motivo da Alteração</label>
                         <textarea class="form-control" id="editAdminReason" name="admin_reason" rows="2" placeholder="Explique o motivo das alterações (obrigatório se houver mudanças significativas)..."></textarea>
@@ -611,6 +622,18 @@ $(document).ready(function() {
                 $('#editStatus').val(data.status);
                 $('#editNotes').val(data.notes);
                 $('#editAdminReason').val('');
+
+                // Cobrança vinculada (vencimento editável apenas se pendente/em atraso)
+                var charge = response.charge;
+                if (charge && charge.editable) {
+                    $('#editChargeDueDate').val(charge.due_date || '');
+                    var amountLabel = (charge.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                    $('#editChargeInfo').text('Cobrança de ' + amountLabel + ' (' + (charge.status === 'overdue' ? 'em atraso' : 'pendente') + ')');
+                    $('#editChargeRow').show();
+                } else {
+                    $('#editChargeDueDate').val('');
+                    $('#editChargeRow').hide();
+                }
                 
                 // Carregar espaços
                 var spaceSelect = $('#editSpace');
@@ -642,6 +665,10 @@ $(document).ready(function() {
             admin_reason: $('#editAdminReason').val(),
             _token: '{{ csrf_token() }}'
         };
+
+        if ($('#editChargeRow').is(':visible') && $('#editChargeDueDate').val()) {
+            formData.charge_due_date = $('#editChargeDueDate').val();
+        }
         
         $.ajax({
             url: `/reservations/manage/${id}`,

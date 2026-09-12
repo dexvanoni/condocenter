@@ -353,15 +353,17 @@
                         @endcan
 
                         @can('view_transactions')
+                        @if(Route::has('financial.accounts.index'))
                         <div class="col-md-4 col-sm-6">
-                            <a href="{{ route('transactions.index') }}" class="widget-quick-action">
+                            <a href="{{ route('financial.accounts.index') }}" class="widget-quick-action">
                                 <div class="widget-icon bg-brand-soft">
-                                    <i class="bi bi-graph-up"></i>
+                                    <i class="bi bi-safe"></i>
                                 </div>
-                                <h6 class="mt-3 mb-1">Transações</h6>
-                                <small class="text-muted">Análises financeiras</small>
+                                <h6 class="mt-3 mb-1">Caixa do Condomínio</h6>
+                                <small class="text-muted">Entradas e saídas</small>
                             </a>
                         </div>
+                        @endif
                         @endcan
                     </div>
                 </div>

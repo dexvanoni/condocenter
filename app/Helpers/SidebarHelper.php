@@ -12,6 +12,10 @@ class SidebarHelper
      */
     public static function canAccessModule(User $user, string $module): bool
     {
+        if (! self::moduleEnabled($user, $module)) {
+            return false;
+        }
+
         // Agregados precisam de permissão específica
         if ($user->isAgregado()) {
             return $user->hasAgregadoPermission($module);
@@ -75,8 +79,11 @@ class SidebarHelper
      */
     public static function canMakeReservations(User $user): bool
     {
+        if (! self::moduleEnabled($user, 'spaces')) {
+            return false;
+        }
+
         if ($user->isAgregado()) {
-            // Agregado precisa de permissão 'spaces' com nível 'crud' para fazer reservas
             return AgregadoPermission::hasPermission($user->id, 'spaces', 'crud');
         }
 
@@ -88,8 +95,11 @@ class SidebarHelper
      */
     public static function canViewReservations(User $user): bool
     {
+        if (! self::moduleEnabled($user, 'spaces')) {
+            return false;
+        }
+
         if ($user->isAgregado()) {
-            // Agregado precisa de qualquer permissão para 'spaces' (view ou crud)
             return AgregadoPermission::hasPermission($user->id, 'spaces');
         }
 
@@ -103,7 +113,10 @@ class SidebarHelper
     public static function canManageOthersReservations(User $user): bool
     {
         if ($user->isAgregado()) {
-            // Agregados nunca podem gerenciar reservas de outros usuários
+            return false;
+        }
+
+        if (! self::moduleEnabled($user, 'spaces')) {
             return false;
         }
 
@@ -120,6 +133,10 @@ class SidebarHelper
             return false;
         }
 
+        if (! self::moduleEnabled($user, 'spaces')) {
+            return false;
+        }
+
         return $user->can('manage_spaces');
     }
 
@@ -130,6 +147,10 @@ class SidebarHelper
     {
         // Agregados NUNCA podem aprovar reservas
         if ($user->isAgregado()) {
+            return false;
+        }
+
+        if (! self::moduleEnabled($user, 'spaces')) {
             return false;
         }
 
@@ -212,6 +233,10 @@ class SidebarHelper
             return self::canAccessModule($user, 'packages');
         }
 
+        if (! self::moduleEnabled($user, 'packages')) {
+            return false;
+        }
+
         return $user->can('view_packages') || $user->can('register_packages') || $user->can('manage_packages');
     }
 
@@ -221,8 +246,11 @@ class SidebarHelper
     public static function canRegisterPackages(User $user): bool
     {
         if ($user->isAgregado()) {
-            // Agregados podem registrar encomendas se tiverem permissão CRUD
             return self::canCrudModule($user, 'packages');
+        }
+
+        if (! self::moduleEnabled($user, 'packages')) {
+            return false;
         }
 
         return $user->can('register_packages');
@@ -243,6 +271,24 @@ class SidebarHelper
         }
 
         return $user->condominium;
+    }
+
+    public static function moduleEnabled(User $user, string $module): bool
+    {
+        $aliases = [
+            'messages' => 'communication',
+            'notifications' => 'communication',
+        ];
+
+        $module = $aliases[$module] ?? $module;
+
+        $condominium = self::getActiveCondominium($user);
+
+        if (! $condominium) {
+            return true;
+        }
+
+        return $condominium->hasModule($module);
     }
 
     public static function getFinancialMode(User $user): string

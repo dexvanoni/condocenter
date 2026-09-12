@@ -8,7 +8,19 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Tarefas Agendadas
+// Tarefas Agendadas — ordem importa no mesmo dia
+Schedule::command('fees:generate-upcoming')
+    ->dailyAt('05:00')
+    ->description('Gera cobranças automáticas das taxas recorrentes');
+
+Schedule::command('charges:settle-payroll')
+    ->dailyAt('06:30')
+    ->description('Liquida cobranças de desconto em folha no vencimento');
+
+Schedule::command('charges:mark-overdue')
+    ->dailyAt('07:00')
+    ->description('Marca cobranças vencidas como em atraso (exceto folha)');
+
 Schedule::command('charges:check-overdue')
     ->dailyAt('09:00')
     ->description('Verifica cobranças em atraso e envia lembretes');
@@ -31,10 +43,3 @@ Schedule::call(function () {
         ->where('created_at', '<', now()->subDays(30))
         ->delete();
 })->weekly()->description('Limpa notificações antigas');
-
-// Atualizar status de cobranças vencidas
-Schedule::call(function () {
-    \App\Models\Charge::where('status', 'pending')
-        ->where('due_date', '<', now())
-        ->update(['status' => 'overdue']);
-})->dailyAt('00:01')->description('Atualiza status de cobranças vencidas');

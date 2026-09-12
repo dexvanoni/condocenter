@@ -28,10 +28,20 @@
     @forelse($data as $expense)
         <tr>
             <td>{{ $expense['date']->format('d/m/Y') }}</td>
-            <td>{{ $expense['description'] }}</td>
+            <td>
+                {{ $expense['description'] }}
+                @if($expense['is_cancelled'] ?? false)
+                    [CANCELADO - {{ $expense['cancellation_reason'] }}]
+                @endif
+            </td>
             <td>{{ strtoupper($expense['payment_method'] ?? 'N/A') }}</td>
             <td>{{ $expense['installments'] ?? '—' }}</td>
-            <td>R$ {{ number_format($expense['amount'], 2, ',', '.') }}</td>
+            <td>
+                R$ {{ number_format($expense['amount'], 2, ',', '.') }}
+                @if($expense['is_cancelled'] ?? false)
+                    (não calculado)
+                @endif
+            </td>
         </tr>
     @empty
         <tr>

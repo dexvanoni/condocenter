@@ -140,6 +140,23 @@ class FineController extends Controller
         return $this->noticeService->download($fine);
     }
 
+    public function updateDueDate(Request $request, Fine $fine)
+    {
+        $this->authorize('cancel', $fine);
+
+        $validated = $request->validate([
+            'due_date' => ['required', 'date', 'after_or_equal:today'],
+        ], [
+            'due_date.after_or_equal' => 'A nova data de vencimento não pode ser anterior a hoje.',
+        ]);
+
+        $this->fineService->updateDueDate($fine, Auth::user(), $validated['due_date']);
+
+        return redirect()
+            ->route('fines.show', $fine)
+            ->with('success', 'Vencimento atualizado. As cobranças pendentes desta multa foram ajustadas para a nova data.');
+    }
+
     public function cancel(CancelFineRequest $request, Fine $fine)
     {
         $this->authorize('cancel', $fine);

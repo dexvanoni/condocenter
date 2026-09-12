@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'check.reservation.access' => \App\Http\Middleware\CheckReservationAccess::class,
             'check.module.access' => \App\Http\Middleware\CheckModuleAccess::class,
             'restrict.defaulters' => \App\Http\Middleware\RestrictDefaulters::class,
+            'condominium.module' => \App\Http\Middleware\EnsureCondominiumModule::class,
             'ensure.full.financial' => \App\Http\Middleware\EnsureFullFinancialMode::class,
             'ensure.saas.subscription' => \App\Http\Middleware\EnsureActiveSaasSubscription::class,
             'resolve.condominium' => \App\Http\Middleware\ResolveActiveCondominium::class,

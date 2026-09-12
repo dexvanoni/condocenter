@@ -130,8 +130,12 @@
                 <span class="value text-success">R$ {{ number_format($data['totals']['manual_income'], 2, ',', '.') }}</span>
             </td>
             <td>
-                <strong>Saídas</strong>
-                <span class="value text-danger">R$ {{ number_format($data['totals']['manual_expense'], 2, ',', '.') }}</span>
+                <strong>Saídas (total)</strong>
+                <span class="value text-danger">R$ {{ number_format($data['totals']['total_expense'], 2, ',', '.') }}</span>
+            </td>
+            <td>
+                <strong>Despesas pessoal</strong>
+                <span class="value text-danger">R$ {{ number_format($data['totals']['employee_payroll'], 2, ',', '.') }}</span>
             </td>
             <td>
                 <strong>Saldo final</strong>
@@ -147,6 +151,8 @@
         </span>
         &nbsp;|&nbsp;
         <strong>Total de entradas:</strong> R$ {{ number_format($data['totals']['total_income'], 2, ',', '.') }}
+        &nbsp;|&nbsp;
+        <strong>Total de saídas:</strong> R$ {{ number_format($data['totals']['total_expense'], 2, ',', '.') }}
         &nbsp;|&nbsp;
         <strong>Cobranças recebidas:</strong> {{ $data['totals']['charges_received_count'] ?? $data['charge_summary']->sum('count') }}
     </div>
@@ -211,8 +217,45 @@
         </table>
     </div>
 
+    @php $employeePayroll = $data['employee_payroll'] ?? null; @endphp
+    @if(!empty($employeePayroll) && ($employeePayroll['by_employee'] ?? collect())->isNotEmpty())
+    <div class="section">
+        <h2>3. Despesas com Pessoal</h2>
+        <p class="section-note">
+            Folha de pagamento, encargos e demais custos de funcionários.
+            Total líquido: R$ {{ number_format($employeePayroll['totals']['net'] ?? 0, 2, ',', '.') }}.
+        </p>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Funcionário</th>
+                    <th>Cargo</th>
+                    <th class="text-end">Lançamentos</th>
+                    <th class="text-end">Total líquido</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($employeePayroll['by_employee'] as $employeeRow)
+                    <tr>
+                        <td>{{ $employeeRow['name'] }}</td>
+                        <td>{{ $employeeRow['position'] }}</td>
+                        <td class="text-end">{{ $employeeRow['count'] }}</td>
+                        <td class="text-end text-danger fw-bold">R$ {{ number_format($employeeRow['total'], 2, ',', '.') }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Total despesas com pessoal</th>
+                    <th class="text-end text-danger">R$ {{ number_format($employeePayroll['totals']['net'] ?? 0, 2, ',', '.') }}</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    @endif
+
     <div class="section page-break">
-        <h2>3. Saídas — Despesas (detalhamento)</h2>
+        <h2>4. Saídas — Despesas avulsas (detalhamento)</h2>
         <table class="data-table">
             <thead>
                 <tr>
@@ -230,17 +273,35 @@
             </thead>
             <tbody>
                 @forelse($data['manual_expense_details'] as $entry)
-                    <tr>
+                    <tr @class(['cancelled-row' => !empty($entry['is_cancelled'])])>
                         <td>{{ $entry['transaction_date'] ?? '—' }}</td>
                         <td>{{ $entry['created_at'] ?? '—' }}</td>
                         <td>{{ $entry['type_label'] }}</td>
                         <td>{{ $entry['source_type_label'] }}</td>
-                        <td>{{ $entry['description'] ?? '—' }}</td>
+                        <td>
+                            {{ $entry['description'] ?? '—' }}
+                            @if(!empty($entry['is_cancelled']))
+                                <br><small><strong>Status:</strong> {{ $entry['status_label'] }}</small>
+                            @endif
+                        </td>
                         <td>{{ $entry['payment_method'] }}</td>
                         <td class="text-center">{{ $entry['installments'] ?? '—' }}</td>
                         <td>{{ $entry['registered_by'] ?? '—' }}</td>
-                        <td>{{ $entry['notes'] ?? '—' }}</td>
-                        <td class="text-end text-danger fw-bold">R$ {{ number_format($entry['amount'], 2, ',', '.') }}</td>
+                        <td>
+                            {{ $entry['notes'] ?? '—' }}
+                            @if(!empty($entry['cancellation_reason']))
+                                <br><small><strong>Motivo cancelamento:</strong> {{ $entry['cancellation_reason'] }}</small>
+                                @if(!empty($entry['cancelled_by']))
+                                    <br><small>Por: {{ $entry['cancelled_by'] }} em {{ $entry['cancelled_at'] }}</small>
+                                @endif
+                            @endif
+                        </td>
+                        <td @class(['text-end fw-bold', !empty($entry['is_cancelled']) ? 'text-muted' : 'text-danger'])>
+                            R$ {{ number_format($entry['amount'], 2, ',', '.') }}
+                            @if(!empty($entry['is_cancelled']))
+                                <br><small>Não calculado</small>
+                            @endif
+                        </td>
                     </tr>
                 @empty
                     <tr><td colspan="10" class="text-center">Nenhuma saída registrada no período.</td></tr>
@@ -250,7 +311,7 @@
     </div>
 
     <div class="section">
-        <h2>4. Pagamentos recebidos — Resumo por método</h2>
+        <h2>5. Pagamentos recebidos — Resumo por método</h2>
         <p class="section-note">Consolidado por forma de pagamento, sem identificação de unidades ou moradores.</p>
         <table class="data-table">
             <thead>
@@ -275,7 +336,7 @@
     </div>
 
     <div class="section">
-        <h2>5. Contas bancárias</h2>
+        <h2>6. Contas bancárias</h2>
         <table class="data-table">
             <thead>
                 <tr>

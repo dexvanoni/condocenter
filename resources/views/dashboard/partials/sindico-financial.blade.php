@@ -154,9 +154,11 @@
     <div class="col-xl-7">
         <div class="sd-panel h-100">
             <div class="sd-panel__head">
-                <h3><i class="bi bi-receipt"></i> Últimas transações</h3>
+                <h3><i class="bi bi-receipt"></i> Últimas movimentações</h3>
                 @can('view_transactions')
-                <a href="{{ route('transactions.index') }}" class="btn btn-sm btn-outline-primary">Ver todas</a>
+                @if(Route::has('financial.accounts.index'))
+                <a href="{{ route('financial.accounts.index') }}" class="btn btn-sm btn-outline-primary">Ver caixa</a>
+                @endif
                 @endcan
             </div>
             <div class="sd-panel__body p-0">

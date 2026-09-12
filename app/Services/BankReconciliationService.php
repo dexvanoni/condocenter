@@ -325,6 +325,7 @@ class BankReconciliationService
     {
         $query = CondominiumAccount::where('condominium_id', $condominiumId)
             ->whereNull('reconciliation_id')
+            ->countsInBalance()
             ->where('type', $type);
 
         if ($startDate && $endDate) {

@@ -22,18 +22,30 @@ return new class extends Migration
             }
         });
 
-        if (Schema::hasColumn('pets', 'condominium_id')) {
-            DB::statement('
-                UPDATE pets p
-                INNER JOIN units u ON u.id = p.unit_id
-                SET p.condominium_id = u.condominium_id
-                WHERE p.condominium_id IS NULL
-            ');
+        if (Schema::hasColumn('pets', 'condominium_id') && Schema::hasTable('units')) {
+            $pets = DB::table('pets')
+                ->whereNull('condominium_id')
+                ->whereNotNull('unit_id')
+                ->get(['id', 'unit_id']);
 
-            DB::statement('
-                ALTER TABLE pets
-                MODIFY condominium_id BIGINT UNSIGNED NOT NULL
-            ');
+            foreach ($pets as $pet) {
+                $condominiumId = DB::table('units')
+                    ->where('id', $pet->unit_id)
+                    ->value('condominium_id');
+
+                if ($condominiumId) {
+                    DB::table('pets')
+                        ->where('id', $pet->id)
+                        ->update(['condominium_id' => $condominiumId]);
+                }
+            }
+
+            if (Schema::getConnection()->getDriverName() === 'mysql') {
+                DB::statement('
+                    ALTER TABLE pets
+                    MODIFY condominium_id BIGINT UNSIGNED NOT NULL
+                ');
+            }
         }
     }
 

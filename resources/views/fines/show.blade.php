@@ -174,6 +174,32 @@
         @endif
 
         @can('cancel', $fine)
+            @if(!$fine->isCancelled() && $fine->recipients->contains(fn ($r) => $r->charge && in_array($r->charge->status, ['pending', 'overdue'], true)))
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">Alterar vencimento</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ route('fines.due-date.update', $fine) }}">
+                            @csrf
+                            @method('PUT')
+                            <div class="mb-3">
+                                <label for="due_date" class="form-label">Novo vencimento</label>
+                                <input type="date" name="due_date" id="due_date"
+                                       class="form-control @error('due_date') is-invalid @enderror"
+                                       value="{{ old('due_date', $fine->due_date->format('Y-m-d')) }}"
+                                       min="{{ now()->format('Y-m-d') }}" required>
+                                @error('due_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <button type="submit" class="btn btn-outline-primary w-100">Salvar novo vencimento</button>
+                            <p class="small text-muted mt-2 mb-0">
+                                As cobranças pendentes desta multa serão ajustadas automaticamente e os notificados serão avisados.
+                            </p>
+                        </form>
+                    </div>
+                </div>
+            @endif
+
             @if(!$fine->isCancelled())
                 <div class="card shadow-sm border-danger">
                     <div class="card-header bg-danger text-white">

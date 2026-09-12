@@ -29,6 +29,7 @@ class StoreFeeRequest extends FormRequest
             'generate_charges_now' => ['sometimes', 'boolean'],
             'active' => ['sometimes', 'boolean'],
             'apply_all_units' => ['sometimes', 'boolean'],
+            'default_payment_channel' => ['required', 'in:system,payroll'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
             'custom_schedule' => ['required_if:recurrence,custom', 'array', 'min:1'],
@@ -36,11 +37,8 @@ class StoreFeeRequest extends FormRequest
 
             'unit_configurations' => ['nullable', 'array'],
             'unit_configurations.*.unit_id' => ['required', 'integer', 'exists:units,id'],
-            'unit_configurations.*.payment_channel' => ['required', 'in:system,payroll'],
+            'unit_configurations.*.payment_channel' => ['nullable', 'in:system,payroll'],
             'unit_configurations.*.custom_amount' => ['nullable', 'numeric', 'min:0'],
-            'unit_configurations.*.starts_at' => ['nullable', 'date'],
-            'unit_configurations.*.ends_at' => ['nullable', 'date', 'after_or_equal:unit_configurations.*.starts_at'],
-            'unit_configurations.*.notes' => ['nullable', 'string'],
         ];
     }
 

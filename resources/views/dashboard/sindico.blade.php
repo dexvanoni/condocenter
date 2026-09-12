@@ -222,10 +222,18 @@
                 </p>
             </div>
             <div class="col-lg-4 mt-3 mt-lg-0 d-flex flex-wrap gap-2 justify-content-lg-end">
-                @if($isFinancialFull && Route::has('transactions.index'))
+                @if($isFinancialFull && Route::has('monthly-closing.index') && auth()->user()->can('view_financial_reports'))
+                    <a href="{{ route('monthly-closing.index') }}" class="btn btn-warning btn-sm fw-semibold text-dark">
+                        <i class="bi bi-check2-square"></i> Fechamento do mês
+                        @if($monthlyClosing && ($monthlyClosing['attention'] ?? 0) > 0)
+                            <span class="badge bg-danger ms-1">{{ $monthlyClosing['attention'] }}</span>
+                        @endif
+                    </a>
+                @endif
+                @if($isFinancialFull && Route::has('financial.accounts.index'))
                     @can('view_transactions')
-                    <a href="{{ route('transactions.index') }}" class="btn btn-light btn-sm fw-semibold">
-                        <i class="bi bi-graph-up"></i> Financeiro
+                    <a href="{{ route('financial.accounts.index') }}" class="btn btn-light btn-sm fw-semibold">
+                        <i class="bi bi-safe"></i> Caixa
                     </a>
                     @endcan
                 @elseif(Route::has('accountability-uploads.index'))
@@ -333,6 +341,27 @@
                     <span class="sd-alert-card__label">Livro de Ocorrências</span>
                     <div class="sd-alert-card__value">{{ $occurrenceBookPendentes ?? 0 }}</div>
                     <p class="sd-alert-card__hint">Sem ciência registrada</p>
+                </span>
+            </a>
+        </div>
+        @endif
+
+        @if($isFinancialFull && Route::has('monthly-closing.index') && auth()->user()->can('view_financial_reports') && $monthlyClosing)
+        <div class="col-xl-3 col-md-6">
+            <a href="{{ route('monthly-closing.index') }}" class="sd-alert-card sd-alert-card--{{ ($monthlyClosing['attention'] ?? 0) > 0 ? 'warning' : 'success' }}">
+                <span class="sd-alert-card__icon"><i class="bi bi-check2-square"></i></span>
+                <span>
+                    <span class="sd-alert-card__label">Fechamento do mês</span>
+                    <div class="sd-alert-card__value">{{ $monthlyClosing['percent'] ?? 0 }}%</div>
+                    <p class="sd-alert-card__hint">
+                        @if($monthlyClosing['closed'] ?? false)
+                            Mês encerrado
+                        @elseif(($monthlyClosing['attention'] ?? 0) > 0)
+                            {{ $monthlyClosing['attention'] }} passo(s) pendente(s)
+                        @else
+                            Pronto para encerrar
+                        @endif
+                    </p>
                 </span>
             </a>
         </div>

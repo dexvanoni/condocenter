@@ -63,6 +63,7 @@ class CondominiumController extends Controller
         $data['registration_code'] = Condominium::generateUniqueRegistrationCode();
         $data['is_active'] = $request->boolean('is_active', true);
         $data['marketplace_allow_agregados'] = $request->boolean('marketplace_allow_agregados');
+        $data['enabled_modules'] = \App\Support\CondominiumModules::keys();
 
         $condominium = Condominium::create($data);
 

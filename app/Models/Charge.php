@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\Models\PaymentCancellation;
 
@@ -147,5 +148,83 @@ class Charge extends Model implements Auditable
     public function getRemainingAmountAttribute()
     {
         return $this->calculateTotal() - $this->total_paid;
+    }
+
+    public function paymentChannel(): string
+    {
+        $channel = $this->metadata['payment_channel'] ?? 'system';
+
+        return in_array($channel, ['system', 'payroll'], true) ? $channel : 'system';
+    }
+
+    public function isPayrollChannel(): bool
+    {
+        return $this->paymentChannel() === 'payroll';
+    }
+
+    public function isPayrollAutoSettled(): bool
+    {
+        return ($this->metadata['payroll_auto_settled'] ?? false) === true;
+    }
+
+    public function competencePeriod(): ?string
+    {
+        return $this->metadata['competence_period'] ?? $this->recurrence_period;
+    }
+
+    public function competenceLabel(): string
+    {
+        $period = $this->competencePeriod();
+
+        if ($period && preg_match('/^\d{4}-\d{2}$/', $period)) {
+            return Carbon::createFromFormat('Y-m', $period)->translatedFormat('M/Y');
+        }
+
+        if ($period) {
+            return $period;
+        }
+
+        return '—';
+    }
+
+    public function receivedAt(): ?Carbon
+    {
+        if ($this->status !== 'paid') {
+            return null;
+        }
+
+        return $this->paid_at;
+    }
+
+    /**
+     * @return array{key: string, label: string, color: string}
+     */
+    public function displayStatus(): array
+    {
+        if ($this->status === 'cancelled') {
+            return ['key' => 'cancelled', 'label' => 'Cancelada', 'color' => 'secondary'];
+        }
+
+        if ($this->status === 'paid') {
+            if ($this->isPayrollAutoSettled()) {
+                return ['key' => 'paid_payroll', 'label' => 'Paga (folha)', 'color' => 'success'];
+            }
+
+            return ['key' => 'paid', 'label' => 'Paga', 'color' => 'success'];
+        }
+
+        if ($this->isPayrollChannel() && in_array($this->status, ['pending', 'overdue'], true)) {
+            if ($this->due_date?->isFuture()) {
+                return ['key' => 'payroll_scheduled', 'label' => 'Aguardando folha', 'color' => 'info'];
+            }
+
+            return ['key' => 'payroll_due', 'label' => 'Folha pendente', 'color' => 'warning'];
+        }
+
+        if ($this->status === 'overdue') {
+            return ['key' => 'overdue', 'label' => 'Em atraso', 'color' => 'danger'];
+        }
+
+        return ['key' => 'pending', 'label' => 'Pendente', 'color' => 'warning'];
     }
 }
