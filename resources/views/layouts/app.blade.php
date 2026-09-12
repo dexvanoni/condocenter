@@ -1111,6 +1111,11 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.leads.*') ? 'active' : '' }}" href="{{ route('platform.leads.index') }}">
+                                    <i class="bi bi-person-lines-fill"></i> Leads
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('platform.settings.asaas') ? 'active' : '' }}" href="{{ route('platform.settings.asaas') }}">
                                     <i class="bi bi-credit-card-2-front"></i> Asaas (SaaS)
                                 </a>
@@ -1887,6 +1892,11 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('platform.announcements.*') ? 'active' : '' }}" href="{{ route('platform.announcements.index') }}">
                                             <i class="bi bi-stars"></i> Novidades SindCon
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.leads.*') ? 'active' : '' }}" href="{{ route('platform.leads.index') }}">
+                                            <i class="bi bi-person-lines-fill"></i> Leads
                                         </a>
                                     </li>
                                     <li class="nav-item">

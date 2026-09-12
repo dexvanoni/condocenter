@@ -551,6 +551,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::delete('/plans/{plan}', [\App\Http\Controllers\Platform\SubscriptionPlanController::class, 'destroy'])
             ->name('plans.destroy');
 
+        Route::get('/leads', [\App\Http\Controllers\Platform\PlatformLeadController::class, 'index'])
+            ->name('leads.index');
+
         Route::get('/announcements', [\App\Http\Controllers\Platform\PlatformAnnouncementController::class, 'index'])
             ->name('announcements.index');
         Route::post('/announcements', [\App\Http\Controllers\Platform\PlatformAnnouncementController::class, 'store'])

@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 12/09/2026 (template Connect na landing page)
+- **Última revisão:** 12/09/2026 (leads Supabase no admin)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -521,6 +521,11 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-12 — Leads da landing de vendas (Supabase)
+
+- Atualização: Parte 2 (`git pull`). Opcional: no `.env` de produção, configure `SUPABASE_URL`, `SUPABASE_KEY` (publishable) e `SUPABASE_LEADS_ADMIN_TOKEN` para o menu **Configurações globais → Leads** no painel do administrador.
+- Sem migration. Sem comando Artisan extra.
 
 ### 2026-09-12 — Segundo template de landing page (Connect)
 
