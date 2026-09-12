@@ -12,6 +12,11 @@
         </p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        @if($canEditDueDate ?? false)
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editFineDueDateModal">
+                <i class="bi bi-calendar-event"></i> Alterar vencimento
+            </button>
+        @endif
         @can('export', $fine)
             <a href="{{ route('fines.export-pdf', $fine) }}" class="btn btn-primary">
                 <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
@@ -44,7 +49,18 @@
                     <dd class="col-sm-9 fw-semibold">R$ {{ number_format($fine->amount, 2, ',', '.') }}</dd>
 
                     <dt class="col-sm-3">Vencimento</dt>
-                    <dd class="col-sm-9">{{ $fine->due_date->format('d/m/Y') }}</dd>
+                    <dd class="col-sm-9">
+                        {{ $fine->due_date->format('d/m/Y') }}
+                        @if($canEditDueDate ?? false)
+                            <button type="button"
+                                    class="btn btn-sm btn-link p-0 ms-2 align-baseline"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editFineDueDateModal"
+                                    title="Alterar vencimento">
+                                <i class="bi bi-pencil"></i> Alterar
+                            </button>
+                        @endif
+                    </dd>
 
                     <dt class="col-sm-3">Motivo</dt>
                     <dd class="col-sm-9">{{ $fine->motivo }}</dd>
@@ -174,32 +190,6 @@
         @endif
 
         @can('cancel', $fine)
-            @if(!$fine->isCancelled() && $fine->recipients->contains(fn ($r) => $r->charge && in_array($r->charge->status, ['pending', 'overdue'], true)))
-                <div class="card shadow-sm mb-3">
-                    <div class="card-header bg-light">
-                        <h5 class="mb-0">Alterar vencimento</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" action="{{ route('fines.due-date.update', $fine) }}">
-                            @csrf
-                            @method('PUT')
-                            <div class="mb-3">
-                                <label for="due_date" class="form-label">Novo vencimento</label>
-                                <input type="date" name="due_date" id="due_date"
-                                       class="form-control @error('due_date') is-invalid @enderror"
-                                       value="{{ old('due_date', $fine->due_date->format('Y-m-d')) }}"
-                                       min="{{ now()->format('Y-m-d') }}" required>
-                                @error('due_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            </div>
-                            <button type="submit" class="btn btn-outline-primary w-100">Salvar novo vencimento</button>
-                            <p class="small text-muted mt-2 mb-0">
-                                As cobranças pendentes desta multa serão ajustadas automaticamente e os notificados serão avisados.
-                            </p>
-                        </form>
-                    </div>
-                </div>
-            @endif
-
             @if(!$fine->isCancelled())
                 <div class="card shadow-sm border-danger">
                     <div class="card-header bg-danger text-white">
@@ -224,7 +214,58 @@
     </div>
 </div>
 
+@if(($canEditDueDate ?? false) || ($errors->has('due_date') && old('_due_date_form')))
+<div class="modal fade" id="editFineDueDateModal" tabindex="-1" aria-labelledby="editFineDueDateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="{{ route('fines.due-date.update', $fine) }}">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="_due_date_form" value="1">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editFineDueDateModalLabel">
+                        <i class="bi bi-calendar-event"></i> Alterar vencimento da multa
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Multa <strong>{{ $fine->reference }}</strong> · valor R$ {{ number_format($fine->amount, 2, ',', '.') }}.
+                        As cobranças pendentes ou em atraso serão atualizadas e os moradores notificados.
+                    </p>
+                    <div class="mb-0">
+                        <label for="due_date" class="form-label">Novo vencimento</label>
+                        <input type="date" name="due_date" id="due_date"
+                               class="form-control @error('due_date') is-invalid @enderror"
+                               value="{{ old('due_date', $fine->due_date->format('Y-m-d')) }}"
+                               min="{{ now()->format('Y-m-d') }}" required>
+                        @error('due_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar vencimento</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+
 @if(($isMoradorView ?? false) && ($onlinePaymentsEnabled ?? false))
     @include('charges.partials.payment-checkout')
+@endif
+
+@if(($canEditDueDate ?? false) && ($errors->has('due_date') || old('_due_date_form')))
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('editFineDueDateModal');
+    if (modal) {
+        bootstrap.Modal.getOrCreateInstance(modal).show();
+    }
+});
+</script>
+@endpush
 @endif
 @endsection

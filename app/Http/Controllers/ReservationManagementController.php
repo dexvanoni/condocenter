@@ -98,26 +98,35 @@ class ReservationManagementController extends Controller
     private function getActionButtons($reservation)
     {
         $actions = '';
-        
+
+        $charge = $this->reservationChargeService->findForReservation($reservation);
+        $canEditDueDate = $charge && in_array($charge->status, ['pending', 'overdue'], true);
+
         // Botão Ver
         $actions .= '<button class="btn btn-sm btn-info me-1" onclick="viewReservation(' . $reservation->id . ')" title="Ver Detalhes">
             <i class="bi bi-eye"></i>
         </button>';
-        
+
+        if ($canEditDueDate) {
+            $actions .= '<button class="btn btn-sm btn-outline-primary me-1" onclick="editReservationDueDate(' . $reservation->id . ')" title="Alterar vencimento do pagamento">
+                <i class="bi bi-calendar-event"></i>
+            </button>';
+        }
+
         // Botão Editar (apenas para reservas não canceladas)
         if ($reservation->status !== 'cancelled') {
-            $actions .= '<button class="btn btn-sm btn-warning me-1" onclick="editReservation(' . $reservation->id . ')" title="Editar">
+            $actions .= '<button class="btn btn-sm btn-warning me-1" onclick="editReservation(' . $reservation->id . ')" title="Editar reserva">
                 <i class="bi bi-pencil"></i>
             </button>';
         }
-        
+
         // Botão Excluir (apenas para reservas não canceladas)
         if ($reservation->status !== 'cancelled') {
-            $actions .= '<button class="btn btn-sm btn-danger" onclick="deleteReservation(' . $reservation->id . ')" title="Excluir">
+            $actions .= '<button class="btn btn-sm btn-danger" onclick="deleteReservation(' . $reservation->id . ')" title="Cancelar reserva">
                 <i class="bi bi-trash"></i>
             </button>';
         }
-        
+
         return $actions;
     }
 
@@ -201,7 +210,31 @@ class ReservationManagementController extends Controller
             })
             ->findOrFail($id);
 
-        return response()->json($reservation);
+        $charge = $this->reservationChargeService->findForReservation($reservation);
+
+        return response()->json([
+            'id' => $reservation->id,
+            'reservation_date' => $reservation->reservation_date,
+            'start_time' => $reservation->start_time,
+            'end_time' => $reservation->end_time,
+            'status' => $reservation->status,
+            'notes' => $reservation->notes,
+            'created_at' => $reservation->created_at,
+            'admin_action' => $reservation->admin_action,
+            'admin_reason' => $reservation->admin_reason,
+            'recurring_reservation_id' => $reservation->recurring_reservation_id,
+            'user' => $reservation->user,
+            'unit' => $reservation->unit,
+            'space' => $reservation->space,
+            'charge' => $charge ? [
+                'id' => $charge->id,
+                'status' => $charge->status,
+                'amount' => (float) $charge->amount,
+                'due_date' => optional($charge->due_date)->format('Y-m-d'),
+                'due_date_label' => optional($charge->due_date)->format('d/m/Y'),
+                'editable' => in_array($charge->status, ['pending', 'overdue'], true),
+            ] : null,
+        ]);
     }
 
     /**
@@ -286,6 +319,52 @@ class ReservationManagementController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Reserva atualizada com sucesso!' . $chargeMessage,
+        ]);
+    }
+
+    /**
+     * Altera apenas o vencimento da cobrança vinculada à reserva.
+     */
+    public function updateDueDate(Request $request, $id)
+    {
+        $reservation = Reservation::whereHas('space', function ($query) {
+                $query->where('condominium_id', Auth::user()->tenantCondominiumId());
+            })
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'due_date' => ['required', 'date', 'after_or_equal:today'],
+        ], [
+            'due_date.after_or_equal' => 'O vencimento do pagamento não pode ser anterior a hoje.',
+        ]);
+
+        $charge = $this->reservationChargeService->findForReservation($reservation);
+
+        if (! $charge || ! in_array($charge->status, ['pending', 'overdue'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta reserva não possui cobrança pendente ou em atraso para alterar o vencimento.',
+            ], 422);
+        }
+
+        $date = Carbon::parse($validated['due_date'])->startOfDay();
+
+        if ($charge->due_date && $charge->due_date->isSameDay($date)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'O vencimento já está definido para ' . $date->format('d/m/Y') . '.',
+            ]);
+        }
+
+        $this->chargeDueDateService->updateDueDate($charge, $date);
+
+        if ($reservation->isPrereservation() && $reservation->isPendingPayment()) {
+            $reservation->update(['payment_deadline' => $date->copy()->endOfDay()]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vencimento alterado para ' . $date->format('d/m/Y') . '. A cobrança foi atualizada automaticamente.',
         ]);
     }
 

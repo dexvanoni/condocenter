@@ -16,7 +16,8 @@ use Illuminate\Validation\ValidationException;
 class MonthlyClosingChecklistService
 {
     public function __construct(
-        private readonly MonthlyClosingService $closingService
+        private readonly MonthlyClosingService $closingService,
+        private readonly FeeChargeCoverageService $coverageService
     ) {
     }
 
@@ -52,6 +53,7 @@ class MonthlyClosingChecklistService
 
         $steps = [
             $this->stepFeeGeneration($condominiumId, $start, $end, $period),
+            $this->stepFeeUnitCoverage($condominiumId, $start, $end, $period),
             $this->stepCharges($condominiumId, $start, $end, $period),
             $this->stepFines($condominiumId, $start, $end, $period),
             $this->stepReservations($condominiumId, $start, $end, $period),
@@ -207,6 +209,64 @@ class MonthlyClosingChecklistService
         ];
     }
 
+    private function stepFeeUnitCoverage(int $condominiumId, Carbon $start, Carbon $end, array $period): array
+    {
+        $audit = $this->coverageService->audit($condominiumId, $start);
+
+        $missingCount = $audit['total_missing'];
+        $expectedCount = $audit['total_expected'];
+        $coveredCount = $audit['total_covered'];
+        $feesWithGaps = collect($audit['fees'])->where('missing_count', '>', 0);
+        $status = $missingCount === 0 ? 'done' : 'warning';
+
+        $guidance = [
+            'Compare a lista abaixo com as unidades cadastradas na taxa mensal de condomínio.',
+            'Unidades sem cobrança não recebem boleto/PIX e ficam de fora da prestação de contas da competência.',
+            'Gere as cobranças faltantes na tela da taxa ou ajuste a configuração se a unidade não deve ser cobrada neste mês.',
+        ];
+
+        if ($expectedCount === 0) {
+            $guidance[] = 'Nenhuma taxa mensal ativa com unidades configuradas foi encontrada para esta competência.';
+        }
+
+        $actions = [
+            $this->action('Ver taxas do condomínio', 'fees.index', [], 'bi-list-ul'),
+        ];
+
+        foreach ($feesWithGaps->take(3) as $feeAudit) {
+            $actions[] = $this->action(
+                'Corrigir: '.$feeAudit['fee_name'],
+                'fees.show',
+                ['fee' => $feeAudit['fee_id']],
+                'bi-lightning-charge',
+                'manage_charges'
+            );
+        }
+
+        return [
+            'key' => MonthlyClosingSteps::FEE_UNIT_COVERAGE,
+            'number' => 2,
+            'icon' => 'bi-building-check',
+            'title' => 'Conferir cobrança por unidade',
+            'description' => 'Verifique se cada unidade vinculada à taxa mensal recebeu cobrança na competência '.$audit['competence_label'].'.',
+            'status' => $status,
+            'status_label' => $this->statusLabel($status),
+            'metrics' => [
+                ['label' => 'Unidades esperadas', 'value' => (string) $expectedCount],
+                ['label' => 'Com cobrança gerada', 'value' => (string) $coveredCount],
+                ['label' => 'Sem cobrança', 'value' => (string) $missingCount, 'highlight' => $missingCount > 0],
+                ['label' => 'Competência', 'value' => $start->translatedFormat('M/Y')],
+            ],
+            'guidance' => $guidance,
+            'details' => [
+                'competence_period' => $audit['competence_period'],
+                'competence_label' => $audit['competence_label'],
+                'missing_units' => $audit['missing_units'],
+            ],
+            'actions' => $actions,
+        ];
+    }
+
     private function stepCharges(int $condominiumId, Carbon $start, Carbon $end, array $period): array
     {
         $pendingInMonth = Charge::query()
@@ -236,7 +296,7 @@ class MonthlyClosingChecklistService
 
         return [
             'key' => MonthlyClosingSteps::CHARGES,
-            'number' => 2,
+            'number' => 3,
             'icon' => 'bi-credit-card-2-front',
             'title' => 'Conferir pagamentos de taxas',
             'description' => 'Revise cobranças pendentes, registre pagamentos recebidos e acompanhe inadimplência.',
@@ -284,7 +344,7 @@ class MonthlyClosingChecklistService
 
         return [
             'key' => MonthlyClosingSteps::FINES,
-            'number' => 3,
+            'number' => 4,
             'icon' => 'bi-exclamation-octagon',
             'title' => 'Conferir multas aplicadas',
             'description' => 'Valide multas do período e confirme se os pagamentos foram recebidos ou estão em cobrança.',
@@ -331,7 +391,7 @@ class MonthlyClosingChecklistService
 
         return [
             'key' => MonthlyClosingSteps::RESERVATIONS,
-            'number' => 4,
+            'number' => 5,
             'icon' => 'bi-calendar-check',
             'title' => 'Conferir reservas e taxas de uso',
             'description' => 'Aprove reservas pendentes, confirme pré-reservas pagas e valide cobranças de espaços.',
@@ -405,7 +465,7 @@ class MonthlyClosingChecklistService
 
         return [
             'key' => MonthlyClosingSteps::EMPLOYEES,
-            'number' => 5,
+            'number' => 6,
             'icon' => 'bi-person-badge',
             'title' => 'Conferir folha e encargos',
             'description' => 'Registre salários, horas extras, férias e encargos patronais de cada funcionário ativo.',
@@ -441,7 +501,7 @@ class MonthlyClosingChecklistService
 
         return [
             'key' => MonthlyClosingSteps::MANUAL_CASHFLOW,
-            'number' => 6,
+            'number' => 7,
             'icon' => 'bi-safe',
             'title' => 'Revisar entradas e saídas avulsas',
             'description' => 'Confira lançamentos manuais no caixa: receitas extras, despesas operacionais e comprovantes.',
@@ -481,7 +541,7 @@ class MonthlyClosingChecklistService
 
         return [
             'key' => MonthlyClosingSteps::BANK_RECONCILIATION,
-            'number' => 7,
+            'number' => 8,
             'icon' => 'bi-bank',
             'title' => 'Conciliar extrato bancário',
             'description' => 'Cruze os lançamentos do sistema com o extrato das contas bancárias do condomínio.',
@@ -512,7 +572,7 @@ class MonthlyClosingChecklistService
 
         return [
             'key' => MonthlyClosingSteps::ACCOUNTABILITY,
-            'number' => 8,
+            'number' => 9,
             'icon' => 'bi-file-earmark-text',
             'title' => 'Gerar prestação de contas',
             'description' => 'Revise o relatório consolidado do mês, exporte PDF/Excel e arquive para o conselho e moradores.',

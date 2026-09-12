@@ -5,11 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
 use App\Services\AccessAlertService;
+use App\Services\NotificationRedirectService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
+    public function __construct(
+        private readonly NotificationRedirectService $redirectService
+    ) {
+    }
+
     /**
      * Alertas dinâmicos de liberações de acesso (entrada/negado na portaria).
      */
@@ -55,6 +61,12 @@ class NotificationController extends Controller
 
         $notifications = $query->orderBy('created_at', 'desc')->paginate(20);
 
+        $notifications->getCollection()->transform(function (Notification $notification) use ($user) {
+            $notification->redirect_url = $this->redirectService->resolve($notification, $user);
+
+            return $notification;
+        });
+
         return response()->json($notifications);
     }
 
@@ -74,7 +86,8 @@ class NotificationController extends Controller
 
         return response()->json([
             'message' => 'Notificação marcada como lida',
-            'notification' => $notification
+            'notification' => $notification,
+            'redirect_url' => $this->redirectService->resolve($notification, Auth::user()),
         ]);
     }
 

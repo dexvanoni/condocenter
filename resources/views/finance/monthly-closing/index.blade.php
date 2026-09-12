@@ -292,6 +292,47 @@
                     </div>
                     @endif
 
+                    @if(!empty($step['details']['missing_units']))
+                    @php
+                        $missingUnits = $step['details']['missing_units'];
+                        $visibleMissing = array_slice($missingUnits, 0, 15);
+                        $hiddenMissingCount = max(0, count($missingUnits) - count($visibleMissing));
+                    @endphp
+                    <div class="mb-3">
+                        <div class="fw-semibold mb-2 text-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Unidades sem cobrança em {{ $step['details']['competence_label'] ?? $checklist['month_label'] }}
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Unidade</th>
+                                        <th>Morador</th>
+                                        <th>Taxa</th>
+                                        <th class="text-end">Valor esperado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($visibleMissing as $missing)
+                                    <tr>
+                                        <td>{{ $missing['unit_label'] }}</td>
+                                        <td>{{ $missing['morador'] ?? '—' }}</td>
+                                        <td>{{ $missing['fee_name'] }}</td>
+                                        <td class="text-end">{{ $missing['expected_amount_label'] }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @if($hiddenMissingCount > 0)
+                        <p class="text-muted small mt-2 mb-0">
+                            E mais {{ $hiddenMissingCount }} unidade(s) sem cobrança — use as ações rápidas para corrigir nas taxas correspondentes.
+                        </p>
+                        @endif
+                    </div>
+                    @endif
+
                     @if(!empty($step['guidance']))
                     <div class="mb-3">
                         <div class="fw-semibold mb-2"><i class="bi bi-signpost-split text-primary"></i> O que fazer</div>

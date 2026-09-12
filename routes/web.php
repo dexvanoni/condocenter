@@ -275,6 +275,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                 'initialUserCredits' => $initialUserCredits,
             ]);
         })->name('reservations.index');
+        Route::get('/reservations/minhas', [\App\Http\Controllers\ReservationController::class, 'myReservations'])
+            ->name('reservations.my');
     });
     
     
@@ -284,6 +286,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::get('/reservations/manage/{id}', [\App\Http\Controllers\ReservationManagementController::class, 'show'])->name('reservations.manage.show');
         Route::get('/reservations/manage/{id}/edit', [\App\Http\Controllers\ReservationManagementController::class, 'edit'])->name('reservations.manage.edit');
         Route::put('/reservations/manage/{id}', [\App\Http\Controllers\ReservationManagementController::class, 'update'])->name('reservations.manage.update');
+        Route::put('/reservations/manage/{id}/due-date', [\App\Http\Controllers\ReservationManagementController::class, 'updateDueDate'])->name('reservations.manage.due-date.update');
         Route::delete('/reservations/manage/{id}', [\App\Http\Controllers\ReservationManagementController::class, 'destroy'])->name('reservations.manage.destroy');
         Route::post('/reservations/manage/bulk-action', [\App\Http\Controllers\ReservationManagementController::class, 'bulkAction'])->name('reservations.manage.bulk-action');
         Route::get('/reservations/manage/spaces/list', [\App\Http\Controllers\ReservationManagementController::class, 'getSpaces'])->name('reservations.manage.spaces');
@@ -483,6 +486,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     
     // Notificações
     Route::get('/notifications', function() { return view('notifications.index'); })->name('notifications.index');
+    Route::get('/notifications/{notification}', [\App\Http\Controllers\NotificationController::class, 'show'])->name('notifications.show');
 
     // Unidades
     Route::get('/units/search/users', [\App\Http\Controllers\UnitController::class, 'searchUsers'])->name('units.search-users');

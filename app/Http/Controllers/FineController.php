@@ -130,7 +130,20 @@ class FineController extends Controller
             ? $this->resolveResidentContext($fine, $user, $onlinePaymentsEnabled)
             : null;
 
-        return view('fines.show', compact('fine', 'isMoradorView', 'onlinePaymentsEnabled', 'residentContext'));
+        $canEditDueDate = $user->can('cancel', $fine)
+            && ! $fine->isCancelled()
+            && $fine->recipients->contains(
+                fn ($recipient) => $recipient->charge
+                    && in_array($recipient->charge->status, ['pending', 'overdue'], true)
+            );
+
+        return view('fines.show', compact(
+            'fine',
+            'isMoradorView',
+            'onlinePaymentsEnabled',
+            'residentContext',
+            'canEditDueDate',
+        ));
     }
 
     public function exportPdf(Fine $fine)

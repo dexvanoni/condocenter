@@ -1347,7 +1347,14 @@
                             @if(Route::has('reservations.index') && SidebarHelper::canViewReservations($user))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                                    <i class="bi bi-calendar-check"></i> Minhas Reservas
+                                    <i class="bi bi-calendar3"></i> Calendário de Reservas
+                                </a>
+                            </li>
+                            @endif
+                            @if(Route::has('reservations.my') && SidebarHelper::canViewReservations($user))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('reservations.my') ? 'active' : '' }}" href="{{ route('reservations.my') }}">
+                                    <i class="bi bi-bookmark-check"></i> Minhas Reservas
                                 </a>
                             </li>
                             @endif
@@ -1773,6 +1780,7 @@
                                         @if(Route::has('notifications.show'))
                                         <a class="dropdown-item text-wrap" href="{{ route('notifications.show', $notification) }}">
                                             <small class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                            <strong class="d-block small">{{ Str::limit($notification->title, 60) }}</strong>
                                             <p class="mb-0">{{ Str::limit($notification->message, 50) }}</p>
                                         </a>
                                         @else
@@ -2119,7 +2127,14 @@
                                     @if(Route::has('reservations.index') && SidebarHelper::canViewReservations($user))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('reservations.index') ? 'active' : '' }}" href="{{ route('reservations.index') }}">
-                                            <i class="bi bi-calendar-check"></i> Minhas Reservas
+                                            <i class="bi bi-calendar3"></i> Calendário de Reservas
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if(Route::has('reservations.my') && SidebarHelper::canViewReservations($user))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('reservations.my') ? 'active' : '' }}" href="{{ route('reservations.my') }}">
+                                            <i class="bi bi-bookmark-check"></i> Minhas Reservas
                                         </a>
                                     </li>
                                     @endif

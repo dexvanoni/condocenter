@@ -57,11 +57,11 @@
                     <span id="totalCredits" class="fw-bold">R$ {{ number_format($initialUserCredits, 2, ',', '.') }}</span>
                 </div>
                 
-                <!-- Badge de Reservas -->
-                <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReservations">
+                <!-- Atalho para lista de reservas -->
+                <a href="{{ route('reservations.my') }}" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-bookmark-check"></i> Minhas Reservas
                     <span class="badge bg-warning text-dark ms-1" id="reservationsCount">0</span>
-                </button>
+                </a>
                 
                 @if(auth()->user()->isAdmin() || auth()->user()->isSindico())
                 <a href="{{ route('recurring-reservations.index') }}" class="btn btn-outline-success btn-sm">
@@ -71,24 +71,6 @@
                     <i class="bi bi-gear"></i> Administrar Reservas
                 </a>
                 @endif
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Minhas Reservas (Colapsável) -->
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="collapse" id="collapseReservations">
-            <div class="card border-primary">
-                <div class="card-body p-3">
-                    <div id="myReservationsList">
-                        <div class="text-center py-2">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                            <p class="text-muted mt-2 small">Carregando reservas...</p>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -1494,102 +1476,27 @@
             renderMyReservations(myReservations);
         } catch (error) {
             console.error('Erro ao carregar reservas:', error);
-            document.getElementById('myReservationsList').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> Erro ao carregar reservas
-                </div>
-            `;
+            const countBadge = document.getElementById('reservationsCount');
+            if (countBadge) {
+                countBadge.textContent = '0';
+            }
         }
     }
 
     // Renderizar minhas reservas
     function renderMyReservations(reservations) {
-        const container = document.getElementById('myReservationsList');
         const countBadge = document.getElementById('reservationsCount');
-        
-        console.log('Renderizando minhas reservas:', reservations.length, reservations);
-        
-        // Atualizar badge de contagem
+
         countBadge.textContent = reservations.length;
-        
+
         if (reservations.length === 0) {
             countBadge.classList.remove('bg-warning');
             countBadge.classList.add('bg-secondary');
-            
-            container.innerHTML = `
-                <div class="text-center py-3">
-                    <i class="bi bi-calendar-x text-muted"></i>
-                    <p class="text-muted mt-2 small">Você não tem reservas futuras</p>
-                </div>
-            `;
             return;
         }
-        
+
         countBadge.classList.remove('bg-secondary');
         countBadge.classList.add('bg-warning');
-        
-        let html = '<div class="row g-2">';
-        
-        reservations.forEach(reservation => {
-            // Evitar problema de timezone: usar a data como string YYYY-MM-DD
-            const dateStr = reservation.reservation_date.split('T')[0]; // "2025-10-07"
-            const [year, month, day] = dateStr.split('-');
-            
-            // Criar data local sem conversão de timezone
-            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            const formattedDate = date.toLocaleDateString('pt-BR', { 
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            });
-            
-            const statusBadge = reservation.status === 'approved' 
-                ? '<span class="badge bg-success small">✓</span>' 
-                : '<span class="badge bg-warning small">⏳</span>';
-            
-            const escapedSpaceName = reservation.space.name.replace(/'/g, "\\'");
-            const escapedDate = formattedDate.replace(/'/g, "\\'");
-            
-            // Ícones por tipo de espaço
-            const typeIcons = {
-                'party_hall': '🎉',
-                'bbq': '🍖',
-                'pool': '🏊',
-                'sports_court': '⚽',
-                'gym': '💪',
-                'meeting_room': '🏢',
-                'other': '📍'
-            };
-            
-            const icon = typeIcons[reservation.space.type] || '📍';
-            
-            html += `
-                <div class="col-md-6">
-                    <div class="card border-primary border-2">
-                        <div class="card-body p-3">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <div class="d-flex align-items-center">
-                                    <span class="me-2">${icon}</span>
-                                    <h6 class="card-title mb-0">${reservation.space.name}</h6>
-                                </div>
-                                ${statusBadge}
-                            </div>
-                            <div class="small text-muted mb-2">
-                                <i class="bi bi-calendar-event"></i> ${formattedDate}<br>
-                                <i class="bi bi-clock"></i> ${reservation.start_time} às ${reservation.end_time}
-                            </div>
-                            ${reservation.notes ? `<p class="text-muted small mb-2"><i class="bi bi-chat-left-text"></i> ${reservation.notes}</p>` : ''}
-                            <button class="btn btn-danger btn-sm w-100" onclick="deleteReservation(${reservation.id}, '${escapedSpaceName}', '${escapedDate}')">
-                                <i class="bi bi-trash"></i> Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        container.innerHTML = html;
     }
 
     // Deletar reserva

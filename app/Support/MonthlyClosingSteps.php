@@ -6,6 +6,8 @@ class MonthlyClosingSteps
 {
     public const FEE_GENERATION = 'fee_generation';
 
+    public const FEE_UNIT_COVERAGE = 'fee_unit_coverage';
+
     public const CHARGES = 'charges';
 
     public const FINES = 'fines';
@@ -24,6 +26,7 @@ class MonthlyClosingSteps
     {
         return [
             self::FEE_GENERATION,
+            self::FEE_UNIT_COVERAGE,
             self::CHARGES,
             self::FINES,
             self::RESERVATIONS,

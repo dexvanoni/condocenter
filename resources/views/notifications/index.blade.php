@@ -201,7 +201,7 @@
 			const itemClass = isUnread ? 'notification-item unread bg-light' : 'notification-item';
 			
 			html += `
-				<div class="list-group-item ${itemClass}" onclick="markAsRead(${notif.id}, ${isUnread ? 'true' : 'false'})">
+				<div class="list-group-item ${itemClass}" onclick="openNotification(${notif.id})">
 					<div class="d-flex">
 						<div class="me-3 fs-3 flex-shrink-0">${icon}</div>
 						<div class="flex-grow-1">
@@ -288,6 +288,10 @@
 
 	window.changePage = function(filter, page) {
 		loadNotifications(filter, page);
+	};
+
+	window.openNotification = function(id) {
+		window.location.href = `/notifications/${id}`;
 	};
 
 	window.markAsRead = async function(id, isUnread) {

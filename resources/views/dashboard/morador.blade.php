@@ -676,8 +676,8 @@
 
                     @if($minhasReservas->count() > 0)
                     <div class="text-center mt-3">
-                        <a href="{{ route('reservations.index') }}" class="btn btn-sm btn-outline-primary">
-                            Ver Todas as Reservas
+                        <a href="{{ route('reservations.my') }}" class="btn btn-sm btn-outline-primary">
+                            Ver todas as reservas
                         </a>
                     </div>
                     @endif

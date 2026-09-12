@@ -61,13 +61,52 @@ class ReservationController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('prereservation_status')) {
+            $query->where('prereservation_status', $request->prereservation_status);
+        }
+
         if ($request->has('date')) {
             $query->whereDate('reservation_date', $request->date);
         }
 
-        $reservations = $query->orderBy('reservation_date', 'asc')
+        if ($request->filled('period')) {
+            match ($request->period) {
+                'upcoming' => $query->whereDate('reservation_date', '>=', now()->toDateString()),
+                'past' => $query->whereDate('reservation_date', '<', now()->toDateString()),
+                default => null,
+            };
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('reservation_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('reservation_date', '<=', $request->date_to);
+        }
+
+        $perPage = min(max((int) $request->input('per_page', 15), 5), 50);
+
+        $reservations = $query->orderBy('reservation_date', 'desc')
+            ->orderBy('start_time', 'desc')
             ->orderBy('created_at', 'desc')
-            ->paginate(15);
+            ->paginate($perPage);
+
+        if ($request->boolean('with_charge')) {
+            $reservations->getCollection()->transform(function (Reservation $reservation) {
+                $charge = $this->reservationChargeService->findForReservation($reservation);
+
+                $reservation->charge_summary = $charge ? [
+                    'id' => $charge->id,
+                    'status' => $charge->status,
+                    'amount' => (float) $charge->amount,
+                    'due_date' => $charge->due_date?->format('Y-m-d'),
+                    'can_pay' => in_array($charge->status, ['pending', 'overdue'], true),
+                ] : null;
+
+                return $reservation;
+            });
+        }
 
         return response()->json($reservations);
     }
@@ -565,7 +604,7 @@ class ReservationController extends Controller
     /**
      * Exibe uma reserva
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $reservation = Reservation::with(['space', 'unit', 'user', 'approvedBy'])
             ->findOrFail($id);
@@ -581,6 +620,18 @@ class ReservationController extends Controller
         // Morador só pode ver suas próprias reservas
         if ($user->isMorador() && $reservation->user_id !== $user->id) {
             return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
+        if ($request->boolean('with_charge')) {
+            $charge = $this->reservationChargeService->findForReservation($reservation);
+
+            $reservation->charge_summary = $charge ? [
+                'id' => $charge->id,
+                'status' => $charge->status,
+                'amount' => (float) $charge->amount,
+                'due_date' => $charge->due_date?->format('Y-m-d'),
+                'can_pay' => in_array($charge->status, ['pending', 'overdue'], true),
+            ] : null;
         }
 
         return response()->json($reservation);

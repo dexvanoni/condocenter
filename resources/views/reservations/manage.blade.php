@@ -230,7 +230,7 @@
             <div class="modal-body" id="viewModalBody">
                 <!-- Conteúdo será carregado via AJAX -->
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" id="viewModalFooter">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
@@ -289,10 +289,15 @@
                     </div>
                     
                     <div class="row" id="editChargeRow" style="display: none;">
+                        <div class="col-12 mb-2">
+                            <div class="alert alert-light border mb-0 py-2">
+                                <strong><i class="bi bi-calendar-event"></i> Pagamento da reserva</strong>
+                            </div>
+                        </div>
                         <div class="col-md-6 mb-3">
                             <label for="editChargeDueDate" class="form-label">Vencimento do pagamento</label>
                             <input type="date" class="form-control" id="editChargeDueDate" name="charge_due_date">
-                            <small class="text-muted">A cobrança da reserva será atualizada automaticamente.</small>
+                            <small class="text-muted">Também disponível pelo botão <i class="bi bi-calendar-event"></i> na lista.</small>
                         </div>
                         <div class="col-md-6 mb-3 d-flex align-items-center">
                             <span id="editChargeInfo" class="small text-muted"></span>
@@ -312,6 +317,35 @@
                 </div>
             </form>
         </div>
+    </div>
+</div>
+
+<!-- Modal Alterar vencimento do pagamento -->
+<div class="modal fade" id="reservationDueDateModal" tabindex="-1" aria-labelledby="reservationDueDateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="reservationDueDateForm">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="reservationDueDateModalLabel">
+                        <i class="bi bi-calendar-event"></i> Alterar vencimento do pagamento
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="dueDateReservationId">
+                    <p class="text-muted small mb-3" id="reservationDueDateInfo"></p>
+                    <div class="mb-0">
+                        <label for="reservationDueDateInput" class="form-label">Novo vencimento</label>
+                        <input type="date" class="form-control" id="reservationDueDateInput" required>
+                        <small class="text-muted">A cobrança vinculada à reserva será atualizada automaticamente.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar vencimento</button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -590,8 +624,27 @@ $(document).ready(function() {
                 if (data.admin_action) {
                     html += `<div class="mt-3 alert alert-info"><strong>Ação Administrativa:</strong> ${getActionText(data.admin_action)}<br><strong>Motivo:</strong> ${data.admin_reason || 'N/A'}</div>`;
                 }
-                
+
+                if (data.charge) {
+                    var chargeStatus = data.charge.status === 'overdue' ? 'Em atraso' : (data.charge.status === 'pending' ? 'Pendente' : data.charge.status);
+                    html += `<div class="mt-3 p-3 bg-light rounded border">
+                        <h6 class="mb-2"><i class="bi bi-receipt"></i> Cobrança da reserva</h6>
+                        <p class="mb-1"><strong>Valor:</strong> ${(data.charge.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p class="mb-1"><strong>Vencimento:</strong> ${data.charge.due_date_label || '—'}</p>
+                        <p class="mb-0"><strong>Status:</strong> ${chargeStatus}</p>
+                    </div>`;
+                }
+
                 $('#viewModalBody').html(html);
+
+                var footerHtml = '';
+                if (data.charge && data.charge.editable) {
+                    footerHtml += `<button type="button" class="btn btn-outline-primary me-auto" onclick="bootstrap.Modal.getInstance(document.getElementById('viewModal')).hide(); editReservationDueDate(${data.id});">
+                        <i class="bi bi-calendar-event"></i> Alterar vencimento
+                    </button>`;
+                }
+                footerHtml += '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>';
+                $('#viewModalFooter').html(footerHtml);
                 var modal = new bootstrap.Modal(document.getElementById('viewModal'));
                 modal.show();
             })
@@ -599,6 +652,71 @@ $(document).ready(function() {
                 alert('❌ Erro ao carregar detalhes da reserva.');
             });
     };
+
+    // Alterar vencimento da cobrança (modal dedicado)
+    window.editReservationDueDate = function(id) {
+        $.get(`/reservations/manage/${id}/edit`)
+            .done(function(response) {
+                var charge = response.charge;
+                if (!charge || !charge.editable) {
+                    alert('Esta reserva não possui cobrança pendente ou em atraso para alterar o vencimento.');
+                    return;
+                }
+
+                var reservation = response.reservation;
+                var amountLabel = (charge.amount || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                var unitLabel = reservation.unit ? (reservation.unit.number + ' - ' + reservation.unit.block) : 'N/A';
+
+                $('#dueDateReservationId').val(id);
+                $('#reservationDueDateInput').val(charge.due_date || '');
+                $('#reservationDueDateInput').attr('min', new Date().toISOString().split('T')[0]);
+                $('#reservationDueDateInfo').html(
+                    `Reserva #${id} · ${unitLabel} · Cobrança de <strong>${amountLabel}</strong> · vencimento atual: <strong>${charge.due_date ? charge.due_date.split('-').reverse().join('/') : '—'}</strong>`
+                );
+
+                var modal = new bootstrap.Modal(document.getElementById('reservationDueDateModal'));
+                modal.show();
+            })
+            .fail(function() {
+                alert('❌ Erro ao carregar dados da cobrança.');
+            });
+    };
+
+    $('#reservationDueDateForm').on('submit', function(e) {
+        e.preventDefault();
+
+        var id = $('#dueDateReservationId').val();
+        var dueDate = $('#reservationDueDateInput').val();
+
+        if (!dueDate) {
+            alert('Informe o novo vencimento.');
+            return;
+        }
+
+        $.ajax({
+            url: `/reservations/manage/${id}/due-date`,
+            type: 'PUT',
+            data: {
+                due_date: dueDate,
+                _token: '{{ csrf_token() }}'
+            },
+            success: function(response) {
+                alert('✅ ' + response.message);
+                loadReservations();
+                bootstrap.Modal.getInstance(document.getElementById('reservationDueDateModal')).hide();
+            },
+            error: function(xhr) {
+                var message = xhr.responseJSON?.message;
+                if (message) {
+                    alert('❌ ' + message);
+                } else if (xhr.responseJSON?.errors?.due_date) {
+                    alert('❌ ' + xhr.responseJSON.errors.due_date.join('\n'));
+                } else {
+                    alert('❌ Erro ao alterar vencimento.');
+                }
+            }
+        });
+    });
 
     // Editar reserva
     window.editReservation = function(id) {

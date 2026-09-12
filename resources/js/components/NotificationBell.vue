@@ -33,8 +33,8 @@
         <li v-for="notification in notifications" :key="notification.id">
           <a class="dropdown-item" 
              :class="{'bg-light': !notification.is_read}"
-             href="#" 
-             @click.prevent="markAsRead(notification)">
+             :href="notificationLink(notification)"
+             @click.prevent="openNotification(notification)">
             <div class="d-flex">
               <div class="me-2">
                 <i :class="getIcon(notification.type)" class="fs-5"></i>
@@ -104,6 +104,12 @@ export default {
       } catch (error) {
         console.error('Erro ao marcar como lida:', error);
       }
+    },
+    notificationLink(notification) {
+      return notification.redirect_url || `/notifications/${notification.id}`;
+    },
+    openNotification(notification) {
+      window.location.href = this.notificationLink(notification);
     },
     async markAllRead() {
       try {

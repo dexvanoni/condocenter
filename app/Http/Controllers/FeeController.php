@@ -9,6 +9,7 @@ use App\Models\BankAccount;
 use App\Models\Charge;
 use App\Models\Fee;
 use App\Models\Unit;
+use App\Services\FeeChargeCoverageService;
 use App\Services\FeeService;
 use App\Support\UnitModels;
 use Illuminate\Http\Request;
@@ -20,7 +21,8 @@ class FeeController extends Controller
     use ResolvesActiveCondominium;
 
     public function __construct(
-        private readonly FeeService $feeService
+        private readonly FeeService $feeService,
+        private readonly FeeChargeCoverageService $coverageService
     ) {
         $this->middleware(['can:view_charges'])->only(['index', 'show']);
         $this->middleware(['can:manage_charges'])->except(['index', 'show']);
@@ -112,7 +114,12 @@ class FeeController extends Controller
             'configurations.unit.morador',
         ])
         ->loadCount([
+            'configurations',
+            'charges as total_charges_count',
+            'charges as pending_charges_count' => fn ($query) => $query->where('status', 'pending'),
+            'charges as overdue_charges_count' => fn ($query) => $query->where('status', 'overdue'),
             'charges as paid_charges_count' => fn ($query) => $query->where('status', 'paid'),
+            'charges as cancelled_charges_count' => fn ($query) => $query->where('status', 'cancelled'),
         ]);
 
         $orderedConfigurations = $fee->configurations->sortBy(function ($configuration) {
@@ -124,12 +131,32 @@ class FeeController extends Controller
 
         $fee->setRelation('configurations', $orderedConfigurations);
 
-        $charges = Charge::with('unit')
+        $charges = Charge::with(['unit.morador'])
             ->where('fee_id', $fee->id)
             ->orderByDesc('due_date')
+            ->orderByDesc('id')
             ->get();
 
-        return view('fees.show', compact('fee', 'charges'));
+        $chargeStats = [
+            'total' => $charges->count(),
+            'pending' => (int) $fee->pending_charges_count,
+            'overdue' => (int) $fee->overdue_charges_count,
+            'paid' => (int) $fee->paid_charges_count,
+            'cancelled' => (int) $fee->cancelled_charges_count,
+            'amount_open' => (float) $charges->whereIn('status', ['pending', 'overdue'])->sum('amount'),
+            'amount_paid' => (float) $charges->where('status', 'paid')->sum('amount'),
+        ];
+
+        $competencePeriods = $charges
+            ->map(fn (Charge $charge) => $charge->competencePeriod())
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $chargeCoverage = $this->coverageService->summarizeForFee($fee);
+
+        return view('fees.show', compact('fee', 'charges', 'chargeStats', 'competencePeriods', 'chargeCoverage'));
     }
 
     public function edit(Fee $fee)
