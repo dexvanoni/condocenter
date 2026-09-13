@@ -913,6 +913,44 @@ body.cch-body {
     line-height: 1.7;
 }
 
+.sindcon-logo {
+    display: block;
+    height: auto;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.sindcon-powered-by {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+}
+
+.cch-footer .sindcon-powered-by {
+    margin-top: 0.75rem;
+}
+
+.cch-footer .sindcon-powered-by span {
+    color: var(--cch-muted);
+    font-size: 0.875rem;
+}
+
+.cch-footer .sindcon-logo-wrap--footer {
+    display: inline-flex;
+    align-items: center;
+    background: #050505;
+    border-radius: 0.35rem;
+    padding: 0.15rem 0.35rem;
+    margin-top: 0.15rem;
+}
+
+.cch-footer .sindcon-logo--footer {
+    height: 1.35rem;
+    max-width: 7.5rem;
+    margin-top: 0;
+}
+
 /* Modals & popups (shared with classic landing) */
 .landing-card-tag {
     display: inline-flex;

@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'SindCON') }} - @yield('title', 'Dashboard')</title>
+    <x-sindcon-favicon />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -994,9 +995,7 @@
         <!-- Sidebar (Desktop) -->
         <nav class="sidebar d-none d-lg-block{{ $isAdminProfile ? ' sidebar-admin' : '' }}" id="sidebar" style="width: 250px;">
             <div class="sidebar-brand-block">
-                <h4 class="mb-0">
-                    <i class="bi bi-building"></i> {{ config('app.name', 'SindCON') }}
-                </h4>
+                <x-sindcon-logo variant="sidebar" />
                 @php
                     $displayCondominium = $activeCondominiumContext['condominium'] ?? $user->condominium;
                 @endphp
@@ -1739,8 +1738,8 @@
                     </button>
                     
                     <!-- Brand/Logo (opcional) -->
-                    <span class="navbar-brand d-lg-none me-auto">
-                        <i class="bi bi-building"></i> {{ config('app.name', 'SindCON') }}
+                    <span class="navbar-brand d-lg-none me-auto p-0 sindcon-logo-wrap--navbar">
+                        <x-sindcon-logo variant="navbar" />
                     </span>
 
                     <div class="d-flex align-items-center ms-auto">

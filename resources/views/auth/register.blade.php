@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Criar Conta - {{ config('app.name', 'SindCON') }}</title>
+    <x-sindcon-favicon />
+    @include('partials.sindcon-brand-styles')
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -171,6 +173,7 @@
         <div class="col-lg-8 col-xl-7">
             <div class="register-card">
                 <div class="register-header">
+                    <x-sindcon-logo variant="auth" class="mb-2" />
                     <h2 class="mb-1"><i class="bi bi-person-plus-fill me-2"></i>Criar sua conta</h2>
                     <p class="mb-0 opacity-75">Cadastro simples — a administração aprova antes do primeiro acesso</p>
                     <div class="step-indicator" id="stepIndicator">

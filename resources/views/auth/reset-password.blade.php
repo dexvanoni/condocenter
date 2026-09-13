@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Redefinir Senha - {{ config('app.name', 'SindCON') }}</title>
+    <x-sindcon-favicon />
+    @include('partials.sindcon-brand-styles')
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -34,6 +36,9 @@
             <div class="col-md-5">
                 <div class="login-card p-4">
                     <div class="text-center mb-4">
+                        <div class="sindcon-logo-wrap--light">
+                            <x-sindcon-logo variant="inline" class="mb-0" />
+                        </div>
                         <h3><i class="bi bi-shield-lock"></i> Redefinir Senha</h3>
                         <p class="text-muted">Digite sua nova senha</p>
                     </div>

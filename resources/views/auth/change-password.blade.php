@@ -6,10 +6,15 @@
         <div class="col-md-6">
             <div class="card shadow">
                 <div class="card-body p-5">
-                    <h3 class="text-center mb-4">
-                        <i class="bi bi-shield-lock"></i><br>
-                        Alterar Senha
-                    </h3>
+                    <div class="text-center mb-4">
+                        <div class="sindcon-logo-wrap--light mb-3">
+                            <x-sindcon-logo variant="inline" class="mb-0" />
+                        </div>
+                        <h3 class="mb-0">
+                            <i class="bi bi-shield-lock"></i>
+                            Alterar Senha
+                        </h3>
+                    </div>
                     
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle"></i>

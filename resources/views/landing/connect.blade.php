@@ -434,7 +434,7 @@
                     <span class="cch-brand-mark">{{ $brandInitials ?: 'CC' }}</span>
                     <strong class="cch-display">{{ $condominium->name }}</strong>
                 </div>
-                <p>Portal oficial do condomínio powered by SindCon.</p>
+                <x-sindcon-powered-by />
             </div>
             <div>
                 <p class="cch-kicker">Endereço</p>

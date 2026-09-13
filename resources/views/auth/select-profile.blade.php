@@ -234,8 +234,8 @@
 <div class="profile-select-shell">
     <div class="profile-select-card">
         <div class="profile-select-header">
-            <div class="profile-select-badge">
-                <i class="bi bi-person-badge"></i>
+            <div class="sindcon-logo-wrap--light mb-3">
+                <x-sindcon-logo variant="inline" class="mb-0" />
             </div>
             <h1>Selecione seu perfil</h1>
             <p>Você possui mais de um perfil nesta conta.<br class="d-none d-sm-inline"> Escolha como deseja acessar o sistema nesta sessão.</p>

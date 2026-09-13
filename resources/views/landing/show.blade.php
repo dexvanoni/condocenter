@@ -501,7 +501,7 @@
         <div class="landing-container landing-footer-grid">
             <div>
                 <strong>{{ $condominium->name }}</strong>
-                <p class="mb-0 mt-2">Portal oficial do condomínio powered by SindCon.</p>
+                <x-sindcon-powered-by class="mt-2" />
             </div>
             <div>
                 <strong>Endereço</strong>

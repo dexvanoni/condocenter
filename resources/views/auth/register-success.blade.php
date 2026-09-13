@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro Enviado - {{ config('app.name', 'SindCON') }}</title>
+    <x-sindcon-favicon />
+    @include('partials.sindcon-brand-styles')
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -40,6 +42,9 @@
 </head>
 <body>
     <div class="success-card">
+        <div class="sindcon-logo-wrap--light">
+            <x-sindcon-logo variant="inline" class="mb-0" />
+        </div>
         <div class="success-icon"><i class="bi bi-check-lg"></i></div>
         <h2 class="fw-bold mb-3">Cadastro enviado!</h2>
         <p class="text-muted mb-4">
