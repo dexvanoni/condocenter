@@ -6,7 +6,10 @@
 
 @php
     $altText = $alt ?? config('brand.logo_alt', config('app.name', 'SindCON'));
-    $src = asset(config('brand.logo_path', 'images/logo_sindcon.png'));
+    $src = match ($variant) {
+        'sidebar' => asset(config('brand.logo_sidebar_path', config('brand.logo_path', 'images/logo_sindcon.png'))),
+        default => asset(config('brand.logo_path', 'images/logo_sindcon.png')),
+    };
 
     $variantClass = match ($variant) {
         'sidebar' => 'sindcon-logo sindcon-logo--sidebar',

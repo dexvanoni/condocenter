@@ -66,8 +66,21 @@
             radial-gradient(circle at 85% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 38%),
             linear-gradient(145deg, #07144f 0%, #0a1b67 38%, #3866d2 100%);
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 1.25rem;
+    }
+
+    .profile-select-brand {
+        text-align: center;
+    }
+
+    .profile-select-brand .sindcon-logo--sidebar {
+        height: 2.6rem;
+        width: auto;
+        max-width: 13rem;
+        margin: 0 auto;
     }
 
     .profile-select-card {
@@ -232,11 +245,11 @@
 </style>
 
 <div class="profile-select-shell">
+    <div class="profile-select-brand">
+        <x-sindcon-logo variant="sidebar" />
+    </div>
     <div class="profile-select-card">
         <div class="profile-select-header">
-            <div class="sindcon-logo-wrap--light mb-3">
-                <x-sindcon-logo variant="inline" class="mb-0" />
-            </div>
             <h1>Selecione seu perfil</h1>
             <p>Você possui mais de um perfil nesta conta.<br class="d-none d-sm-inline"> Escolha como deseja acessar o sistema nesta sessão.</p>
             <div class="profile-select-user">

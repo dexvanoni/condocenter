@@ -4,6 +4,8 @@
 
 @section('content')
 <div class="container-fluid px-4">
+    @include('dashboard.partials.profile-photo-alert')
+
     {{-- Hero --}}
     <div class="md-hero fade-in">
         <div class="row align-items-center">

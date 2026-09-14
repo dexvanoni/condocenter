@@ -28,7 +28,7 @@ class SelfRegisterRequest extends FormRequest
             'data_nascimento' => ['nullable', 'date', 'before:today'],
             'unit_id' => ['nullable', 'integer', 'exists:units,id'],
             'morador_vinculado_id' => ['nullable', 'integer', 'exists:users,id'],
-            'photo' => ['required', 'image', 'mimes:jpeg,jpg,png', 'max:4096'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png', 'max:4096'],
         ];
     }
 
@@ -49,7 +49,6 @@ class SelfRegisterRequest extends FormRequest
             'cpf.regex' => 'CPF inválido. Use o formato 000.000.000-00.',
             'telefone_celular.required' => 'Informe seu celular para contato.',
             'data_nascimento.before' => 'A data de nascimento deve ser anterior a hoje.',
-            'photo.required' => 'Tire uma foto (selfie) para concluir o cadastro.',
             'photo.image' => 'A foto deve ser uma imagem válida.',
             'photo.max' => 'A foto não pode ser maior que 4MB.',
         ];

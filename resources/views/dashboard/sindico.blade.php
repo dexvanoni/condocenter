@@ -211,6 +211,8 @@
 
 @section('content')
 <div class="container-fluid px-4 sd-page">
+    @include('dashboard.partials.profile-photo-alert')
+
     {{-- Hero + ações financeiras no topo --}}
     <div class="sd-hero">
         <div class="row align-items-center position-relative" style="z-index:1">

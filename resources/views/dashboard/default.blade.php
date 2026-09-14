@@ -4,6 +4,8 @@
 
 @section('content')
 <div class="container-fluid">
+    @include('dashboard.partials.profile-photo-alert')
+
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>

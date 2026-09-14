@@ -3,6 +3,8 @@
 @section('title', 'Condomínio não encontrado')
 
 @section('content')
+@include('dashboard.partials.profile-photo-alert')
+
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card border-brand">

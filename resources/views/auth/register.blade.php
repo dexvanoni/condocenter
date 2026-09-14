@@ -336,9 +336,9 @@
 
                         <!-- Passo 5: Selfie -->
                         <div class="wizard-step" data-step="5">
-                            <h4 class="fw-bold mb-2">5. Sua foto (selfie)</h4>
+                            <h4 class="fw-bold mb-2">5. Sua foto (selfie) <span class="badge bg-secondary fw-normal">opcional</span></h4>
                             <p class="help-text mb-4 text-center">
-                                Precisamos de uma foto do seu rosto para identificação. Use a câmera frontal em um local bem iluminado.
+                                A foto ajuda na identificação na portaria. Se estiver no computador, você pode pular agora e cadastrar depois no seu perfil.
                             </p>
 
                             <div class="selfie-shell">
@@ -362,6 +362,9 @@
                                     </button>
                                     <button type="button" class="btn btn-outline-secondary d-none" id="btnRetakePhoto">
                                         <i class="bi bi-arrow-repeat me-1"></i> Tirar outra foto
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="btnSkipPhoto">
+                                        <i class="bi bi-skip-forward me-1"></i> Continuar sem foto agora
                                     </button>
                                 </div>
 
@@ -636,16 +639,28 @@
     }
 
     function validateSelfieStep() {
-        if (!selfieCaptured || !photoInput.files.length) {
-            alert('Tire uma selfie antes de continuar.');
-            return false;
-        }
         return true;
+    }
+
+    function skipPhotoStep() {
+        stopCamera();
+        selfieCaptured = false;
+        selfiePreviewUrl = null;
+        photoInput.value = '';
+        selfiePreview.classList.add('d-none');
+        selfiePlaceholder.classList.remove('d-none');
+        selfieStatus.classList.add('d-none');
+        btnCapturePhoto.classList.add('d-none');
+        btnRetakePhoto.classList.add('d-none');
+        btnOpenCamera.innerHTML = '<i class="bi bi-camera-video me-1"></i> Abrir câmera frontal';
+        buildReview();
+        showStep(6);
     }
 
     btnOpenCamera?.addEventListener('click', openFrontCamera);
     btnCapturePhoto?.addEventListener('click', captureSelfie);
     btnRetakePhoto?.addEventListener('click', retakeSelfie);
+    document.getElementById('btnSkipPhoto')?.addEventListener('click', skipPhotoStep);
 
     function maskCpf(value) {
         return value.replace(/\D/g, '')
@@ -744,7 +759,6 @@
             if (next === 4) await prepareLinkStep();
             if (next === 5 && !validateLinkStep()) return;
             if (next === 6) {
-                if (!validateSelfieStep()) return;
                 buildReview();
             }
             showStep(next);
@@ -823,15 +837,21 @@
         } else if (selectedMorador) {
             linkInfo = `${selectedMorador.name} (${selectedMorador.cpf || 'CPF não informado'})`;
         }
+        const photoReview = selfieCaptured && selfiePreviewUrl
+            ? `<div class="row g-3 align-items-center">
+                    <div class="col-auto">
+                        <img src="${selfiePreviewUrl}" alt="Selfie" class="review-photo">
+                    </div>
+                    <div class="col">
+                        <div class="small text-muted">Foto de identificação capturada</div>
+                    </div>
+                </div>`
+            : `<div class="alert alert-warning py-2 mb-0">
+                    <small><i class="bi bi-camera-video-off me-1"></i>Foto não enviada. Você poderá cadastrá-la após a aprovação, no seu perfil.</small>
+                </div>`;
+
         document.getElementById('reviewBox').innerHTML = `
-            <div class="row g-3 align-items-center">
-                <div class="col-auto">
-                    <img src="${selfiePreviewUrl || ''}" alt="Selfie" class="review-photo">
-                </div>
-                <div class="col">
-                    <div class="small text-muted">Foto de identificação capturada</div>
-                </div>
-            </div>
+            ${photoReview}
             <hr>
             <div class="row g-2">
                 <div class="col-sm-6"><strong>Condomínio:</strong><br>${document.getElementById('condoName').textContent}</div>

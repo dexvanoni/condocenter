@@ -4,6 +4,7 @@
 
 @section('content')
 <div class="container-fluid px-4">
+    @include('dashboard.partials.profile-photo-alert')
     <!-- Header -->
     <div class="dashboard-header">
         <div class="row align-items-center mb-4">

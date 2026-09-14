@@ -212,7 +212,7 @@
 
                     <div class="col-lg-4">
                         <!-- Foto do Perfil -->
-                        <div class="card profile-card">
+                        <div class="card profile-card" id="profile-photo">
                             <div class="profile-header">
                                 <h4 class="mb-0">
                                     <i class="bi bi-camera me-2"></i>Foto do Perfil
@@ -231,7 +231,7 @@
                                     
                                     <div class="mb-3">
                                         <label for="photo" class="btn btn-outline-primary">
-                                            <i class="bi bi-camera me-2"></i>Alterar Foto
+                                            <i class="bi bi-camera me-2"></i>{{ $user->photo ? 'Alterar Foto' : 'Cadastrar Foto' }}
                                         </label>
                                         <input type="file" name="photo" id="photo" class="d-none" accept="image/*" onchange="previewPhoto(this)">
                                         @error('photo')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
@@ -326,6 +326,10 @@
 
 @push('scripts')
 <script>
+if (window.location.hash === '#profile-photo') {
+    document.getElementById('profile-photo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function previewPhoto(input) {
     if (input.files && input.files[0]) {
         const reader = new FileReader();
