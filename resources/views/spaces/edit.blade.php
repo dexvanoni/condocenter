@@ -208,6 +208,26 @@
                         @enderror
                     </div>
 
+                    <!-- Visibilidade no calendário -->
+                    <div class="card bg-light mb-2">
+                        <div class="card-header bg-secondary text-white py-2">
+                            <h6 class="mb-0 small"><i class="bi bi-calendar-week"></i> Calendário Público</h6>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="show_reserver_on_calendar"
+                                       value="1" id="showReserverOnCalendar"
+                                       {{ old('show_reserver_on_calendar', $space->show_reserver_on_calendar) ? 'checked' : '' }}>
+                                <label class="form-check-label small" for="showReserverOnCalendar">
+                                    <strong>Exibir quem reservou no calendário</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Moradores verão nome e unidade em datas indisponíveis quando esta opção estiver ativa.
+                            </small>
+                        </div>
+                    </div>
+
                     <!-- Configurações de Aprovação -->
                     <div class="card bg-light mb-2">
                         <div class="card-header bg-primary text-white py-2">

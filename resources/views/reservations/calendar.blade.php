@@ -364,6 +364,19 @@
         opacity: 0.8;
         cursor: not-allowed;
     }
+    .fc-event-public-reserver {
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        cursor: help;
+        white-space: normal;
+    }
+    .fc-event-public-reserver .fc-event-title {
+        color: #fff !important;
+        font-size: 0.65rem !important;
+        font-weight: 600;
+        line-height: 1.25;
+        white-space: normal;
+    }
     .fc-event-available {
         background-color: #28a745 !important;
         border-color: #28a745 !important;
@@ -778,6 +791,36 @@
         return raw.substring(0, 5);
     }
 
+    function isShowReserverOnCalendarEnabled() {
+        const flag = selectedSpace?.show_reserver_on_calendar;
+        return flag === true || flag === 1 || flag === '1';
+    }
+
+    function buildReserverDetails(reservation) {
+        if (!isShowReserverOnCalendarEnabled() || !reservation?.reserver_name) {
+            return null;
+        }
+
+        const unit = reservation.unit_label ? ` · Unidade ${reservation.unit_label}` : '';
+        return `${reservation.reserver_name}${unit}`;
+    }
+
+    function buildOccupiedTitle(reservation, fallback = 'Indisponível') {
+        return buildReserverDetails(reservation) || fallback;
+    }
+
+    function buildOccupiedAlertMessage(reservation) {
+        if (!isShowReserverOnCalendarEnabled() || !reservation?.reserver_name) {
+            return '❌ Esta data já está reservada para este espaço.\n\nEscolha outra data.';
+        }
+
+        const unitLine = reservation.unit_label
+            ? `\nUnidade: ${reservation.unit_label}`
+            : '';
+
+        return `❌ Esta data já está reservada para este espaço.\n\nReservado por: ${reservation.reserver_name}${unitLine}`;
+    }
+
     function timeToMinutes(timeStr) {
         const normalized = normalizeTime(timeStr);
         const [hours, minutes] = normalized.split(':').map(Number);
@@ -1039,13 +1082,17 @@
             });
             
             const data = await response.json();
-            
-            // console.log('=== RESPOSTA DA API ===');
-            // console.log('Status da resposta:', response.status);
-            // console.log('Data recebida:', data);
+
+            if (!response.ok) {
+                throw new Error(data.error || data.message || 'Falha ao carregar disponibilidade');
+            }
             
             // Armazenar slots ocupados (TODAS as reservas, não apenas as minhas)
             reservations = data.occupied_slots || [];
+
+            if (selectedSpace && data.show_reserver_on_calendar !== undefined) {
+                selectedSpace.show_reserver_on_calendar = data.show_reserver_on_calendar;
+            }
             
             // console.log('Disponibilidade do espaço carregada:', spaceId, 'Slots ocupados:', reservations.length);
             // console.log('Reservas detalhadas:', reservations);
@@ -1116,7 +1163,13 @@
                 const reservationsByDate = {};
                 
                 reservations.forEach(reservation => {
-                    const eventDate = reservation.reservation_date.split('T')[0];
+                    const rawDate = reservation.reservation_date;
+                    const eventDate = typeof rawDate === 'string'
+                        ? rawDate.split('T')[0]
+                        : String(rawDate ?? '').substring(0, 10);
+                    if (!eventDate) {
+                        return;
+                    }
                     const isRecurring = reservation.is_recurring === true || reservation.is_recurring === 1 || reservation.is_recurring === '1';
                     
                     if (!reservationsByDate[eventDate]) {
@@ -1179,10 +1232,20 @@
                             
                             const backgroundColor = isPrereservation ? '#ffc107' : '#ffc107';
                             const borderColor = isPrereservation ? '#ff8c00' : '#ffc107';
-                            const classNames = isPrereservation ? ['fc-event-hourly-occupied', 'fc-event-prereservation', 'fc-event-clickable'] : ['fc-event-hourly-occupied'];
-                            
+                            const reserverDetails = buildReserverDetails(reservation);
+                            const classNames = isPrereservation
+                                ? ['fc-event-hourly-occupied', 'fc-event-prereservation', 'fc-event-clickable']
+                                : (reserverDetails ? ['fc-event-hourly-occupied', 'fc-event-public-reserver'] : ['fc-event-hourly-occupied']);
+
+                            let hourlyTitle = `${startTime} às ${endTime}`;
+                            if (reserverDetails) {
+                                hourlyTitle += ` · ${reserverDetails}`;
+                            } else if (isPrereservation) {
+                                hourlyTitle += ' ℹ️';
+                            }
+
                             events.push({
-                                title: `${startTime} às ${endTime}${isPrereservation ? ' ℹ️' : ''}`,
+                                title: hourlyTitle,
                                 start: dateStr,
                                 allDay: true,
                                 backgroundColor: backgroundColor,
@@ -1231,16 +1294,22 @@
                             console.log('Modo Dia Inteiro - Reserva:', normalReservation.id, 'isPrereservation:', isPrereservation);
                             
                             if (isPrereservation) {
-                                // Pré-reserva: Badge amarelo clicável
+                                const reserverDetails = buildReserverDetails(normalReservation);
+                                const prereservationTitle = reserverDetails
+                                    ? `Pré-reserva · ${reserverDetails}`
+                                    : 'Pré-reserva';
+
                                 events.push({
-                                    title: 'Pré-reserva',
+                                    title: prereservationTitle,
                                     start: dateStr,
                                     allDay: true,
-                                    display: 'background',
+                                    display: reserverDetails ? 'auto' : 'background',
                                     backgroundColor: '#ffc107',
                                     borderColor: '#ffc107',
                                     textColor: '#000',
-                                    classNames: ['fc-event-prereservation', 'fc-event-clickable'],
+                                    classNames: reserverDetails
+                                        ? ['fc-event-prereservation', 'fc-event-clickable', 'fc-event-public-reserver']
+                                        : ['fc-event-prereservation', 'fc-event-clickable'],
                                     extendedProps: {
                                         reservation: normalReservation,
                                         isReserved: true,
@@ -1249,15 +1318,20 @@
                                     }
                                 });
                             } else {
-                                // Reserva normal: Badge vermelho
+                                const reserverDetails = buildReserverDetails(normalReservation);
+                                const showPublicReserver = !!reserverDetails;
+
                                 events.push({
-                                    title: 'Indisponível',
+                                    title: buildOccupiedTitle(normalReservation),
                                     start: dateStr,
                                     allDay: true,
-                                    display: 'background',
+                                    display: showPublicReserver ? 'auto' : 'background',
                                     backgroundColor: '#dc3545',
                                     borderColor: '#dc3545',
-                                    classNames: ['fc-event-unavailable'],
+                                    textColor: showPublicReserver ? '#fff' : undefined,
+                                    classNames: showPublicReserver
+                                        ? ['fc-event-public-reserver']
+                                        : ['fc-event-unavailable'],
                                     extendedProps: {
                                         reservation: normalReservation,
                                         isReserved: true,
@@ -1308,7 +1382,13 @@
             });
             
             if (isDayOccupied) {
-                alert('❌ Esta data já está reservada para este espaço.\n\nEscolha outra data.');
+                const dayReservation = reservations.find(r => {
+                    const reservDateOnly = r.reservation_date.split('T')[0];
+                    const isRecurring = r.is_recurring === true || r.is_recurring === 1 || r.is_recurring === '1';
+                    return reservDateOnly === dateOnly && !isRecurring;
+                });
+
+                alert(buildOccupiedAlertMessage(dayReservation));
                 return; // NÃO ABRE MODAL
             }
             
@@ -1820,19 +1900,28 @@
                 
                 console.log('Reserva ID:', r.id, 'is_prereservation:', r.is_prereservation, 'prereservation_status:', r.prereservation_status, 'Resultado:', isPrereservation);
                 
+                const reserverDetails = buildReserverDetails(r);
                 const badgeClass = isPrereservation ? 'bg-warning text-dark' : 'bg-danger';
-                const badgeText = isPrereservation ? 'Pré-reserva' : 'Indisponível';
+                const badgeText = isPrereservation
+                    ? 'Pré-reserva'
+                    : (reserverDetails || 'Indisponível');
                 const cursorStyle = isPrereservation ? 'cursor: pointer;' : '';
                 const clickEvent = isPrereservation ? `onclick="showPrereservationInfo(${JSON.stringify(r).replace(/"/g, '&quot;')})"` : '';
+                const reserverLine = reserverDetails
+                    ? `<small class="d-block text-muted mt-1"><i class="bi bi-person"></i> ${reserverDetails}</small>`
+                    : '';
                 
                 html += `
-                    <div class="list-group-item list-group-item-danger d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-clock"></i> ${normalizeTime(r.start_time)} - ${normalizeTime(r.end_time)}</span>
-                        <span class="badge ${badgeClass}" style="${cursorStyle}" ${clickEvent} 
-                              ${isPrereservation ? 'title="Clique para mais informações"' : ''}>
-                            ${badgeText}
-                            ${isPrereservation ? '<i class="bi bi-info-circle ms-1"></i>' : ''}
-                        </span>
+                    <div class="list-group-item list-group-item-danger">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-clock"></i> ${normalizeTime(r.start_time)} - ${normalizeTime(r.end_time)}</span>
+                            <span class="badge ${badgeClass}" style="${cursorStyle}" ${clickEvent} 
+                                  ${isPrereservation ? 'title="Clique para mais informações"' : ''}>
+                                ${isPrereservation ? badgeText : (reserverDetails ? 'Ocupado' : badgeText)}
+                                ${isPrereservation ? '<i class="bi bi-info-circle ms-1"></i>' : ''}
+                            </span>
+                        </div>
+                        ${reserverLine}
                     </div>
                 `;
             });

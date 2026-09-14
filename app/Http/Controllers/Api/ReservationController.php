@@ -444,16 +444,29 @@ class ReservationController extends Controller
             return response()->json(['error' => 'Não autorizado'], 403);
         }
         
-        // Buscar TODAS as reservas aprovadas/pendentes deste espaço
-        // SEM dados pessoais (apenas data e horários)
-        $reservations = Reservation::where('space_id', $spaceId)
+        $showReserverOnCalendar = (bool) $space->show_reserver_on_calendar;
+
+        // Buscar reservas aprovadas/pendentes (dados pessoais só se o espaço permitir)
+        $reservationsQuery = Reservation::query()
+            ->where('space_id', $spaceId)
             ->whereIn('status', ['approved', 'pending'])
-            ->whereNull('recurring_reservation_id') // Excluir reservas geradas a partir de recorrentes
-            ->select('id', 'space_id', 'reservation_date', 'start_time', 'end_time', 'status', 
-                     'prereservation_status', 'payment_deadline')
+            ->whereNull('recurring_reservation_id')
             ->orderBy('reservation_date')
-            ->orderBy('start_time')
-            ->get();
+            ->orderBy('start_time');
+
+        if ($showReserverOnCalendar) {
+            $reservationsQuery->with([
+                'user:id,name',
+                'unit:id,number,block',
+            ]);
+        } else {
+            $reservationsQuery->select(
+                'id', 'space_id', 'reservation_date', 'start_time', 'end_time', 'status',
+                'prereservation_status', 'payment_deadline'
+            );
+        }
+
+        $reservations = $reservationsQuery->get();
             
         // Debug: Log das reservas encontradas (desabilitado)
         // Log::info('Reservas encontradas para espaço ' . $spaceId . ':', [
@@ -461,9 +474,13 @@ class ReservationController extends Controller
         //     'reservations' => $reservations->toArray()
         // ]);
         
-        $reservations = $reservations->map(function($reservation) {
+        $reservations = $reservations->map(function ($reservation) use ($showReserverOnCalendar) {
                 // Adicionar informações de pré-reserva se existir
                 $data = $reservation->toArray();
+                $data['reservation_date'] = $reservation->reservation_date?->format('Y-m-d')
+                    ?? (is_string($reservation->reservation_date)
+                        ? substr($reservation->reservation_date, 0, 10)
+                        : $data['reservation_date']);
                 $data['start_time'] = $this->formatTimeValue($reservation->start_time);
                 $data['end_time'] = $this->formatTimeValue($reservation->end_time);
                 
@@ -480,6 +497,11 @@ class ReservationController extends Controller
                     }
                 } else {
                     $data['is_prereservation'] = false;
+                }
+
+                if ($showReserverOnCalendar) {
+                    $data['reserver_name'] = $reservation->user?->name;
+                    $data['unit_label'] = $reservation->unit?->full_identifier;
                 }
                 
                 return $data;
@@ -524,6 +546,7 @@ class ReservationController extends Controller
             'space_id' => $space->id,
             'space_name' => $space->name,
             'reservation_mode' => $space->reservation_mode,
+            'show_reserver_on_calendar' => $showReserverOnCalendar,
             'occupied_slots' => $allSlots
         ]);
     }

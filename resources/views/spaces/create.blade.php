@@ -193,6 +193,27 @@
                         @enderror
                     </div>
 
+                    <!-- Visibilidade no calendário -->
+                    <div class="card bg-light mb-3">
+                        <div class="card-header bg-secondary text-white">
+                            <h6 class="mb-0"><i class="bi bi-calendar-week"></i> Calendário Público</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="show_reserver_on_calendar"
+                                       value="1" id="showReserverOnCalendar"
+                                       {{ old('show_reserver_on_calendar') ? 'checked' : '' }}>
+                                <label class="form-check-label" for="showReserverOnCalendar">
+                                    <strong>Exibir quem reservou no calendário</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                Quando ativo, moradores veem o nome e a unidade de quem agendou em datas indisponíveis.
+                                Desativado, o calendário mostra apenas que o dia/horário está ocupado.
+                            </small>
+                        </div>
+                    </div>
+
                     <!-- Configurações de Aprovação -->
                     <div class="card bg-light mb-3">
                         <div class="card-header bg-primary text-white">

@@ -15,7 +15,7 @@ class Space extends Model
         'price_per_hour', 'requires_approval', 'max_hours_per_reservation',
         'min_hours_per_reservation', 'interval_between_reservations',
         'max_reservations_per_month_per_user', 'available_from',
-        'available_until', 'is_active', 'rules', 'reservation_mode',
+        'available_until', 'is_active', 'rules', 'show_reserver_on_calendar', 'reservation_mode',
         'approval_type', 'prereservation_payment_hours', 'prereservation_auto_cancel',
         'prereservation_instructions'
     ];
@@ -24,6 +24,7 @@ class Space extends Model
         'price_per_hour' => 'decimal:2',
         'requires_approval' => 'boolean',
         'is_active' => 'boolean',
+        'show_reserver_on_calendar' => 'boolean',
         'prereservation_auto_cancel' => 'boolean',
         'prereservation_payment_hours' => 'integer',
     ];

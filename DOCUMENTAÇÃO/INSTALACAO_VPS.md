@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 12/09/2026 (leads Supabase no admin)
+- **Última revisão:** 14/09/2026 (calendário público de reservas)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -521,6 +521,12 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-14 — Exibir reservante no calendário de espaços
+
+- Instalação nova: o `migrate` do Passo 5 (Parte 1) cria `spaces.show_reserver_on_calendar` (padrão `false`).
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Sem variável de `.env` nova.
+- O síndico ativa por espaço em **Espaços → criar/editar → Calendário Público**. Quando ligado, moradores veem nome e unidade em datas indisponíveis.
 
 ### 2026-09-12 — Leads da landing de vendas (Supabase)
 
