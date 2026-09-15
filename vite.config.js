@@ -8,6 +8,8 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                'resources/js/packages-intake.js',
+                'resources/js/packages-pickup.js',
                 'resources/css/landing.css',
                 'resources/js/landing.js',
                 'resources/css/landing-connect.css',

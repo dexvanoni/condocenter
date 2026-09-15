@@ -17,6 +17,10 @@ class StorePackageRequest extends FormRequest
         return [
             'unit_id' => ['required', 'exists:units,id'],
             'type' => ['required', 'in:' . implode(',', Package::TYPES)],
+            'sender' => ['nullable', 'string', 'max:255'],
+            'tracking_code' => ['nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 
@@ -30,4 +34,3 @@ class StorePackageRequest extends FormRequest
         ];
     }
 }
-

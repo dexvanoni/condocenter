@@ -433,13 +433,16 @@ class AsaasService
                 case 'PAYMENT_RECEIVED':
                     $charge->update(['asaas_payment_id' => $payment['id']]);
 
+                    $paymentPayload = $this->enrichPaymentPayload($payment);
+
                     app(ChargeSettlementService::class)->markAsPaid(
                         $charge,
-                        \Carbon\Carbon::parse($payment['paymentDate'] ?? now()),
-                        $this->mapAsaasPaymentMethod($payment['billingType'] ?? null),
+                        \Carbon\Carbon::parse($paymentPayload['paymentDate'] ?? $paymentPayload['clientPaymentDate'] ?? now()),
+                        $this->mapAsaasPaymentMethod($paymentPayload['billingType'] ?? null),
                         'Pagamento confirmado via Asaas.',
                         null,
                         true,
+                        $paymentPayload,
                     );
                     break;
 
@@ -458,6 +461,28 @@ class AsaasService
 
             return false;
         }
+    }
+
+    /**
+     * Garante netValue via GET /v3/payments/{id} quando o webhook não envia o líquido.
+     *
+     * @see https://docs.asaas.com/reference/recuperar-uma-unica-cobranca
+     */
+    protected function enrichPaymentPayload(array $payment): array
+    {
+        if (isset($payment['netValue']) && is_numeric($payment['netValue'])) {
+            return $payment;
+        }
+
+        $paymentId = $payment['id'] ?? null;
+
+        if (!$paymentId) {
+            return $payment;
+        }
+
+        $fresh = $this->getPayment($paymentId);
+
+        return $fresh ? array_merge($payment, $fresh) : $payment;
     }
 
     protected function mapAsaasPaymentMethod($billingType)

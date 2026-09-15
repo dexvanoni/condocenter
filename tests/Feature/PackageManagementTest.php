@@ -72,6 +72,7 @@ class PackageManagementTest extends TestCase
             'status' => Package::STATUS_PENDING,
             'received_at' => now()->subHour(),
             'notification_sent' => false,
+            'pickup_code_hash' => null, // legado
         ]);
 
         Sanctum::actingAs($porteiro);
@@ -92,6 +93,25 @@ class PackageManagementTest extends TestCase
             return $job->type === 'collected'
                 && $job->package->id === $package->id;
         });
+    }
+
+    public function test_manual_register_generates_pickup_code_hash(): void
+    {
+        Queue::fake();
+
+        [$porteiro, $unit] = $this->createPorteiroWithUnit();
+        $this->createResidentForUnit($unit);
+
+        Sanctum::actingAs($porteiro);
+
+        $this->postJson('/api/packages', [
+            'unit_id' => $unit->id,
+            'type' => Package::TYPE_LEVE,
+        ])->assertCreated();
+
+        $package = Package::first();
+        $this->assertNotEmpty($package->pickup_code_hash);
+        $this->assertSame(Package::METHOD_MANUAL, $package->identification_method);
     }
 
     public function test_summary_requires_register_permission(): void

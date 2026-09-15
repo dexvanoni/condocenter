@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Package\CollectPackageRequest;
+use App\Http\Requests\Package\ConfirmLabelPackageRequest;
+use App\Http\Requests\Package\FindPackageByPickupCodeRequest;
+use App\Http\Requests\Package\PreviewLabelRequest;
 use App\Http\Requests\Package\StorePackageRequest;
 use App\Models\Package;
 use App\Services\PackageService;
@@ -20,9 +23,6 @@ class PackageController extends Controller
     ) {
     }
 
-    /**
-     * Lista encomendas
-     */
     public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
@@ -37,39 +37,64 @@ class PackageController extends Controller
         return response()->json($packages);
     }
 
-    /**
-     * Registra uma nova encomenda
-     */
     public function store(StorePackageRequest $request): JsonResponse
     {
         try {
             $package = $this->packageService->register(
                 $request->user(),
                 (int) $request->validated('unit_id'),
-                $request->validated('type')
+                $request->validated('type'),
+                [
+                    'sender' => $request->validated('sender') ?? null,
+                    'tracking_code' => $request->validated('tracking_code') ?? null,
+                    'description' => $request->validated('description') ?? null,
+                    'notes' => $request->validated('notes') ?? null,
+                ]
             );
 
-        return response()->json([
+            return response()->json([
                 'message' => 'Encomenda registrada com sucesso. Moradores foram notificados.',
                 'package' => $package,
+                'whatsapp_status' => $package->whatsapp_delivery_status,
             ], 201);
         } catch (AuthorizationException $exception) {
             return response()->json(['error' => $exception->getMessage()], 403);
         }
     }
 
-    /**
-     * Registra retirada de encomenda
-     */
-    public function collect(CollectPackageRequest $request, Package $package): JsonResponse
+    public function previewLabel(PreviewLabelRequest $request): JsonResponse
     {
         try {
-            $updatedPackage = $this->packageService->markAsCollected($package, $request->user());
+            $result = $this->packageService->previewLabel(
+                $request->user(),
+                $request->file('image'),
+                $request->validated('barcode_value')
+            );
+
+            return response()->json($result);
+        } catch (AuthorizationException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 403);
+        }
+    }
+
+    public function confirmLabel(ConfirmLabelPackageRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->packageService->registerFromLabel(
+                $request->user(),
+                $request->validated()
+            );
+
+            $whatsappStatus = $result['whatsapp_status'];
+            $message = $whatsappStatus === Package::WHATSAPP_PENDING
+                ? 'Encomenda registrada. WhatsApp pendente.'
+                : 'Encomenda registrada com sucesso.';
 
             return response()->json([
-                'message' => 'Retirada de encomenda registrada com sucesso',
-                'package' => $updatedPackage,
-        ]);
+                'message' => $message,
+                'package' => $result['package'],
+                'whatsapp_status' => $whatsappStatus,
+            ], 201);
         } catch (AuthorizationException $exception) {
             return response()->json(['error' => $exception->getMessage()], 403);
         } catch (ValidationException $exception) {
@@ -77,9 +102,56 @@ class PackageController extends Controller
         }
     }
 
-    /**
-     * Exibe uma encomenda
-     */
+    public function collect(CollectPackageRequest $request, Package $package): JsonResponse
+    {
+        try {
+            $updatedPackage = $this->packageService->markAsCollected(
+                $package,
+                $request->user(),
+                $request->validated('pickup_code') ?? null,
+                $request->validated('picked_up_by_name') ?? null
+            );
+
+            return response()->json([
+                'message' => 'Retirada de encomenda registrada com sucesso',
+                'package' => $updatedPackage,
+            ]);
+        } catch (AuthorizationException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 403);
+        } catch (ValidationException $exception) {
+            return response()->json(['errors' => $exception->errors()], 422);
+        }
+    }
+
+    public function findByPickupCode(FindPackageByPickupCodeRequest $request): JsonResponse
+    {
+        try {
+            $package = $this->packageService->findPendingByPickupCode(
+                $request->user(),
+                $request->validated('pickup_code')
+            );
+
+            return response()->json([
+                'package' => [
+                    'id' => $package->id,
+                    'type_label' => $package->type_label,
+                    'sender' => $package->sender,
+                    'tracking_code' => $package->tracking_code,
+                    'received_at' => $package->received_at,
+                    'unit' => $package->unit?->only(['id', 'block', 'number']),
+                    'residents' => $package->unit?->users
+                        ->map(fn ($resident) => ['id' => $resident->id, 'name' => $resident->name])
+                        ->values()
+                        ->all() ?? [],
+                ],
+            ]);
+        } catch (AuthorizationException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 403);
+        } catch (ValidationException $exception) {
+            return response()->json(['errors' => $exception->errors()], 422);
+        }
+    }
+
     public function show($id): JsonResponse
     {
         $package = Package::with(['unit', 'registeredBy', 'collectedBy'])
@@ -87,12 +159,10 @@ class PackageController extends Controller
 
         $user = Auth::user();
 
-        // Verificar permissão
         if ($package->condominium_id !== $user->tenantCondominiumId()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
 
-        // Morador só pode ver suas próprias encomendas
         if ($user->isMorador() && $package->unit_id !== $user->unit_id) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -100,9 +170,6 @@ class PackageController extends Controller
         return response()->json($package);
     }
 
-    /**
-     * Resumo por unidade para painel do porteiro
-     */
     public function summary(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -118,9 +185,6 @@ class PackageController extends Controller
         return response()->json(['data' => $units]);
     }
 
-    /**
-     * Busca moradores/agregados por nome ou CPF
-     */
     public function residents(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -137,9 +201,6 @@ class PackageController extends Controller
         return response()->json(['data' => $results]);
     }
 
-    /**
-     * Atualiza uma encomenda
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $package = Package::findOrFail($id);
@@ -164,13 +225,10 @@ class PackageController extends Controller
 
         return response()->json([
             'message' => 'Encomenda atualizada com sucesso',
-            'package' => $package
+            'package' => $package,
         ]);
     }
 
-    /**
-     * Remove uma encomenda
-     */
     public function destroy($id): JsonResponse
     {
         $package = Package::findOrFail($id);
@@ -188,7 +246,7 @@ class PackageController extends Controller
         $package->delete();
 
         return response()->json([
-            'message' => 'Encomenda removida com sucesso'
+            'message' => 'Encomenda removida com sucesso',
         ]);
     }
 }

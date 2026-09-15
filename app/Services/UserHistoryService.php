@@ -159,7 +159,7 @@ class UserHistoryService
                 return $c->payments->map(fn($p) => [
                     'charge_id' => $c->id,
                     'description' => $c->title ?? $c->description ?? 'N/A',
-                    'amount' => $p->amount_paid,
+                    'amount' => $p->displayAmount(),
                     'paid_at' => $p->payment_date ? $p->payment_date->format('d/m/Y') : 'N/A',
                     'payment_method' => $p->payment_method ?? 'N/A',
                 ]);

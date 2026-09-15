@@ -166,7 +166,10 @@
         <tr>
             <th>Método</th>
             <th class="text-end">Quantidade</th>
-            <th class="text-end">Total</th>
+            <th class="text-end">Líquido</th>
+            @if(($data['totals']['gateway_fees_total'] ?? 0) > 0)
+                <th class="text-end">Taxa Asaas</th>
+            @endif
         </tr>
     </thead>
     <tbody>
@@ -175,6 +178,15 @@
                 <td>{{ $summary['method'] }}</td>
                 <td class="text-end">{{ $summary['transactions'] }}</td>
                 <td class="text-end">R$ {{ number_format($summary['total'], 2, ',', '.') }}</td>
+                @if(($data['totals']['gateway_fees_total'] ?? 0) > 0)
+                    <td class="text-end text-muted">
+                        @if(($summary['gateway_fees'] ?? 0) > 0)
+                            −R$ {{ number_format($summary['gateway_fees'], 2, ',', '.') }}
+                        @else
+                            —
+                        @endif
+                    </td>
+                @endif
             </tr>
         @empty
             <tr>

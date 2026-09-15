@@ -18,6 +18,15 @@ class Package extends Model
     public const STATUS_PENDING = 'pending';
     public const STATUS_COLLECTED = 'collected';
 
+    public const METHOD_MANUAL = 'manual';
+    public const METHOD_OCR = 'ocr';
+    public const METHOD_BARCODE = 'barcode';
+    public const METHOD_HYBRID = 'hybrid';
+
+    public const WHATSAPP_PENDING = 'pending';
+    public const WHATSAPP_SENT = 'sent';
+    public const WHATSAPP_FAILED = 'failed';
+
     public const TYPES = [
         self::TYPE_LEVE,
         self::TYPE_PESADO,
@@ -42,6 +51,20 @@ class Package extends Model
         self::STATUS_COLLECTED => 'Retirada',
     ];
 
+    public const IDENTIFICATION_METHODS = [
+        self::METHOD_MANUAL,
+        self::METHOD_OCR,
+        self::METHOD_BARCODE,
+        self::METHOD_HYBRID,
+    ];
+
+    public const METHOD_LABELS = [
+        self::METHOD_MANUAL => 'Manual',
+        self::METHOD_OCR => 'Etiqueta (OCR)',
+        self::METHOD_BARCODE => 'Código de barras',
+        self::METHOD_HYBRID => 'Híbrido',
+    ];
+
     protected $fillable = [
         'condominium_id',
         'unit_id',
@@ -50,23 +73,42 @@ class Package extends Model
         'received_at',
         'collected_at',
         'collected_by',
+        'picked_up_by_name',
+        'pickup_verified_at',
         'status',
         'notification_sent',
         'sender',
         'tracking_code',
         'description',
         'notes',
+        'pickup_code_hash',
+        'label_image_path',
+        'ocr_text',
+        'ocr_confidence',
+        'identification_method',
+        'identification_confidence',
+        'identified_resident_id',
+        'whatsapp_delivery_status',
     ];
 
     protected $appends = [
         'type_label',
         'status_label',
+        'identification_method_label',
+        'requires_pickup_code',
+    ];
+
+    protected $hidden = [
+        'pickup_code_hash',
     ];
 
     protected $casts = [
         'received_at' => 'datetime',
         'collected_at' => 'datetime',
+        'pickup_verified_at' => 'datetime',
         'notification_sent' => 'boolean',
+        'ocr_confidence' => 'float',
+        'identification_confidence' => 'float',
     ];
 
     public function condominium()
@@ -87,6 +129,11 @@ class Package extends Model
     public function collectedBy()
     {
         return $this->belongsTo(User::class, 'collected_by');
+    }
+
+    public function identifiedResident()
+    {
+        return $this->belongsTo(User::class, 'identified_resident_id');
     }
 
     public function scopePending($query)
@@ -114,6 +161,16 @@ class Package extends Model
         return $this->status === self::STATUS_COLLECTED;
     }
 
+    public function requiresPickupCode(): bool
+    {
+        return !empty($this->pickup_code_hash);
+    }
+
+    public function getRequiresPickupCodeAttribute(): bool
+    {
+        return $this->requiresPickupCode();
+    }
+
     public static function typeLabels(): array
     {
         return self::TYPE_LABELS;
@@ -134,12 +191,23 @@ class Package extends Model
         return self::STATUS_LABELS[$this->status] ?? ucfirst($this->status);
     }
 
-    public function markAsCollected($userId)
+    public function getIdentificationMethodLabelAttribute(): string
+    {
+        if (!$this->identification_method) {
+            return '—';
+        }
+
+        return self::METHOD_LABELS[$this->identification_method] ?? ucfirst(str_replace('_', ' ', $this->identification_method));
+    }
+
+    public function markAsCollected($userId, ?string $pickedUpByName = null)
     {
         $this->update([
             'status' => self::STATUS_COLLECTED,
             'collected_at' => now(),
             'collected_by' => $userId,
+            'picked_up_by_name' => $pickedUpByName,
+            'pickup_verified_at' => $this->requiresPickupCode() ? now() : null,
         ]);
     }
 }

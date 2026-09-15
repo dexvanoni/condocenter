@@ -308,7 +308,70 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm">
+            @if($config['receiving_mode'] === 'platform' || ($gatewayFees['totals']['transactions_count'] ?? 0) > 0)
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-receipt-cutoff text-muted"></i> Taxas Asaas</h6>
+                    @if(($gatewayFees['totals']['transactions_count'] ?? 0) > 0)
+                        <span class="badge bg-secondary">{{ $gatewayFees['totals']['transactions_count'] }}</span>
+                    @endif
+                </div>
+                <div class="card-body p-0">
+                    @if(($gatewayFees['totals']['transactions_count'] ?? 0) > 0)
+                        <div class="px-3 py-2 border-bottom bg-light small">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Total de taxas</span>
+                                <span class="fw-semibold text-danger">
+                                    −R$ {{ number_format($gatewayFees['totals']['fees_total'], 2, ',', '.') }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="list-group list-group-flush small">
+                            @foreach($gatewayFees['transactions'] as $tx)
+                                <div class="list-group-item px-3 py-2">
+                                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                                        <div class="min-w-0">
+                                            <div class="fw-semibold text-truncate" title="{{ $tx['title'] }}">
+                                                {{ $tx['title'] }}
+                                            </div>
+                                            <div class="text-muted">
+                                                {{ $tx['payment_date']?->format('d/m/Y') ?? '—' }}
+                                                · {{ $tx['method'] }}
+                                                @if($tx['unit_label'])
+                                                    · {{ $tx['unit_label'] }}
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <span class="text-danger fw-semibold text-nowrap">
+                                            −R$ {{ number_format($tx['gateway_fee'], 2, ',', '.') }}
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between text-muted" style="font-size: 0.8rem;">
+                                        <span>Bruto R$ {{ number_format($tx['gross_amount'], 2, ',', '.') }}</span>
+                                        <span>Líquido R$ {{ number_format($tx['net_amount'], 2, ',', '.') }}</span>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                        @if($gatewayFees['totals']['transactions_count'] > $gatewayFees['totals']['displayed_count'])
+                            <div class="px-3 py-2 border-top text-muted small text-center">
+                                Exibindo {{ $gatewayFees['totals']['displayed_count'] }} de {{ $gatewayFees['totals']['transactions_count'] }} transações.
+                                Detalhes completos na <a href="{{ route('accountability-reports.index') }}">Prestação de contas</a>.
+                            </div>
+                        @endif
+                    @else
+                        <div class="card-body small text-muted">
+                            <p class="mb-0">
+                                Nenhuma taxa registrada ainda. Quando moradores pagarem via PIX ou cartão,
+                                o valor bruto, a taxa do Asaas e o líquido creditado aparecerão aqui.
+                            </p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @endif
+
+            <div class="card shadow-sm mt-4">
                 <div class="card-header bg-light"><h6 class="mb-0">O que os moradores poderão pagar</h6></div>
                 <div class="card-body small">
                     <ul class="mb-0 ps-3">

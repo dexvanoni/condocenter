@@ -122,8 +122,14 @@
                 <span class="value">R$ {{ number_format($data['totals']['opening_balance'], 2, ',', '.') }}</span>
             </td>
             <td>
-                <strong>Entradas (taxas)</strong>
+                <strong>Entradas (taxas) — líquido</strong>
                 <span class="value text-success">R$ {{ number_format($data['totals']['charges_income'], 2, ',', '.') }}</span>
+                @if(($data['totals']['gateway_fees_total'] ?? 0) > 0)
+                    <span style="display:block;font-size:10px;color:#666;">
+                        Bruto R$ {{ number_format($data['totals']['charges_gross_total'], 2, ',', '.') }}
+                        · Taxas Asaas −R$ {{ number_format($data['totals']['gateway_fees_total'], 2, ',', '.') }}
+                    </span>
+                @endif
             </td>
             <td>
                 <strong>Entradas (avulsas)</strong>
@@ -318,7 +324,10 @@
                 <tr>
                     <th>Método</th>
                     <th class="text-end">Quantidade</th>
-                    <th class="text-end">Valor total</th>
+                    <th class="text-end">Líquido</th>
+                    @if(($data['totals']['gateway_fees_total'] ?? 0) > 0)
+                        <th class="text-end">Taxa Asaas</th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -327,6 +336,15 @@
                         <td>{{ $summary['method'] }}</td>
                         <td class="text-end">{{ $summary['transactions'] }}</td>
                         <td class="text-end text-primary fw-bold">R$ {{ number_format($summary['total'], 2, ',', '.') }}</td>
+                        @if(($data['totals']['gateway_fees_total'] ?? 0) > 0)
+                            <td class="text-end" style="color:#666;font-size:11px;">
+                                @if(($summary['gateway_fees'] ?? 0) > 0)
+                                    −R$ {{ number_format($summary['gateway_fees'], 2, ',', '.') }}
+                                @else
+                                    —
+                                @endif
+                            </td>
+                        @endif
                     </tr>
                 @empty
                     <tr><td colspan="3" class="text-center">Nenhum pagamento registrado.</td></tr>

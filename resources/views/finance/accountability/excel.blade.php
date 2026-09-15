@@ -128,13 +128,15 @@
     <tr>
         <th>Método</th>
         <th>Quantidade</th>
-        <th>Valor</th>
+        <th>Líquido</th>
+        <th>Taxa Asaas</th>
     </tr>
     @foreach($data['payments_summary'] as $summary)
         <tr>
             <td>{{ $summary['method'] }}</td>
             <td>{{ $summary['transactions'] }}</td>
             <td>{{ number_format($summary['total'], 2, ',', '.') }}</td>
+            <td>{{ number_format($summary['gateway_fees'] ?? 0, 2, ',', '.') }}</td>
         </tr>
     @endforeach
 </table>

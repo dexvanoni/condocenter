@@ -145,6 +145,20 @@ class Charge extends Model implements Auditable
         return $this->payments()->sum('amount_paid');
     }
 
+    /**
+     * Total pago pelo morador (valor bruto), para exibição em telas do pagador.
+     */
+    public function residentPaidAmount(): float
+    {
+        $this->loadMissing('payments');
+
+        if ($this->payments->isNotEmpty()) {
+            return (float) $this->payments->sum(fn (Payment $payment) => $payment->displayAmount());
+        }
+
+        return (float) $this->amount;
+    }
+
     public function getRemainingAmountAttribute()
     {
         return $this->calculateTotal() - $this->total_paid;

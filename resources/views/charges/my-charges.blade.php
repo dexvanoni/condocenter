@@ -327,7 +327,7 @@
                     <td><strong>${charge.title}</strong></td>
                     <td>${formatDate(charge.due_date)}</td>
                     <td>${formatDate(charge.paid_at)}</td>
-                    <td>${formatCurrency(charge.amount)}</td>
+                    <td>${formatCurrency(charge.status === 'paid' ? (charge.amount_paid_display ?? charge.amount) : charge.amount)}</td>
                     <td>${statusBadge(charge.status)}</td>
                     <td>${buildActions(charge)}</td>
                 `;

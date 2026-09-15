@@ -312,7 +312,7 @@
         @endcan
 
         <div class="col-xl-3 col-md-6">
-            <a href="{{ route('packages.index') }}" class="sd-alert-card sd-alert-card--{{ $encombendasPendentes > 0 ? 'info' : 'success' }}">
+            <a href="{{ route('packages.reports') }}" class="sd-alert-card sd-alert-card--{{ $encombendasPendentes > 0 ? 'info' : 'success' }}">
                 <span class="sd-alert-card__icon"><i class="bi bi-box-seam-fill"></i></span>
                 <span>
                     <span class="sd-alert-card__label">Encomendas</span>
@@ -556,7 +556,7 @@
                             <span>Reservas</span>
                         </a>
                         @endcan
-                        <a href="{{ route('packages.index') }}" class="sd-shortcut-tile">
+                        <a href="{{ route('packages.reports') }}" class="sd-shortcut-tile">
                             <i class="bi bi-box-seam"></i>
                             <span>Encomendas</span>
                         </a>

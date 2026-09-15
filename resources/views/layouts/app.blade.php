@@ -39,10 +39,41 @@
                 const step1 = document.getElementById('panicStep1');
                 const step2 = document.getElementById('panicStep2');
                 const backButton = document.getElementById('backButton');
+                const confirmButton = document.getElementById('confirmPanicButton');
+                const codeInput = document.getElementById('panicCodeInput');
+                const codeContainer = document.querySelector('.panic-confirmation-code-container');
+                const codeDisplay = document.getElementById('panicCodeDisplay');
+                const errorMessage = document.getElementById('panicCodeError');
                 
                 if (step1) step1.style.display = 'block';
                 if (step2) step2.style.display = 'none';
                 if (backButton) backButton.style.display = 'none';
+                
+                if (codeContainer) {
+                    codeContainer.style.display = 'block';
+                    codeContainer.style.visibility = 'visible';
+                    codeContainer.style.opacity = '1';
+                }
+                if (codeInput) {
+                    codeInput.value = '';
+                    codeInput.disabled = false;
+                    codeInput.classList.remove('is-invalid');
+                    codeInput.style.display = 'block';
+                    codeInput.style.visibility = 'visible';
+                    codeInput.style.opacity = '1';
+                }
+                if (codeDisplay) {
+                    codeDisplay.style.display = 'inline-block';
+                    codeDisplay.style.visibility = 'visible';
+                    codeDisplay.style.opacity = '1';
+                }
+                if (confirmButton) {
+                    confirmButton.disabled = true;
+                    confirmButton.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar Alerta';
+                }
+                if (errorMessage) {
+                    errorMessage.style.display = 'none';
+                }
                 
                 // Resetar tipo selecionado se a variável existir
                 if (typeof window.selectedEmergencyType !== 'undefined') {
@@ -99,7 +130,7 @@
             try {
                 // Aguardar um pouco para garantir que o Bootstrap esteja carregado
                 if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                    const modal = new bootstrap.Modal(modalElement);
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
                     modal.show();
                     // Resetar modal após um pequeno delay
                     setTimeout(resetModal, 100);
@@ -107,7 +138,7 @@
                     // Fallback se Bootstrap não estiver carregado ainda
                     setTimeout(function() {
                         if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                            const modal = new bootstrap.Modal(modalElement);
+                            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
                             modal.show();
                             resetModal();
                         } else {
@@ -180,40 +211,62 @@
             if (backButton) backButton.style.display = 'inline-block';
             
             // Gerar código de confirmação quando o step2 for mostrado
-            generatePanicConfirmationCode();
+            window.generatePanicConfirmationCode();
             
             // Configurar input e botão
             setTimeout(function() {
+                const codeContainer = document.querySelector('.panic-confirmation-code-container');
                 const codeInput = document.getElementById('panicCodeInput');
                 const confirmButton = document.getElementById('confirmPanicButton');
                 const errorMessage = document.getElementById('panicCodeError');
+                const codeDisplay = document.getElementById('panicCodeDisplay');
+                
+                if (codeContainer) {
+                    codeContainer.style.display = 'block';
+                    codeContainer.style.visibility = 'visible';
+                    codeContainer.style.opacity = '1';
+                }
+                if (codeDisplay) {
+                    codeDisplay.style.display = 'inline-block';
+                    codeDisplay.style.visibility = 'visible';
+                    codeDisplay.style.opacity = '1';
+                }
                 
                 if (codeInput) {
-                    codeInput.value = '';
-                    codeInput.classList.remove('is-invalid');
-                    codeInput.focus();
+                    const newInput = codeInput.cloneNode(true);
+                    codeInput.parentNode.replaceChild(newInput, codeInput);
+                    newInput.value = '';
+                    newInput.disabled = false;
+                    newInput.classList.remove('is-invalid');
+                    newInput.style.display = 'block';
+                    newInput.style.visibility = 'visible';
+                    newInput.style.opacity = '1';
                     
-                    // Adicionar listener para habilitar botão quando código for digitado
-                    codeInput.addEventListener('input', function() {
+                    newInput.addEventListener('input', function() {
                         const code = this.value.trim();
+                        const btn = document.getElementById('confirmPanicButton');
+                        const err = document.getElementById('panicCodeError');
                         if (code.length === 2 && /^\d{2}$/.test(code)) {
-                            if (confirmButton) confirmButton.disabled = false;
-                            if (errorMessage) errorMessage.style.display = 'none';
+                            if (btn) btn.disabled = false;
+                            if (err) err.style.display = 'none';
                         } else {
-                            if (confirmButton) confirmButton.disabled = true;
+                            if (btn) btn.disabled = true;
                         }
                     });
                     
-                    // Permitir Enter para confirmar
-                    codeInput.addEventListener('keypress', function(e) {
-                        if (e.key === 'Enter' && confirmButton && !confirmButton.disabled) {
+                    newInput.addEventListener('keypress', function(e) {
+                        const btn = document.getElementById('confirmPanicButton');
+                        if (e.key === 'Enter' && btn && !btn.disabled) {
                             validateAndSendPanicAlert();
                         }
                     });
+                    
+                    newInput.focus();
                 }
                 
                 if (confirmButton) {
                     confirmButton.disabled = true;
+                    confirmButton.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar Alerta';
                 }
                 if (errorMessage) {
                     errorMessage.style.display = 'none';
@@ -235,6 +288,37 @@
         window.panicConfirmationCode = null;
         window.selectedEmergencyType = '';
         window.isSendingPanicAlert = false;
+
+        window.resetPanicSendButton = function() {
+            const confirmButton = document.getElementById('confirmPanicButton');
+            const codeInput = document.getElementById('panicCodeInput');
+            const codeContainer = document.querySelector('.panic-confirmation-code-container');
+            const codeDisplay = document.getElementById('panicCodeDisplay');
+
+            if (confirmButton) {
+                confirmButton.disabled = true;
+                confirmButton.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar Alerta';
+            }
+            if (codeContainer) {
+                codeContainer.style.display = 'block';
+                codeContainer.style.visibility = 'visible';
+                codeContainer.style.opacity = '1';
+            }
+            if (codeInput) {
+                codeInput.disabled = false;
+                codeInput.style.display = 'block';
+                codeInput.style.visibility = 'visible';
+                codeInput.style.opacity = '1';
+            }
+            if (codeDisplay) {
+                codeDisplay.style.display = 'inline-block';
+                codeDisplay.style.visibility = 'visible';
+                codeDisplay.style.opacity = '1';
+            }
+            if (typeof window.generatePanicConfirmationCode === 'function') {
+                window.generatePanicConfirmationCode();
+            }
+        };
         
         // Função para gerar código de confirmação do pânico
         window.generatePanicConfirmationCode = function() {
@@ -387,6 +471,9 @@
                     }
                 } else {
                     alert('Erro ao enviar alerta: ' + (data.error || 'Erro desconhecido'));
+                    if (typeof window.resetPanicSendButton === 'function') {
+                        window.resetPanicSendButton();
+                    }
                 }
                 
                 // Resetar flag após processamento (sucesso ou erro)
@@ -395,6 +482,10 @@
             .catch(error => {
                 console.error('Erro:', error);
                 alert('Erro ao enviar alerta de pânico');
+                
+                if (typeof window.resetPanicSendButton === 'function') {
+                    window.resetPanicSendButton();
+                }
                 
                 // Resetar flag em caso de erro
                 window.isSendingPanicAlert = false;
@@ -1543,15 +1634,27 @@
                             @if(Route::has('packages.register') && SidebarHelper::canRegisterPackages($user))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('packages.register') ? 'active' : '' }}" href="{{ route('packages.register') }}">
-                                    <i class="bi bi-plus-circle"></i> Registrar Encomenda
+                                    <i class="bi bi-camera"></i> Ler Etiqueta
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('packages.pickup') ? 'active' : '' }}" href="{{ route('packages.pickup') }}">
+                                    <i class="bi bi-key"></i> Retirada
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
+                                    <i class="bi bi-grid"></i> Painel Portaria
                                 </a>
                             </li>
                             @endif
+                            @if(Route::has('packages.reports') && $user->can('view_packages') && !SidebarHelper::canRegisterPackages($user))
                             <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
-                                    <i class="bi bi-list-ul"></i> {{ SidebarHelper::canRegisterPackages($user) ? 'Todas Encomendas' : 'Minhas Encomendas' }}
+                                <a class="nav-link {{ request()->routeIs('packages.reports*') ? 'active' : '' }}" href="{{ route('packages.reports') }}">
+                                    <i class="bi bi-list-ul"></i> Movimentações
                                 </a>
                             </li>
+                            @endif
                         </ul>
                     </div>
                 </li>
@@ -2335,15 +2438,27 @@
                                     @if(Route::has('packages.register') && SidebarHelper::canRegisterPackages($user))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('packages.register') ? 'active' : '' }}" href="{{ route('packages.register') }}">
-                                            <i class="bi bi-plus-circle"></i> Registrar Encomenda
+                                            <i class="bi bi-camera"></i> Ler Etiqueta
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('packages.pickup') ? 'active' : '' }}" href="{{ route('packages.pickup') }}">
+                                            <i class="bi bi-key"></i> Retirada
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
+                                            <i class="bi bi-grid"></i> Painel Portaria
                                         </a>
                                     </li>
                                     @endif
+                                    @if(Route::has('packages.reports') && $user->can('view_packages') && !SidebarHelper::canRegisterPackages($user))
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('packages.index') ? 'active' : '' }}" href="{{ route('packages.index') }}">
-                                            <i class="bi bi-list-ul"></i> {{ SidebarHelper::canRegisterPackages($user) ? 'Todas Encomendas' : 'Minhas Encomendas' }}
+                                        <a class="nav-link {{ request()->routeIs('packages.reports*') ? 'active' : '' }}" href="{{ route('packages.reports') }}">
+                                            <i class="bi bi-list-ul"></i> Movimentações
                                         </a>
                                     </li>
+                                    @endif
                                 </ul>
                             </div>
                         </li>
@@ -2565,6 +2680,10 @@
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert:not(.alert-danger):not(.panic-alert):not(.credits-wallet-card)');
             alerts.forEach(alert => {
+                // Não fechar alertas dentro dos modais de pânico
+                if (alert.closest('#panicModal, #panicConfirmationModal, #globalPanicNotificationModal')) {
+                    return;
+                }
                 const bsAlert = new bootstrap.Alert(alert);
                 bsAlert.close();
             });
@@ -2612,6 +2731,12 @@
             }
             if (codeDisplay) {
                 codeDisplay.style.display = 'inline-block';
+            }
+            
+            const confirmButton = document.getElementById('confirmPanicButton');
+            if (confirmButton) {
+                confirmButton.disabled = true;
+                confirmButton.innerHTML = '<i class="bi bi-send-fill me-2"></i>Enviar Alerta';
             }
         }
         
@@ -3176,7 +3301,7 @@
             // Mostrar modal - com fallback
             try {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                    const bsModal = new bootstrap.Modal(modal);
+                    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
                     bsModal.show();
                     
                     // Garantir visibilidade após um pequeno delay
@@ -3735,7 +3860,7 @@
 
                         <!-- Código de Confirmação -->
                     <div class="panic-confirmation-code-container mb-4">
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning panic-alert">
                             <p class="mb-2"><strong>Digite o código de confirmação para enviar o alerta:</strong></p>
                             <div class="panic-code-display mb-3">
                                 <span class="badge bg-danger fs-2 px-4 py-3" id="panicCodeDisplay">--</span>
@@ -3857,7 +3982,7 @@
                     
                     <!-- Código de Confirmação -->
                     <div class="confirmation-code-container mb-4">
-                        <div class="alert alert-info">
+                        <div class="alert alert-info panic-alert">
                             <p class="mb-2"><strong>Digite o código de confirmação:</strong></p>
                             <div class="confirmation-code-display mb-3">
                                 <span class="badge bg-primary fs-2 px-4 py-3" id="confirmationCodeDisplay">--</span>

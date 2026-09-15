@@ -99,8 +99,10 @@ class ChargeController extends Controller
                 ->orderBy('number')
                 ->get(['id', 'block', 'number']);
 
+        $isResidentViewer = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
+
         return response()->json([
-            'data' => collect($charges->items())->map(function (Charge $charge) use ($user, $userCanPayOnline) {
+            'data' => collect($charges->items())->map(function (Charge $charge) use ($user, $userCanPayOnline, $isResidentViewer) {
                 $payload = $charge->toArray();
                 $payload['can_pay_online'] = $userCanPayOnline
                     && (int) $charge->unit_id === (int) $user->unit_id
@@ -109,6 +111,17 @@ class ChargeController extends Controller
                 $payload['competence_label'] = $charge->competenceLabel();
                 $payload['display_status'] = $charge->displayStatus();
                 $payload['payment_channel'] = $charge->paymentChannel();
+
+                if ($isResidentViewer) {
+                    $payload['amount_paid_display'] = $charge->status === 'paid'
+                        ? $charge->residentPaidAmount()
+                        : null;
+                    $payload['payments'] = collect($charge->payments)->map(fn ($payment) => [
+                        'payment_date' => $payment->payment_date,
+                        'payment_method' => $payment->payment_method,
+                        'amount_paid' => $payment->displayAmount(),
+                    ])->values()->all();
+                }
 
                 return $payload;
             })->values(),
@@ -154,12 +167,16 @@ class ChargeController extends Controller
             'payments:id,charge_id,payment_date,payment_method,amount_paid,created_at',
         ]);
 
+        $isResidentViewer = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
+
         $paymentSummary = $charge->payments
             ->groupBy(fn ($payment) => strtoupper($payment->payment_method ?? 'OUTROS'))
             ->map(fn (Collection $group, $method) => [
                 'method' => $method === 'OUTROS' ? 'Outros métodos' : $method,
                 'transactions' => $group->count(),
-                'total' => $group->sum('amount_paid'),
+                'total' => $group->sum(fn ($payment) => $isResidentViewer
+                    ? $payment->displayAmount()
+                    : (float) $payment->amount_paid),
             ])
             ->values();
 

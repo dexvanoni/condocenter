@@ -585,7 +585,7 @@ class DashboardController extends Controller
 
         // Buscar as cobranças relacionadas para obter informações da unidade
         $chargeIds = $recentFinancialEntries->pluck('source_id')->filter()->unique();
-        $chargesById = Charge::with('unit')
+        $chargesById = Charge::with(['unit', 'payments'])
             ->whereIn('id', $chargeIds)
             ->get()
             ->keyBy('id');
@@ -599,11 +599,15 @@ class DashboardController extends Controller
                 return null; // Filtrar fora
             }
 
+            $displayAmount = ($isMorador && $charge && $charge->unit_id === $user->unit_id)
+                ? $charge->residentPaidAmount()
+                : (float) $entry->amount;
+
             return [
                 'id' => $entry->id,
                 'transaction_date' => $entry->transaction_date,
                 'title' => $charge?->title ?? $entry->description,
-                'amount' => $entry->amount,
+                'amount' => $displayAmount,
                 // Para moradores, nunca mostrar unidade (null)
                 // Para admin/síndico, mostrar unidade
                 'unit' => $isMorador ? null : ($charge?->unit?->full_identifier ?? null),

@@ -20,6 +20,66 @@ class UserCreditService
         return (float) $query->sum('amount');
     }
 
+    public function getWalletDetails(User $user, ?int $condominiumId = null, int $historyLimit = 20): array
+    {
+        $baseQuery = UserCredit::query()
+            ->where('user_id', $user->id);
+
+        if ($condominiumId) {
+            $baseQuery->where('condominium_id', $condominiumId);
+        }
+
+        $availableCredits = (clone $baseQuery)
+            ->available()
+            ->orderByRaw('expires_at IS NULL')
+            ->orderBy('expires_at')
+            ->orderBy('created_at')
+            ->get();
+
+        $usageHistory = (clone $baseQuery)
+            ->where('status', 'used')
+            ->with(['usedInReservation.space'])
+            ->orderByDesc('used_at')
+            ->orderByDesc('id')
+            ->limit($historyLimit)
+            ->get();
+
+        return [
+            'total' => (float) $availableCredits->sum('amount'),
+            'credits' => $availableCredits->map(fn (UserCredit $credit) => [
+                'id' => $credit->id,
+                'amount' => (float) $credit->amount,
+                'type' => $credit->type,
+                'type_label' => self::typeLabel($credit->type),
+                'description' => $credit->description,
+                'expires_at' => $credit->expires_at?->format('Y-m-d'),
+                'created_at' => $credit->created_at?->format('Y-m-d'),
+            ])->values(),
+            'usage_history' => $usageHistory->map(fn (UserCredit $credit) => [
+                'id' => $credit->id,
+                'amount' => (float) $credit->amount,
+                'type_label' => self::typeLabel($credit->type),
+                'description' => $credit->description,
+                'used_at' => $credit->used_at?->format('Y-m-d H:i'),
+                'reservation' => $credit->usedInReservation ? [
+                    'id' => $credit->usedInReservation->id,
+                    'space_name' => $credit->usedInReservation->space?->name,
+                    'date' => $credit->usedInReservation->reservation_date?->format('Y-m-d'),
+                ] : null,
+            ])->values(),
+        ];
+    }
+
+    public static function typeLabel(?string $type): string
+    {
+        return match ($type) {
+            'refund' => 'Estorno',
+            'bonus' => 'Bônus',
+            'manual' => 'Manual',
+            default => 'Crédito',
+        };
+    }
+
     /**
      * Aplica créditos do usuário em uma reserva (FIFO).
      */

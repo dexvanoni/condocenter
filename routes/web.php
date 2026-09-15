@@ -361,9 +361,20 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::get('/entries', function() { return redirect()->route('access-control.porteiro'); })->name('entries.index');
     });
     
-    // Encomendas  
+    // Encomendas
     Route::middleware(['check.module.access:packages'])->group(function () {
-        Route::get('/packages', function() { return view('packages.index'); })->name('packages.index');
+        Route::get('/packages', [\App\Http\Controllers\PackageWebController::class, 'index'])->name('packages.index');
+        Route::get('/packages/intake', function () {
+            return view('packages.intake');
+        })->name('packages.register');
+        Route::get('/packages/pickup', function () {
+            return view('packages.pickup');
+        })->name('packages.pickup');
+    });
+    Route::middleware(['can:view_packages', 'condominium.module:packages'])->group(function () {
+        Route::get('/packages/reports', [\App\Http\Controllers\PackageWebController::class, 'reports'])->name('packages.reports');
+        Route::get('/packages/reports/export-pdf', [\App\Http\Controllers\PackageWebController::class, 'exportPdf'])->name('packages.reports.pdf');
+        Route::get('/packages/reports/export-excel', [\App\Http\Controllers\PackageWebController::class, 'exportExcel'])->name('packages.reports.excel');
     });
     
     // Pets

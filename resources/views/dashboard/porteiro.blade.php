@@ -278,31 +278,40 @@
 
     <!-- Ações Rápidas -->
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-6 col-md-3">
             <a href="{{ route('access-control.porteiro') }}" class="widget-quick-action">
                 <div class="widget-icon bg-brand-soft">
                     <i class="bi bi-shield-check"></i>
                 </div>
-                <h6 class="mt-3 mb-1">Painel de Acesso</h6>
-                <small class="text-muted">Liberações e visitantes</small>
+                <h6 class="mt-3 mb-1">Acesso</h6>
+                <small class="text-muted">Visitantes</small>
             </a>
         </div>
-        <div class="col-md-4">
+        <div class="col-6 col-md-3">
+            <a href="{{ route('packages.register') }}" class="widget-quick-action">
+                <div class="widget-icon bg-brand-soft">
+                    <i class="bi bi-camera-fill"></i>
+                </div>
+                <h6 class="mt-3 mb-1">Ler Etiqueta</h6>
+                <small class="text-muted">Nova encomenda</small>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{{ route('packages.pickup') }}" class="widget-quick-action">
+                <div class="widget-icon bg-brand-soft">
+                    <i class="bi bi-key-fill"></i>
+                </div>
+                <h6 class="mt-3 mb-1">Retirada</h6>
+                <small class="text-muted">Senha 4 dígitos</small>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
             <a href="{{ route('packages.index') }}" class="widget-quick-action">
                 <div class="widget-icon bg-brand-soft">
-                    <i class="bi bi-box-seam"></i>
+                    <i class="bi bi-grid-3x3-gap"></i>
                 </div>
-                <h6 class="mt-3 mb-1">Painel de Encomendas</h6>
-                <small class="text-muted">Registrar chegadas e retiradas</small>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="#" class="widget-quick-action" data-bs-toggle="modal" data-bs-target="#scanQRCodeModal">
-                <div class="widget-icon bg-brand-soft">
-                    <i class="bi bi-qr-code-scan"></i>
-                </div>
-                <h6 class="mt-3 mb-1">Escanear QR Code</h6>
-                <small class="text-muted">Identificação rápida</small>
+                <h6 class="mt-3 mb-1">Por Unidade</h6>
+                <small class="text-muted">{{ $encomendasPendentesTotal }} pendente(s)</small>
             </a>
         </div>
     </div>

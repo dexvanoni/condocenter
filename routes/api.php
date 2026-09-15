@@ -28,19 +28,9 @@ Route::middleware(['auth:sanctum'])->get('/user/credits', function (Request $req
     $user = $request->user();
     $condominiumId = $user->tenantCondominiumId();
 
-    $creditsQuery = \App\Models\UserCredit::where('user_id', $user->id)->available();
-
-    if ($condominiumId) {
-        $creditsQuery->where('condominium_id', $condominiumId);
-    }
-
-    $credits = $creditsQuery->orderBy('created_at', 'asc')->get();
-    $totalCredits = (float) $credits->sum('amount');
-    
-    return response()->json([
-        'total' => $totalCredits,
-        'credits' => $credits
-    ]);
+    return response()->json(
+        app(\App\Services\UserCreditService::class)->getWalletDetails($user, $condominiumId)
+    );
 });
 
 // API Routes com autenticação Sanctum (aceita sessão web também)
@@ -96,16 +86,19 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
     
     // Encomendas
     Route::middleware('condominium.module:packages')->group(function () {
-    Route::get('packages/summary/units', [PackageController::class, 'summary'])->name('api.packages.summary');
-    Route::get('packages/residents/search', [PackageController::class, 'residents'])->name('api.packages.residents');
-    Route::apiResource('packages', PackageController::class)->names([
-        'index' => 'api.packages.index',
-        'store' => 'api.packages.store',
-        'show' => 'api.packages.show',
-        'update' => 'api.packages.update',
-        'destroy' => 'api.packages.destroy',
-    ]);
-    Route::post('packages/{package}/collect', [PackageController::class, 'collect'])->name('api.packages.collect');
+        Route::get('packages/summary/units', [PackageController::class, 'summary'])->name('api.packages.summary');
+        Route::get('packages/residents/search', [PackageController::class, 'residents'])->name('api.packages.residents');
+        Route::post('packages/label/preview', [PackageController::class, 'previewLabel'])->name('api.packages.label.preview');
+        Route::post('packages/label/confirm', [PackageController::class, 'confirmLabel'])->name('api.packages.label.confirm');
+        Route::post('packages/pickup/find', [PackageController::class, 'findByPickupCode'])->name('api.packages.pickup.find');
+        Route::apiResource('packages', PackageController::class)->names([
+            'index' => 'api.packages.index',
+            'store' => 'api.packages.store',
+            'show' => 'api.packages.show',
+            'update' => 'api.packages.update',
+            'destroy' => 'api.packages.destroy',
+        ]);
+        Route::post('packages/{package}/collect', [PackageController::class, 'collect'])->name('api.packages.collect');
     });
     
     // Marketplace

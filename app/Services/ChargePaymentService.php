@@ -330,13 +330,16 @@ class ChargePaymentService
         }
 
         try {
+            $paymentPayload = $this->enrichPaymentPayload($payment, $charge);
+
             $this->settlementService->markAsPaid(
                 $charge,
-                Carbon::parse($payment['paymentDate'] ?? $payment['clientPaymentDate'] ?? now()),
-                $this->mapAsaasPaymentMethod($payment['billingType'] ?? null),
+                Carbon::parse($paymentPayload['paymentDate'] ?? $paymentPayload['clientPaymentDate'] ?? now()),
+                $this->mapAsaasPaymentMethod($paymentPayload['billingType'] ?? null),
                 'Pagamento confirmado via Asaas.',
                 null,
                 true,
+                $paymentPayload,
             );
         } catch (\Throwable $e) {
             Log::error('Erro ao sincronizar pagamento da cobrança: ' . $e->getMessage(), [
@@ -344,6 +347,23 @@ class ChargePaymentService
                 'payment_id' => $payment['id'] ?? null,
             ]);
         }
+    }
+
+    protected function enrichPaymentPayload(array $payment, Charge $charge): array
+    {
+        if (isset($payment['netValue']) && is_numeric($payment['netValue'])) {
+            return $payment;
+        }
+
+        $paymentId = $payment['id'] ?? $charge->asaas_payment_id;
+
+        if (!$paymentId) {
+            return $payment;
+        }
+
+        $fresh = $this->asaasForCharge($charge)->getPayment($paymentId);
+
+        return $fresh ? array_merge($payment, $fresh) : $payment;
     }
 
     protected function asaasForCharge(Charge $charge): AsaasService

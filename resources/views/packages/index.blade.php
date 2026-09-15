@@ -1,64 +1,67 @@
 @extends('layouts.app')
 
-@section('title', 'Encomendas')
+@section('title', 'Encomendas — Portaria')
 
 @section('content')
-<div class="container-fluid packages-dashboard">
-    <div class="row align-items-end mb-4">
-        <div class="col-lg-6">
-            <h2 class="mb-0">
-                <i class="bi bi-box-seam"></i> Central de Encomendas
-            </h2>
-            <p class="text-muted mt-2 mb-0">
-                Visualize todas as unidades, registre novas chegadas e confirme retiradas em poucos cliques.
-            </p>
+<div class="container-fluid packages-portaria px-3 px-lg-4">
+    {{-- Hero + ações rápidas --}}
+    <div class="pkg-hero mb-4">
+        <div class="pkg-hero__content">
+            <div class="pkg-hero__text">
+                <h1 class="pkg-hero__title"><i class="bi bi-box-seam"></i> Portaria</h1>
+                <p class="pkg-hero__subtitle">Registre chegadas, confirme retiradas e notifique moradores em segundos.</p>
+            </div>
+            <div class="pkg-hero__stat">
+                <span class="pkg-hero__stat-label">Pendentes</span>
+                <strong class="pkg-hero__stat-value" id="totalPendingCount">0</strong>
+            </div>
         </div>
-        <div class="col-lg-6 text-lg-end mt-3 mt-lg-0">
-            <span class="badge bg-primary-subtle text-primary fs-6 px-3 py-2">
-                <i class="bi bi-bell-fill me-1"></i>
-                Notificações automáticas para moradores e agregados
-            </span>
+
+        @can('register_packages')
+        <div class="pkg-actions">
+            <a href="{{ route('packages.register') }}" class="pkg-action pkg-action--primary">
+                <i class="bi bi-camera-fill"></i>
+                <span>Ler etiqueta</span>
+            </a>
+            <a href="{{ route('packages.pickup') }}" class="pkg-action pkg-action--success">
+                <i class="bi bi-key-fill"></i>
+                <span>Retirada</span>
+            </a>
+            <button type="button" class="pkg-action pkg-action--outline" id="scrollToUnits">
+                <i class="bi bi-building"></i>
+                <span>Por unidade</span>
+            </button>
         </div>
+        @endcan
     </div>
 
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="row g-3 align-items-center">
-                <div class="col-lg-5">
-                    <label for="searchTerm" class="form-label fw-semibold">
-                        Buscar unidade, morador ou CPF
-                    </label>
+    {{-- Busca e filtros --}}
+    <div class="pkg-toolbar card border-0 shadow-sm mb-3" id="unitsSection">
+        <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-lg-5">
                     <div class="position-relative">
-                        <input type="text" class="form-control form-control-lg" id="searchTerm"
-                               placeholder="Ex.: Bloco B 203, Ana Silva, 123.456.789-00">
+                        <input type="search" class="form-control" id="searchTerm"
+                               placeholder="Buscar unidade, morador ou CPF..." autocomplete="off">
                         <div id="residentSuggestions" class="list-group shadow-sm d-none suggestions-dropdown"></div>
                     </div>
-                    <small class="text-muted d-block mt-1">
-                        Digite para filtrar o quadro. Resultados correspondentes aparecem automaticamente.
-                    </small>
                 </div>
-                <div class="col-lg-2 d-grid">
-                    <button class="btn btn-primary btn-lg" id="searchButton">
+                <div class="col-6 col-lg-2">
+                    <button class="btn btn-primary w-100" id="searchButton">
                         <i class="bi bi-search"></i> Buscar
                     </button>
                 </div>
-                <div class="col-lg-2 d-grid">
-                    <button class="btn btn-outline-secondary btn-lg" id="clearFilters">
-                        <i class="bi bi-eraser"></i> Limpar
+                <div class="col-6 col-lg-2">
+                    <button class="btn btn-outline-secondary w-100" id="clearFilters">
+                        <i class="bi bi-x-lg"></i> Limpar
                     </button>
                 </div>
-                <div class="col-lg-3 text-lg-end">
-                    <div class="d-flex align-items-center justify-content-lg-end gap-3">
-                        <div class="text-start">
-                            <span class="text-muted small d-block">Total de pendências</span>
-                            <strong class="fs-4" id="totalPendingCount">0</strong>
-                        </div>
-                        <div>
-                            <span class="badge bg-warning text-dark fs-6 px-3 py-2" id="lastRefresh">
-                                Atualizado agora
-                            </span>
-                        </div>
+                <div class="col-12 col-lg-3 d-flex align-items-center justify-content-lg-end gap-2 flex-wrap">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="onlyPendingToggle" checked>
+                        <label class="form-check-label small" for="onlyPendingToggle">Só com pendências</label>
                     </div>
+                    <span class="badge text-bg-light border" id="lastRefresh">Atualizado agora</span>
                 </div>
             </div>
         </div>
@@ -70,217 +73,204 @@
         <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Carregando...</span>
         </div>
-        <p class="mt-3 text-muted">Carregando unidades e encomendas...</p>
+        <p class="mt-3 text-muted small">Carregando unidades...</p>
     </div>
 
     <div id="emptyState" class="d-none">
-        <div class="alert alert-info text-center">
-            <i class="bi bi-inboxes"></i>
-            <h5 class="mt-2">Nenhuma encomenda encontrada.</h5>
-            <p class="mb-0">Utilize o botão "Registrar chegada" em qualquer unidade para começar.</p>
+        <div class="pkg-empty">
+            <i class="bi bi-inbox"></i>
+            <h5>Nenhuma unidade encontrada</h5>
+            <p>Ajuste a busca ou registre uma nova chegada.</p>
         </div>
     </div>
 
     <div class="row g-3" id="unitsGrid"></div>
 </div>
 
-<!-- Modal Registrar Encomenda -->
-<div class="modal fade" id="registerPackageModal" tabindex="-1" aria-labelledby="registerPackageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="registerPackageModalLabel">
-                    <i class="bi bi-box-arrow-in-down me-2"></i>Registrar chegada de encomenda
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <form id="registerPackageForm">
-                <div class="modal-body">
-                    <input type="hidden" id="registerUnitId">
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold text-uppercase text-muted small">Unidade</label>
-                        <div class="fs-5" id="registerUnitLabel"></div>
-                        <div class="text-muted small" id="registerUnitResidents"></div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label fw-semibold">Tipo da encomenda</label>
-                        <div class="type-selector-grid">
-                            <label class="type-option">
-                                <input type="radio" name="packageType" value="leve" required>
-                                <span>
-                                    <i class="bi bi-bag"></i>
-                                    <strong>Leve</strong>
-                                    <small>Envelope ou pequeno pacote</small>
-                                </span>
-                            </label>
-                            <label class="type-option">
-                                <input type="radio" name="packageType" value="pesado">
-                                <span>
-                                    <i class="bi bi-box2"></i>
-                                    <strong>Pesado</strong>
-                                    <small>Peso considerável</small>
-                                </span>
-                            </label>
-                            <label class="type-option">
-                                <input type="radio" name="packageType" value="caixa_grande">
-                                <span>
-                                    <i class="bi bi-boxes"></i>
-                                    <strong>Caixa Grande</strong>
-                                    <small>Volume acima do padrão</small>
-                                </span>
-                            </label>
-                            <label class="type-option">
-                                <input type="radio" name="packageType" value="fragil">
-                                <span>
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                    <strong>Frágil</strong>
-                                    <small>Manuseio cuidadoso</small>
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div id="registerPackageProgress" class="package-submit-progress d-none px-3" aria-live="polite" aria-busy="false">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <small class="fw-semibold text-primary" id="registerPackageProgressLabel">Registrando encomenda...</small>
-                        <small class="text-muted" id="registerPackageProgressPct">0%</small>
-                    </div>
-                    <div class="progress package-submit-progress__bar">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
-                             id="registerPackageProgressBar"
-                             role="progressbar"
-                             style="width: 0%"
-                             aria-valuenow="0"
-                             aria-valuemin="0"
-                             aria-valuemax="100"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="registerSubmitButton">
-                        <i class="bi bi-check-lg"></i> Confirmar registro
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal Confirmar Retirada -->
-<div class="modal fade" id="collectPackageModal" tabindex="-1" aria-labelledby="collectPackageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="collectPackageModalLabel">
-                    <i class="bi bi-box-arrow-up me-2"></i>Confirmar retirada
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="collectPackageId">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold text-uppercase text-muted small">Unidade</label>
-                    <div class="fs-5" id="collectUnitLabel"></div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold text-uppercase text-muted small">Encomenda</label>
-                    <div id="collectPackageSummary"></div>
-                </div>
-                <p class="text-muted small mb-0">
-                    A retirada será registrada com a hora atual. Os moradores e agregados serão avisados imediatamente.
-                </p>
-                <div id="collectPackageProgress" class="package-submit-progress package-submit-progress--success mt-3 d-none" aria-live="polite" aria-busy="false">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <small class="fw-semibold text-success" id="collectPackageProgressLabel">Registrando retirada...</small>
-                        <small class="text-muted" id="collectPackageProgressPct">0%</small>
-                    </div>
-                    <div class="progress package-submit-progress__bar">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success"
-                             id="collectPackageProgressBar"
-                             role="progressbar"
-                             style="width: 0%"
-                             aria-valuenow="0"
-                             aria-valuemin="0"
-                             aria-valuemax="100"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-success" id="confirmCollectButton">
-                    <i class="bi bi-check-lg"></i> Confirmar retirada
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+@include('packages.partials.register-modal')
+@include('packages.partials.collect-modal')
 @endsection
 
 @push('styles')
 <style>
-    .packages-dashboard .card {
+    .packages-portaria { padding-bottom: 2rem; }
+
+    .pkg-hero {
+        background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 55%, #084298 100%);
         border-radius: 16px;
+        padding: 1.25rem 1.25rem 1rem;
+        color: #fff;
+        box-shadow: 0 0.5rem 1.5rem rgba(13, 110, 253, 0.25);
     }
 
-    .packages-dashboard .unit-card {
-        transition: all 0.25s ease;
-        border: 1px solid transparent;
-    }
-
-    .packages-dashboard .unit-card.has-pending {
-        border-color: rgba(13, 110, 253, 0.35);
-        box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.15);
-    }
-
-    .packages-dashboard .unit-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 1rem 1.5rem rgba(0,0,0,0.12);
-    }
-
-    .packages-dashboard .unit-header {
+    .pkg-hero__content {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: 1rem;
+        margin-bottom: 1rem;
     }
 
-    .packages-dashboard .unit-code {
-        font-size: 1.875rem;
+    .pkg-hero__title {
+        font-size: 1.5rem;
         font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+
+    .pkg-hero__subtitle {
+        margin: 0.35rem 0 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+        max-width: 28rem;
+    }
+
+    .pkg-hero__stat {
+        text-align: center;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        min-width: 5rem;
+        flex-shrink: 0;
+    }
+
+    .pkg-hero__stat-label {
+        display: block;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.85;
+    }
+
+    .pkg-hero__stat-value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }
+
+    .pkg-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
+    @media (max-width: 575.98px) {
+        .pkg-actions { grid-template-columns: 1fr; }
+        .pkg-hero__content { flex-direction: column; }
+        .pkg-hero__stat { align-self: flex-start; }
+    }
+
+    .pkg-action {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.85rem 0.5rem;
+        border-radius: 12px;
+        border: none;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        min-height: 4.5rem;
+    }
+
+    .pkg-action i { font-size: 1.35rem; }
+
+    .pkg-action--primary {
+        background: #fff;
         color: #0d6efd;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .packages-dashboard .resident-list {
-        list-style: none;
-        padding-left: 0;
-        margin-bottom: 0;
+    .pkg-action--success {
+        background: rgba(255, 255, 255, 0.95);
+        color: #198754;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
-    .packages-dashboard .resident-list li {
+    .pkg-action--outline {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .pkg-action:hover {
+        transform: translateY(-2px);
+        color: inherit;
+    }
+
+    .pkg-action--primary:hover { color: #0d6efd; }
+    .pkg-action--success:hover { color: #198754; }
+    .pkg-action--outline:hover { color: #fff; background: rgba(255, 255, 255, 0.2); }
+
+    .pkg-toolbar { border-radius: 12px; }
+
+    .pkg-empty {
+        text-align: center;
+        padding: 3rem 1.5rem;
+        background: #f8fafc;
+        border-radius: 16px;
+        border: 1px dashed #dee2e6;
+    }
+
+    .pkg-empty i { font-size: 2.5rem; color: #94a3b8; }
+    .pkg-empty h5 { margin-top: 0.75rem; }
+    .pkg-empty p { color: #64748b; margin: 0; }
+
+    .unit-card {
+        border-radius: 14px;
+        border: 1px solid #e8ecf1;
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+        overflow: hidden;
+    }
+
+    .unit-card.has-pending {
+        border-color: rgba(220, 53, 69, 0.35);
+        box-shadow: 0 4px 14px rgba(220, 53, 69, 0.1);
+    }
+
+    .unit-card__head {
         display: flex;
         justify-content: space-between;
-        font-size: 0.9rem;
-        padding: 0.15rem 0;
+        align-items: center;
+        padding: 0.85rem 1rem;
+        background: #f8fafc;
+        border-bottom: 1px solid #eef2f7;
     }
 
-    .packages-dashboard .package-chip {
+    .unit-card__code {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #0d6efd;
+        letter-spacing: -0.02em;
+    }
+
+    .unit-card__body { padding: 0.85rem 1rem 1rem; }
+
+    .unit-card__residents {
+        font-size: 0.82rem;
+        color: #64748b;
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+
+    .package-pill {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: #f8f9fa;
-        border-radius: 12px;
-        padding: 0.5rem 0.75rem;
         gap: 0.5rem;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 10px;
+        padding: 0.5rem 0.65rem;
+        margin-bottom: 0.5rem;
     }
 
-    .packages-dashboard .package-chip .badge {
-        font-size: 0.75rem;
-    }
+    .package-pill:last-child { margin-bottom: 0; }
 
-    .packages-dashboard .package-chip time {
-        font-size: 0.8rem;
-        color: #6c757d;
-    }
+    .package-pill__meta { font-size: 0.78rem; color: #78716c; }
 
     .suggestions-dropdown {
         position: absolute;
@@ -288,666 +278,432 @@
         left: 0;
         right: 0;
         z-index: 40;
-        max-height: 260px;
+        max-height: 240px;
         overflow-y: auto;
-        border-radius: 12px;
+        border-radius: 10px;
         margin-top: 0.25rem;
     }
 
-    .type-selector-grid {
-        display: grid;
-        gap: 0.75rem;
-    }
+    .type-selector-grid { display: grid; gap: 0.65rem; }
+    @media (min-width: 576px) { .type-selector-grid { grid-template-columns: repeat(2, 1fr); } }
 
-    .type-option {
-        position: relative;
-        display: block;
-        cursor: pointer;
-    }
-
-    .type-option input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-    }
-
+    .type-option { position: relative; display: block; cursor: pointer; }
+    .type-option input { position: absolute; opacity: 0; pointer-events: none; }
     .type-option span {
         display: block;
         border: 1px solid #dee2e6;
-        border-radius: 12px;
-        padding: 1rem;
-        text-align: left;
-        transition: all 0.2s ease;
-        background: #fff;
+        border-radius: 10px;
+        padding: 0.85rem;
+        transition: all 0.15s ease;
     }
-
-    .type-option span i {
-        font-size: 1.4rem;
-        color: #0d6efd;
-        display: block;
-        margin-bottom: 0.5rem;
-    }
-
-    .type-option strong {
-        display: block;
-        font-size: 1rem;
-    }
-
-    .type-option small {
-        color: #6c757d;
-    }
-
     .type-option input:checked + span {
         border-color: #0d6efd;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
     }
-
-    @media (min-width: 576px) {
-        .type-selector-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-    @media (min-width: 992px) {
-        .packages-dashboard .unit-code {
-            font-size: 2rem;
-        }
-    }
-    @media (max-width: 575px) {
-        .packages-dashboard .unit-card {
-            border-radius: 12px;
-        }
-    }
+    .type-option span i { font-size: 1.25rem; color: #0d6efd; display: block; margin-bottom: 0.35rem; }
 
     .package-submit-progress {
-        padding: 0.85rem 1rem;
+        padding: 0.75rem 1rem;
         border: 1px solid rgba(13, 110, 253, 0.2);
         border-radius: 0.75rem;
-        background: linear-gradient(135deg, rgba(13, 110, 253, 0.06), rgba(13, 110, 253, 0.02));
+        background: rgba(13, 110, 253, 0.04);
     }
-
     .package-submit-progress--success {
         border-color: rgba(25, 135, 84, 0.2);
-        background: linear-gradient(135deg, rgba(25, 135, 84, 0.06), rgba(25, 135, 84, 0.02));
+        background: rgba(25, 135, 84, 0.04);
     }
-
-    .package-submit-progress__bar {
-        height: 8px;
-        border-radius: 999px;
-        overflow: hidden;
-        background: rgba(13, 110, 253, 0.12);
-    }
-
-    .package-submit-progress--success .package-submit-progress__bar {
-        background: rgba(25, 135, 84, 0.12);
-    }
-
-    .package-submit-progress__bar .progress-bar {
-        border-radius: 999px;
-        transition: width 0.25s ease;
-    }
+    .package-submit-progress__bar { height: 6px; border-radius: 999px; }
 </style>
 @endpush
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const searchField = document.getElementById('searchTerm');
-        const searchButton = document.getElementById('searchButton');
-        const clearFiltersButton = document.getElementById('clearFilters');
-        const unitsGrid = document.getElementById('unitsGrid');
-        const loadingState = document.getElementById('loadingState');
-        const emptyState = document.getElementById('emptyState');
-        const totalPendingCountEl = document.getElementById('totalPendingCount');
-        const lastRefreshBadge = document.getElementById('lastRefresh');
-        const alertContainer = document.getElementById('alertContainer');
-        const suggestionsBox = document.getElementById('residentSuggestions');
+document.addEventListener('DOMContentLoaded', () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const searchField = document.getElementById('searchTerm');
+    const searchButton = document.getElementById('searchButton');
+    const clearFiltersButton = document.getElementById('clearFilters');
+    const onlyPendingToggle = document.getElementById('onlyPendingToggle');
+    const unitsGrid = document.getElementById('unitsGrid');
+    const loadingState = document.getElementById('loadingState');
+    const emptyState = document.getElementById('emptyState');
+    const totalPendingCountEl = document.getElementById('totalPendingCount');
+    const lastRefreshBadge = document.getElementById('lastRefresh');
+    const alertContainer = document.getElementById('alertContainer');
+    const suggestionsBox = document.getElementById('residentSuggestions');
+    const scrollToUnitsBtn = document.getElementById('scrollToUnits');
+    const unitsSection = document.getElementById('unitsSection');
 
-        const registerModalEl = document.getElementById('registerPackageModal');
-        const registerModal = new bootstrap.Modal(registerModalEl);
-        const registerForm = document.getElementById('registerPackageForm');
-        const registerSubmitButton = document.getElementById('registerSubmitButton');
-        const registerProgressWrap = document.getElementById('registerPackageProgress');
-        const registerProgressBar = document.getElementById('registerPackageProgressBar');
-        const registerProgressLabel = document.getElementById('registerPackageProgressLabel');
-        const registerProgressPct = document.getElementById('registerPackageProgressPct');
-        const registerUnitId = document.getElementById('registerUnitId');
-        const registerUnitLabel = document.getElementById('registerUnitLabel');
-        const registerUnitResidents = document.getElementById('registerUnitResidents');
+    const registerModalEl = document.getElementById('registerPackageModal');
+    const registerModal = new bootstrap.Modal(registerModalEl);
+    const registerForm = document.getElementById('registerPackageForm');
+    const registerSubmitButton = document.getElementById('registerSubmitButton');
+    const registerProgressWrap = document.getElementById('registerPackageProgress');
+    const registerProgressBar = document.getElementById('registerPackageProgressBar');
+    const registerProgressLabel = document.getElementById('registerPackageProgressLabel');
+    const registerProgressPct = document.getElementById('registerPackageProgressPct');
+    const registerUnitId = document.getElementById('registerUnitId');
+    const registerUnitLabel = document.getElementById('registerUnitLabel');
+    const registerUnitResidents = document.getElementById('registerUnitResidents');
 
-        const collectModalEl = document.getElementById('collectPackageModal');
-        const collectModal = new bootstrap.Modal(collectModalEl);
-        const collectPackageIdField = document.getElementById('collectPackageId');
-        const collectUnitLabel = document.getElementById('collectUnitLabel');
-        const collectPackageSummary = document.getElementById('collectPackageSummary');
-        const confirmCollectButton = document.getElementById('confirmCollectButton');
-        const collectProgressWrap = document.getElementById('collectPackageProgress');
-        const collectProgressBar = document.getElementById('collectPackageProgressBar');
-        const collectProgressLabel = document.getElementById('collectPackageProgressLabel');
-        const collectProgressPct = document.getElementById('collectPackageProgressPct');
+    const collectModalEl = document.getElementById('collectPackageModal');
+    const collectModal = new bootstrap.Modal(collectModalEl);
+    const collectPackageIdField = document.getElementById('collectPackageId');
+    const collectRequiresPickupCodeField = document.getElementById('collectRequiresPickupCode');
+    const collectPickupCodeField = document.getElementById('collectPickupCode');
+    const pickupCodeGroup = document.getElementById('pickupCodeGroup');
+    const pickupCodeHelp = document.getElementById('pickupCodeHelp');
+    const collectUnitLabel = document.getElementById('collectUnitLabel');
+    const collectPackageSummary = document.getElementById('collectPackageSummary');
+    const confirmCollectButton = document.getElementById('confirmCollectButton');
+    const collectProgressWrap = document.getElementById('collectPackageProgress');
+    const collectProgressBar = document.getElementById('collectPackageProgressBar');
+    const collectProgressLabel = document.getElementById('collectPackageProgressLabel');
+    const collectProgressPct = document.getElementById('collectPackageProgressPct');
 
-        let unitsCache = [];
-        let selectedPackage = null;
-        let debounceTimeout = null;
-        let progressTimer = null;
+    let unitsCache = [];
+    let selectedPackage = null;
+    let debounceTimeout = null;
+    let progressTimer = null;
 
-        function updatePackageProgress(scope, value) {
-            const pct = Math.round(value);
-            scope.bar.style.width = `${pct}%`;
-            scope.bar.setAttribute('aria-valuenow', String(pct));
-            scope.pct.textContent = `${pct}%`;
-        }
+    scrollToUnitsBtn?.addEventListener('click', () => {
+        unitsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
 
-        function startPackageProgress(scope, label) {
-            clearInterval(progressTimer);
-            scope.wrap.classList.remove('d-none');
-            scope.wrap.setAttribute('aria-busy', 'true');
-            scope.label.textContent = label;
-            scope.value = 8;
-            updatePackageProgress(scope, scope.value);
+    function updatePackageProgress(scope, value) {
+        const pct = Math.round(value);
+        scope.bar.style.width = `${pct}%`;
+        scope.bar.setAttribute('aria-valuenow', String(pct));
+        scope.pct.textContent = `${pct}%`;
+    }
 
-            progressTimer = setInterval(() => {
-                if (scope.value < 92) {
-                    scope.value = Math.min(92, scope.value + Math.random() * 7 + 3);
-                    updatePackageProgress(scope, scope.value);
-                }
-            }, 180);
-        }
+    function startPackageProgress(scope, label) {
+        clearInterval(progressTimer);
+        scope.wrap.classList.remove('d-none');
+        scope.wrap.setAttribute('aria-busy', 'true');
+        scope.label.textContent = label;
+        scope.value = 8;
+        updatePackageProgress(scope, scope.value);
+        progressTimer = setInterval(() => {
+            if (scope.value < 92) {
+                scope.value = Math.min(92, scope.value + Math.random() * 7 + 3);
+                updatePackageProgress(scope, scope.value);
+            }
+        }, 180);
+    }
 
-        function finishPackageProgress(scope) {
-            clearInterval(progressTimer);
-            updatePackageProgress(scope, 100);
-
-            setTimeout(() => {
-                scope.wrap.classList.add('d-none');
-                scope.wrap.setAttribute('aria-busy', 'false');
-                scope.value = 0;
-                updatePackageProgress(scope, 0);
-            }, 350);
-        }
-
-        function stopPackageProgress(scope) {
-            clearInterval(progressTimer);
+    function finishPackageProgress(scope) {
+        clearInterval(progressTimer);
+        updatePackageProgress(scope, 100);
+        setTimeout(() => {
             scope.wrap.classList.add('d-none');
             scope.wrap.setAttribute('aria-busy', 'false');
             scope.value = 0;
             updatePackageProgress(scope, 0);
-        }
+        }, 350);
+    }
 
-        const registerProgressScope = {
-            wrap: registerProgressWrap,
-            bar: registerProgressBar,
-            label: registerProgressLabel,
-            pct: registerProgressPct,
-            value: 0,
-        };
+    function stopPackageProgress(scope) {
+        clearInterval(progressTimer);
+        scope.wrap.classList.add('d-none');
+        scope.wrap.setAttribute('aria-busy', 'false');
+        scope.value = 0;
+        updatePackageProgress(scope, 0);
+    }
 
-        const collectProgressScope = {
-            wrap: collectProgressWrap,
-            bar: collectProgressBar,
-            label: collectProgressLabel,
-            pct: collectProgressPct,
-            value: 0,
-        };
+    const registerProgressScope = { wrap: registerProgressWrap, bar: registerProgressBar, label: registerProgressLabel, pct: registerProgressPct, value: 0 };
+    const collectProgressScope = { wrap: collectProgressWrap, bar: collectProgressBar, label: collectProgressLabel, pct: collectProgressPct, value: 0 };
 
-        async function loadSummary(search = '') {
-            showLoading();
-            try {
-                const params = new URLSearchParams();
-                if (search.trim()) {
-                    params.append('search', search.trim());
-                }
+    function getFilteredUnits() {
+        if (!onlyPendingToggle?.checked) return unitsCache;
+        return unitsCache.filter(u => Number(u.pending_packages_count) > 0);
+    }
 
-                const response = await fetch(`/api/packages/summary/units?${params.toString()}`, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin'
-                });
+    async function loadSummary(search = '') {
+        showLoading();
+        try {
+            const params = new URLSearchParams();
+            if (search.trim()) params.append('search', search.trim());
 
-                if (!response.ok) {
-                    if (response.status === 403) {
-                        throw new Error('Você não tem permissão para acessar o painel de encomendas.');
-                    }
+            const response = await fetch(`/api/packages/summary/units?${params}`, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            });
 
-                    const { error } = await response.json();
-                    throw new Error(error ?? 'Não foi possível carregar as encomendas.');
-                }
-
-                const data = await response.json();
-                unitsCache = data.data ?? [];
-
-                renderUnits(unitsCache);
-                updateTotals();
-                updateRefreshTime();
-            } catch (error) {
-                renderUnits([]);
-                showAlert('danger', error.message || 'Erro ao carregar as encomendas.');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        function renderUnits(units) {
-            unitsGrid.innerHTML = '';
-
-            if (!units.length) {
-                emptyState.classList.remove('d-none');
-                return;
+            if (!response.ok) {
+                if (response.status === 403) throw new Error('Você não tem permissão para acessar o painel de encomendas.');
+                const { error } = await response.json();
+                throw new Error(error ?? 'Não foi possível carregar as encomendas.');
             }
 
-            emptyState.classList.add('d-none');
+            const data = await response.json();
+            unitsCache = data.data ?? [];
+            renderUnits(getFilteredUnits());
+            updateTotals();
+            updateRefreshTime();
+        } catch (error) {
+            renderUnits([]);
+            showAlert('danger', error.message || 'Erro ao carregar as encomendas.');
+        } finally {
+            hideLoading();
+        }
+    }
 
-            units.forEach(unit => {
-                const col = document.createElement('div');
-                col.className = 'col-12 col-lg-6 col-xl-4';
+    function renderUnits(units) {
+        unitsGrid.innerHTML = '';
+        if (!units.length) {
+            emptyState.classList.remove('d-none');
+            return;
+        }
+        emptyState.classList.add('d-none');
 
-                const hasPending = Number(unit.pending_packages_count) > 0;
+        units.forEach(unit => {
+            const col = document.createElement('div');
+            col.className = 'col-12 col-md-6 col-xl-4';
+            const hasPending = Number(unit.pending_packages_count) > 0;
+            const residents = unit.residents?.length
+                ? unit.residents.map(r => r.name).join(' · ')
+                : 'Sem moradores cadastrados';
 
-                const residentsList = unit.residents.length
-                    ? unit.residents.map(resident => `
-                        <li>
-                            <span class="text-truncate">${resident.name}</span>
-                            <span class="text-muted">${resident.cpf ?? ''}</span>
-                        </li>
-                    `).join('')
-                    : '<li class="text-muted fst-italic">Sem moradores cadastrados</li>';
-
-                const packagesList = hasPending
-                    ? unit.pending_packages.map(pkg => `
-                        <div class="package-chip">
-                            <div>
-                                <span class="badge bg-primary-subtle text-primary">
-                                    ${pkg.type_label}
-                                </span>
-                                <time datetime="${pkg.received_at}">
-                                    Recebido em ${formatDateTime(pkg.received_at)}
-                                </time>
-                            </div>
-                            <button class="btn btn-sm btn-success collect-package-btn"
-                                    data-package-id="${pkg.id}"
-                                    data-unit-label="${encodeURIComponent(buildUnitLabel(unit))}"
-                                    data-type-label="${pkg.type_label}"
-                                    data-received-at="${pkg.received_at}">
-                                <i class="bi bi-check-circle"></i>
-                            </button>
+            const packagesList = hasPending
+                ? unit.pending_packages.map(pkg => `
+                    <div class="package-pill">
+                        <div>
+                            <strong>${pkg.type_label}</strong>
+                            <div class="package-pill__meta">${formatDateTime(pkg.received_at)}</div>
                         </div>
-                    `).join('')
-                    : '<p class="text-muted small mb-0">Nenhuma encomenda pendente nesta unidade.</p>';
-
-                col.innerHTML = `
-                    <div class="card unit-card h-100 ${hasPending ? 'has-pending' : ''}">
-                        <div class="card-body d-flex flex-column gap-3">
-                            <div class="unit-header">
-                                <div>
-                                    <div class="text-muted small text-uppercase">Unidade</div>
-                                    <div class="unit-code">${buildUnitLabel(unit)}</div>
-                                </div>
-                                <span class="badge ${hasPending ? 'bg-danger' : 'bg-success'}">
-                                    ${hasPending ? `${unit.pending_packages_count} pendente(s)` : 'Sem pendências'}
-                                </span>
-                            </div>
-
-                            <div>
-                                <div class="text-muted text-uppercase small fw-semibold mb-2">
-                                    Moradores / Agregados
-                                </div>
-                                <ul class="resident-list">
-                                    ${residentsList}
-                                </ul>
-                            </div>
-
-                            <div class="d-flex flex-column gap-2">
-                                <div class="d-flex gap-2 flex-wrap">
-                                    <button class="btn btn-outline-primary btn-sm flex-grow-1 register-package-btn"
-                                            data-unit-id="${unit.id}"
-                                            data-unit-label="${encodeURIComponent(buildUnitLabel(unit))}"
-                                            data-residents='${encodeURIComponent(JSON.stringify(unit.residents))}'>
-                                        <i class="bi bi-box-arrow-in-down"></i> Registrar chegada
-                                    </button>
-                                </div>
-                                <div class="d-flex flex-column gap-2">
-                                    <div class="text-muted text-uppercase small fw-semibold">
-                                        Encomendas pendentes
-                                    </div>
-                                    <div class="d-flex flex-column gap-2">
-                                        ${packagesList}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <button class="btn btn-sm btn-success collect-package-btn"
+                                data-package-id="${pkg.id}"
+                                data-unit-label="${encodeURIComponent(buildUnitLabel(unit))}"
+                                data-type-label="${pkg.type_label}"
+                                data-received-at="${pkg.received_at}"
+                                data-requires-pickup-code="${pkg.requires_pickup_code ? '1' : '0'}">
+                            <i class="bi bi-check-lg"></i> Retirar
+                        </button>
                     </div>
-                `;
+                `).join('')
+                : '<p class="text-muted small mb-0">Nenhuma pendência.</p>';
 
-                unitsGrid.appendChild(col);
-            });
-        }
-
-        function updateTotals() {
-            const total = unitsCache.reduce((sum, unit) => sum + Number(unit.pending_packages_count ?? 0), 0);
-            totalPendingCountEl.textContent = total;
-        }
-
-        function updateRefreshTime() {
-            const now = new Date();
-            const formatted = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            lastRefreshBadge.textContent = `Atualizado às ${formatted}`;
-        }
-
-        function showLoading() {
-            loadingState.classList.remove('d-none');
-            unitsGrid.innerHTML = '';
-            emptyState.classList.add('d-none');
-        }
-
-        function hideLoading() {
-            loadingState.classList.add('d-none');
-        }
-
-        function buildUnitLabel(unit) {
-            return unit.block ? `${unit.block} • ${unit.number}` : `${unit.number}`;
-        }
-
-        function formatDateTime(dateTime) {
-            if (!dateTime) return 'Data não informada';
-            const date = new Date(dateTime);
-            if (Number.isNaN(date.getTime())) {
-                return dateTime;
-            }
-            return date.toLocaleString('pt-BR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        function showAlert(type, message) {
-            const wrapper = document.createElement('div');
-            wrapper.className = `alert alert-${type} alert-dismissible fade show`;
-            wrapper.innerHTML = `
-                <span>${message}</span>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            col.innerHTML = `
+                <div class="card unit-card h-100 ${hasPending ? 'has-pending' : ''}">
+                    <div class="unit-card__head">
+                        <span class="unit-card__code">${buildUnitLabel(unit)}</span>
+                        <span class="badge ${hasPending ? 'bg-danger' : 'bg-success-subtle text-success'}">
+                            ${hasPending ? unit.pending_packages_count + ' pend.' : 'OK'}
+                        </span>
+                    </div>
+                    <div class="unit-card__body">
+                        <div class="unit-card__residents">${residents}</div>
+                        <div class="d-flex flex-column gap-2 mb-2">${packagesList}</div>
+                        <button class="btn btn-outline-primary btn-sm w-100 register-package-btn"
+                                data-unit-id="${unit.id}"
+                                data-unit-label="${encodeURIComponent(buildUnitLabel(unit))}"
+                                data-residents='${encodeURIComponent(JSON.stringify(unit.residents || []))}'>
+                            <i class="bi bi-plus-lg"></i> Registrar chegada
+                        </button>
+                    </div>
+                </div>
             `;
-            alertContainer.appendChild(wrapper);
-            setTimeout(() => {
-                wrapper.classList.remove('show');
-                wrapper.classList.add('hide');
-                wrapper.addEventListener('transitionend', () => wrapper.remove());
-            }, 6000);
-        }
+            unitsGrid.appendChild(col);
+        });
+    }
 
-        function toggleSuggestions(show) {
-            suggestionsBox.classList.toggle('d-none', !show || !suggestionsBox.childElementCount);
-        }
+    function updateTotals() {
+        const total = unitsCache.reduce((sum, u) => sum + Number(u.pending_packages_count ?? 0), 0);
+        totalPendingCountEl.textContent = total;
+    }
 
-        function renderSuggestions(results) {
-            suggestionsBox.innerHTML = '';
-            if (!results.length) {
-                toggleSuggestions(false);
-                return;
-            }
+    function updateRefreshTime() {
+        const now = new Date();
+        lastRefreshBadge.textContent = `Atualizado ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    }
 
-            results.forEach(item => {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start gap-3';
-                button.dataset.unitId = item.unit?.id ?? '';
-                button.dataset.unitLabel = item.unit ? buildUnitLabel(item.unit) : '';
-                const preferredSearchTerm = item.name || item.cpf || button.dataset.unitLabel;
-                if (preferredSearchTerm) {
-                    button.dataset.searchTerm = preferredSearchTerm;
-                }
-                button.innerHTML = `
-                    <div>
-                        <div class="fw-semibold">${item.name}</div>
-                        <div class="text-muted small">${item.cpf ?? 'CPF não informado'}</div>
-                    </div>
-                    ${item.unit ? `<span class="badge bg-primary rounded-pill">${buildUnitLabel(item.unit)}</span>` : ''}
-                `;
-                suggestionsBox.appendChild(button);
+    function showLoading() {
+        loadingState.classList.remove('d-none');
+        unitsGrid.innerHTML = '';
+        emptyState.classList.add('d-none');
+    }
+
+    function hideLoading() { loadingState.classList.add('d-none'); }
+
+    function buildUnitLabel(unit) {
+        return unit.block ? `${unit.block} · ${unit.number}` : `${unit.number}`;
+    }
+
+    function formatDateTime(dateTime) {
+        if (!dateTime) return '—';
+        const date = new Date(dateTime);
+        if (Number.isNaN(date.getTime())) return dateTime;
+        return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function showAlert(type, message) {
+        const wrapper = document.createElement('div');
+        wrapper.className = `alert alert-${type} alert-dismissible fade show`;
+        wrapper.innerHTML = `<span>${message}</span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        alertContainer.appendChild(wrapper);
+        setTimeout(() => wrapper.remove(), 6000);
+    }
+
+    function toggleSuggestions(show) {
+        suggestionsBox.classList.toggle('d-none', !show || !suggestionsBox.childElementCount);
+    }
+
+    function renderSuggestions(results) {
+        suggestionsBox.innerHTML = '';
+        if (!results.length) { toggleSuggestions(false); return; }
+        results.forEach(item => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'list-group-item list-group-item-action d-flex justify-content-between';
+            button.dataset.searchTerm = item.name || item.cpf || (item.unit ? buildUnitLabel(item.unit) : '');
+            button.innerHTML = `
+                <div><div class="fw-semibold">${item.name}</div><small class="text-muted">${item.cpf ?? ''}</small></div>
+                ${item.unit ? `<span class="badge bg-primary">${buildUnitLabel(item.unit)}</span>` : ''}
+            `;
+            suggestionsBox.appendChild(button);
+        });
+        toggleSuggestions(true);
+    }
+
+    async function searchResidents(term) {
+        if (term.trim().length < 3) { toggleSuggestions(false); return; }
+        try {
+            const response = await fetch(`/api/packages/residents/search?search=${encodeURIComponent(term.trim())}`, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
             });
+            if (!response.ok) { toggleSuggestions(false); return; }
+            const data = await response.json();
+            renderSuggestions(data.data ?? []);
+        } catch { toggleSuggestions(false); }
+    }
 
-            toggleSuggestions(true);
-        }
+    searchButton.addEventListener('click', () => loadSummary(searchField.value));
+    clearFiltersButton.addEventListener('click', () => { searchField.value = ''; toggleSuggestions(false); loadSummary(); });
+    onlyPendingToggle?.addEventListener('change', () => renderUnits(getFilteredUnits()));
 
-        async function searchResidents(term) {
-            const trimmed = term.trim();
-            if (trimmed.length < 3) {
-                toggleSuggestions(false);
-                return;
-            }
+    searchField.addEventListener('input', (e) => {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => searchResidents(e.target.value), 250);
+    });
 
-            try {
-                const response = await fetch(`/api/packages/residents/search?search=${encodeURIComponent(trimmed)}`, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin'
-                });
+    searchField.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); loadSummary(searchField.value); toggleSuggestions(false); }
+        if (e.key === 'Escape') toggleSuggestions(false);
+    });
 
-                if (!response.ok) {
-                    toggleSuggestions(false);
-                    return;
-                }
+    suggestionsBox.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-search-term]');
+        if (!btn) return;
+        searchField.value = btn.dataset.searchTerm;
+        toggleSuggestions(false);
+        loadSummary(searchField.value);
+    });
 
-                const data = await response.json();
-                renderSuggestions(data.data ?? []);
-            } catch (error) {
-                toggleSuggestions(false);
-            }
-        }
+    document.addEventListener('click', (e) => {
+        if (!suggestionsBox.contains(e.target) && e.target !== searchField) toggleSuggestions(false);
+    });
 
-        // Event listeners
-        searchButton.addEventListener('click', () => {
-            loadSummary(searchField.value);
-        });
-
-        clearFiltersButton.addEventListener('click', () => {
-            searchField.value = '';
-            toggleSuggestions(false);
-            loadSummary();
-        });
-
-        searchField.addEventListener('input', (event) => {
-            const value = event.target.value;
-            if (debounceTimeout) {
-                clearTimeout(debounceTimeout);
-            }
-            debounceTimeout = setTimeout(() => searchResidents(value), 250);
-        });
-
-        searchField.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                loadSummary(searchField.value);
-                toggleSuggestions(false);
-            } else if (event.key === 'Escape') {
-                toggleSuggestions(false);
-            }
-        });
-
-        suggestionsBox.addEventListener('click', (event) => {
-            const target = event.target.closest('button[data-unit-id]');
-            if (!target) return;
-
-            const searchValue = target.dataset.searchTerm || target.dataset.unitLabel || '';
-            searchField.value = searchValue;
-            toggleSuggestions(false);
-            loadSummary(searchField.value);
-        });
-
-        document.addEventListener('click', (event) => {
-            if (!suggestionsBox.contains(event.target) && event.target !== searchField) {
-                toggleSuggestions(false);
-            }
-        });
-
-        unitsGrid.addEventListener('click', (event) => {
-            const registerButton = event.target.closest('.register-package-btn');
-            if (registerButton) {
-                const unitId = registerButton.dataset.unitId;
-                const unitLabel = registerButton.dataset.unitLabel
-                    ? decodeURIComponent(registerButton.dataset.unitLabel)
-                    : '';
-                let residentsData = [];
-                if (registerButton.dataset.residents) {
-                    try {
-                        residentsData = JSON.parse(decodeURIComponent(registerButton.dataset.residents));
-                    } catch (error) {
-                        residentsData = [];
-                    }
-                }
-
-                registerUnitId.value = unitId;
-                registerUnitLabel.textContent = unitLabel;
-
-                if (residentsData.length) {
-                    registerUnitResidents.innerHTML = residentsData.map(resident => resident.name).join(', ');
-                } else {
-                    registerUnitResidents.innerHTML = '<span class="text-muted">Sem moradores vinculados</span>';
-                }
-
-                registerForm.reset();
-                stopPackageProgress(registerProgressScope);
-                registerSubmitButton.disabled = false;
-                registerModal.show();
-                return;
-            }
-
-            const collectButton = event.target.closest('.collect-package-btn');
-            if (collectButton) {
-                const packageId = collectButton.dataset.packageId;
-                const unitLabel = collectButton.dataset.unitLabel
-                    ? decodeURIComponent(collectButton.dataset.unitLabel)
-                    : '';
-                const typeLabel = collectButton.dataset.typeLabel;
-                const receivedAt = collectButton.dataset.receivedAt;
-
-                selectedPackage = packageId;
-                collectPackageIdField.value = packageId;
-                collectUnitLabel.textContent = unitLabel;
-                collectPackageSummary.innerHTML = `
-                    <div class="d-flex flex-column gap-1">
-                        <div><strong>Tipo:</strong> ${typeLabel}</div>
-                        <div><strong>Recebida em:</strong> ${formatDateTime(receivedAt)}</div>
-                    </div>
-                `;
-
-                confirmCollectButton.disabled = false;
-                stopPackageProgress(collectProgressScope);
-                collectModal.show();
-            }
-        });
-
-        registerForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const unitId = registerUnitId.value;
-            const type = registerForm.packageType.value;
-
-            registerSubmitButton.disabled = true;
-            startPackageProgress(registerProgressScope, 'Registrando encomenda e notificando moradores...');
-
-            try {
-                const response = await fetch('/api/packages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({
-                        unit_id: Number(unitId),
-                        type
-                    })
-                });
-
-                if (!response.ok) {
-                    const data = await response.json();
-                    if (response.status === 403) {
-                        throw new Error(data.error ?? 'Você não tem permissão para registrar encomendas.');
-                    }
-
-                    const errors = data.errors ?? {};
-                    const firstError = Object.values(errors)[0];
-                    throw new Error(Array.isArray(firstError) ? firstError[0] : firstError || 'Erro ao registrar a encomenda.');
-                }
-
-                finishPackageProgress(registerProgressScope);
-                registerModal.hide();
-                showAlert('success', 'Encomenda registrada e moradores notificados.');
-                await loadSummary(searchField.value);
-            } catch (error) {
-                stopPackageProgress(registerProgressScope);
-                showAlert('danger', error.message || 'Erro ao registrar a encomenda.');
-            } finally {
-                registerSubmitButton.disabled = false;
-            }
-        });
-
-        confirmCollectButton.addEventListener('click', async () => {
-            if (!selectedPackage) {
-                showAlert('danger', 'Selecione uma encomenda válida.');
-                return;
-            }
-
-            confirmCollectButton.disabled = true;
-            startPackageProgress(collectProgressScope, 'Registrando retirada e notificando moradores...');
-            try {
-                const response = await fetch(`/api/packages/${selectedPackage}/collect`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({})
-                });
-
-                if (!response.ok) {
-                    const data = await response.json();
-                    if (response.status === 403) {
-                        throw new Error(data.error ?? 'Você não tem permissão para registrar retiradas.');
-                    }
-
-                    const errors = data.errors ?? {};
-                    const firstError = Object.values(errors)[0];
-                    throw new Error(Array.isArray(firstError) ? firstError[0] : firstError || 'Erro ao registrar retirada.');
-                }
-
-                finishPackageProgress(collectProgressScope);
-                collectModal.hide();
-                showAlert('success', 'Retirada registrada com sucesso.');
-                await loadSummary(searchField.value);
-            } catch (error) {
-                stopPackageProgress(collectProgressScope);
-                showAlert('danger', error.message || 'Erro ao registrar retirada.');
-            } finally {
-                confirmCollectButton.disabled = false;
-                selectedPackage = null;
-            }
-        });
-
-        registerModalEl.addEventListener('hidden.bs.modal', () => {
+    unitsGrid.addEventListener('click', (e) => {
+        const registerButton = e.target.closest('.register-package-btn');
+        if (registerButton) {
+            registerUnitId.value = registerButton.dataset.unitId;
+            registerUnitLabel.textContent = decodeURIComponent(registerButton.dataset.unitLabel || '');
+            let residents = [];
+            try { residents = JSON.parse(decodeURIComponent(registerButton.dataset.residents || '[]')); } catch {}
+            registerUnitResidents.textContent = residents.length ? residents.map(r => r.name).join(', ') : 'Sem moradores';
+            registerForm.reset();
             stopPackageProgress(registerProgressScope);
             registerSubmitButton.disabled = false;
-        });
+            registerModal.show();
+            return;
+        }
 
-        collectModalEl.addEventListener('hidden.bs.modal', () => {
-            stopPackageProgress(collectProgressScope);
+        const collectButton = e.target.closest('.collect-package-btn');
+        if (collectButton) {
+            selectedPackage = collectButton.dataset.packageId;
+            collectPackageIdField.value = selectedPackage;
+            const requiresPickup = collectButton.dataset.requiresPickupCode === '1';
+            collectRequiresPickupCodeField.value = requiresPickup ? '1' : '0';
+            collectUnitLabel.textContent = decodeURIComponent(collectButton.dataset.unitLabel || '');
+            collectPackageSummary.innerHTML = `<strong>${collectButton.dataset.typeLabel}</strong><br><small class="text-muted">${formatDateTime(collectButton.dataset.receivedAt)}</small>`;
+            if (collectPickupCodeField) collectPickupCodeField.value = '';
+            pickupCodeGroup?.classList.toggle('d-none', !requiresPickup);
+            if (pickupCodeHelp) pickupCodeHelp.textContent = requiresPickup ? 'Senha de 4 dígitos do WhatsApp.' : 'Encomenda legada — confirmação direta.';
             confirmCollectButton.disabled = false;
-        });
-
-        // Inicialização
-        loadSummary();
+            stopPackageProgress(collectProgressScope);
+            collectModal.show();
+        }
     });
+
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        registerSubmitButton.disabled = true;
+        startPackageProgress(registerProgressScope, 'Registrando e notificando...');
+        try {
+            const response = await fetch('/api/packages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ unit_id: Number(registerUnitId.value), type: registerForm.packageType.value })
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                const err = Object.values(data.errors ?? {})[0];
+                throw new Error(Array.isArray(err) ? err[0] : err || data.error || 'Erro ao registrar.');
+            }
+            finishPackageProgress(registerProgressScope);
+            registerModal.hide();
+            showAlert('success', 'Encomenda registrada.');
+            await loadSummary(searchField.value);
+        } catch (error) {
+            stopPackageProgress(registerProgressScope);
+            showAlert('danger', error.message);
+        } finally {
+            registerSubmitButton.disabled = false;
+        }
+    });
+
+    confirmCollectButton.addEventListener('click', async () => {
+        if (!selectedPackage) return;
+        const requiresPickup = collectRequiresPickupCodeField?.value === '1';
+        const pickupCode = (collectPickupCodeField?.value || '').trim();
+        if (requiresPickup && !/^\d{4}$/.test(pickupCode)) {
+            showAlert('danger', 'Informe a senha de 4 dígitos.');
+            collectPickupCodeField?.focus();
+            return;
+        }
+        confirmCollectButton.disabled = true;
+        startPackageProgress(collectProgressScope, 'Registrando retirada...');
+        try {
+            const body = requiresPickup ? { pickup_code: pickupCode } : {};
+            const response = await fetch(`/api/packages/${selectedPackage}/collect`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Erro ao confirmar retirada.');
+            }
+            finishPackageProgress(collectProgressScope);
+            collectModal.hide();
+            showAlert('success', 'Retirada registrada.');
+            await loadSummary(searchField.value);
+        } catch (error) {
+            stopPackageProgress(collectProgressScope);
+            showAlert('danger', error.message);
+        } finally {
+            confirmCollectButton.disabled = false;
+        }
+    });
+
+    registerModalEl.addEventListener('hidden.bs.modal', () => { stopPackageProgress(registerProgressScope); registerSubmitButton.disabled = false; });
+    collectModalEl.addEventListener('hidden.bs.modal', () => { stopPackageProgress(collectProgressScope); confirmCollectButton.disabled = false; selectedPackage = null; });
+
+    loadSummary();
+});
 </script>
 @endpush
-

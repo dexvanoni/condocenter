@@ -60,7 +60,7 @@ class CondominiumAccountController extends Controller
         $manualIncomeEntries = $incomeEntries->reject(fn (CondominiumAccount $entry) => $entry->source_type === 'charge');
 
         $chargeIds = $chargeIncomeEntries->pluck('source_id')->filter()->unique();
-        $chargesById = Charge::with(['unit', 'fee'])
+        $chargesById = Charge::with(['unit', 'fee', 'payments'])
             ->whereIn('id', $chargeIds)
             ->get()
             ->keyBy('id');
@@ -94,17 +94,22 @@ class CondominiumAccountController extends Controller
             }
             // Se for outra unidade e o usuário for morador, $unitIdentifier fica null
 
+            $isOwnUnit = $charge && $charge->unit_id === $user->unit_id;
+            $displayAmount = ($isMorador && $isOwnUnit && $charge)
+                ? $charge->residentPaidAmount()
+                : (float) $entry->amount;
+
             return [
                 'id' => $entry->id,
                 'charge_id' => $entry->source_id,
                 'title' => $charge?->title ?? $entry->description,
-                'amount' => $entry->amount,
+                'amount' => $displayAmount,
                 'transaction_date' => $entry->transaction_date,
                 'source' => 'charge',
                 'unit' => $unitIdentifier, // Será null para outras unidades se for morador
                 'details' => $charge?->description,
                 'payment_channel' => data_get($charge?->metadata, 'payment_channel', $entry->payment_method),
-                'is_own_unit' => $charge && $charge->unit_id === $user->unit_id,
+                'is_own_unit' => $isOwnUnit,
             ];
         });
 
@@ -123,6 +128,11 @@ class CondominiumAccountController extends Controller
                 ];
             })
         )->sortByDesc('transaction_date');
+
+        if ($isMorador) {
+            $expenseEntries = $expenseEntries
+                ->reject(fn (CondominiumAccount $entry) => $entry->source_type === 'asaas_gateway_fee');
+        }
 
         $timelineExpenses = $expenseEntries->map(function (CondominiumAccount $account) {
             return [
@@ -151,6 +161,12 @@ class CondominiumAccountController extends Controller
             ? $taxIncomeTimeline->filter(fn ($entry) => $entry['is_own_unit'] ?? false)
             : $taxIncomeTimeline;
 
+        if ($isMorador) {
+            $summary['income_charges'] = $filteredTaxEntries->sum('amount');
+            $summary['total_income'] = $summary['income_manual'] + $summary['income_charges'];
+            $summary['balance'] = $summary['total_income'] - $summary['expenses_manual'];
+        }
+
         $groupedTaxEntries = FinancialEntryGrouper::groupByDate($filteredTaxEntries);
 
         $manualIncomeTimeline = $manualIncomeEntries->map(function (CondominiumAccount $account) {
@@ -177,7 +193,9 @@ class CondominiumAccountController extends Controller
             'startDate' => $startDate,
             'endDate' => $endDate,
             'openingBalance' => $openingBalance,
-            'closingBalance' => $openingBalance + $summary['balance'],
+            'closingBalance' => $openingBalance + ($isMorador
+                ? ($summary['income_manual'] + $filteredTaxEntries->sum('amount') - $summary['expenses_manual'])
+                : $summary['balance']),
             'taxEntriesCount' => $filteredTaxEntries->count(),
             'otherUnitsSummary' => $isMorador ? [
                 'count' => $taxIncomeTimeline->filter(fn ($entry) => ! ($entry['is_own_unit'] ?? false))->count(),

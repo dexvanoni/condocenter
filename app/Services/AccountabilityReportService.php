@@ -73,13 +73,22 @@ class AccountabilityReportService
         $paymentsSummary = $payments
             ->groupBy(fn (Payment $payment) => $payment->payment_method ?? 'other')
             ->map(function (Collection $group, string $method) {
+                $grossTotal = $group->sum(fn (Payment $p) => (float) ($p->gross_amount ?? $p->amount_paid));
+                $feeTotal = $group->sum(fn (Payment $p) => (float) ($p->gateway_fee ?? 0));
+                $netTotal = $group->sum(fn (Payment $p) => $p->settledNetAmount());
+
                 return [
                     'method' => PaymentMethods::label($method),
                     'transactions' => $group->count(),
-                    'total' => $group->sum('amount_paid'),
+                    'total' => $netTotal,
+                    'gross_total' => $grossTotal,
+                    'gateway_fees' => $feeTotal,
                 ];
             })
             ->values();
+
+        $gatewayFeesTotal = $payments->sum(fn (Payment $p) => (float) ($p->gateway_fee ?? 0));
+        $chargesGrossTotal = $payments->sum(fn (Payment $p) => (float) ($p->gross_amount ?? $p->amount_paid));
 
         $bankAccounts = BankAccount::where('condominium_id', $condominiumId)
             ->orderBy('name')
@@ -113,6 +122,8 @@ class AccountabilityReportService
             'employee_payroll_cancelled_count' => $employeePayroll['totals']['cancelled_count'],
             'charges_income' => $chargeIncomeEntries->sum('amount'),
             'charges_received_count' => $chargeIncomeEntries->count(),
+            'charges_gross_total' => $chargesGrossTotal > 0 ? $chargesGrossTotal : $chargeIncomeEntries->sum('amount'),
+            'gateway_fees_total' => $gatewayFeesTotal,
         ];
 
         $totals['total_income'] = $totals['manual_income'] + $totals['charges_income'];
@@ -132,6 +143,7 @@ class AccountabilityReportService
             'manual_expense_daily' => $manualExpenseDaily,
             'employee_payroll' => $employeePayroll,
             'payments_summary' => $paymentsSummary,
+            'gateway_fees_total' => $gatewayFeesTotal,
             'bank_accounts' => $bankAccounts,
             'totals' => $totals,
             'start_date' => $startDate,
@@ -170,6 +182,7 @@ class AccountabilityReportService
             'charge' => 'Cobrança de taxa',
             'manual_income' => 'Entrada avulsa',
             'employee_payroll' => 'Folha de pagamento',
+            'asaas_gateway_fee' => 'Taxa gateway Asaas',
             default => $account->type === 'income' ? 'Entrada avulsa' : 'Despesa',
         };
     }

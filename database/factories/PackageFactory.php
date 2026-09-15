@@ -30,6 +30,8 @@ class PackageFactory extends Factory
             'received_at' => now(),
             'status' => Package::STATUS_PENDING,
             'notification_sent' => false,
+            'identification_method' => Package::METHOD_MANUAL,
+            'whatsapp_delivery_status' => Package::WHATSAPP_PENDING,
         ];
     }
 

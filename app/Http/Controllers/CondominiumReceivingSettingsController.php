@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UpdateCondominiumAsaasSettingsRequest;
 use App\Http\Requests\UpdatePaymentReceivingModeRequest;
 use App\Models\Condominium;
+use App\Services\AsaasGatewayFeeListingService;
 use App\Services\CondominiumAsaasIntegrationTestService;
 use App\Services\CondominiumAsaasSettingsService;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class CondominiumReceivingSettingsController extends Controller
     public function __construct(
         private CondominiumAsaasSettingsService $settings,
         private CondominiumAsaasIntegrationTestService $integrationTest,
+        private AsaasGatewayFeeListingService $gatewayFeeListing,
     ) {
         $this->middleware(function ($request, $next) {
             $user = $request->user();
@@ -45,6 +47,8 @@ class CondominiumReceivingSettingsController extends Controller
             ? str_repeat('•', 12) . substr($config['webhook_token'], -6)
             : null;
 
+        $gatewayFees = $this->gatewayFeeListing->recentForCondominium($condominium);
+
         return view('finance.receiving.index', [
             'condominium' => $condominium,
             'config' => $config,
@@ -54,6 +58,7 @@ class CondominiumReceivingSettingsController extends Controller
             'webhookUrl' => $this->settings->webhookUrl($condominium),
             'asaasPanelUrl' => $this->settings->asaasPanelUrl($condominium),
             'asaasSignupUrl' => $this->settings->asaasSignupUrl($condominium),
+            'gatewayFees' => $gatewayFees,
         ]);
     }
 

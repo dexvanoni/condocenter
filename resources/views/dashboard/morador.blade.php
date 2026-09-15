@@ -140,11 +140,11 @@
             const brief = latestMessage ? (latestMessage.message ?? '').slice(0, 160) : (notification?.message ?? '');
 
             const banner = document.createElement('div');
-            banner.className = `announcement-banner d-flex align-items-center p-3 mb-2 rounded border ${priorityClasses[priority] ?? 'border-primary bg-primary bg-opacity-10'}`;
+            banner.className = `announcement-banner d-flex align-items-center rounded border ${priorityClasses[priority] ?? 'border-primary bg-primary bg-opacity-10'}`;
             banner.role = 'alert';
             banner.style.cursor = 'pointer';
             banner.innerHTML = `
-                <i class="bi bi-megaphone-fill me-3 fs-4"></i>
+                <i class="bi bi-megaphone-fill me-2 announcement-banner__icon"></i>
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-2">
                         <strong>Aviso do Síndico</strong>
@@ -445,82 +445,62 @@
     @endif
 
     <!-- Cards de Status -->
-    <div class="row g-4 mb-4 md-stats-row">
-        <!-- Total de Débitos -->
+    <div class="row g-2 mb-3 md-stats-row">
         <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-{{ $totalDebitos > 0 ? 'warning' : 'success' }} stagger-1">
-                <div class="card-body px-4 py-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Débitos Pendentes</p>
-                            <h2 class="stat-value">R$ {{ number_format($totalDebitos, 2, ',', '.') }}</h2>
-                            <div class="stat-change">
-                                {{ $chargesPendentes->count() + $chargesAtrasadas->count() }} {{ Str::plural('cobrança', $chargesPendentes->count() + $chargesAtrasadas->count()) }}
-                            </div>
+            <div class="card-stat card-gradient-{{ $totalDebitos > 0 ? 'warning' : 'success' }}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center gap-2 w-100">
+                        <div class="min-w-0">
+                            <p class="stat-label mb-0">Débitos pendentes</p>
+                            <p class="stat-value mb-0">R$ {{ number_format($totalDebitos, 2, ',', '.') }}</p>
+                            <span class="stat-change">{{ $chargesPendentes->count() + $chargesAtrasadas->count() }} {{ Str::plural('cobrança', $chargesPendentes->count() + $chargesAtrasadas->count()) }}</span>
                         </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-{{ $totalDebitos > 0 ? 'exclamation-circle' : 'check-circle' }} fs-1"></i>
-                        </div>
+                        <div class="stat-icon"><i class="bi bi-{{ $totalDebitos > 0 ? 'exclamation-circle' : 'check-circle' }}"></i></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Total Pago no Ano -->
         <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-info stagger-2">
-                <div class="card-body px-4 py-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Pago em {{ now()->year }}</p>
-                            <h2 class="stat-value">R$ {{ number_format($totalPagoAno, 2, ',', '.') }}</h2>
-                            <div class="stat-change">
-                                {{ $chargesPagas->count() }} {{ Str::plural('pagamento', $chargesPagas->count()) }}
-                            </div>
+            <div class="card-stat card-gradient-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center gap-2 w-100">
+                        <div class="min-w-0">
+                            <p class="stat-label mb-0">Pago em {{ now()->year }}</p>
+                            <p class="stat-value mb-0">R$ {{ number_format($totalPagoAno, 2, ',', '.') }}</p>
+                            <span class="stat-change">{{ $chargesPagas->count() }} {{ Str::plural('pagamento', $chargesPagas->count()) }}</span>
                         </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-cash-coin fs-1"></i>
-                        </div>
+                        <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Minhas Reservas -->
         <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-primary stagger-3">
-                <div class="card-body px-4 py-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Reservas Ativas</p>
-                            <h2 class="stat-value">{{ $totalReservasAtivas }}</h2>
-                            <div class="stat-change">
-                                Próximas agendadas
-                            </div>
+            <div class="card-stat card-gradient-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center gap-2 w-100">
+                        <div class="min-w-0">
+                            <p class="stat-label mb-0">Reservas ativas</p>
+                            <p class="stat-value mb-0">{{ $totalReservasAtivas }}</p>
+                            <span class="stat-change">Próximas agendadas</span>
                         </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-calendar-check fs-1"></i>
-                        </div>
+                        <div class="stat-icon"><i class="bi bi-calendar-check"></i></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Encomendas -->
         <div class="col-xl-3 col-lg-6">
-            <div class="card-stat card-gradient-success stagger-4">
-                <div class="card-body px-4 py-4">
-                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 w-100">
-                        <div class="flex-grow-1">
-                            <p class="stat-label mb-2">Encomendas</p>
-                            <h2 class="stat-value">{{ $encomendas->count() }}</h2>
-                            <div class="stat-change">
-                                {{ $encombendasMes }} recebida(s) este mês
-                            </div>
+            <div class="card-stat card-gradient-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center gap-2 w-100">
+                        <div class="min-w-0">
+                            <p class="stat-label mb-0">Encomendas</p>
+                            <p class="stat-value mb-0">{{ $encomendas->count() }}</p>
+                            <span class="stat-change">{{ $encombendasMes }} recebida(s) este mês</span>
                         </div>
-                        <div class="stat-icon">
-                            <i class="bi bi-box-seam fs-1"></i>
-                        </div>
+                        <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
                     </div>
                 </div>
             </div>

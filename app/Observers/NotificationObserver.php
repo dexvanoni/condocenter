@@ -13,6 +13,6 @@ class NotificationObserver
             return;
         }
 
-        SendWhatsAppNotification::dispatchSync($notification->id);
+        SendWhatsAppNotification::dispatch($notification->id)->afterCommit();
     }
 }

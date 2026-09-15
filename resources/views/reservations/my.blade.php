@@ -18,6 +18,21 @@
     .empty-state {
         padding: 3rem 1rem;
     }
+    .wallet-card {
+        position: sticky;
+        top: 1rem;
+    }
+    .wallet-list {
+        max-height: 280px;
+        overflow-y: auto;
+    }
+    .wallet-item {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        padding: 0.65rem 0;
+    }
+    .wallet-item:last-child {
+        border-bottom: 0;
+    }
 </style>
 @endpush
 
@@ -38,11 +53,6 @@
             <p class="text-muted mb-0">Acompanhe todas as suas reservas de espaços, pagamentos e cancelamentos.</p>
         </div>
         <div class="d-flex flex-wrap gap-2 align-items-center">
-            <div class="alert alert-{{ ($initialUserCredits ?? 0) > 0 ? 'success' : 'light border' }} py-2 px-3 mb-0">
-                <i class="bi bi-wallet2"></i>
-                <strong>Créditos:</strong>
-                <span id="totalCredits">R$ {{ number_format((float) ($initialUserCredits ?? 0), 2, ',', '.') }}</span>
-            </div>
             @if($canMakeReservations && !$defaulterBlocksReservations)
             <a href="{{ route('reservations.index') }}" class="btn btn-primary">
                 <i class="bi bi-calendar-plus"></i> Nova reserva
@@ -94,6 +104,8 @@
         </div>
     </div>
 
+    <div class="row g-4">
+        <div class="col-lg-8 order-lg-1 order-2">
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-white">
             <h6 class="mb-0"><i class="bi bi-funnel"></i> Filtros</h6>
@@ -174,6 +186,107 @@
         </div>
         <div class="card-footer bg-white" id="paginationContainer"></div>
     </div>
+        </div>
+
+        <div class="col-lg-4 order-lg-2 order-1">
+            <div class="card shadow-sm wallet-card mb-4" id="walletCard">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-wallet2 text-primary"></i> Minha Carteira</h6>
+                    <span class="badge bg-{{ ($initialUserCredits ?? 0) > 0 ? 'success' : 'secondary' }}" id="walletTotalBadge">
+                        R$ {{ number_format((float) ($initialUserCredits ?? 0), 2, ',', '.') }}
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="px-3 py-2 border-bottom bg-light small">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Saldo disponível</span>
+                            <strong id="totalCredits" class="text-success">R$ {{ number_format((float) ($initialUserCredits ?? 0), 2, ',', '.') }}</strong>
+                        </div>
+                        <div class="text-muted mt-1">Use em novas reservas de espaços pagos.</div>
+                    </div>
+
+                    <div class="px-3 pt-2 pb-1">
+                        <small class="text-muted fw-semibold text-uppercase">Créditos disponíveis</small>
+                    </div>
+                    <div class="wallet-list px-3" id="walletAvailableList">
+                        <div class="text-center py-3 text-muted small">
+                            <div class="spinner-border spinner-border-sm text-primary"></div>
+                        </div>
+                    </div>
+
+                    <div class="px-3 pt-3 pb-1 border-top">
+                        <small class="text-muted fw-semibold text-uppercase">Utilizações recentes</small>
+                    </div>
+                    <div class="wallet-list px-3 pb-3" id="walletUsageList">
+                        <div class="text-center py-3 text-muted small">
+                            <div class="spinner-border spinner-border-sm text-primary"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="cancelReservationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white" id="cancelModalHeader">
+                <h5 class="modal-title"><i class="bi bi-x-circle"></i> Cancelar reserva</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" id="cancelModalCloseBtn"></button>
+            </div>
+            <div class="modal-body">
+                <div id="cancelModalLoading">
+                    <p class="text-muted small mb-2">Carregando informações da reserva...</p>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Aguarde</small>
+                        <small class="text-muted" id="cancelProgressText">0%</small>
+                    </div>
+                    <div class="progress mb-0" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+                             id="cancelProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="cancelModalConfirm" class="d-none">
+                    <div id="cancelConfirmContent"></div>
+                    <div class="alert alert-warning small mb-0 mt-3">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Esta ação não pode ser desfeita.
+                    </div>
+                </div>
+
+                <div id="cancelModalProcessing" class="d-none">
+                    <p class="text-muted small mb-2">Cancelando reserva e atualizando sua carteira...</p>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Processando</small>
+                        <small class="text-muted" id="cancelProcessingText">0%</small>
+                    </div>
+                    <div class="progress mb-0" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+                             id="cancelProcessingBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="cancelModalSuccess" class="d-none">
+                    <div class="text-center py-2">
+                        <i class="bi bi-check-circle text-success display-5"></i>
+                        <p class="mb-0 mt-2" id="cancelSuccessMessage"></p>
+                    </div>
+                </div>
+
+                <div id="cancelModalError" class="d-none">
+                    <div class="alert alert-danger mb-0" id="cancelErrorMessage"></div>
+                </div>
+            </div>
+            <div class="modal-footer" id="cancelModalFooter">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelModalDismissBtn">Fechar</button>
+                <button type="button" class="btn btn-danger d-none" id="cancelConfirmBtn">
+                    <i class="bi bi-x-circle"></i> Confirmar cancelamento
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="modal fade" id="reservationDetailModal" tabindex="-1">
@@ -202,6 +315,17 @@
     const myChargesUrl = @json(route('my-charges.index'));
     let currentPage = 1;
     let spacesLoaded = false;
+    let pendingCancelReservationId = null;
+    let pendingCancelReservation = null;
+    const cancelModalEl = document.getElementById('cancelReservationModal');
+
+    function getBootstrapModal(element) {
+        if (!element || typeof window.bootstrap === 'undefined' || !window.bootstrap.Modal) {
+            return null;
+        }
+
+        return window.bootstrap.Modal.getOrCreateInstance(element);
+    }
 
     const statusLabels = {
         pending: { label: 'Pendente', class: 'bg-warning text-dark' },
@@ -481,13 +605,13 @@
     };
 
     window.openReservationDetail = async function(id) {
-        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('reservationDetailModal'));
+        const modal = getBootstrapModal(document.getElementById('reservationDetailModal'));
         const body = document.getElementById('reservationDetailBody');
         const footer = document.getElementById('reservationDetailFooter');
 
         body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
         footer.innerHTML = '';
-        modal.show();
+        modal?.show();
 
         try {
             const response = await fetch(`/api/reservations/${id}?with_charge=1`, {
@@ -564,13 +688,167 @@
         `;
     }
 
+    function animateProgress(barEl, textEl, from, to, duration = 500) {
+        return new Promise((resolve) => {
+            const start = performance.now();
+
+            function step(now) {
+                const progress = Math.min((now - start) / duration, 1);
+                const value = from + (to - from) * progress;
+                barEl.style.width = `${value}%`;
+                if (textEl) {
+                    textEl.textContent = `${Math.round(value)}%`;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    resolve();
+                }
+            }
+
+            requestAnimationFrame(step);
+        });
+    }
+
+    function setCancelModalState(state) {
+        const states = ['cancelModalLoading', 'cancelModalConfirm', 'cancelModalProcessing', 'cancelModalSuccess', 'cancelModalError'];
+        states.forEach((id) => {
+            document.getElementById(id)?.classList.add('d-none');
+        });
+
+        const map = {
+            loading: 'cancelModalLoading',
+            confirm: 'cancelModalConfirm',
+            processing: 'cancelModalProcessing',
+            success: 'cancelModalSuccess',
+            error: 'cancelModalError',
+        };
+
+        document.getElementById(map[state])?.classList.remove('d-none');
+
+        const confirmBtn = document.getElementById('cancelConfirmBtn');
+        const dismissBtn = document.getElementById('cancelModalDismissBtn');
+        const closeBtn = document.getElementById('cancelModalCloseBtn');
+
+        if (state === 'confirm') {
+            confirmBtn?.classList.remove('d-none');
+            dismissBtn.textContent = 'Voltar';
+            closeBtn?.removeAttribute('disabled');
+        } else if (state === 'success') {
+            confirmBtn?.classList.add('d-none');
+            dismissBtn.textContent = 'Fechar';
+            closeBtn?.removeAttribute('disabled');
+        } else if (state === 'processing' || state === 'loading') {
+            confirmBtn?.classList.add('d-none');
+            dismissBtn.textContent = 'Fechar';
+            closeBtn?.setAttribute('disabled', 'disabled');
+        } else {
+            confirmBtn?.classList.add('d-none');
+            dismissBtn.textContent = 'Fechar';
+            closeBtn?.removeAttribute('disabled');
+        }
+    }
+
+    function buildCancelImpactMessage(reservation) {
+        const messages = [];
+
+        if (reservation.charge_summary?.status === 'paid') {
+            messages.push(`Como a cobrança já foi paga, um crédito de <strong>${formatMoney(reservation.charge_summary.amount)}</strong> será adicionado à sua carteira (válido por 12 meses).`);
+        } else if (reservation.charge_summary?.can_pay) {
+            messages.push('A cobrança pendente vinculada a esta reserva será removida.');
+        }
+
+        if (reservation.prereservation_status === 'paid') {
+            messages.push('Créditos utilizados nesta reserva serão devolvidos à sua carteira, quando aplicável.');
+        }
+
+        if (!messages.length) {
+            messages.push('O horário ficará disponível para outros moradores.');
+        }
+
+        return messages.map((message) => `<li>${message}</li>`).join('');
+    }
+
     window.cancelReservation = async function(id) {
-        if (!confirm('Deseja cancelar esta reserva? Esta ação não pode ser desfeita.')) {
+        pendingCancelReservationId = id;
+        pendingCancelReservation = null;
+
+        setCancelModalState('loading');
+        document.getElementById('cancelProgressBar').style.width = '0%';
+        document.getElementById('cancelProgressText').textContent = '0%';
+        getBootstrapModal(cancelModalEl)?.show();
+
+        try {
+            await animateProgress(
+                document.getElementById('cancelProgressBar'),
+                document.getElementById('cancelProgressText'),
+                0,
+                35,
+                300
+            );
+
+            const response = await fetch(`/api/reservations/${id}?with_charge=1`, {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+
+            if (!response.ok) {
+                throw new Error('Não foi possível carregar os dados da reserva.');
+            }
+
+            pendingCancelReservation = await response.json();
+
+            await animateProgress(
+                document.getElementById('cancelProgressBar'),
+                document.getElementById('cancelProgressText'),
+                35,
+                100,
+                400
+            );
+
+            const status = statusLabels[pendingCancelReservation.status] || { label: pendingCancelReservation.status };
+
+            document.getElementById('cancelConfirmContent').innerHTML = `
+                <p class="mb-3">Deseja cancelar esta reserva?</p>
+                <div class="border rounded p-3 bg-light small mb-3">
+                    <div><strong>Espaço:</strong> ${escapeHtml(pendingCancelReservation.space?.name || '—')}</div>
+                    <div><strong>Data:</strong> ${formatDate(pendingCancelReservation.reservation_date)}</div>
+                    <div><strong>Horário:</strong> ${formatTimeRange(pendingCancelReservation.start_time, pendingCancelReservation.end_time)}</div>
+                    <div><strong>Status:</strong> ${escapeHtml(status.label)}</div>
+                    <div><strong>Valor:</strong> ${formatAmount(pendingCancelReservation).replace(/<[^>]+>/g, '')}</div>
+                </div>
+                <ul class="small text-muted mb-0 ps-3">
+                    ${buildCancelImpactMessage(pendingCancelReservation)}
+                </ul>
+            `;
+
+            setCancelModalState('confirm');
+        } catch (error) {
+            document.getElementById('cancelErrorMessage').textContent = error.message || 'Erro ao preparar o cancelamento.';
+            setCancelModalState('error');
+        }
+    };
+
+    async function executeCancelReservation() {
+        if (!pendingCancelReservationId) {
             return;
         }
 
+        setCancelModalState('processing');
+        document.getElementById('cancelProcessingBar').style.width = '0%';
+        document.getElementById('cancelProcessingText').textContent = '0%';
+
         try {
-            const response = await fetch(`/api/reservations/${id}`, {
+            const progressPromise = animateProgress(
+                document.getElementById('cancelProcessingBar'),
+                document.getElementById('cancelProcessingText'),
+                0,
+                85,
+                800
+            );
+
+            const response = await fetch(`/api/reservations/${pendingCancelReservationId}`, {
                 method: 'DELETE',
                 credentials: 'same-origin',
                 headers: {
@@ -581,25 +859,134 @@
             });
 
             const result = await response.json();
+            await progressPromise;
 
             if (!response.ok) {
-                alert(result.error || 'Erro ao cancelar reserva.');
-                return;
+                throw new Error(result.error || 'Erro ao cancelar reserva.');
             }
+
+            await animateProgress(
+                document.getElementById('cancelProcessingBar'),
+                document.getElementById('cancelProcessingText'),
+                85,
+                100,
+                200
+            );
 
             let message = result.message || 'Reserva cancelada com sucesso.';
-
             if (result.credit_generated) {
-                message += `\n\nCrédito gerado: R$ ${Number(result.credit_amount || 0).toFixed(2).replace('.', ',')}`;
+                message += ` Crédito de ${formatMoney(result.credit_amount)} adicionado à sua carteira.`;
             }
 
-            alert(message);
+            document.getElementById('cancelSuccessMessage').textContent = message;
+            setCancelModalState('success');
+
+            if (result.total_user_credits !== undefined) {
+                updateCreditsDisplay(result.total_user_credits);
+            }
+
+            await loadUserCredits();
             loadStats();
             loadReservations(currentPage);
         } catch (error) {
-            alert('Erro ao cancelar reserva.');
+            document.getElementById('cancelErrorMessage').textContent = error.message || 'Erro ao cancelar reserva.';
+            setCancelModalState('error');
         }
-    };
+    }
+
+    async function loadUserCredits() {
+        const availableList = document.getElementById('walletAvailableList');
+        const usageList = document.getElementById('walletUsageList');
+
+        try {
+            const response = await fetch('/api/user/credits', {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            });
+
+            if (!response.ok) {
+                throw new Error('Não foi possível carregar a carteira.');
+            }
+
+            const data = await response.json();
+            updateCreditsDisplay(data.total);
+            renderWalletLists(data);
+        } catch (error) {
+            availableList.innerHTML = `<div class="text-danger small py-3">${escapeHtml(error.message)}</div>`;
+            usageList.innerHTML = `<div class="text-danger small py-3">${escapeHtml(error.message)}</div>`;
+        }
+    }
+
+    function renderWalletLists(data) {
+        const availableList = document.getElementById('walletAvailableList');
+        const usageList = document.getElementById('walletUsageList');
+        const credits = Array.isArray(data.credits) ? data.credits : [];
+        const usage = Array.isArray(data.usage_history) ? data.usage_history : [];
+
+        if (!credits.length) {
+            availableList.innerHTML = '<div class="text-muted small py-3">Nenhum crédito disponível no momento.</div>';
+        } else {
+            availableList.innerHTML = credits.map((credit) => `
+                <div class="wallet-item">
+                    <div class="d-flex justify-content-between gap-2">
+                        <div class="min-w-0">
+                            <div class="fw-semibold text-success">${formatMoney(credit.amount)}</div>
+                            <div class="small text-muted text-truncate" title="${escapeHtml(credit.description || '')}">
+                                ${escapeHtml(credit.description || credit.type_label || 'Crédito')}
+                            </div>
+                        </div>
+                        <div class="text-end small text-muted">
+                            ${credit.expires_at ? `até ${formatDate(credit.expires_at)}` : 'Sem validade'}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        if (!usage.length) {
+            usageList.innerHTML = '<div class="text-muted small py-3">Nenhuma utilização registrada ainda.</div>';
+        } else {
+            usageList.innerHTML = usage.map((entry) => {
+                const reservationLabel = entry.reservation?.space_name
+                    ? `${entry.reservation.space_name} (${formatDate(entry.reservation.date)})`
+                    : (entry.description || 'Reserva');
+
+                return `
+                    <div class="wallet-item">
+                        <div class="d-flex justify-content-between gap-2">
+                            <div class="min-w-0">
+                                <div class="fw-semibold text-danger">−${formatMoney(entry.amount)}</div>
+                                <div class="small text-muted text-truncate" title="${escapeHtml(reservationLabel)}">
+                                    ${escapeHtml(reservationLabel)}
+                                </div>
+                            </div>
+                            <div class="text-end small text-muted text-nowrap">
+                                ${entry.used_at ? formatDateTime(entry.used_at) : '—'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    function updateCreditsDisplay(total) {
+        const numericTotal = Math.max(0, parseFloat(total) || 0);
+        const formatted = `R$ ${numericTotal.toFixed(2).replace('.', ',')}`;
+
+        const totalEl = document.getElementById('totalCredits');
+        const badgeEl = document.getElementById('walletTotalBadge');
+
+        if (totalEl) {
+            totalEl.textContent = formatted;
+        }
+
+        if (badgeEl) {
+            badgeEl.textContent = formatted;
+            badgeEl.classList.toggle('bg-success', numericTotal > 0);
+            badgeEl.classList.toggle('bg-secondary', numericTotal <= 0);
+        }
+    }
 
     function formatDate(value) {
         if (!value) return '—';
@@ -632,10 +1019,18 @@
         })[match]);
     }
 
+    document.getElementById('cancelConfirmBtn')?.addEventListener('click', executeCancelReservation);
+
+    cancelModalEl?.addEventListener('hidden.bs.modal', () => {
+        pendingCancelReservationId = null;
+        pendingCancelReservation = null;
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
         loadSpaces();
         loadStats();
         loadReservations();
+        loadUserCredits();
     });
 })();
 </script>

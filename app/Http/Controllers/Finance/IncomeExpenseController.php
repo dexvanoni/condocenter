@@ -74,13 +74,19 @@ class IncomeExpenseController extends Controller
         $incomes = $incomeQuery->get();
         $expenses = $expenseQuery->get();
 
+        if ($isMorador) {
+            $expenses = $expenses->reject(
+                fn (CondominiumAccount $entry) => $entry->source_type === 'asaas_gateway_fee'
+            );
+        }
+
         // Separar entradas de taxas (charges) e entradas manuais (avulsas)
         $chargeIncomes = $incomes->where('source_type', 'charge');
         $manualIncomes = $incomes->where('source_type', '!=', 'charge');
 
         // Obter todas as taxas (fees) relacionadas às cobranças para agrupar
         $chargeIds = $chargeIncomes->pluck('source_id')->unique();
-        $chargesById = Charge::with(['fee'])
+        $chargesById = Charge::with(['fee', 'payments'])
             ->whereIn('id', $chargeIds)
             ->get()
             ->keyBy('id');
@@ -90,12 +96,17 @@ class IncomeExpenseController extends Controller
         $chargeIncomes->groupBy(function ($entry) use ($chargesById) {
             $charge = $chargesById->get($entry->source_id);
             return $charge?->fee_id ?? 'unknown';
-        })->each(function ($entries, $feeId) use ($chargesById, &$groupedTaxIncomes) {
+        })->each(function ($entries, $feeId) use ($chargesById, &$groupedTaxIncomes, $isMorador, $user) {
             $firstEntry = $entries->first();
             $firstCharge = $chargesById->get($firstEntry->source_id);
             
             // Calcular total e quantidade de cobranças
-            $total = $entries->sum('amount');
+            $total = $entries->sum(fn (CondominiumAccount $entry) => $this->chargeIncomeDisplayAmount(
+                $entry,
+                $chargesById->get($entry->source_id),
+                $isMorador,
+                $user,
+            ));
             $count = $entries->count();
             
             // Data mais recente do grupo
@@ -337,7 +348,7 @@ class IncomeExpenseController extends Controller
 
         // Obter todas as taxas (fees) relacionadas às cobranças para agrupar
         $chargeIds = $chargeIncomes->pluck('source_id')->unique();
-        $chargesById = Charge::with(['fee'])
+        $chargesById = Charge::with(['fee', 'payments'])
             ->whereIn('id', $chargeIds)
             ->get()
             ->keyBy('id');
@@ -347,12 +358,17 @@ class IncomeExpenseController extends Controller
         $chargeIncomes->groupBy(function ($entry) use ($chargesById) {
             $charge = $chargesById->get($entry->source_id);
             return $charge?->fee_id ?? 'unknown';
-        })->each(function ($entries, $feeId) use ($chargesById, &$groupedTaxIncomes) {
+        })->each(function ($entries, $feeId) use ($chargesById, &$groupedTaxIncomes, $isMorador, $user) {
             $firstEntry = $entries->first();
             $firstCharge = $chargesById->get($firstEntry->source_id);
             
             // Calcular total e quantidade de cobranças
-            $total = $entries->sum('amount');
+            $total = $entries->sum(fn (CondominiumAccount $entry) => $this->chargeIncomeDisplayAmount(
+                $entry,
+                $chargesById->get($entry->source_id),
+                $isMorador,
+                $user,
+            ));
             $count = $entries->count();
             
             // Data mais recente do grupo
@@ -406,6 +422,7 @@ class IncomeExpenseController extends Controller
     protected function getExpenseData($user, $startDate, $endDate)
     {
         $condominiumId = $this->activeCondominiumId($user);
+        $isMorador = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
 
         $expenses = CondominiumAccount::with(['creator', 'cancelledBy'])
             ->byCondominium($condominiumId)
@@ -414,6 +431,12 @@ class IncomeExpenseController extends Controller
             ->orderByDesc('transaction_date')
             ->orderByDesc('created_at')
             ->get();
+
+        if ($isMorador) {
+            $expenses = $expenses->reject(
+                fn (CondominiumAccount $entry) => $entry->source_type === 'asaas_gateway_fee'
+            );
+        }
 
         $expenseData = $expenses->map(function (CondominiumAccount $entry) {
             return [
@@ -488,5 +511,18 @@ class IncomeExpenseController extends Controller
         }
 
         return Storage::disk('public')->download($filePath, $fileName);
+    }
+
+    private function chargeIncomeDisplayAmount(
+        CondominiumAccount $entry,
+        ?Charge $charge,
+        bool $isMorador,
+        $user,
+    ): float {
+        if ($isMorador && $charge && (int) $charge->unit_id === (int) $user->unit_id) {
+            return $charge->residentPaidAmount();
+        }
+
+        return (float) $entry->amount;
     }
 }

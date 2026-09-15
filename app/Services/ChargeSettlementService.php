@@ -18,6 +18,7 @@ class ChargeSettlementService
     public function __construct(
         private readonly DatabaseManager $database,
         private readonly BankAccountRoutingService $bankAccountRoutingService,
+        private readonly AsaasPaymentFeeService $asaasPaymentFeeService,
     ) {
     }
 
@@ -28,15 +29,24 @@ class ChargeSettlementService
         ?string $notes = null,
         ?int $userId = null,
         bool $fromPaymentGateway = false,
+        ?array $asaasPayment = null,
     ): void {
-        $this->database->transaction(function () use ($charge, $paidAt, $paymentMethod, $notes, $userId, $fromPaymentGateway) {
+        $this->database->transaction(function () use ($charge, $paidAt, $paymentMethod, $notes, $userId, $fromPaymentGateway, $asaasPayment) {
             /** @var Charge|null $lockedCharge */
             $lockedCharge = Charge::query()
                 ->whereKey($charge->id)
                 ->lockForUpdate()
                 ->first();
 
-            if (!$lockedCharge || $lockedCharge->status === 'paid') {
+            if (!$lockedCharge) {
+                return;
+            }
+
+            if ($lockedCharge->status === 'paid') {
+                if ($fromPaymentGateway && $asaasPayment) {
+                    $this->syncGatewayFeesForPaidCharge($lockedCharge, $asaasPayment, $paymentMethod);
+                }
+
                 return;
             }
 
@@ -71,12 +81,30 @@ class ChargeSettlementService
                 $payment->restore();
             }
 
+            $feeBreakdown = $fromPaymentGateway && $asaasPayment
+                ? $this->asaasPaymentFeeService->resolve($asaasPayment, (float) $lockedCharge->amount)
+                : null;
+
+            $grossAmount = $feeBreakdown
+                ? ($feeBreakdown['gross_amount'] > 0 ? $feeBreakdown['gross_amount'] : (float) $lockedCharge->amount)
+                : (float) $lockedCharge->amount;
+
             $payment->fill([
                 'user_id' => $userId,
-                'amount_paid' => $lockedCharge->amount,
+                'amount_paid' => $grossAmount,
+                'gross_amount' => $feeBreakdown ? $grossAmount : null,
+                'net_amount' => $feeBreakdown['net_amount'] ?? null,
+                'gateway_fee' => $feeBreakdown['gateway_fee'] ?? null,
+                'installment_count' => $feeBreakdown['installment_count'] ?? null,
+                'asaas_billing_type' => $feeBreakdown['asaas_billing_type'] ?? null,
+                'asaas_payment_id' => $feeBreakdown['asaas_payment_id'] ?? $lockedCharge->asaas_payment_id,
                 'notes' => $notes,
             ]);
             $payment->save();
+
+            $incomeAmount = $feeBreakdown && $feeBreakdown['net_amount'] !== null
+                ? (float) $feeBreakdown['net_amount']
+                : $grossAmount;
 
             $account = CondominiumAccount::withTrashed()->firstOrNew([
                 'condominium_id' => $lockedCharge->condominium_id,
@@ -93,7 +121,7 @@ class ChargeSettlementService
 
             $account->fill([
                 'description' => $lockedCharge->title,
-                'amount' => $lockedCharge->amount,
+                'amount' => $incomeAmount,
                 'transaction_date' => $paidAt->toDateString(),
                 'payment_method' => $paymentMethod,
                 'notes' => $notes,
@@ -102,8 +130,112 @@ class ChargeSettlementService
             ]);
             $account->save();
 
+            if ($feeBreakdown && ($feeBreakdown['gateway_fee'] ?? 0) > 0) {
+                $this->upsertGatewayFeeExpense(
+                    $lockedCharge,
+                    $payment,
+                    (float) $feeBreakdown['gateway_fee'],
+                    $paidAt,
+                    $paymentMethod,
+                    $userId,
+                );
+            }
+
             app(ReservationChargeService::class)->syncReservationOnChargePaid($lockedCharge->fresh());
         });
+    }
+
+    private function syncGatewayFeesForPaidCharge(Charge $charge, array $asaasPayment, string $paymentMethod): void
+    {
+        $breakdown = $this->asaasPaymentFeeService->resolve($asaasPayment, (float) $charge->amount);
+
+        if ($breakdown['net_amount'] === null) {
+            return;
+        }
+
+        $payment = Payment::query()
+            ->where('charge_id', $charge->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$payment) {
+            return;
+        }
+
+        $gross = $breakdown['gross_amount'] > 0 ? $breakdown['gross_amount'] : (float) $charge->amount;
+
+        $payment->fill([
+            'amount_paid' => $gross,
+            'gross_amount' => $gross,
+            'net_amount' => $breakdown['net_amount'],
+            'gateway_fee' => $breakdown['gateway_fee'],
+            'installment_count' => $breakdown['installment_count'],
+            'asaas_billing_type' => $breakdown['asaas_billing_type'],
+            'asaas_payment_id' => $breakdown['asaas_payment_id'] ?? $payment->asaas_payment_id,
+        ]);
+        $payment->save();
+
+        CondominiumAccount::query()
+            ->where('condominium_id', $charge->condominium_id)
+            ->where('type', 'income')
+            ->where('source_type', 'charge')
+            ->where('source_id', $charge->id)
+            ->update(['amount' => $breakdown['net_amount']]);
+
+        if (($breakdown['gateway_fee'] ?? 0) > 0) {
+            $this->upsertGatewayFeeExpense(
+                $charge,
+                $payment,
+                (float) $breakdown['gateway_fee'],
+                Carbon::parse($charge->paid_at ?? now()),
+                $paymentMethod,
+                null,
+            );
+        }
+    }
+
+    private function upsertGatewayFeeExpense(
+        Charge $charge,
+        Payment $payment,
+        float $feeAmount,
+        Carbon $paidAt,
+        string $paymentMethod,
+        ?int $userId,
+    ): void {
+        $account = CondominiumAccount::withTrashed()->firstOrNew([
+            'condominium_id' => $charge->condominium_id,
+            'type' => 'expense',
+            'source_type' => 'asaas_gateway_fee',
+            'source_id' => $payment->id,
+        ]);
+
+        if ($account->exists && method_exists($account, 'trashed') && $account->trashed()) {
+            $account->restore();
+        }
+
+        $bankAccountId = $this->bankAccountRoutingService->resolveForCharge($charge);
+
+        $account->fill([
+            'description' => 'Taxa Asaas — ' . $charge->title,
+            'amount' => $feeAmount,
+            'transaction_date' => $paidAt->toDateString(),
+            'payment_method' => $paymentMethod,
+            'notes' => 'Tarifa do gateway sobre pagamento online.',
+            'created_by' => $userId,
+            'bank_account_id' => $bankAccountId,
+            'status' => CondominiumAccount::STATUS_ACTIVE,
+        ]);
+        $account->save();
+    }
+
+    private function removeGatewayFeeExpense(int $condominiumId, int $paymentId): void
+    {
+        CondominiumAccount::query()
+            ->where('condominium_id', $condominiumId)
+            ->where('type', 'expense')
+            ->where('source_type', 'asaas_gateway_fee')
+            ->where('source_id', $paymentId)
+            ->delete();
     }
 
     public function settlePayrollCharge(Charge $charge, ?Carbon $paidAt = null): void
@@ -198,6 +330,14 @@ class ChargeSettlementService
                 'reason' => $reason,
             ]);
 
+            $payments = Payment::where('charge_id', $charge->id)
+                ->where('payment_method', 'payroll')
+                ->get();
+
+            foreach ($payments as $payment) {
+                $this->removeGatewayFeeExpense($charge->condominium_id, $payment->id);
+            }
+
             Payment::where('charge_id', $charge->id)
                 ->where('payment_method', 'payroll')
                 ->delete();
@@ -243,6 +383,12 @@ class ChargeSettlementService
         }
 
         $this->database->transaction(function () use ($charge, $reason, $userId) {
+            $payments = Payment::where('charge_id', $charge->id)->get();
+
+            foreach ($payments as $payment) {
+                $this->removeGatewayFeeExpense($charge->condominium_id, $payment->id);
+            }
+
             Payment::where('charge_id', $charge->id)->delete();
 
             CondominiumAccount::where('condominium_id', $charge->condominium_id)

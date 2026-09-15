@@ -76,9 +76,15 @@
     <div class="col-lg-3 col-md-6">
         <div class="card shadow-sm h-100 border-0 border-start border-4 border-success">
             <div class="card-body">
-                <small class="text-muted text-uppercase">Entradas (taxas)</small>
+                <small class="text-muted text-uppercase">Entradas (taxas) — líquido</small>
                 <h4 class="mb-0 mt-1 text-success">R$ {{ number_format($data['totals']['charges_income'], 2, ',', '.') }}</h4>
-                <small class="text-muted">{{ $data['totals']['charges_received_count'] }} cobranças</small>
+                <small class="text-muted">
+                    {{ $data['totals']['charges_received_count'] }} cobranças
+                    @if(($data['totals']['gateway_fees_total'] ?? 0) > 0)
+                        · Bruto R$ {{ number_format($data['totals']['charges_gross_total'], 2, ',', '.') }}
+                        · Taxas Asaas −R$ {{ number_format($data['totals']['gateway_fees_total'], 2, ',', '.') }}
+                    @endif
+                </small>
             </div>
         </div>
     </div>
@@ -392,8 +398,11 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Método</th>
-                                <th class="text-end">Quantidade</th>
-                                <th class="text-end">Valor total</th>
+                                <th class="text-end">Qtd</th>
+                                <th class="text-end">Líquido</th>
+                                @if($data['payments_summary']->sum('gateway_fees') > 0)
+                                    <th class="text-end text-muted small">Taxa Asaas</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
@@ -404,6 +413,15 @@
                                     <td class="text-end text-primary fw-semibold">
                                         R$ {{ number_format($paymentSummary['total'], 2, ',', '.') }}
                                     </td>
+                                    @if($data['payments_summary']->sum('gateway_fees') > 0)
+                                        <td class="text-end text-muted small">
+                                            @if(($paymentSummary['gateway_fees'] ?? 0) > 0)
+                                                −R$ {{ number_format($paymentSummary['gateway_fees'], 2, ',', '.') }}
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
                                 <tr>

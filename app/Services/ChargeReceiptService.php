@@ -51,14 +51,14 @@ class ChargeReceiptService
             'date' => optional($payment->payment_date)->format('d/m/Y'),
             'datetime' => optional($payment->created_at)->format('d/m/Y H:i'),
             'method' => PaymentMethods::label($payment->payment_method),
-            'amount' => (float) $payment->amount_paid,
-            'amount_formatted' => $this->formatMoney($payment->amount_paid),
+            'amount' => $payment->displayAmount(),
+            'amount_formatted' => $this->formatMoney($payment->displayAmount()),
             'notes' => $payment->notes,
             'registered_by' => $payment->user?->name,
             'transaction_id' => $payment->transaction_id ?? $payment->asaas_payment_id,
         ]);
 
-        $totalPaid = (float) $charge->payments->sum('amount_paid');
+        $totalPaid = $charge->residentPaidAmount();
 
         return [
             'condominium' => CondominiumDocuments::presentCondominium($condominium),

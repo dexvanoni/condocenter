@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 14/09/2026 (calendário público de reservas)
+- **Última revisão:** 15/09/2026 (taxas gateway Asaas na prestação de contas)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -52,6 +52,10 @@ apt update
 apt install -y \
   php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl \
   php8.3-zip php8.3-gd php8.3-bcmath php8.3-intl php8.3-tokenizer
+
+# OCR de etiquetas de encomenda (Tesseract + português)
+apt install -y tesseract-ocr tesseract-ocr-por
+tesseract --version
 ```
 
 Instale o Composer:
@@ -205,6 +209,14 @@ ASAAS_WEBHOOK_TOKEN=
 WHATSAPP_ENABLED=false
 SAAS_ENFORCE_SUBSCRIPTION=true
 
+# OCR de etiquetas (Encomenda Inteligente) — requer tesseract-ocr no SO (Passo 1)
+OCR_ENABLED=true
+OCR_LANG=por
+OCR_TIMEOUT=30
+OCR_PREPROCESS_ENABLED=true
+# Deixe vazio no Ubuntu (usa PATH). Só preencha se o binário estiver fora do PATH.
+TESSERACT_PATH=
+
 DEV_DOCS_TOKEN=
 DEV_DOCS_URL="${APP_URL}/dev/docs/"
 ```
@@ -214,7 +226,8 @@ Regras:
 - Não copie o `.env` do computador local.
 - `DEV_DOCS_TOKEN` vazio em produção (a página interna fica 404).
 - `QUEUE_CONNECTION=database` (a fila entra no Passo 9).
-
+- A câmera do porteiro no navegador exige **HTTPS** em produção (`APP_URL=https://...`).
+- Em desenvolvimento Windows/Laragon: instale [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) com pacote `por` e aponte `TESSERACT_PATH` (ex.: `C:\Program Files\Tesseract-OCR\tesseract.exe`). Sem Tesseract, o registro manual de encomendas continua funcionando.
 Quando terminar: vá para o **Passo 6**.
 
 ---
@@ -417,6 +430,8 @@ Quando terminar: vá para o **Passo 11**.
 1. No Asaas, webhook: `https://SEU_DOMINIO/webhooks/asaas`
 2. WhatsApp: só se for usar — `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`, depois `php artisan config:cache`
 3. Se upload de foto falhar: em `/etc/php/8.3/fpm/php.ini` aumente `upload_max_filesize` e `post_max_size`, depois `systemctl reload php8.3-fpm`
+4. Encomenda Inteligente (OCR): confirme `tesseract --version` e `OCR_ENABLED=true` no `.env`. Sem Tesseract, use `OCR_ENABLED=false` — o porteiro ainda registra manualmente.
+5. Câmera no celular: o site precisa estar em HTTPS (já previsto no Passo 7)
 
 Quando terminar: vá para o **Passo 12**.
 
@@ -521,6 +536,38 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-15 — Taxas do gateway Asaas na prestação de contas
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Migration adiciona `gross_amount`, `net_amount`, `gateway_fee` em `payments`.
+- Pagamentos online passam a registrar líquido (`netValue` da API Asaas) no caixa e despesa automática `asaas_gateway_fee` com a tarifa.
+- Sem variável de `.env` nova. Requer integração Asaas ativa por condomínio.
+- Cobranças já liquidadas antes da atualização mantêm valores anteriores (bruto); novas liquidações via webhook/checkout usam taxa da API.
+
+### 2026-09-14 — Relatório de movimentações de encomendas (síndico)
+
+- Atualização: Parte 2 (`git pull` + `npm ci` + `npm run build`). Sem migration nova.
+- Nova rota web `/packages/reports` para síndico/secretaria (`view_packages`). Exportação PDF e Excel exige permissão `export_packages_reports` (incluída no seeder para Síndico e Secretaria).
+- Após deploy, rode `php artisan db:seed --class=RolesAndPermissionsSeeder --force` **somente** se precisar sincronizar a permissão `export_packages_reports` em produção sem recriar roles manualmente; alternativa: conceder a permissão via painel de roles.
+- O porteiro continua em `/packages` (painel operacional). Síndico acessa movimentações completas e exportação.
+
+### 2026-09-14 — Encomenda Inteligente (OCR de etiqueta + senha de retirada)
+
+- Instalação nova: no Passo 1 instale `tesseract-ocr` e `tesseract-ocr-por`; no Passo 5 inclua `OCR_*` / `TESSERACT_PATH`; o `migrate` cria campos OCR/senha em `packages`.
+- Atualização: Parte 2 (`git pull` + `npm ci` + `npm run build` + `php artisan migrate --force`). Antes do `config:cache`, acrescente no `.env`:
+
+```env
+OCR_ENABLED=true
+OCR_LANG=por
+OCR_TIMEOUT=30
+OCR_PREPROCESS_ENABLED=true
+TESSERACT_PATH=
+```
+
+- Se a VPS ainda não tem Tesseract: `apt install -y tesseract-ocr tesseract-ocr-por` (uma vez) e depois `OCR_ENABLED=true`.
+- HTTPS obrigatório para a câmera do porteiro (`/packages/intake`).
+- Sem comando Artisan one-off. Encomendas antigas sem senha continuam retiráveis sem código até esgotarem.
+- A atualização também cria os campos de auditoria da retirada (`picked_up_by_name` e `pickup_verified_at`). O porteiro usa `/packages/pickup`, informa a senha e confirma o nome opcional de quem retirou.
 
 ### 2026-09-14 — Exibir reservante no calendário de espaços
 
