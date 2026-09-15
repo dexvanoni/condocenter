@@ -94,6 +94,7 @@ class AccessControlController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'visitor_name' => 'required|string|max:255',
+            'visitor_preset_key' => 'nullable|string|max:50',
             'authorization_type' => 'required|in:allow,deny',
             'scheduled_at' => 'required|date',
             'valid_until' => 'nullable|date|after:scheduled_at',
@@ -114,7 +115,81 @@ class AccessControlController extends Controller
         try {
             $auth = $this->accessControl->createAuthorization($request->user(), $validator->validated());
 
-            return response()->json(['message' => 'Liberação criada.', 'authorization' => $auth->load('unit')], 201);
+            return response()->json([
+                'message' => $auth->hasDigitalPass()
+                    ? 'Liberação criada. A senha foi enviada ao seu WhatsApp e o PDF com QR Code está disponível para download.'
+                    : 'Liberação criada.',
+                'authorization' => $auth->load('unit'),
+                'has_digital_pass' => $auth->hasDigitalPass(),
+                'pdf_url' => $auth->hasDigitalPass()
+                    ? route('api.access-control.authorizations.pdf', $auth)
+                    : null,
+            ], 201);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e);
+        }
+    }
+
+    public function downloadAuthorizationPdf(Request $request, AccessAuthorization $authorization)
+    {
+        try {
+            $this->accessControl->assertCanViewAuthorizationCredentials($request->user(), $authorization);
+
+            $pdf = $this->accessControl->generateVisitorCredentialPdf($authorization);
+
+            return $pdf->download('visitante-' . $authorization->id . '.pdf');
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e);
+        }
+    }
+
+    public function checkInByPin(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'access_pin' => ['required', 'string', 'size:4', 'regex:/^\d{4}$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $result = $this->accessControl->checkInByPin(
+                $request->user(),
+                $validator->validated()['access_pin']
+            );
+
+            return response()->json([
+                'message' => 'Visitante liberado. Portão autorizado.',
+                'authorization' => $result['authorization'],
+                'movement' => $result['movement'],
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorResponse($e);
+        }
+    }
+
+    public function checkInByQr(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'qr_data' => 'required|string|max:2000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $result = $this->accessControl->checkInByQr(
+                $request->user(),
+                $validator->validated()['qr_data']
+            );
+
+            return response()->json([
+                'message' => 'Visitante liberado. Portão autorizado.',
+                'authorization' => $result['authorization'],
+                'movement' => $result['movement'],
+            ]);
         } catch (\Throwable $e) {
             return $this->errorResponse($e);
         }

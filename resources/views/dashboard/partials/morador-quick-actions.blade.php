@@ -3,6 +3,24 @@
     $user = Auth::user();
     $chargesCount = ($chargesPendentes->count() ?? 0) + ($chargesAtrasadas->count() ?? 0);
     $isRestricted = $defaulterRestriction['active'] ?? false;
+    $isFinancialSimplified = SidebarHelper::isFinancialSimplified($user);
+    $accountabilityUrl = null;
+
+    if (SidebarHelper::moduleEnabled($user, 'financial') && !$user->isAgregado()) {
+        if (
+            $isFinancialSimplified
+            && Route::has('accountability-uploads.index')
+            && ($user->isMorador() || $user->can('view_accountability_reports') || $user->isConselhoFiscal())
+        ) {
+            $accountabilityUrl = route('accountability-uploads.index');
+        } elseif (
+            !$isFinancialSimplified
+            && Route::has('accountability-reports.index')
+            && ($user->can('view_accountability_reports') || $user->can('view_financial_reports'))
+        ) {
+            $accountabilityUrl = route('accountability-reports.index');
+        }
+    }
 @endphp
 
 <div class="md-quick-grid fade-in">
@@ -11,6 +29,13 @@
         @if($chargesCount > 0)<span class="md-quick-tile__badge">{{ $chargesCount }}</span>@endif
         <span class="md-quick-tile__icon md-quick-tile__icon--pay"><i class="bi bi-credit-card"></i></span>
         <span>Pagar</span>
+    </a>
+    @endif
+
+    @if($accountabilityUrl)
+    <a href="{{ $accountabilityUrl }}" class="md-quick-tile">
+        <span class="md-quick-tile__icon md-quick-tile__icon--accountability"><i class="bi bi-journal-check"></i></span>
+        <span>Prestação de Contas</span>
     </a>
     @endif
 
@@ -63,6 +88,13 @@
     <a href="{{ route('marketplace.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--market"><i class="bi bi-shop"></i></span>
         <span>Marketplace</span>
+    </a>
+    @endif
+
+    @if(Route::has('pets.index') && SidebarHelper::canAccessModule($user, 'pets'))
+    <a href="{{ route('pets.index') }}" class="md-quick-tile">
+        <span class="md-quick-tile__icon md-quick-tile__icon--pets"><i class="bi bi-hearts"></i></span>
+        <span>Pets</span>
     </a>
     @endif
 

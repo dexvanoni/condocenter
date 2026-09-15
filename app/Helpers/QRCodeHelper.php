@@ -2,6 +2,8 @@
 
 namespace App\Helpers;
 
+use BaconQrCode\Common\ErrorCorrectionLevel;
+use BaconQrCode\Encoder\Encoder;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class QRCodeHelper
@@ -41,6 +43,139 @@ class QRCodeHelper
         return QrCode::size(200)
             ->format('png')
             ->generate(json_encode($data));
+    }
+
+    /**
+     * Gera QR Code para liberação de visitante nomeado (tipo Outro).
+     */
+    public static function visitorAccessPayload(\App\Models\AccessAuthorization $authorization): string
+    {
+        return json_encode([
+            'type' => 'visitor_access',
+            'token' => $authorization->qr_token,
+        ]);
+    }
+
+    public static function generateForVisitorAccess(\App\Models\AccessAuthorization $authorization): string
+    {
+        return QrCode::size(320)
+            ->format('svg')
+            ->errorCorrection('H')
+            ->generate(self::visitorAccessPayload($authorization));
+    }
+
+    public static function generateForVisitorAccessPngBase64(\App\Models\AccessAuthorization $authorization): string
+    {
+        return base64_encode(self::generateForVisitorAccessPngBinary($authorization));
+    }
+
+    public static function generateForVisitorAccessPngBinary(\App\Models\AccessAuthorization $authorization): string
+    {
+        if (!function_exists('imagecreatetruecolor')) {
+            throw new \RuntimeException('Extensão GD não disponível para gerar QR Code em PNG.');
+        }
+
+        $matrix = Encoder::encode(
+            self::visitorAccessPayload($authorization),
+            ErrorCorrectionLevel::H()
+        )->getMatrix();
+
+        $moduleCount = $matrix->getWidth();
+        $scale = 6;
+        $margin = 4;
+        $imageSize = ($moduleCount + ($margin * 2)) * $scale;
+
+        $image = imagecreatetruecolor($imageSize, $imageSize);
+        $white = imagecolorallocate($image, 255, 255, 255);
+        $black = imagecolorallocate($image, 0, 0, 0);
+        imagefill($image, 0, 0, $white);
+
+        for ($y = 0; $y < $moduleCount; $y++) {
+            for ($x = 0; $x < $moduleCount; $x++) {
+                if (!$matrix->get($x, $y)) {
+                    continue;
+                }
+
+                $x1 = ($x + $margin) * $scale;
+                $y1 = ($y + $margin) * $scale;
+                imagefilledrectangle(
+                    $image,
+                    $x1,
+                    $y1,
+                    $x1 + $scale - 1,
+                    $y1 + $scale - 1,
+                    $black
+                );
+            }
+        }
+
+        ob_start();
+        imagepng($image);
+        $png = ob_get_clean() ?: '';
+        imagedestroy($image);
+
+        if ($png === '') {
+            throw new \RuntimeException('Falha ao gerar QR Code em PNG.');
+        }
+
+        return $png;
+    }
+
+    /**
+     * Extrai o código do pet a partir de URL, JSON ou código bruto.
+     */
+    public static function parsePetQrCode(string $qrData): ?string
+    {
+        $qrData = trim($qrData);
+
+        if ($qrData === '') {
+            return null;
+        }
+
+        try {
+            $data = json_decode($qrData, true);
+
+            if (is_array($data) && ($data['type'] ?? null) === 'pet' && !empty($data['qr_code'])) {
+                return (string) $data['qr_code'];
+            }
+        } catch (\Throwable) {
+            // segue para fallback
+        }
+
+        if (preg_match('~\/pets\/qr\/([^/?#\s]+)~i', $qrData, $matches)) {
+            return urldecode($matches[1]);
+        }
+
+        if (preg_match('/^PET-[A-Z0-9]+-\d+$/i', $qrData)) {
+            return $qrData;
+        }
+
+        return null;
+    }
+
+    public static function parseVisitorAccessToken(string $qrData): ?string
+    {
+        $qrData = trim($qrData);
+
+        try {
+            $data = json_decode($qrData, true);
+
+            if (
+                is_array($data)
+                && ($data['type'] ?? null) === 'visitor_access'
+                && !empty($data['token'])
+            ) {
+                return (string) $data['token'];
+            }
+        } catch (\Throwable) {
+            // segue para fallback
+        }
+
+        if (preg_match('/^[A-Za-z0-9]{32,64}$/', $qrData)) {
+            return $qrData;
+        }
+
+        return null;
     }
 
     /**

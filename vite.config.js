@@ -10,6 +10,8 @@ export default defineConfig({
                 'resources/js/app.js',
                 'resources/js/packages-intake.js',
                 'resources/js/packages-pickup.js',
+                'resources/js/access-porteiro-checkin.js',
+                'resources/js/pets-verify.js',
                 'resources/css/landing.css',
                 'resources/js/landing.js',
                 'resources/css/landing-connect.css',

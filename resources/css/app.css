@@ -61,12 +61,19 @@ body {
 }
 
 .sindcon-logo--navbar {
-    height: 1.75rem;
+    height: 2rem;
     width: auto;
-    max-width: 9rem;
+    max-width: 10rem;
 }
 
-.sindcon-logo-wrap--navbar,
+.sindcon-logo-wrap--navbar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    padding: 0;
+}
+
 .sindcon-logo-wrap--light {
     display: inline-flex;
     align-items: center;

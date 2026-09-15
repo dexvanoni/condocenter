@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 15/09/2026 (taxas gateway Asaas na prestação de contas)
+- **Última revisão:** 15/09/2026 (visitantes Outro com QR Code e senha na portaria)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -536,6 +536,15 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-15 — Visitantes (Outro) com QR Code e senha na portaria
+
+- Atualização: Parte 2 (`git pull` + `npm ci` + `npm run build` + `php artisan migrate --force`).
+- Migration adiciona `visitor_preset_key`, `access_pin_hash` e `qr_token` em `access_authorizations`.
+- Liberações do tipo **Outro** exigem validade; o morador recebe senha de 4 dígitos no WhatsApp e baixa o **PDF com QR Code** na plataforma.
+- Senha e QR permanecem válidos até a data/hora de expiração; o visitante pode entrar e sair quantas vezes quiser nesse período.
+- O porteiro libera cada entrada escaneando o QR ou digitando a senha no painel de acesso.
+- Sem variável de `.env` nova. Tipo WhatsApp `access_visitor_credential` incluído no grupo **Controle de acesso**.
 
 ### 2026-09-15 — Taxas do gateway Asaas na prestação de contas
 

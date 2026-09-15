@@ -8,6 +8,7 @@
     $altText = $alt ?? config('brand.logo_alt', config('app.name', 'SindCON'));
     $src = match ($variant) {
         'sidebar' => asset(config('brand.logo_sidebar_path', config('brand.logo_path', 'images/logo_sindcon.png'))),
+        'navbar' => asset(config('brand.logo_path', 'images/logo_sindcon.png')),
         default => asset(config('brand.logo_path', 'images/logo_sindcon.png')),
     };
 

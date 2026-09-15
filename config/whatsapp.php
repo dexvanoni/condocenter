@@ -28,7 +28,7 @@ return [
             'label' => 'Controle de acesso',
             'description' => 'Entradas, negações e alertas críticos de proibição na portaria.',
             'recipients' => 'Morador indicado para aviso, quem autorizou a visita (morador/agregado) e morador titular da unidade.',
-            'types' => ['access_entered', 'access_denied', 'access_prohibition_critical'],
+            'types' => ['access_entered', 'access_denied', 'access_prohibition_critical', 'access_visitor_credential'],
         ],
         'panic' => [
             'label' => 'Alerta de pânico',

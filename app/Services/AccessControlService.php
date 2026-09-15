@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Jobs\SendAccessNotification;
 use App\Jobs\SendProhibitionAlertNotification;
+use App\Jobs\SendVisitorAccessCredentialNotification;
 use App\Models\AccessAuthorization;
 use App\Models\AccessListGroup;
 use App\Models\AccessListItem;
@@ -14,8 +15,11 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AccessControlService
@@ -30,6 +34,12 @@ class AccessControlService
         ['key' => 'policia', 'label' => 'Polícia', 'icon' => 'bi-shield-fill-check'],
         ['key' => 'entregador', 'label' => 'Entregador', 'icon' => 'bi-box-seam-fill'],
     ];
+
+    private const TRIVIAL_ACCESS_PINS = [
+        '0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999',
+        '1234', '4321', '0123', '3210',
+    ];
+
     public function computeExpiresAt(Carbon $scheduledAt, ?Carbon $validUntil): Carbon
     {
         if ($validUntil) {
@@ -156,20 +166,300 @@ class AccessControlService
         $unit = $this->resolveUnitForCreator($creator, isset($data['unit_id']) ? (int) $data['unit_id'] : null);
         $notifyUser = $this->resolveNotifyUser($creator, $unit);
         $scheduledAt = Carbon::parse($data['scheduled_at']);
+        $presetKey = $this->resolveVisitorPresetKey($data);
+        $isNamedVisitor = $presetKey === AccessAuthorization::PRESET_OTHER;
         $validUntil = !empty($data['valid_until']) ? Carbon::parse($data['valid_until']) : null;
 
-        return AccessAuthorization::create([
-            'condominium_id' => $unit->condominium_id,
-            'unit_id' => $unit->id,
-            'authorized_by' => $creator->id,
-            'notify_user_id' => $notifyUser->id,
-            'visitor_name' => $data['visitor_name'],
-            'authorization_type' => $data['authorization_type'] ?? AccessAuthorization::TYPE_ALLOW,
-            'scheduled_at' => $scheduledAt,
-            'valid_until' => $validUntil,
-            'expires_at' => $this->computeExpiresAt($scheduledAt, $validUntil),
-            'status' => AccessAuthorization::STATUS_PENDING,
+        if ($isNamedVisitor && !$validUntil) {
+            throw ValidationException::withMessages([
+                'valid_until' => 'Informe até quando o visitante pode entrar na portaria.',
+            ]);
+        }
+
+        if ($isNamedVisitor && $validUntil->lte($scheduledAt)) {
+            throw ValidationException::withMessages([
+                'valid_until' => 'A validade deve ser posterior à entrada prevista.',
+            ]);
+        }
+
+        $plainPin = null;
+
+        $authorization = DB::transaction(function () use (
+            $unit,
+            $creator,
+            $notifyUser,
+            $data,
+            $scheduledAt,
+            $validUntil,
+            $presetKey,
+            $isNamedVisitor,
+            &$plainPin
+        ) {
+            $attributes = [
+                'condominium_id' => $unit->condominium_id,
+                'unit_id' => $unit->id,
+                'authorized_by' => $creator->id,
+                'notify_user_id' => $notifyUser->id,
+                'visitor_name' => $data['visitor_name'],
+                'visitor_preset_key' => $presetKey,
+                'authorization_type' => $data['authorization_type'] ?? AccessAuthorization::TYPE_ALLOW,
+                'scheduled_at' => $scheduledAt,
+                'valid_until' => $validUntil,
+                'expires_at' => $this->computeExpiresAt($scheduledAt, $validUntil),
+                'status' => AccessAuthorization::STATUS_PENDING,
+            ];
+
+            if ($isNamedVisitor) {
+                $plainPin = $this->generateAccessPin();
+                $attributes['access_pin_hash'] = Hash::make($plainPin);
+                $attributes['qr_token'] = $this->generateQrToken();
+            }
+
+            return AccessAuthorization::create($attributes);
+        });
+
+        if ($isNamedVisitor && $plainPin) {
+            SendVisitorAccessCredentialNotification::dispatchSync($authorization->fresh(['unit', 'notifyUser']), $plainPin);
+        }
+
+        return $authorization;
+    }
+
+    public function resolveVisitorPresetKey(array $data): ?string
+    {
+        if (!empty($data['visitor_preset_key'])) {
+            return $data['visitor_preset_key'];
+        }
+
+        $label = trim((string) ($data['visitor_name'] ?? ''));
+        foreach (self::INDIVIDUAL_VISITOR_PRESETS as $preset) {
+            if ($preset['label'] === $label) {
+                return $preset['key'];
+            }
+        }
+
+        return null;
+    }
+
+    public function presetLabelForKey(?string $key): ?string
+    {
+        if (!$key || $key === AccessAuthorization::PRESET_OTHER) {
+            return null;
+        }
+
+        foreach (self::INDIVIDUAL_VISITOR_PRESETS as $preset) {
+            if ($preset['key'] === $key) {
+                return $preset['label'];
+            }
+        }
+
+        return null;
+    }
+
+    public function generateAccessPin(): string
+    {
+        do {
+            $code = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+        } while (in_array($code, self::TRIVIAL_ACCESS_PINS, true));
+
+        return $code;
+    }
+
+    public function generateQrToken(): string
+    {
+        do {
+            $token = Str::random(48);
+        } while (AccessAuthorization::where('qr_token', $token)->exists());
+
+        return $token;
+    }
+
+    public function verifyAccessPin(AccessAuthorization $authorization, string $pin): bool
+    {
+        if (empty($authorization->access_pin_hash)) {
+            return false;
+        }
+
+        return Hash::check($pin, $authorization->access_pin_hash);
+    }
+
+    public function findPendingByAccessPin(User $porteiro, string $pin): AccessAuthorization
+    {
+        if (!$porteiro->can('process_access')) {
+            throw new AuthorizationException('Sem permissão para processar acesso.');
+        }
+
+        $condominiumId = (int) $porteiro->tenantCondominiumId();
+        $this->expireStaleRecords($condominiumId);
+
+        $authorization = AccessAuthorization::with(['unit', 'authorizedBy', 'notifyUser'])
+            ->forCondominium($condominiumId)
+            ->pending()
+            ->allows()
+            ->where('visitor_preset_key', AccessAuthorization::PRESET_OTHER)
+            ->whereNotNull('access_pin_hash')
+            ->orderByDesc('scheduled_at')
+            ->get()
+            ->first(fn (AccessAuthorization $candidate) => $this->verifyAccessPin($candidate, $pin));
+
+        if (!$authorization) {
+            throw ValidationException::withMessages([
+                'access_pin' => 'Nenhuma liberação ativa encontrada com esta senha.',
+            ]);
+        }
+
+        return $authorization;
+    }
+
+    public function findPendingByQrToken(User $porteiro, string $token): AccessAuthorization
+    {
+        if (!$porteiro->can('process_access')) {
+            throw new AuthorizationException('Sem permissão para processar acesso.');
+        }
+
+        $condominiumId = (int) $porteiro->tenantCondominiumId();
+        $this->expireStaleRecords($condominiumId);
+
+        $authorization = AccessAuthorization::with(['unit', 'authorizedBy', 'notifyUser'])
+            ->forCondominium($condominiumId)
+            ->pending()
+            ->allows()
+            ->where('visitor_preset_key', AccessAuthorization::PRESET_OTHER)
+            ->where('qr_token', $token)
+            ->first();
+
+        if (!$authorization || $authorization->isExpired()) {
+            throw ValidationException::withMessages([
+                'qr_data' => 'QR Code inválido ou expirado.',
+            ]);
+        }
+
+        return $authorization;
+    }
+
+    public function checkInByPin(User $porteiro, string $pin): array
+    {
+        $authorization = $this->findPendingByAccessPin($porteiro, $pin);
+        $movement = $this->processAuthorizationByCredential($porteiro, $authorization, 'pin');
+
+        return [
+            'authorization' => $authorization->fresh(['unit', 'authorizedBy', 'notifyUser']),
+            'movement' => $movement,
+        ];
+    }
+
+    public function checkInByQr(User $porteiro, string $qrData): array
+    {
+        $token = \App\Helpers\QRCodeHelper::parseVisitorAccessToken($qrData);
+
+        if (!$token) {
+            throw ValidationException::withMessages([
+                'qr_data' => 'QR Code inválido.',
+            ]);
+        }
+
+        $authorization = $this->findPendingByQrToken($porteiro, $token);
+        $movement = $this->processAuthorizationByCredential($porteiro, $authorization, 'qr');
+
+        return [
+            'authorization' => $authorization->fresh(['unit', 'authorizedBy', 'notifyUser']),
+            'movement' => $movement,
+        ];
+    }
+
+    public function processAuthorizationByCredential(
+        User $porteiro,
+        AccessAuthorization $authorization,
+        string $method
+    ): AccessMovement {
+        if (!$authorization->hasDigitalPass()) {
+            throw ValidationException::withMessages([
+                'authorization' => 'Esta liberação não possui senha ou QR Code.',
+            ]);
+        }
+
+        if (!$authorization->isCredentialActive()) {
+            throw ValidationException::withMessages(['status' => 'Senha ou QR Code expirados ou inválidos.']);
+        }
+
+        $scheduleMetadata = [
+            'scheduled_at' => $authorization->scheduled_at?->toIso8601String(),
+            'valid_until' => $authorization->valid_until?->toIso8601String(),
+            'early_entry' => $authorization->scheduled_at && now()->lt($authorization->scheduled_at),
+            'check_in_method' => $method,
+            'auto_check_in' => true,
+            'credential_reusable' => true,
+        ];
+
+        if ($scheduleMetadata['early_entry']) {
+            $scheduleMetadata['early_entry_confirmed'] = true;
+            $scheduleMetadata['early_entry_confirmed_by_porteiro_at'] = now()->toIso8601String();
+        }
+
+        $authorization->update([
+            'processed_by' => $porteiro->id,
+            'processed_at' => now(),
         ]);
+
+        $movement = $this->recordMovement(
+            $authorization->condominium_id,
+            $authorization->unit_id,
+            $authorization->notify_user_id,
+            $authorization->authorized_by,
+            $porteiro,
+            AccessMovement::SOURCE_AUTHORIZATION,
+            $authorization->id,
+            AccessMovement::ACTION_ENTERED,
+            $authorization->visitor_name,
+            $authorization->unit?->full_identifier,
+            array_merge([
+                'authorization_type' => $authorization->authorization_type,
+                'unit' => $authorization->unit?->full_identifier,
+                'visitor_preset_key' => $authorization->visitor_preset_key,
+            ], $scheduleMetadata)
+        );
+
+        SendAccessNotification::dispatchSync($movement);
+
+        return $movement;
+    }
+
+    public function assertCanViewAuthorizationCredentials(User $user, AccessAuthorization $authorization): void
+    {
+        if (
+            $authorization->authorized_by !== $user->id
+            && $authorization->notify_user_id !== $user->id
+            && !$user->isSindico()
+            && !$user->isAdmin()
+        ) {
+            throw new AuthorizationException('Não autorizado a visualizar esta liberação.');
+        }
+
+        if ($authorization->condominium_id !== $user->tenantCondominiumId()) {
+            throw new AuthorizationException('Liberação de outro condomínio.');
+        }
+    }
+
+    public function generateVisitorCredentialPdf(AccessAuthorization $authorization)
+    {
+        $authorization->loadMissing(['unit', 'condominium', 'authorizedBy']);
+
+        if (!$authorization->hasDigitalPass()) {
+            throw ValidationException::withMessages([
+                'authorization' => 'Esta liberação não possui QR Code.',
+            ]);
+        }
+
+        if (!$authorization->isCredentialActive()) {
+            throw ValidationException::withMessages([
+                'authorization' => 'QR Code expirado ou indisponível.',
+            ]);
+        }
+
+        return Pdf::loadView('access-control.visitor-credential-pdf', [
+            'authorization' => $authorization,
+            'qrImageBase64' => \App\Helpers\QRCodeHelper::generateForVisitorAccessPngBase64($authorization),
+        ])->setPaper('a4', 'portrait');
     }
 
     public function createProhibition(User $creator, array $data): AccessAuthorization

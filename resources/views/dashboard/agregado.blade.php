@@ -33,14 +33,25 @@
     @php
         $agregadoUser = Auth::user();
     @endphp
-    @if(($condominium->occurrence_book_public_enabled ?? false) && Route::has('occurrence-book.public.index'))
+    @if(
+        (($condominium->occurrence_book_public_enabled ?? false) && Route::has('occurrence-book.public.index'))
+        || (Route::has('pets.index') && \App\Helpers\SidebarHelper::canAccessModule($agregadoUser, 'pets'))
+    )
     <div class="row mb-4">
         <div class="col-12">
             <div class="md-quick-grid fade-in">
+                @if(($condominium->occurrence_book_public_enabled ?? false) && Route::has('occurrence-book.public.index'))
                 <a href="{{ route('occurrence-book.public.index') }}" class="md-quick-tile">
                     <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-journal-text"></i></span>
                     <span>Livro público</span>
                 </a>
+                @endif
+                @if(Route::has('pets.index') && \App\Helpers\SidebarHelper::canAccessModule($agregadoUser, 'pets'))
+                <a href="{{ route('pets.index') }}" class="md-quick-tile">
+                    <span class="md-quick-tile__icon md-quick-tile__icon--pets"><i class="bi bi-hearts"></i></span>
+                    <span>Pets</span>
+                </a>
+                @endif
             </div>
         </div>
     </div>

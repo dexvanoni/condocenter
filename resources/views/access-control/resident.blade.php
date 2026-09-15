@@ -64,7 +64,7 @@
                         <div class="row g-2">
                             @foreach($visitorPresets as $index => $preset)
                             <div class="col-6 col-md-3 col-lg-auto">
-                                <input type="radio" class="btn-check" name="visitor_preset" id="preset-{{ $preset['key'] }}" value="{{ $preset['label'] }}" {{ $index === 0 ? 'checked' : '' }} required>
+                                <input type="radio" class="btn-check" name="visitor_preset" id="preset-{{ $preset['key'] }}" value="{{ $preset['key'] }}" data-label="{{ $preset['label'] }}" {{ $index === 0 ? 'checked' : '' }} required>
                                 <label class="btn btn-sm btn-outline-primary w-100 py-1 px-2 d-flex align-items-center justify-content-center gap-1" for="preset-{{ $preset['key'] }}">
                                     <i class="bi {{ $preset['icon'] }}"></i>
                                     <span class="small">{{ $preset['label'] }}</span>
@@ -75,7 +75,7 @@
                                 <input type="radio" class="btn-check" name="visitor_preset" id="preset-outro" value="__other__">
                                 <label class="btn btn-sm btn-outline-secondary w-100 py-1 px-2 d-flex align-items-center justify-content-center gap-1" for="preset-outro">
                                     <i class="bi bi-person-fill"></i>
-                                    <span class="small">Outro</span>
+                                    <span class="small">Visitante Conhecido</span>
                                 </label>
                             </div>
                         </div>
@@ -84,18 +84,30 @@
                         <label class="form-label">Nome do visitante *</label>
                         <input type="text" name="visitor_name_other" class="form-control" placeholder="Ex: João Silva">
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-6" id="authScheduledWrap">
                         <label class="form-label">Entrada prevista *</label>
                         <input type="datetime-local" name="scheduled_at" id="authScheduledAt" class="form-control" required>
                         <small class="text-muted">Selecione quando a pessoa deve entrar.</small>
                     </div>
-                    <div class="col-12">
+                    <div class="col-md-6 d-none" id="authValidUntilWrap">
+                        <label class="form-label">Validade da liberação *</label>
+                        <input type="datetime-local" name="valid_until" id="authValidUntil" class="form-control">
+                        <small class="text-muted">Até quando o visitante pode entrar na portaria.</small>
+                    </div>
+                    <div class="col-12 d-none" id="authOtherInfo">
+                        <div class="alert alert-info py-2 mb-0 small">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>
+                            Você receberá uma <strong>senha de 4 dígitos no WhatsApp</strong> e poderá <strong>baixar o PDF com QR Code</strong> para enviar ao visitante.
+                            A senha e o QR permanecem válidos até a data de expiração — o visitante pode entrar e sair quantas vezes quiser nesse período.
+                        </div>
+                    </div>
+                    <div class="col-12" id="authMoreOptionsWrap">
                         <details class="border rounded p-3 bg-light">
                             <summary class="fw-semibold user-select-none" style="cursor:pointer">Mais opções</summary>
                             <div class="row g-3 mt-1">
                                 <div class="col-md-6">
                                     <label class="form-label">Saída prevista (opcional)</label>
-                                    <input type="datetime-local" name="valid_until" class="form-control">
+                                    <input type="datetime-local" name="valid_until_preset" id="authValidUntilPreset" class="form-control">
                                     <small class="text-muted">Sem saída: expira em 24h após a entrada.</small>
                                 </div>
                             </div>
@@ -183,6 +195,34 @@
 
         <div class="tab-pane fade" id="tabHistory">
             <div id="historyContainer" class="table-responsive"><p class="text-muted">Carregando...</p></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="visitorCredentialModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-1"></i> Visitante liberado</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-1 fs-5 fw-bold" id="credentialVisitorName">—</p>
+                <p class="text-muted mb-3" id="credentialValidUntil">—</p>
+                <div class="border rounded p-4 bg-light d-inline-block mb-3">
+                    <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 4rem;"></i>
+                </div>
+                <p class="small text-muted mb-3">
+                    A senha de 4 dígitos foi enviada ao seu WhatsApp. Baixe o PDF e encaminhe ao visitante.
+                    Enquanto estiver dentro da validade, ele pode entrar e sair quantas vezes quiser.
+                </p>
+                <div class="d-grid gap-2">
+                    <a href="#" id="credentialPdfDownload" class="btn btn-primary btn-lg" download>
+                        <i class="bi bi-download me-1"></i> Baixar PDF com QR Code
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -387,12 +427,43 @@ document.addEventListener('DOMContentLoaded', () => {
         authScheduledAt.min = toLocalInput(new Date().toISOString());
     }
 
+    const authValidUntilWrap = document.getElementById('authValidUntilWrap');
+    const authValidUntil = document.getElementById('authValidUntil');
+    const authOtherInfo = document.getElementById('authOtherInfo');
+    const authMoreOptionsWrap = document.getElementById('authMoreOptionsWrap');
+    const visitorCredentialModal = document.getElementById('visitorCredentialModal')
+        ? new bootstrap.Modal(document.getElementById('visitorCredentialModal'))
+        : null;
+
+    function presetLabelForKey(key) {
+        const input = formAuth?.querySelector(`input[name="visitor_preset"][value="${key}"]`);
+        return input?.dataset?.label || key;
+    }
+
     function toggleAuthOtherName() {
         const preset = formAuth?.querySelector('input[name="visitor_preset"]:checked')?.value;
         const showOther = preset === '__other__';
         authOtherNameWrap?.classList.toggle('d-none', !showOther);
+        authValidUntilWrap?.classList.toggle('d-none', !showOther);
+        authOtherInfo?.classList.toggle('d-none', !showOther);
+        authMoreOptionsWrap?.classList.toggle('d-none', showOther);
         const otherInput = formAuth?.querySelector('[name="visitor_name_other"]');
         if (otherInput) otherInput.required = showOther;
+        if (authValidUntil) authValidUntil.required = showOther;
+    }
+
+    function showVisitorCredentialModal(authorization, pdfUrl) {
+        if (!visitorCredentialModal) return;
+        document.getElementById('credentialVisitorName').textContent = authorization.visitor_name || 'Visitante';
+        document.getElementById('credentialValidUntil').textContent = authorization.valid_until
+            ? `Válido até ${fmtDate(authorization.valid_until)} — entradas ilimitadas até essa data`
+            : '';
+        const download = document.getElementById('credentialPdfDownload');
+        if (download) {
+            download.href = pdfUrl;
+            download.download = `visitante-${authorization.id}.pdf`;
+        }
+        visitorCredentialModal.show();
     }
 
     formAuth?.querySelectorAll('input[name="visitor_preset"]').forEach(radio => {
@@ -458,12 +529,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fd = new FormData(e.target);
         const preset = fd.get('visitor_preset');
-        let visitorName = preset;
-        if (preset === '__other__') {
+        const isOther = preset === '__other__';
+        let visitorName = isOther ? '' : presetLabelForKey(preset);
+        let visitorPresetKey = isOther ? 'other' : preset;
+        if (isOther) {
             visitorName = (fd.get('visitor_name_other') || '').toString().trim();
             if (!visitorName) return msg('danger', 'Informe o nome do visitante.');
         }
         if (!fd.get('scheduled_at')) return msg('danger', 'Informe a data e hora de entrada prevista.');
+        const validUntil = isOther
+            ? (fd.get('valid_until') || '').toString()
+            : (fd.get('valid_until_preset') || '').toString();
+        if (isOther && !validUntil) return msg('danger', 'Informe a validade da liberação.');
 
         submittingAuth = true;
         startFormProgress('Criando liberação...', 'primary', 'main');
@@ -474,11 +551,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             result = await postJson('/api/access-control/authorizations', {
                 visitor_name: visitorName,
+                visitor_preset_key: visitorPresetKey,
                 authorization_type: 'allow',
                 scheduled_at: fd.get('scheduled_at'),
-                valid_until: fd.get('valid_until') || null,
+                valid_until: validUntil || null,
             });
             if (result.ok) {
+                if (result.data?.has_digital_pass && result.data?.pdf_url && result.data?.authorization) {
+                    showVisitorCredentialModal(result.data.authorization, result.data.pdf_url);
+                }
                 e.target.reset();
                 const firstPreset = formAuth.querySelector('input[name="visitor_preset"]');
                 if (firstPreset) firstPreset.checked = true;
@@ -653,6 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return {
                 ok: true,
                 message: data.message || 'Operação realizada com sucesso.',
+                data,
             };
         } catch {
             return {
@@ -971,15 +1053,23 @@ document.addEventListener('DOMContentLoaded', () => {
         listsCache = listData.data || [];
 
         const authRows = (authData.data || []).map(a => {
+            const isNamed = a.visitor_preset_key === 'other' && a.has_digital_pass;
+            const pdfBtn = isNamed && a.status === 'pending'
+                ? `<a href="/api/access-control/authorizations/${a.id}/pdf" class="btn btn-sm btn-outline-primary me-1" download><i class="bi bi-file-earmark-pdf"></i> PDF</a>`
+                : '';
             const actions = a.status === 'pending'
-                ? `<button class="btn btn-sm btn-outline-danger btn-cancel-auth" data-id="${a.id}">Cancelar</button>`
-                : '—';
+                ? `${pdfBtn}<button class="btn btn-sm btn-outline-danger btn-cancel-auth" data-id="${a.id}">Cancelar</button>`
+                : (pdfBtn || '—');
+            const typeBadge = isNamed
+                ? '<span class="badge bg-info text-dark">Visitante</span>'
+                : '<span class="badge bg-secondary">Individual</span>';
+            const validity = a.valid_until ? fmtDate(a.valid_until) : '—';
             return `<tr>
-                <td><span class="badge bg-secondary">Individual</span></td>
+                <td>${typeBadge}</td>
                 <td>${esc(a.visitor_name)}</td>
                 <td>${a.authorization_type === 'deny' ? 'Proibido' : 'Liberado'}</td>
                 <td>${esc(a.status)}</td>
-                <td>${fmtDate(a.scheduled_at)}</td>
+                <td>${fmtDate(a.scheduled_at)}${isNamed ? `<br><small class="text-muted">até ${validity}</small>` : ''}</td>
                 <td>${actions}</td>
             </tr>`;
         }).join('');

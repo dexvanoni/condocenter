@@ -223,6 +223,9 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         Route::get('porteiro/panel', [\App\Http\Controllers\Api\AccessControlController::class, 'porteiroPanel'])->name('porteiro.panel');
         Route::get('authorizations', [\App\Http\Controllers\Api\AccessControlController::class, 'myAuthorizations'])->name('authorizations.index');
         Route::post('authorizations', [\App\Http\Controllers\Api\AccessControlController::class, 'storeAuthorization'])->name('authorizations.store');
+        Route::get('authorizations/{authorization}/pdf', [\App\Http\Controllers\Api\AccessControlController::class, 'downloadAuthorizationPdf'])->name('authorizations.pdf');
+        Route::post('check-in/pin', [\App\Http\Controllers\Api\AccessControlController::class, 'checkInByPin'])->name('check-in.pin');
+        Route::post('check-in/qr', [\App\Http\Controllers\Api\AccessControlController::class, 'checkInByQr'])->name('check-in.qr');
         Route::post('prohibitions', [\App\Http\Controllers\Api\AccessControlController::class, 'storeProhibition'])->name('prohibitions.store');
         Route::post('authorizations/{authorization}/cancel', [\App\Http\Controllers\Api\AccessControlController::class, 'cancelAuthorization'])->name('authorizations.cancel');
         Route::post('authorizations/{authorization}/process', [\App\Http\Controllers\Api\AccessControlController::class, 'processAuthorization'])->name('authorizations.process');

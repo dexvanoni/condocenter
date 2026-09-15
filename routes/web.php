@@ -381,6 +381,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::middleware(['check.module.access:pets'])->group(function () {
         Route::get('/pets/verify', [\App\Http\Controllers\PetController::class, 'verify'])->name('pets.verify');
         Route::post('/pets/verify-qr', [\App\Http\Controllers\PetController::class, 'verifyQrCode'])->name('pets.verify-qr');
+        Route::post('/pets/{pet}/notify-owner', [\App\Http\Controllers\PetController::class, 'notifyOwnerFound'])->name('pets.notify-owner');
         Route::get('/pets/owners/{unit}', [\App\Http\Controllers\PetController::class, 'getOwnersByUnit'])->name('pets.owners');
         
         Route::resource('pets', \App\Http\Controllers\PetController::class);

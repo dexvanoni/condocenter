@@ -6,11 +6,11 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.1 |
-| **Data** | 14/09/2026 |
+| **Versão do documento** | 2.2 |
+| **Data** | 15/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
-| **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas) |
+| **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
 
 ---
 
@@ -54,7 +54,7 @@ O **SindCON** é uma plataforma SaaS multi-condomínio que centraliza gestão op
 | **Operadora da plataforma** | Receita recorrente por assinatura, gestão centralizada de múltiplos condomínios, configuração global de Asaas e WhatsApp |
 | **Síndico / administração** | Finanças (modo completo ou simplificado), usuários, reservas, portaria, assembleias, landing page, fechamento mensal, toggles de módulos, relatório completo de movimentações de encomendas com exportação |
 | **Morador** | Autosserviço (pagamentos, reservas, marketplace, pets), transparência financeira, canal de emergência, auto-cadastro com aprovação |
-| **Porteiro** | Registro de acessos, encomendas (leitura de etiqueta OCR, retirada por senha), liberações, verificação de pets via QR |
+| **Porteiro** | Registro de acessos, encomendas (OCR + retirada por senha), liberações (presets + **visitante "Outro" via QR/senha**), verificação de pets |
 | **Conselho fiscal** | Visibilidade financeira, exportações, participação em assembleias |
 | **Visitante / público** | Landing page do condomínio com avisos, eventos, galeria e QR Code |
 
@@ -62,7 +62,7 @@ O **SindCON** é uma plataforma SaaS multi-condomínio que centraliza gestão op
 
 - **Segmento:** condomínios residenciais (pequenos a grandes) e administradoras
 - **Modelo:** B2B2C — plataforma vende ao condomínio; moradores são usuários finais
-- **Diferenciais:** ecossistema integrado (financeiro + operacional + comunicação + pânico), WhatsApp nativo (Evolution API), **encomenda inteligente com OCR de etiqueta e senha de retirada**, marketplace e caronas internas, livro de ocorrências sigiloso, fechamento mensal guiado, landing page com domínio próprio e templates visuais
+- **Diferenciais:** ecossistema integrado (financeiro + operacional + comunicação + pânico), WhatsApp nativo (Evolution API), **encomenda inteligente com OCR de etiqueta e senha de retirada**, **visitante nomeado com PDF/QR e senha reutilizável na portaria**, marketplace e caronas internas, livro de ocorrências sigiloso, fechamento mensal guiado, landing page com domínio próprio e templates visuais
 
 ### 1.4 Componentes do repositório
 
@@ -71,7 +71,7 @@ O **SindCON** é uma plataforma SaaS multi-condomínio que centraliza gestão op
 | Backend / Web | Raiz do repo | Laravel — interface principal e API |
 | App mobile | `celular/CondoCenterMobile` | Expo/React Native — pânico + push (Firebase) |
 | Documentação | `DOCUMENTAÇÃO/` | PRD, VPS, módulos, API, regras |
-| Assets frontend | `resources/js`, `resources/css` | Vite — app, reservas Vue, encomendas (intake/pickup), landing classic/connect |
+| Assets frontend | `resources/js`, `resources/css` | Vite — app, reservas Vue, encomendas (intake/pickup), **acesso porteiro (check-in QR/senha)**, landing classic/connect |
 
 ---
 
@@ -143,7 +143,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 
 #### P3 — Morador (responsável pela unidade)
 - **Quem:** proprietário ou inquilino principal da unidade
-- **Necessidades:** pagar taxas, reservar espaços, marketplace, pets, votar, acionar pânico, registrar ocorrências
+- **Necessidades:** pagar taxas, reservar espaços, marketplace, pets, votar, acionar pânico, registrar ocorrências, **liberar visitantes** (presets e visitante nomeado com PDF/QR)
 - **Regra:** uma unidade possui um morador responsável
 - **Dashboard:** `dashboard/morador.blade.php`
 
@@ -155,8 +155,8 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 
 #### P5 — Porteiro
 - **Quem:** equipe de portaria / controle de acesso
-- **Necessidades:** registrar entradas, encomendas (fotografar etiqueta, registrar manualmente, confirmar retirada por senha de 4 dígitos), processar liberações, verificar pets
-- **Interfaces principais:** `dashboard/porteiro.blade.php`, `/packages` (painel portaria), `/packages/intake` (leitura de etiqueta), `/packages/pickup` (retirada rápida)
+- **Necessidades:** registrar entradas, encomendas (OCR + retirada por senha), liberações (presets manuais + **check-in QR/senha de visitante "Outro"**), verificar pets
+- **Interfaces principais:** `dashboard/porteiro.blade.php`, `/access-control/porteiro` (painel + liberação rápida), `/packages`, `/packages/intake`, `/packages/pickup`
 - **Dashboard:** `dashboard/porteiro.blade.php`
 
 #### P6 — Conselho Fiscal
@@ -218,7 +218,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - Caronas entre moradores
 - Pets com QR Code público
 - Ordens de serviço (chat, itens, cobrança de ressarcimento)
-- Controle de acesso / portaria (liberações, listas, prestadores, movimentos, proibições)
+- Controle de acesso / portaria (liberações, listas, prestadores, movimentos, proibições, **visitante nomeado com PDF/QR + senha reutilizável**)
 - Encomendas inteligentes (OCR de etiqueta, matching de destinatário, senha de retirada, WhatsApp, relatório síndico)
 - Assembleias (pauta, votação secreta/opcional, delegação, ata exportável)
 - Regimento interno versionado
@@ -308,7 +308,7 @@ Regras de negócio concentradas em `app/Services/` (~50 classes), incluindo:
 
 - **Financeiro:** `FeeService`, `ChargePaymentService`, `ChargeSettlementService`, `MonthlyClosingService`, `BankReconciliationService`, `AccountabilityReportService`, `FineService`, `DefaulterRestrictionService`
 - **Integrações:** `AsaasService`, `PlatformAsaasService`, `EvolutionApiService`, `WhatsAppNotificationService`
-- **Operacional:** `AccessControlService`, `PackageService`, `RideBookingService`, `ServiceOrderService`, `OccurrenceBookService`
+- **Operacional:** `AccessControlService` (liberações, credencial visitante "Outro", check-in QR/senha), `PackageService`, `RideBookingService`, `ServiceOrderService`, `OccurrenceBookService`
 - **Encomendas (OCR/matching):** `OcrServiceInterface`, `TesseractOcrService`, `LabelImagePreprocessor`, `PackageRecipientMatcher`, `PackageSenderDetector`, `TextNormalizer`
 - **Assembleias:** namespace `App\Services\Assembly\*`
 - **Plataforma:** `CondominiumSubscriptionService`, `CondominiumLandingService`, `ActiveCondominiumService`
@@ -334,7 +334,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | `assemblies` | Assembleias | Convocação, votação, atas |
 | `documents` | Documentos | Regimento interno |
 | `packages` | Encomendas | OCR de etiqueta, registro, senha de retirada, WhatsApp, relatório síndico |
-| `access_control` | Controle de acesso | Portaria, liberações, relatórios |
+| `access_control` | Controle de acesso | Portaria, liberações, QR/senha visitante, relatórios |
 | `communication` | Comunicação | Mensagens, ocorrências, fale com síndico, landing |
 
 ### 7.2 Módulos sempre ativos (não configuráveis)
@@ -480,14 +480,138 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 
 ### 8.9 Controle de acesso / Portaria
 
+O módulo `access_control` cobre liberações na portaria em três modalidades: **presets rápidos** (Uber, iFood, entregador etc.), **visitante nomeado ("Outro")** com credencial digital (PDF + QR Code + senha de 4 dígitos) e **listas/prestadores/proibições**. O visitante "Outro" possui fluxo dedicado de check-in automático na portaria, distinto do registro manual ENTROU/NEGADO dos presets.
+
+#### 8.9.1 Visão geral — tipos de liberação
+
+| Tipo | Quem cria | Validade | Credencial | Check-in porteiro |
+|------|-----------|----------|------------|-----------------|
+| **Preset** (Uber, iFood…) | Morador/agregado | Opcional (default 24h após entrada prevista) | Nenhuma | Card no painel → ENTROU / NEGADO |
+| **Outro** (visitante nomeado) | Morador/agregado | **Obrigatória** (`valid_until`) | Senha WhatsApp + PDF com QR | Liberação rápida (scan ou senha) |
+| **Lista de evento** | Morador/agregado | Por evento | Nenhuma | Modal de convidados |
+| **Prestador** | Morador/síndico | Contrato | Nenhuma | Card prestador → ENTROU |
+| **Proibição** | Morador/porteiro | Configurável | Nenhuma | Alertar morador |
+
+#### 8.9.2 Visitante "Outro" — credencial digital
+
+**Objetivo:** quando o morador libera um visitante com nome próprio (tipo **Outro**), o sistema gera credenciais digitais válidas até a data/hora informada. O visitante pode **entrar e sair quantas vezes quiser** nesse período; após a expiração, senha e QR são invalidados automaticamente.
+
+**Fluxo morador**
+
+1. Acessa **Controle de Acesso** (`/access-control`)
+2. Seleciona preset **Outro**, informa nome do visitante
+3. Informa **entrada prevista** e **validade da liberação** (obrigatória)
+4. Sistema cria `AccessAuthorization` com `visitor_preset_key = other`
+5. Gera `access_pin_hash` (bcrypt) e `qr_token` (único)
+6. Envia **senha de 4 dígitos** ao morador via WhatsApp (`access_visitor_credential`)
+7. Exibe modal com download do **PDF** contendo QR Code
+8. Morador encaminha PDF ao visitante
+
+**Fluxo porteiro — liberação rápida**
+
+| Rota | Interface | Ação |
+|------|-----------|------|
+| `/access-control/porteiro` | `AccessCheckinApp.vue` (Vue 3 + `@zxing/library`) | Botões **Escanear QR** e **Digitar senha** |
+| `POST /api/access-control/check-in/qr` | API | Valida token do QR → registra entrada |
+| `POST /api/access-control/check-in/pin` | API | Valida senha → registra entrada |
+
+1. Visitante apresenta QR (PDF no celular) ou informa senha ao porteiro
+2. Porteiro escaneia ou digita 4 dígitos na seção **Liberação rápida**
+3. Sistema valida credencial ativa (não expirada, status `pending`)
+4. Registra `AccessMovement` com `action = entered` e metadata `credential_reusable: true`
+5. **Não altera** status da liberação para `entered` — credencial permanece ativa até `expires_at`
+6. Notifica morador via WhatsApp (`access_entered`)
+7. Tela de sucesso: "Portão liberado"
+
+**Reutilização:** cada nova passagem na portaria repete o passo 4–6. A credencial só expira quando `expires_at` passa (`expireStaleRecords` → status `expired`) ou quando o morador cancela.
+
+#### 8.9.3 PDF com QR Code
+
+| Item | Detalhe |
+|------|---------|
+| Endpoint | `GET /api/access-control/authorizations/{id}/pdf` |
+| Permissão | Morador autor, morador notificado, síndico ou admin |
+| Conteúdo | Nome, unidade, entrada prevista, liberado por, QR Code, validade |
+| Geração QR | `QRCodeHelper::generateForVisitorAccessPngBinary()` via GD + BaconQrCode Encoder |
+| Render PDF | DomPDF (`access-control/visitor-credential-pdf.blade.php`) |
+| Payload QR | JSON: `{"type":"visitor_access","token":"..."}` |
+
+> **Nota técnica:** PNG via `simple-qrcode` exige Imagick; a implementação usa **GD nativo** para rasterizar a matriz do QR, garantindo compatibilidade com Laragon/VPS sem Imagick.
+
+#### 8.9.4 Painel do porteiro
+
+| Área | Função |
+|------|--------|
+| **Liberação rápida** (topo) | Scan QR + senha 4 dígitos — fluxo automático |
+| **Grid de cards** | Todas as liberações pendentes, incluindo visitantes "Outro" (badge QR/Senha) |
+| **Tabs** | Todos, Liberações, Proibidos, Listas, Prestadores |
+| **Poll** | Atualização automática a cada 12s |
+
+Visitantes com credencial digital aparecem no grid para visibilidade; ao tocar no card, modal orienta uso da liberação rápida (sem botões ENTROU/NEGADO).
+
+#### 8.9.5 Modelo de dados — campos adicionais `access_authorizations`
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `visitor_preset_key` | string | Slug do preset (`uber_99`, `ifood`…) ou `other` |
+| `access_pin_hash` | string (hidden) | Hash bcrypt da senha de 4 dígitos |
+| `qr_token` | string (hidden, unique) | Token para validação do QR Code |
+
+Campos existentes reutilizados: `scheduled_at`, `valid_until`, `expires_at` (= `valid_until` ou scheduled + 24h), `status`, `processed_by/at` (último check-in).
+
+#### 8.9.6 Notificações WhatsApp (grupo `access`)
+
+| Evento | Tipo | Destinatário | Conteúdo principal |
+|--------|------|--------------|-------------------|
+| Liberação "Outro" criada | `access_visitor_credential` | Morador notificado + autor | Senha 4 dígitos, validade, link para PDF |
+| Visitante entrou (check-in) | `access_entered` | Morador da unidade | Nome do visitante, unidade, horário |
+| Acesso negado (preset) | `access_denied` | Morador | Nome, unidade |
+| Proibição identificada | `access_prohibition_critical` | Morador | Alerta crítico |
+
+Job: `SendVisitorAccessCredentialNotification` (criação) + `SendAccessNotification` (cada entrada).
+
+#### 8.9.7 Regras de negócio específicas
+
+| ID | Regra |
+|----|-------|
+| ACC-RN-01 | Preset "Outro" exige `valid_until` posterior à entrada prevista |
+| ACC-RN-02 | Senha de 4 dígitos gerada automaticamente; armazenada apenas como hash |
+| ACC-RN-03 | Códigos triviais bloqueados (0000, 1111, 1234…) |
+| ACC-RN-04 | QR e senha válidos até `expires_at`; múltiplas entradas/saídas permitidas |
+| ACC-RN-05 | Check-in por QR/senha **não** consome a liberação (status permanece `pending`) |
+| ACC-RN-06 | Após expiração, `expireStaleRecords` marca `expired` — credencial inválida |
+| ACC-RN-07 | Cada check-in registra `AccessMovement` e notifica morador |
+| ACC-RN-08 | Entrada antecipada (antes de `scheduled_at`) permitida com metadata `early_entry` |
+| ACC-RN-09 | Agregado pode criar se morador habilitou `agregado_can_authorize_access` |
+| ACC-RN-10 | Matching de senha/QR restrito ao `condominium_id` do porteiro |
+| ACC-RN-11 | HTTPS obrigatório em produção para scan de QR na portaria (`getUserMedia`) |
+
+#### 8.9.8 Requisitos funcionais (tabela consolidada)
+
 | ID | Requisito | Prioridade | Implementação |
 |----|-----------|------------|---------------|
-| ACC-01 | Painel do porteiro | Must | `AccessControlWebController`, `access-control/porteiro` |
+| ACC-01 | Painel do porteiro (grid + poll) | Must | `access-control/porteiro` |
 | ACC-02 | Liberações prévias morador/agregado | Must | `access-control/resident` |
-| ACC-03 | Listas de autorização e prestadores | Should | API `access-control/*` |
+| ACC-03 | Listas de autorização e prestadores | Should | API `access-control/lists`, `providers` |
 | ACC-04 | Relatório movimentações (PDF) | Should | `access-control/reports` |
-| ACC-05 | Proibições de acesso | Should | `AccessControlService` |
+| ACC-05 | Proibições de acesso | Should | `AccessControlService::createProhibition` |
 | ACC-06 | Alertas de acesso no dashboard | Should | `AccessAlertService` |
+| ACC-07 | Visitante "Outro" com validade obrigatória | Must | `AccessControlService::createAuthorization` |
+| ACC-08 | Senha 4 dígitos via WhatsApp na criação | Must | `SendVisitorAccessCredentialNotification` |
+| ACC-09 | PDF com QR Code para download | Must | `generateVisitorCredentialPdf`, rota `/pdf` |
+| ACC-10 | Credencial reutilizável até expiração | Must | `processAuthorizationByCredential` |
+| ACC-11 | Check-in por QR (câmera) | Must | `AccessCheckinApp.vue`, `check-in/qr` |
+| ACC-12 | Check-in por senha 4 dígitos | Must | `AccessCheckinApp.vue`, `check-in/pin` |
+| ACC-13 | Notificação WhatsApp a cada entrada | Must | `SendAccessNotification` |
+| ACC-14 | Presets rápidos (Uber, iFood…) sem credencial | Must | `INDIVIDUAL_VISITOR_PRESETS` |
+| ACC-15 | Cancelamento de liberação pendente | Must | `cancelAuthorization` |
+| ACC-16 | Expiração automática de credenciais | Must | `expireStaleRecords` |
+
+#### 8.9.9 Testes automatizados
+
+| Arquivo | Cobertura |
+|---------|-----------|
+| `VisitorAccessCredentialTest.php` | Criação "Outro", validade obrigatória, check-in PIN/QR, múltiplas entradas, expiração, PDF, painel porteiro |
 
 ### 8.10 Encomendas — módulo completo
 
@@ -1018,6 +1142,11 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-22 | Encomendas: senha de retirada armazenada como hash; enviada ao morador via WhatsApp |
 | RN-23 | Encomendas: falha WhatsApp não reverte registro; job com retry assíncrono |
 | RN-24 | Encomendas: OCR é assistente — confirmação humana obrigatória antes de registrar |
+| RN-25 | Visitante "Outro": `valid_until` obrigatório; gera senha hash + `qr_token` |
+| RN-26 | Visitante "Outro": senha e QR válidos até `expires_at`; múltiplas entradas/saídas |
+| RN-27 | Visitante "Outro": check-in por QR/senha não consome liberação (status `pending` até expirar) |
+| RN-28 | Visitante "Outro": senha enviada ao morador via WhatsApp; PDF com QR para encaminhar ao visitante |
+| RN-29 | Controle de acesso: matching de credencial restrito ao `condominium_id` do porteiro |
 
 ---
 
@@ -1081,6 +1210,17 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 
 **Grupos configuráveis:** access, panic, packages, reservations, charges, conversations, rides, service_orders, occurrence_book, subscription, registration, assemblies, general
 
+**Uso no módulo de controle de acesso (grupo `access`):**
+
+| Evento | Tipo | Conteúdo principal |
+|--------|------|-------------------|
+| Liberação "Outro" criada | `access_visitor_credential` | Senha 4 dígitos, validade, instrução para baixar PDF |
+| Visitante entrou (check-in QR/senha ou manual) | `access_entered` | Nome, unidade, horário |
+| Acesso negado | `access_denied` | Nome, unidade |
+| Proibição identificada | `access_prohibition_critical` | Alerta crítico ao morador |
+
+Jobs: `SendVisitorAccessCredentialNotification` (criação), `SendAccessNotification` (cada entrada).
+
 **Uso no módulo de encomendas (grupo `packages`):**
 
 | Evento | Job | Conteúdo principal |
@@ -1102,9 +1242,10 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | **DomPDF** | PDFs (multas, recibos, relatórios, histórico) |
 | **Maatwebsite Excel** | Exportações financeiras e ocorrências |
 | **SimpleSoftwareIO QRCode** | QR pets, landing, moradores |
+| **BaconQrCode + GD** | QR Code PNG em PDF de visitante (`QRCodeHelper`) — sem dependência de Imagick |
 | **Intervention Image** | Processamento de imagens (OCR etiquetas, marketplace) |
 | **Tesseract OCR** | Leitura de etiquetas de encomenda (binário SO + `TesseractOcrService`) |
-| **@zxing/library** | Leitura barcode/QR no browser (encomendas) |
+| **@zxing/library** | Scan QR na portaria (`AccessCheckinApp.vue`) e encomendas |
 | **Firebase** | Push mobile (pânico) |
 | **ViaCEP** | Autocomplete de endereço |
 | **OwenIt Auditing** | Trilha de auditoria |
@@ -1121,7 +1262,7 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 
 - Interface principal para todos os perfis
 - Sidebar dinâmica (`SidebarHelper`) por perfil + módulos + permissões
-- SPAs parciais (Vue): reservas, encomendas (intake OCR + retirada por senha), assembleias, mensagens, notificações
+- SPAs parciais (Vue): reservas, encomendas (intake OCR + retirada por senha), **controle de acesso porteiro (check-in QR/senha)**, assembleias, mensagens, notificações
 - DataTables (Yajra) para listagens server-side
 - Landing pages públicas (classic + connect)
 
@@ -1147,7 +1288,7 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | Espaços | CRUD | `spaces` |
 | Pets | CRUD | `pets` |
 | Caronas | rides + bookings | `rides` |
-| Controle acesso | porteiro, authorizations, lists, providers, movements | `access_control` |
+| Controle acesso | porteiro/panel, authorizations, authorizations/{id}/pdf, check-in/pin, check-in/qr, lists, providers, movements | `access_control` |
 | Usuários | search | — |
 | Créditos | GET /user/credits | — |
 
@@ -1253,7 +1394,7 @@ Referência canônica: `DOCUMENTAÇÃO/INSTALACAO_VPS.md`
 
 ### 15.3 Jobs assíncronos relevantes
 
-`GenerateAsaasPayment`, `GenerateReservationPayment`, `SendWhatsAppNotification`, `SendPackageNotification`, `SendPanicAlert`, `SendAccessNotification`, `SendChargeReminders`, `SendOverdueReminders`, `SendSubscriptionBillingNotification`
+`GenerateAsaasPayment`, `GenerateReservationPayment`, `SendWhatsAppNotification`, `SendPackageNotification`, `SendPanicAlert`, `SendAccessNotification`, `SendVisitorAccessCredentialNotification`, `SendChargeReminders`, `SendOverdueReminders`, `SendSubscriptionBillingNotification`
 
 **Fila padrão:** `QUEUE_CONNECTION=database`
 
@@ -1310,7 +1451,7 @@ Plataforma
     │
     ├── Operacional
     │   ├── Package (+ OCR, senha retirada, whatsapp_delivery_status)
-    │   ├── AccessAuthorization, AccessMovement, ServiceProvider
+    │   ├── AccessAuthorization (+ visitor_preset_key, access_pin_hash, qr_token), AccessMovement, ServiceProvider
     │   ├── ServiceOrder → Items, Messages
     │   ├── Pet, PanicAlert
     │   ├── MarketplaceItem, Ride → RideBooking
@@ -1484,6 +1625,28 @@ Plataforma
 4. Ciência e comentário
 5. Exposição pública opcional (sem autor)
 
+### 18.11 Morador libera visitante "Outro" (credencial digital)
+
+1. Acessa **Controle de Acesso** (`/access-control`)
+2. Seleciona preset **Outro**, informa nome do visitante
+3. Define **entrada prevista** e **validade da liberação** (obrigatória)
+4. Sistema cria liberação com senha hash e `qr_token` único
+5. Recebe **senha de 4 dígitos** no WhatsApp (`access_visitor_credential`)
+6. Modal exibe opção de **baixar PDF** com QR Code para encaminhar ao visitante
+7. Visitante pode entrar/sair quantas vezes quiser até `valid_until`/`expires_at`
+8. Morador pode baixar PDF novamente pelo histórico de liberações
+
+### 18.12 Porteiro faz check-in de visitante "Outro" (QR ou senha)
+
+1. Acessa **Portaria** (`/access-control/porteiro`)
+2. Visitante apresenta QR (PDF no celular) ou informa senha de 4 dígitos
+3. Na seção **Liberação rápida**, porteiro escaneia QR (`AccessCheckinApp.vue`) ou digita a senha
+4. API valida credencial ativa (não expirada, mesmo condomínio, status `pending`)
+5. Sistema registra `AccessMovement` (`entered`, `credential_reusable: true`) **sem** consumir a liberação
+6. Notifica morador via WhatsApp (`access_entered`) — "Portão liberado" na tela
+7. Visitante pode repetir o fluxo em novas passagens até expirar a validade
+8. Liberações "Outro" também aparecem no grid com badge QR/Senha (visibilidade operacional)
+
 ---
 
 ## 19. Cobertura de testes e qualidade
@@ -1507,10 +1670,11 @@ Plataforma
 | `TransactionTest.php` | Transações + isolamento tenant |
 | `AuthenticationTest.php` | Login/logout |
 | `NotificationRedirectTest.php` | Deep links |
+| `VisitorAccessCredentialTest.php` | Visitante "Outro": criação, validade, check-in PIN/QR reutilizável, expiração, PDF, painel porteiro |
 
 ### 19.2 Lacunas de QA (documentar no roadmap)
 
-Sem testes automatizados dedicados para: WhatsApp/Evolution, webhooks Asaas, fechamento mensal E2E, controle de acesso, caronas, landing page, auto-cadastro, assinatura SaaS, exportações PDF, porteiro, multitenancy admin.
+Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visitor_credential`), webhooks Asaas, fechamento mensal E2E, presets de liberação manual (ENTROU/NEGADO), caronas, landing page, auto-cadastro, assinatura SaaS, exportações PDF gerais, scan QR em dispositivo real, multitenancy admin.
 
 ---
 
@@ -1567,6 +1731,11 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution, webhooks Asaas, fec
 | **Matching fuzzy** | Comparação ponderada nome/unidade/bloco entre OCR e cadastro |
 | **Evolution API** | Servidor WhatsApp usado para notificações de encomenda |
 | **PSM** | Page Segmentation Mode do Tesseract (múltiplas passagens OCR) |
+| **Visitante "Outro"** | Liberação nomeada com credencial digital (PDF + QR + senha reutilizável) |
+| **Credencial reutilizável** | Senha/QR válidos até `expires_at`; múltiplas entradas sem consumir liberação |
+| **Liberação rápida** | Seção do painel porteiro para scan QR ou senha de visitante "Outro" |
+| **qr_token** | Token único embutido no QR (`visitor_access`) para check-in na API |
+| **access_pin_hash** | Hash bcrypt da senha de 4 dígitos do visitante "Outro" |
 
 ---
 
@@ -1612,6 +1781,10 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution, webhooks Asaas, fec
 | OCR | `app/Services/Ocr/TesseractOcrService.php`, `config/ocr.php` |
 | Matching | `app/Services/Packages/PackageRecipientMatcher.php` |
 | Vue intake/pickup | `resources/js/components/packages/PackageIntakeApp.vue`, `PackagePickupApp.vue` |
+| Controle de acesso | `app/Services/AccessControlService.php`, `app/Http/Controllers/Api/AccessControlController.php` |
+| Credencial visitante | `app/Jobs/SendVisitorAccessCredentialNotification.php`, `app/Helpers/QRCodeHelper.php` |
+| Vue check-in portaria | `resources/js/components/access/AccessCheckinApp.vue`, `access-porteiro-checkin.js` |
+| Migration credenciais | `database/migrations/2026_09_15_180000_add_visitor_credentials_to_access_authorizations.php` |
 | SaaS config | `config/saas.php` |
 
 ### Ambiente demo
@@ -1627,4 +1800,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution, webhooks Asaas, fec
 
 ---
 
-*Documento v2.1 — atualizado com base no estado do repositório CondoCenter em 14/09/2026. Inclui encomenda inteligente (OCR de etiqueta, matching fuzzy, senha de retirada, WhatsApp Evolution API, relatório síndico com exportação PDF/Excel, painel portaria mobile-first). Reflete módulos habilitáveis, landing dual-template, fechamento mensal, camada de serviços e matriz de canais. Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*
+*Documento v2.2 — atualizado com base no estado do repositório CondoCenter em 15/09/2026. Inclui visitante "Outro" com credencial digital (PDF/QR + senha reutilizável, check-in automático na portaria, WhatsApp ao morador), encomenda inteligente (OCR, matching fuzzy, senha de retirada), módulos habilitáveis, landing dual-template, fechamento mensal e matriz de canais. Deploy: `php artisan migrate --force` (campos `visitor_preset_key`, `access_pin_hash`, `qr_token`). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*

@@ -4,6 +4,19 @@
 
 @section('content')
 <div class="access-porteiro-panel">
+    <section class="porteiro-checkin card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                <div>
+                    <strong class="d-block">Liberação rápida</strong>
+                    <span class="small text-muted">Escaneie o QR ou digite a senha do visitante</span>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle">Automático</span>
+            </div>
+            <div id="access-checkin-app" data-csrf="{{ csrf_token() }}"></div>
+        </div>
+    </section>
+
     <header class="porteiro-toolbar panel-panorama-bar">
         <div class="porteiro-toolbar__top">
             <div class="porteiro-brand">
@@ -187,6 +200,21 @@ body:has(.access-porteiro-panel) main > .container-fluid.p-4 {
 .access-porteiro-panel {
     max-width: 1600px;
     margin: 0 auto;
+}
+.porteiro-checkin {
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+.access-card__digital {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: #dbeafe;
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
 }
 
 /* ── Toolbar compacta ── */
@@ -939,15 +967,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const creator = a.authorizedBy?.name || a.authorized_by?.name || '';
             const early = isBeforeScheduled(a.scheduled_at)
                 ? '<span class="access-card__early">Aguardando horário</span>' : '';
+            const digitalPass = a.has_digital_pass
+                ? '<span class="access-card__digital"><i class="bi bi-qr-code-scan"></i> QR/Senha</span>'
+                : '';
+            const validity = a.valid_until ? metaRow('bi-hourglass-split', 'Até ' + fmtDate(a.valid_until)) : '';
             return `<article class="access-card ${cls}">
                 <div class="access-card__head">
-                    <span class="access-card__type">${label}</span>${early}
+                    <span class="access-card__type">${label}</span>${digitalPass}${early}
                 </div>
                 <div class="visitor-name">${esc(a.visitor_name)}</div>
                 <div class="access-card__meta">
                     ${metaRow('bi-building', a.unit?.full_identifier)}
                     ${metaRow('bi-person', creator)}
                     ${metaRow('bi-clock', fmtDate(a.scheduled_at))}
+                    ${validity}
                 </div>
             </article>`;
         }
@@ -1073,14 +1106,34 @@ document.addEventListener('DOMContentLoaded', () => {
             body.innerHTML = providerBody(p);
         } else {
             const a = item.data;
-            header.className = 'modal-header bg-success text-white';
-            title.textContent = 'Visitante liberado';
-            btnDenied.classList.remove('d-none');
-            body.innerHTML = `${earlyEntryWarningHtml(a.scheduled_at)}
-                <p class="fs-4 fw-bold mb-1">${esc(a.visitor_name)}</p>
-                <p class="mb-0">Unidade: <strong>${esc(a.unit?.full_identifier)}</strong></p>
-                <p class="mb-0">Liberado por: <strong>${esc(a.authorizedBy?.name || a.authorized_by?.name || '—')}</strong></p>
-                <p class="mb-0 text-muted">Entrada prevista: ${fmtDate(a.scheduled_at)}</p>`;
+            if (a.has_digital_pass) {
+                header.className = 'modal-header bg-primary text-white';
+                title.textContent = 'Visitante com QR/Senha';
+                document.getElementById('btnEntered')?.classList.add('d-none');
+                btnDenied.classList.add('d-none');
+                const validUntil = a.valid_until ? fmtDate(a.valid_until) : '—';
+                body.innerHTML = `
+                    <div class="alert alert-info py-2">
+                        <i class="bi bi-qr-code-scan me-1"></i>
+                        Use <strong>Escanear QR</strong> ou <strong>Digitar senha</strong> na liberação rápida acima.
+                    </div>
+                    <p class="fs-4 fw-bold mb-1">${esc(a.visitor_name)}</p>
+                    <p class="mb-0">Unidade: <strong>${esc(a.unit?.full_identifier)}</strong></p>
+                    <p class="mb-0">Liberado por: <strong>${esc(a.authorizedBy?.name || a.authorized_by?.name || '—')}</strong></p>
+                    <p class="mb-0">Entrada prevista: ${fmtDate(a.scheduled_at)}</p>
+                    <p class="mb-0 text-muted">Válido até: <strong>${validUntil}</strong></p>
+                    <p class="small text-muted mt-3 mb-0">O visitante pode entrar e sair quantas vezes quiser até expirar.</p>`;
+            } else {
+                header.className = 'modal-header bg-success text-white';
+                title.textContent = 'Visitante liberado';
+                btnDenied.classList.remove('d-none');
+                document.getElementById('btnEntered')?.classList.remove('d-none');
+                body.innerHTML = `${earlyEntryWarningHtml(a.scheduled_at)}
+                    <p class="fs-4 fw-bold mb-1">${esc(a.visitor_name)}</p>
+                    <p class="mb-0">Unidade: <strong>${esc(a.unit?.full_identifier)}</strong></p>
+                    <p class="mb-0">Liberado por: <strong>${esc(a.authorizedBy?.name || a.authorized_by?.name || '—')}</strong></p>
+                    <p class="mb-0 text-muted">Entrada prevista: ${fmtDate(a.scheduled_at)}</p>`;
+            }
         }
         actionModal.show();
     }
@@ -1305,8 +1358,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return d.toLocaleDateString('pt-BR');
     }
 
+    window.loadAccessPorteiroPanel = loadPanel;
+    window.addEventListener('access-checkin:success', () => {
+        showAlert('success', 'Visitante liberado. Portão autorizado e morador notificado.');
+        loadPanel(true);
+    });
+
     loadPanel();
     pollTimer = setInterval(() => loadPanel(), 12000);
 });
 </script>
+@vite(['resources/js/access-porteiro-checkin.js'])
 @endpush

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\QRCodeHelper;
+use App\Models\Notification;
 use App\Models\Pet;
 use App\Models\Unit;
 use App\Models\User;
@@ -308,44 +309,113 @@ class PetController extends Controller
     public function verifyQrCode(Request $request)
     {
         $request->validate([
-            'qr_code' => 'required|string',
+            'qr_code' => 'required|string|max:2048',
         ]);
 
-        $pet = Pet::where('qr_code', $request->qr_code)
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $parsedCode = QRCodeHelper::parsePetQrCode($request->qr_code);
+
+        if (!$parsedCode) {
+            return response()->json([
+                'success' => false,
+                'message' => 'QR Code inválido. Aponte para a etiqueta do pet.',
+            ], 422);
+        }
+
+        $pet = Pet::query()
+            ->where('qr_code', $parsedCode)
+            ->active()
             ->with(['owner', 'unit', 'condominium'])
             ->first();
 
-        if (!$pet) {
+        if (!$pet || (int) $pet->condominium_id !== (int) $user->tenantCondominiumId()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pet não encontrado',
+                'message' => 'Pet não encontrado neste condomínio.',
             ], 404);
         }
 
+        $this->authorize('view', $pet);
+
         return response()->json([
             'success' => true,
-            'pet' => [
-                'id' => $pet->id,
-                'name' => $pet->name,
-                'type' => $pet->type_label,
-                'breed' => $pet->breed,
-                'color' => $pet->color,
-                'size' => $pet->size_label,
-                'photo' => $pet->photo_url,
-                'description' => $pet->description,
-                'owner' => [
-                    'name' => $pet->owner->name,
-                    'phone' => $pet->owner->phone,
-                    'whatsapp_link' => 'https://wa.me/' . preg_replace('/[^0-9]/', '', $pet->owner->phone),
-                ],
-                'unit' => [
-                    'identifier' => $pet->unit->full_identifier,
-                ],
-                'condominium' => [
-                    'name' => $pet->condominium->name ?? 'Condomínio',
-                ],
-            ],
+            'pet' => $this->formatPetVerificationPayload($pet),
         ]);
+    }
+
+    /**
+     * Notifica o dono no sistema e retorna link do WhatsApp.
+     */
+    public function notifyOwnerFound(Pet $pet)
+    {
+        $this->authorize('view', $pet);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        $pet->loadMissing(['owner', 'unit']);
+
+        Notification::create([
+            'condominium_id' => $pet->condominium_id,
+            'user_id' => $pet->owner_id,
+            'type' => 'pet_found',
+            'title' => 'Seu pet foi encontrado!',
+            'message' => sprintf(
+                '%s encontrou o pet %s no condomínio e está tentando contatar você.',
+                $user->name,
+                $pet->name
+            ),
+            'data' => [
+                'pet_id' => $pet->id,
+                'pet_name' => $pet->name,
+                'unit_identifier' => $pet->unit?->full_identifier,
+                'found_by_user_id' => $user->id,
+                'found_by_name' => $user->name,
+            ],
+            'channel' => 'database',
+            'sent' => true,
+            'sent_at' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'whatsapp_link' => $this->buildOwnerWhatsappLink($pet),
+        ]);
+    }
+
+    private function formatPetVerificationPayload(Pet $pet): array
+    {
+        return [
+            'id' => $pet->id,
+            'name' => $pet->name,
+            'type' => $pet->type_label,
+            'breed' => $pet->breed,
+            'color' => $pet->color,
+            'size' => $pet->size_label,
+            'photo' => $pet->photo_url,
+            'description' => $pet->description,
+            'owner' => [
+                'name' => $pet->owner->name,
+                'phone' => $pet->owner->phone,
+                'whatsapp_link' => $this->buildOwnerWhatsappLink($pet),
+            ],
+            'unit' => [
+                'identifier' => $pet->unit->full_identifier,
+            ],
+            'condominium' => [
+                'name' => $pet->condominium->name ?? 'Condomínio',
+            ],
+            'notify_url' => route('pets.notify-owner', $pet),
+        ];
+    }
+
+    private function buildOwnerWhatsappLink(Pet $pet): string
+    {
+        $phone = preg_replace('/[^0-9]/', '', (string) $pet->owner->phone);
+        $message = rawurlencode('Seu pet foi achado no condominio!');
+
+        return 'https://wa.me/' . $phone . '?text=' . $message;
     }
 
     /**

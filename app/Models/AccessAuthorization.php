@@ -17,12 +17,15 @@ class AccessAuthorization extends Model
     public const STATUS_EXPIRED = 'expired';
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const PRESET_OTHER = 'other';
+
     protected $fillable = [
         'condominium_id',
         'unit_id',
         'authorized_by',
         'notify_user_id',
         'visitor_name',
+        'visitor_preset_key',
         'visitor_document',
         'authorization_type',
         'never_expires',
@@ -33,6 +36,17 @@ class AccessAuthorization extends Model
         'processed_by',
         'processed_at',
         'porteiro_notes',
+        'access_pin_hash',
+        'qr_token',
+    ];
+
+    protected $hidden = [
+        'access_pin_hash',
+        'qr_token',
+    ];
+
+    protected $appends = [
+        'has_digital_pass',
     ];
 
     protected function casts(): array
@@ -121,5 +135,29 @@ class AccessAuthorization extends Model
         }
 
         return $this->expires_at?->format('d/m/Y') ?? '—';
+    }
+
+    public function isNamedVisitor(): bool
+    {
+        return $this->visitor_preset_key === self::PRESET_OTHER;
+    }
+
+    public function hasDigitalPass(): bool
+    {
+        return $this->isNamedVisitor()
+            && !empty($this->access_pin_hash)
+            && !empty($this->qr_token);
+    }
+
+    public function getHasDigitalPassAttribute(): bool
+    {
+        return $this->hasDigitalPass();
+    }
+
+    public function isCredentialActive(): bool
+    {
+        return $this->hasDigitalPass()
+            && $this->status === self::STATUS_PENDING
+            && !$this->isExpired();
     }
 }
