@@ -22,6 +22,8 @@ class RecurringReservationController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', RecurringReservation::class);
+
         $recurringReservations = RecurringReservation::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->with(['space', 'creator'])
             ->orderBy('created_at', 'desc')
@@ -35,6 +37,8 @@ class RecurringReservationController extends Controller
      */
     public function create()
     {
+        $this->authorize('create', RecurringReservation::class);
+
         $spaces = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->where('is_active', true)
             ->get();
@@ -47,6 +51,8 @@ class RecurringReservationController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', RecurringReservation::class);
+
         $validated = $request->validate([
             'space_id' => 'required|exists:spaces,id',
             'title' => 'required|string|max:255',
@@ -87,10 +93,7 @@ class RecurringReservationController extends Controller
      */
     public function show(RecurringReservation $recurringReservation)
     {
-        // Verificar se o usuário pode ver esta reserva recorrente
-        if ($recurringReservation->condominium_id !== Auth::user()->tenantCondominiumId()) {
-            abort(403, 'Acesso negado.');
-        }
+        $this->authorize('view', $recurringReservation);
 
         $recurringReservation->load(['space', 'creator', 'reservations.user']);
 
@@ -102,10 +105,7 @@ class RecurringReservationController extends Controller
      */
     public function edit(RecurringReservation $recurringReservation)
     {
-        // Verificar se o usuário pode editar esta reserva recorrente
-        if ($recurringReservation->condominium_id !== Auth::user()->tenantCondominiumId()) {
-            abort(403, 'Acesso negado.');
-        }
+        $this->authorize('update', $recurringReservation);
 
         $spaces = Space::where('condominium_id', Auth::user()->tenantCondominiumId())
             ->where('is_active', true)
@@ -119,10 +119,7 @@ class RecurringReservationController extends Controller
      */
     public function update(Request $request, RecurringReservation $recurringReservation)
     {
-        // Verificar se o usuário pode editar esta reserva recorrente
-        if ($recurringReservation->condominium_id !== Auth::user()->tenantCondominiumId()) {
-            abort(403, 'Acesso negado.');
-        }
+        $this->authorize('update', $recurringReservation);
 
         $validated = $request->validate([
             'space_id' => 'required|exists:spaces,id',
@@ -159,10 +156,7 @@ class RecurringReservationController extends Controller
      */
     public function destroy(Request $request, RecurringReservation $recurringReservation)
     {
-        // Verificar se o usuário pode deletar esta reserva recorrente
-        if ($recurringReservation->condominium_id !== Auth::user()->tenantCondominiumId()) {
-            abort(403, 'Acesso negado.');
-        }
+        $this->authorize('delete', $recurringReservation);
 
         $validated = $request->validate([
             'admin_reason' => 'required|string|min:10',

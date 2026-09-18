@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 
 class PasswordChangeController extends Controller
@@ -35,7 +34,7 @@ class PasswordChangeController extends Controller
         $user = $request->user();
 
         $user->update([
-            'password' => Hash::make($request->password),
+            'password' => $request->password,
             'senha_temporaria' => false,
         ]);
 

@@ -180,7 +180,10 @@
         return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('pt-BR');
     }
 
-    function statusBadge(status) {
+    function statusBadge(chargeOrStatus) {
+        const status = typeof chargeOrStatus === 'object'
+            ? (chargeOrStatus.display_status?.key || chargeOrStatus.status)
+            : chargeOrStatus;
         const map = {
             pending: { label: 'Pendente', color: 'warning' },
             overdue: { label: 'Em atraso', color: 'danger' },
@@ -328,7 +331,7 @@
                     <td>${formatDate(charge.due_date)}</td>
                     <td>${formatDate(charge.paid_at)}</td>
                     <td>${formatCurrency(charge.status === 'paid' ? (charge.amount_paid_display ?? charge.amount) : charge.amount)}</td>
-                    <td>${statusBadge(charge.status)}</td>
+                    <td>${statusBadge(charge)}</td>
                     <td>${buildActions(charge)}</td>
                 `;
                 tbody.appendChild(tr);
@@ -376,7 +379,7 @@
                 document.getElementById('detailChargeTitle').textContent = charge.title ?? '—';
                 document.getElementById('detailChargeAmount').textContent = formatCurrency(charge.amount);
                 document.getElementById('detailChargeDueDate').textContent = formatDate(charge.due_date);
-                document.getElementById('detailChargeStatus').innerHTML = statusBadge(charge.status);
+                document.getElementById('detailChargeStatus').innerHTML = statusBadge(charge);
                 document.getElementById('detailChargeNotes').textContent = charge.description ?? '—';
 
                 if (data.receipt_url) {

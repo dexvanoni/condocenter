@@ -715,7 +715,7 @@
                 </a>
                 @can('manage_users')
                 <button type="button" class="btn btn-warning btn-lg" onclick="resetPassword()">
-                    <i class="bi bi-arrow-counterclockwise"></i> Resetar Senha
+                    <i class="bi bi-envelope"></i> Enviar link de redefinição
                 </button>
                 @endcan
             </div>
@@ -1062,22 +1062,35 @@ function validarCPF(cpf) {
 
 // Resetar senha
 function resetPassword() {
-    if (confirm('⚠️ Tem certeza que deseja resetar a senha para 12345678?\n\nO usuário será obrigado a trocar no próximo login.')) {
+    const email = @json($user->email);
+
+    if (!email) {
+        alert('❌ Este usuário não possui e-mail cadastrado. Cadastre um e-mail antes de resetar a senha.');
+        return;
+    }
+
+    if (confirm(`⚠️ Enviar link de redefinição de senha para ${email}?\n\nO usuário definirá uma nova senha pelo e-mail.`)) {
         fetch('{{ route('users.reset-password', $user) }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
             }
         })
-        .then(response => response.text())
-        .then(data => {
-            alert('✅ Senha resetada para: 12345678\n\nO usuário deverá trocar no próximo login.');
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Falha ao enviar o link de redefinição.');
+            }
+            return response.text();
+        })
+        .then(() => {
+            alert(`✅ Link de redefinição enviado para ${email}.`);
             window.location.reload();
         })
         .catch(error => {
             console.error('Erro:', error);
-            alert('❌ Erro ao resetar senha');
+            alert('❌ Erro ao enviar link de redefinição de senha.');
         });
     }
 }

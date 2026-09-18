@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\GuardsTenantResource;
 use App\Models\Space;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 class SpaceController extends Controller
 {
+    use GuardsTenantResource;
+
     /**
      * Lista espaços
      */
@@ -124,6 +127,10 @@ class SpaceController extends Controller
             return response()->json(['error' => 'Sem permissão'], 403);
         }
 
+        if ($response = $this->denyUnlessTenant($user, $space)) {
+            return $response;
+        }
+
         $space->update($request->all());
 
         return response()->json([
@@ -144,6 +151,10 @@ class SpaceController extends Controller
 
         if (!$user->can('manage_spaces')) {
             return response()->json(['error' => 'Sem permissão'], 403);
+        }
+
+        if ($response = $this->denyUnlessTenant($user, $space)) {
+            return $response;
         }
 
         // Verificar se tem reservas futuras

@@ -5,7 +5,7 @@
         expanded: {{ $frame->isMain() ? 'true' : 'false' }},
         hasCode: {{ $frame->snippet() ? 'true' : 'false' }}
     }"
-    class="group rounded-lg border border-neutral-200 dark:border-white/10 shadow-xs"
+    class="group rounded-lg border border-neutral-200 dark:border-white/10 overflow-hidden shadow-xs"
     :class="{ 'dark:border-white/5': expanded }"
 >
     <div
@@ -50,6 +50,6 @@
     </div>
 
     @if($snippet = $frame->snippet())
-        <x-laravel-exceptions-renderer::frame-code :code="$snippet" :highlightedLine="$frame->line()" x-show="expanded" />
+        <x-laravel-exceptions-renderer::frame-code :code="$snippet" :highlightedLine="$frame->line()" x-show="expanded" :x-cloak="!$frame->isMain()" />
     @endif
 </div>

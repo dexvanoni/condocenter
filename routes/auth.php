@@ -69,15 +69,15 @@ Route::get('register/success', [SelfRegistrationController::class, 'success'])
     ->name('register.success');
 
 Route::post('register/lookup', [SelfRegistrationController::class, 'lookupCode'])
-    ->middleware('guest')
+    ->middleware(['guest', 'throttle:self-registration'])
     ->name('register.lookup');
 
 Route::get('register/units', [SelfRegistrationController::class, 'units'])
-    ->middleware('guest')
+    ->middleware(['guest', 'throttle:self-registration'])
     ->name('register.units');
 
 Route::get('register/moradores', [SelfRegistrationController::class, 'moradores'])
-    ->middleware('guest')
+    ->middleware(['guest', 'throttle:self-registration'])
     ->name('register.moradores');
 
 Route::post('logout', function (\Illuminate\Http\Request $request) {
@@ -119,7 +119,8 @@ Route::post('reset-password', function (\Illuminate\Http\Request $request) {
         $request->only('email', 'password', 'password_confirmation', 'token'),
         function ($user, $password) {
             $user->forceFill([
-                'password' => \Illuminate\Support\Facades\Hash::make($password)
+                'password' => $password,
+                'senha_temporaria' => false,
             ])->save();
         }
     );

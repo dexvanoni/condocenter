@@ -1029,6 +1029,7 @@
     @php
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
+        $defaulterMenuLocked = SidebarHelper::isDefaulterMenuLocked($user);
         $modOn = fn (string $key) => SidebarHelper::moduleEnabled($user, $key);
         $activeRoleName = $user->getActiveRoleName() ?? session('active_role') ?? optional($user->roles->first())->name;
         $isAdminProfile = $activeRoleName === 'Administrador';
@@ -1234,6 +1235,25 @@
                         @endif
                     </a>
                 </li>
+
+                @if($defaulterMenuLocked)
+                @if(Route::has('my-charges.index') && $user->unit_id)
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
+                        <i class="bi bi-receipt"></i> Minhas Cobranças
+                    </a>
+                </li>
+                @endif
+                @can('contact_sindico')
+                @if(Route::has('syndic-conversations.start') && !($user->isAdmin() && !$user->isSindico()))
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('syndic-conversations.*') && !request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.start') }}">
+                        <i class="bi bi-shield-lock"></i> Fale com o Síndico
+                    </a>
+                </li>
+                @endif
+                @endcan
+                @else
 
                 @php
                     $isFinancialSimplifiedGestao = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
@@ -1812,7 +1832,9 @@
                 </li>
                 @endif
 
-                @if(SidebarHelper::isAdminOrSindico($user))
+                @endif
+
+                @if(!$defaulterMenuLocked && SidebarHelper::isAdminOrSindico($user))
                 <li class="nav-item mt-3">
                     <a class="nav-link {{ request()->routeIs('panic-alerts.index') ? 'active' : '' }}" href="{{ route('panic-alerts.index') }}">
                         <i class="bi bi-shield-exclamation"></i> Alertas de Pânico
@@ -1820,12 +1842,14 @@
                 </li>
                 @endif
 
+                @if(!$defaulterMenuLocked)
                 <!-- ==================== ALERTA DE PÂNICO ==================== -->
                 <li class="nav-item mt-4">
                     <button class="btn btn-panic w-100" onclick="openPanicModal()">
                         <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
                     </button>
                     </li>
+                @endif
                 </ul>
 
         </nav>
@@ -1846,19 +1870,21 @@
                     </span>
 
                     <div class="d-flex align-items-center ms-auto">
+                        @unless($defaulterMenuLocked)
                         <!-- Botão de Pânico -->
                         <button class="btn btn-danger btn-sm me-3" id="panicButton" onclick="openPanicModal()" title="Alerta de Pânico">
                             <i class="bi bi-exclamation-triangle-fill"></i> PÂNICO
                         </button>
+                        @endunless
                         
                         <!-- Quick Actions -->
                         <div class="btn-group me-3">
-                            @if(Route::has('marketplace.create') && SidebarHelper::canCreateMarketplace($user) && !($defaulterRestriction['active'] ?? false))
+                            @if(Route::has('marketplace.create') && SidebarHelper::canCreateMarketplace($user) && !$defaulterMenuLocked)
                             <a href="{{ route('marketplace.create') }}" class="btn btn-sm btn-outline-success" title="Novo Anúncio">
                                 <i class="bi bi-plus-circle"></i>
                             </a>
                             @endif
-                            @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user))
+                            @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user) && !$defaulterMenuLocked)
                             <a href="{{ route('messages.create') }}" class="btn btn-sm btn-outline-info" title="Nova Mensagem">
                                 <i class="bi bi-send"></i>
                             </a>
@@ -2031,6 +2057,25 @@
                                 @endif
                             </a>
                         </li>
+
+                        @if($defaulterMenuLocked ?? false)
+                        @if(Route::has('my-charges.index') && $user->unit_id)
+                        <li class="nav-item mt-2">
+                            <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
+                                <i class="bi bi-receipt"></i> Minhas Cobranças
+                            </a>
+                        </li>
+                        @endif
+                        @can('contact_sindico')
+                        @if(Route::has('syndic-conversations.start') && !($user->isAdmin() && !$user->isSindico()))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('syndic-conversations.*') && !request()->routeIs('syndic-conversations.manage') ? 'active' : '' }}" href="{{ route('syndic-conversations.start') }}">
+                                <i class="bi bi-shield-lock"></i> Fale com o Síndico
+                            </a>
+                        </li>
+                        @endif
+                        @endcan
+                        @else
 
                         @php
                             $mobileFinancialSimplifiedGestao = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
@@ -2616,7 +2661,9 @@
                         </li>
                         @endif
 
-                        @if(SidebarHelper::isAdminOrSindico($user))
+                        @endif
+
+                        @if(!($defaulterMenuLocked ?? false) && SidebarHelper::isAdminOrSindico($user))
                         <li class="nav-item mt-3">
                             <a class="nav-link {{ request()->routeIs('panic-alerts.index') ? 'active' : '' }}" href="{{ route('panic-alerts.index') }}">
                                 <i class="bi bi-shield-exclamation"></i> Alertas de Pânico
@@ -2624,11 +2671,13 @@
                         </li>
                         @endif
 
+                        @if(!($defaulterMenuLocked ?? false))
                         <li class="nav-item mt-4">
                             <button class="btn btn-panic w-100" onclick="openPanicModal()">
                                 <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
                             </button>
                         </li>
+                        @endif
                     </ul>
                 </div>
             </div>

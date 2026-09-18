@@ -32,9 +32,14 @@ class DashboardController extends Controller
         $condominium = $activeCondominiumService->getActiveCondominium($user) ?? $user->condominium;
         $activeRole = session('active_role');
 
-        // Admin da plataforma (sem condomínio selecionado na sessão)
+        $activeRoleName = $activeRole ?: $user->getActiveRoleName();
+
+        if ($user->hasAssignedRole('Administrador') && $activeRoleName === 'Administrador') {
+            return redirect()->route('platform.dashboard');
+        }
+
         if ($user->isAdmin() && !$activeCondominiumService->hasActiveCondominium($user)) {
-            return $this->adminPlatformDashboard($user);
+            return redirect()->route('platform.dashboard');
         }
 
         // Verificar se usuário tem condomínio
@@ -56,8 +61,11 @@ class DashboardController extends Controller
                 ?? $this->defaultDashboard($user, $condominium);
         }
 
-        // Dashboard específico por role (usuário com perfil único)
-        if ($user->isSindico() || $user->isAdmin()) {
+        if ($user->isAdmin() && (!$user->shouldUseActiveRoleOnly() || $user->getActiveRoleName() === 'Administrador')) {
+            return redirect()->route('platform.dashboard');
+        }
+
+        if ($user->isSindico()) {
             return $this->sindicoDashboard($user, $condominium);
         } elseif ($user->isMorador()) {
             return $this->moradorDashboard($user, $condominium);
@@ -77,6 +85,7 @@ class DashboardController extends Controller
     {
         switch ($roleName) {
             case 'Administrador':
+                return redirect()->route('platform.dashboard');
             case 'Síndico':
                 return $this->sindicoDashboard($user, $condominium);
             case 'Morador':
@@ -463,13 +472,13 @@ class DashboardController extends Controller
     {
         // Cobranças Pendentes
         $chargesPendentes = Charge::where('unit_id', $user->unit_id)
-            ->where('status', 'pending')
+            ->effectivelyPending()
             ->orderBy('due_date')
             ->get();
 
         // Cobranças Em Atraso
         $chargesAtrasadas = Charge::where('unit_id', $user->unit_id)
-            ->where('status', 'overdue')
+            ->effectivelyOverdue()
             ->orderBy('due_date')
             ->get();
 

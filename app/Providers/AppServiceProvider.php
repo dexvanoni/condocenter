@@ -99,6 +99,10 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(30)->by($userId . '|' . $request->ip());
         });
+
+        RateLimiter::for('self-registration', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip());
+        });
     }
 
     protected function shouldForceHttpsUrls(): bool

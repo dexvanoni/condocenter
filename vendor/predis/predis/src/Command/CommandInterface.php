@@ -4,7 +4,7 @@
  * This file is part of the Predis package.
  *
  * (c) 2009-2020 Daniele Alessandri
- * (c) 2021-2025 Till Krüss
+ * (c) 2021-2026 Till Krüss
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -98,6 +98,12 @@ interface CommandInterface
      *
      * @param  string $serializedCommand
      * @return static
+     *
+     * @deprecated Not binary-safe: it re-parses on "\r\n" and ignores RESP bulk-length
+     *             prefixes, so any argument containing "\r\n" is corrupted, and it
+     *             instantiates a command class from the parsed input. Never call it on
+     *             untrusted or serialized data (see CVE GHSA-w6f5-v2h6-g786). Scheduled
+     *             for removal in the next major.
      */
     public static function deserializeCommand(string $serializedCommand): CommandInterface;
 }

@@ -9,24 +9,36 @@
             <h1 class="mb-1"><i class="bi bi-graph-up-arrow"></i> Dashboard SaaS</h1>
             <p class="text-muted mb-0">Receita recorrente e saúde das assinaturas dos condomínios.</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ route('condominiums.index') }}" class="btn btn-primary btn-sm">Condomínios</a>
             <a href="{{ route('platform.plans.index') }}" class="btn btn-outline-primary btn-sm">Planos</a>
+            <a href="{{ route('platform.settings.asaas') }}" class="btn btn-outline-secondary btn-sm">Financeiro Asaas</a>
             <a href="{{ route('platform.announcements.index') }}" class="btn btn-outline-primary btn-sm">Novidades</a>
             <a href="{{ route('platform.leads.index') }}" class="btn btn-outline-primary btn-sm">Leads</a>
-            <a href="{{ route('platform.settings.asaas') }}" class="btn btn-outline-secondary btn-sm">Asaas</a>
             <a href="{{ route('platform.settings.whatsapp') }}" class="btn btn-outline-success btn-sm">WhatsApp</a>
-            <a href="{{ route('condominiums.index') }}" class="btn btn-primary btn-sm">Condomínios</a>
         </div>
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <small class="text-muted">Condomínios</small>
+                <h3 class="mb-0">{{ $metrics['total_condominiums'] }}</h3>
+            </div></div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card shadow-sm border-info h-100"><div class="card-body">
+                <small class="text-muted">Uso gratuito</small>
+                <h3 class="mb-0 text-info">{{ $metrics['complimentary'] }}</h3>
+            </div></div>
+        </div>
+        <div class="col-md-2 col-6">
             <div class="card shadow-sm border-success h-100"><div class="card-body">
                 <small class="text-muted">MRR</small>
                 <h3 class="mb-0 text-success">R$ {{ number_format($metrics['mrr'], 2, ',', '.') }}</h3>
             </div></div>
         </div>
-        <div class="col-md-3 col-6">
+        <div class="col-md-2 col-6">
             <div class="card shadow-sm h-100"><div class="card-body">
                 <small class="text-muted">ARR estimado</small>
                 <h3 class="mb-0">R$ {{ number_format($metrics['arr'], 2, ',', '.') }}</h3>
@@ -57,6 +69,47 @@
         <div class="col-md-2 col-4"><div class="card"><div class="card-body py-2"><small>Canceladas</small><strong class="d-block">{{ $metrics['cancelled'] }}</strong></div></div></div>
         <div class="col-md-2 col-4"><div class="card"><div class="card-body py-2"><small>Rascunho</small><strong class="d-block">{{ $metrics['draft'] }}</strong></div></div></div>
         <div class="col-md-6"><div class="card"><div class="card-body py-2"><small>Total de contratos</small><strong class="d-block">{{ $metrics['total_contracts'] }}</strong></div></div></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light"><h5 class="mb-0">Condomínios em uso gratuito</h5></div>
+                <div class="card-body">
+                    @forelse($metrics['complimentary_list'] as $condo)
+                        <div class="d-flex justify-content-between border-bottom py-2">
+                            <div>
+                                <strong>{{ $condo->name }}</strong>
+                                @if($condo->saas_complimentary_notes)
+                                    <small class="d-block text-muted">{{ $condo->saas_complimentary_notes }}</small>
+                                @endif
+                            </div>
+                            <a href="{{ route('platform.subscriptions.edit', $condo) }}" class="btn btn-sm btn-outline-info">Gerenciar</a>
+                        </div>
+                    @empty
+                        <p class="text-muted mb-0">Nenhum condomínio com uso gratuito configurado.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light"><h5 class="mb-0">Ativações recentes</h5></div>
+                <div class="card-body">
+                    @forelse($metrics['recent_activations'] as $sub)
+                        <div class="d-flex justify-content-between border-bottom py-2">
+                            <div>
+                                <strong>{{ $sub->condominium?->name }}</strong>
+                                <small class="d-block text-muted">{{ $sub->activated_at?->format('d/m/Y H:i') }}</small>
+                            </div>
+                            <a href="{{ route('platform.subscriptions.edit', $sub->condominium_id) }}" class="btn btn-sm btn-outline-primary">Ver</a>
+                        </div>
+                    @empty
+                        <p class="text-muted mb-0">Nenhuma ativação recente.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4">

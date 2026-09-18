@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 15/09/2026 (visitantes Outro com QR Code e senha na portaria)
+- **Última revisão:** 18/09/2026 (SMTP Brevo para e-mails transacionais)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -194,13 +194,14 @@ FILESYSTEM_DISK=local
 SESSION_SECURE_COOKIE=true
 
 MAIL_MAILER=smtp
-MAIL_HOST=
+MAIL_HOST=smtp-relay.brevo.com
 MAIL_PORT=587
-MAIL_USERNAME=
-MAIL_PASSWORD=
+MAIL_USERNAME=SEU_LOGIN@smtp-brevo.com
+MAIL_PASSWORD=xsmtpsib_SUA_CHAVE_SMTP_BREVO
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@SEU_DOMINIO
 MAIL_FROM_NAME="${APP_NAME}"
+# O remetente (MAIL_FROM_ADDRESS) deve estar verificado no painel Brevo > Remetentes.
 
 ASAAS_API_KEY=
 ASAAS_SANDBOX=false
@@ -536,6 +537,37 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-18 — SMTP Brevo (e-mails transacionais)
+
+- Atualização: configurar no `.env` as variáveis `MAIL_*` com credenciais Brevo (Passo 4 da Parte 1 / bloco de e-mail na Parte 2).
+- Servidor: `smtp-relay.brevo.com`, porta `587`, TLS. Login: `SEU_ID@smtp-brevo.com`; senha: chave SMTP gerada no painel Brevo.
+- `MAIL_FROM_ADDRESS` deve ser um remetente **verificado** na Brevo (Remetentes / domínio autenticado).
+- Após alterar: `php artisan config:clear` e `php artisan config:cache`.
+
+### 2026-09-18 — Dependências, policies de reserva e reset de senha por e-mail
+
+- Atualização: Parte 2 (`git pull` + `composer install --no-dev --optimize-autoloader` + `php artisan migrate --force`).
+- `composer.lock` passa a versionar dependências; `yajra/laravel-datatables-oracle` atualizado para `^12.0` (compatível com Laravel 12).
+- Pacotes corrigidos via `composer update` (dompdf, guzzle, laravel/framework, phpspreadsheet, league/commonmark, symfony/yaml, etc.) — `composer audit` sem advisories.
+- Reset de senha pelo síndico/admin envia **link por e-mail** (não define senha temporária na tela).
+- Policies `ReservationPolicy` e `RecurringReservationPolicy` alinhadas às permissões reais do sistema.
+
+### 2026-09-18 — Área SaaS do administrador, uso gratuito e segurança
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Sem variável de `.env` obrigatória.
+- Migration adiciona `saas_complimentary` e `saas_complimentary_notes` em `condominiums` (condomínios com acesso gratuito à plataforma, sem contrato SaaS).
+- Perfil **Administrador** redireciona para `/platform` (dashboard SaaS), não para o painel do síndico.
+- Uso gratuito é configurado em **Plataforma → Assinatura do condomínio**.
+- Opcional no `.env`: `SANCTUM_TOKEN_EXPIRATION` (minutos; padrão `43200` = 30 dias) para expiração de tokens da API mobile.
+- Correções de segurança: reset de senha sem senha fixa, IDOR em API (espaços, mensagens, pets, marketplace), rate limit no auto-cadastro e bloqueio de navegação de inadimplentes também na API.
+
+### 2026-09-18 — Inadimplência: status, menu restrito e liberação temporária
+
+- Instalação nova: o `migrate` do Passo 5 (Parte 1) cria a tabela `defaulter_access_overrides`.
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Sem variável de `.env` nova.
+- Cobranças com vencimento passado passam a aparecer como **Em atraso** em Minhas Cobranças (mesmo antes do job diário marcar `overdue` no banco).
+- Com restrição de inadimplentes ativa, o morador bloqueado vê só **Dashboard**, **Minhas Cobranças** e **Fale com o Síndico**; o síndico pode conceder liberação temporária na ficha do usuário (até 30 dias).
 
 ### 2026-09-15 — Visitantes (Outro) com QR Code e senha na portaria
 

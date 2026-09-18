@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Condominium;
 use App\Models\CondominiumSubscription;
 use Illuminate\Support\Collection;
 
@@ -10,15 +11,27 @@ class PlatformSubscriptionStatsService
     public function dashboardMetrics(): array
     {
         $subscriptions = CondominiumSubscription::query()
-            ->with('condominium:id,name')
+            ->with('condominium:id,name,saas_complimentary')
             ->get();
 
-        $activeLike = $subscriptions->whereIn('status', [
+        $billableSubscriptions = $subscriptions->filter(
+            fn (CondominiumSubscription $sub) => !$sub->condominium?->isSaasComplimentary()
+        );
+
+        $activeLike = $billableSubscriptions->whereIn('status', [
             CondominiumSubscription::STATUS_ACTIVE,
             CondominiumSubscription::STATUS_TRIAL,
         ]);
 
+        $complimentaryCondominiums = Condominium::query()
+            ->where('saas_complimentary', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'saas_complimentary_notes']);
+
         return [
+            'total_condominiums' => Condominium::count(),
+            'complimentary' => $complimentaryCondominiums->count(),
+            'complimentary_list' => $complimentaryCondominiums->take(8),
             'total_contracts' => $subscriptions->count(),
             'active' => $subscriptions->where('status', CondominiumSubscription::STATUS_ACTIVE)->count(),
             'trial' => $subscriptions->where('status', CondominiumSubscription::STATUS_TRIAL)->count(),

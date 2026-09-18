@@ -34,7 +34,7 @@ Route::middleware(['auth:sanctum'])->get('/user/credits', function (Request $req
 });
 
 // API Routes com autenticação Sanctum (aceita sessão web também)
-Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscription'])->group(function () {
+Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscription', 'restrict.defaulter.navigation'])->group(function () {
     // Cobranças (disponível em ambos os modos financeiros)
     Route::middleware('condominium.module:financial')->group(function () {
     Route::apiResource('charges', ChargeController::class)->names([

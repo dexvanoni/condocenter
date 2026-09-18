@@ -38,7 +38,7 @@ class CheckActiveProfile
                 'profile.switch',
                 'logout',
                 'password.change',
-                'password.update',
+                'password.change.update',
                 'panic.send',        // Permitir alertas de pânico
                 'panic.check',       // Permitir verificação de alertas
                 'panic.active',      // Permitir acesso à tela de alerta ativo

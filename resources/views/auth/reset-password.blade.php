@@ -20,6 +20,13 @@
             background: white;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(10,27,103,0.15);
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
         }
         .btn-primary {
             background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
@@ -34,57 +41,55 @@
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-5">
-                <div class="login-card p-4">
-                    <div class="text-center mb-4">
-                        <div class="sindcon-logo-wrap--light">
-                            <x-sindcon-logo variant="inline" class="mb-0" />
-                        </div>
-                        <h3><i class="bi bi-shield-lock"></i> Redefinir Senha</h3>
-                        <p class="text-muted">Digite sua nova senha</p>
+                <div class="login-card">
+                    <div class="login-header">
+                        <x-sindcon-logo variant="auth" />
+                        <h3 class="mb-1"><i class="bi bi-shield-lock"></i> Redefinir Senha</h3>
+                        <p class="mb-0 opacity-75">Digite sua nova senha</p>
                     </div>
+                    <div class="p-4">
+                        @if ($errors->any())
+                            <div class="alert alert-danger">
+                                <ul class="mb-0">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
 
-                    @if ($errors->any())
-                        <div class="alert alert-danger">
-                            <ul class="mb-0">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
+                        <form method="POST" action="{{ route('password.update') }}">
+                            @csrf
 
-                    <form method="POST" action="{{ route('password.update') }}">
-                        @csrf
+                            <input type="hidden" name="token" value="{{ $token }}">
 
-                        <input type="hidden" name="token" value="{{ $token }}">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">E-mail</label>
+                                <input type="email" class="form-control" id="email" name="email"
+                                       value="{{ old('email', request()->email) }}" required autofocus>
+                            </div>
 
-                        <div class="mb-3">
-                            <label for="email" class="form-label">E-mail</label>
-                            <input type="email" class="form-control" id="email" name="email" 
-                                   value="{{ old('email', request()->email) }}" required autofocus>
-                        </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Nova Senha</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
 
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Nova Senha</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
+                            <div class="mb-3">
+                                <label for="password_confirmation" class="form-label">Confirmar Senha</label>
+                                <input type="password" class="form-control" id="password_confirmation"
+                                       name="password_confirmation" required>
+                            </div>
 
-                        <div class="mb-3">
-                            <label for="password_confirmation" class="form-label">Confirmar Senha</label>
-                            <input type="password" class="form-control" id="password_confirmation" 
-                                   name="password_confirmation" required>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">
-                                Redefinir Senha
-                            </button>
-                        </div>
-                    </form>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    Redefinir Senha
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </body>
 </html>
-

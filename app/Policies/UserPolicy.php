@@ -53,6 +53,22 @@ class UserPolicy
     }
 
     /**
+     * Determine whether the user can reset another user's password.
+     */
+    public function resetPassword(User $user, User $model): bool
+    {
+        if ($user->id === $model->id) {
+            return false;
+        }
+
+        if (!$user->can('manage_users')) {
+            return false;
+        }
+
+        return $this->belongsToActiveCondominium($user, $model);
+    }
+
+    /**
      * Determine whether the user can update the model.
      */
     public function update(User $user, User $model): bool

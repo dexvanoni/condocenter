@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\SidebarHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\GuardsTenantResource;
 use App\Models\MarketplaceItem;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Validator;
 
 class MarketplaceController extends Controller
 {
+    use GuardsTenantResource;
+
     /**
      * Lista itens do marketplace
      */
@@ -135,7 +138,10 @@ class MarketplaceController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // Apenas o vendedor ou síndico pode editar
+        if ($response = $this->denyUnlessTenant($user, $item)) {
+            return $response;
+        }
+
         if ($item->seller_id !== $user->id && !$user->isSindico() && !$user->isAdmin()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -193,7 +199,10 @@ class MarketplaceController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // Apenas o vendedor ou síndico pode deletar
+        if ($response = $this->denyUnlessTenant($user, $item)) {
+            return $response;
+        }
+
         if ($item->seller_id !== $user->id && !$user->isSindico() && !$user->isAdmin()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }

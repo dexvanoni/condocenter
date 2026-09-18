@@ -42,7 +42,15 @@ class ChargeController extends Controller
         }
 
         if ($request->filled('status')) {
-            $baseQuery->where('status', $request->input('status'));
+            $status = $request->input('status');
+
+            if ($status === 'overdue') {
+                $baseQuery->effectivelyOverdue();
+            } elseif ($status === 'pending') {
+                $baseQuery->effectivelyPending();
+            } else {
+                $baseQuery->where('status', $status);
+            }
         }
 
         if ($request->filled('unit_id')) {
@@ -75,8 +83,8 @@ class ChargeController extends Controller
 
         $chargesQuery = clone $baseQuery;
 
-        $pendingCount = (clone $baseQuery)->where('status', 'pending')->count();
-        $overdueCount = (clone $baseQuery)->where('status', 'overdue')->count();
+        $pendingCount = (clone $baseQuery)->effectivelyPending()->count();
+        $overdueCount = (clone $baseQuery)->effectivelyOverdue()->count();
         $paidThisMonth = (clone $baseQuery)
             ->where('status', 'paid')
             ->whereBetween('due_date', [now()->startOfMonth(), now()->endOfMonth()])
@@ -110,6 +118,7 @@ class ChargeController extends Controller
                 $payload['competence_period'] = $charge->competencePeriod();
                 $payload['competence_label'] = $charge->competenceLabel();
                 $payload['display_status'] = $charge->displayStatus();
+                $payload['status'] = $charge->effectiveStatus();
                 $payload['payment_channel'] = $charge->paymentChannel();
 
                 if ($isResidentViewer) {
@@ -192,6 +201,7 @@ class ChargeController extends Controller
                 'competence_period' => $charge->competencePeriod(),
                 'competence_label' => $charge->competenceLabel(),
                 'display_status' => $charge->displayStatus(),
+                'status' => $charge->effectiveStatus(),
                 'payment_channel' => $charge->paymentChannel(),
             ]),
             'payment_summary' => $paymentSummary,

@@ -4,24 +4,22 @@
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <div class="card shadow">
+            <div class="card shadow overflow-hidden">
+                <div class="text-center text-white py-4 px-3" style="background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);">
+                    <x-sindcon-logo variant="auth" class="mb-2" />
+                    <h3 class="mb-0">
+                        <i class="bi bi-shield-lock"></i>
+                        Alterar Senha
+                    </h3>
+                </div>
                 <div class="card-body p-5">
-                    <div class="text-center mb-4">
-                        <div class="sindcon-logo-wrap--light mb-3">
-                            <x-sindcon-logo variant="inline" class="mb-0" />
-                        </div>
-                        <h3 class="mb-0">
-                            <i class="bi bi-shield-lock"></i>
-                            Alterar Senha
-                        </h3>
-                    </div>
                     
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle"></i>
                         Por segurança, você precisa alterar sua senha temporária antes de continuar.
                     </div>
 
-                    <form action="{{ route('password.update') }}" method="POST">
+                    <form action="{{ route('password.change.update') }}" method="POST">
                         @csrf
                         
                         <div class="mb-3">

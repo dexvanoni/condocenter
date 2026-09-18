@@ -35,6 +35,7 @@ trait InteractsWithDockerComposeServices
         'meilisearch',
         'typesense',
         'minio',
+        'rustfs',
         'mailpit',
         'rabbitmq',
         'selenium',
@@ -107,11 +108,15 @@ trait InteractsWithDockerComposeServices
         // Merge volumes...
         collect($services)
             ->filter(function ($service) {
-                return in_array($service, ['mysql', 'pgsql', 'mariadb', 'mongodb', 'redis', 'valkey', 'meilisearch', 'typesense', 'minio', 'rabbitmq']);
+                return in_array($service, ['mysql', 'pgsql', 'mariadb', 'mongodb', 'redis', 'valkey', 'meilisearch', 'typesense', 'minio', 'rustfs', 'rabbitmq']);
             })->filter(function ($service) use ($compose) {
                 return ! array_key_exists($service, $compose['volumes'] ?? []);
             })->each(function ($service) use (&$compose) {
                 $compose['volumes']["sail-{$service}"] = ['driver' => 'local'];
+
+                if ($service === 'mongodb') {
+                    $compose['volumes']['sail-mongodb-config'] = ['driver' => 'local'];
+                }
             });
 
         // If the list of volumes is empty, we can remove it...
@@ -121,7 +126,7 @@ trait InteractsWithDockerComposeServices
 
         $yaml = Yaml::dump($compose, Yaml::DUMP_OBJECT_AS_MAP);
 
-        $yaml = str_replace('{{PHP_VERSION}}', $this->hasOption('php') ? $this->option('php') : '8.4', $yaml);
+        $yaml = str_replace('{{PHP_VERSION}}', $this->hasOption('php') ? $this->option('php') : '8.5', $yaml);
 
         file_put_contents($composePath, $yaml);
     }
@@ -189,8 +194,9 @@ trait InteractsWithDockerComposeServices
 
         if (in_array('meilisearch', $services)) {
             $environment .= "\nSCOUT_DRIVER=meilisearch";
-            $environment .= "\nMEILISEARCH_HOST=http://meilisearch:7700\n";
-            $environment .= "\nMEILISEARCH_NO_ANALYTICS=false\n";
+            $environment .= "\nMEILISEARCH_HOST=http://meilisearch:7700";
+            $environment .= "\nMEILISEARCH_NO_ANALYTICS=false";
+            $environment .= "\nMEILISEARCH_UPGRADE_DB=true\n";
         }
 
         if (in_array('typesense', $services)) {
@@ -222,6 +228,8 @@ trait InteractsWithDockerComposeServices
             $environment = str_replace('RABBITMQ_HOST=127.0.0.1', 'RABBITMQ_HOST=rabbitmq', $environment);
         }
 
+        $environment = str_replace('# PHP_CLI_SERVER_WORKERS=4', 'PHP_CLI_SERVER_WORKERS=4', $environment);
+
         file_put_contents($this->laravel->basePath('.env'), $environment);
     }
 
@@ -243,11 +251,8 @@ trait InteractsWithDockerComposeServices
         $phpunit = file_get_contents($path);
 
         $phpunit = preg_replace('/^.*DB_CONNECTION.*\n/m', '', $phpunit);
-        $phpunit = str_replace(
-            [
-                '<!-- <env name="DB_DATABASE" value=":memory:"/> -->',
-                '<env name="DB_DATABASE" value=":memory:"/>',
-            ],
+        $phpunit = preg_replace(
+            '/(<!--[ \t]*)?<env[ \t]+name="DB_DATABASE"[ \t]+value=":memory:"[ \t]*\/>(?(1)[ \t]*-->)/',
             '<env name="DB_DATABASE" value="testing"/>',
             $phpunit
         );

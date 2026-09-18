@@ -101,6 +101,23 @@ class Charge extends Model implements Auditable
         return $query->where('status', 'overdue');
     }
 
+    public function scopeEffectivelyOverdue($query)
+    {
+        return $query->where(function ($query) {
+            $query->where('status', 'overdue')
+                ->orWhere(function ($pending) {
+                    $pending->where('status', 'pending')
+                        ->whereDate('due_date', '<', now()->toDateString());
+                });
+        });
+    }
+
+    public function scopeEffectivelyPending($query)
+    {
+        return $query->where('status', 'pending')
+            ->whereDate('due_date', '>=', now()->toDateString());
+    }
+
     public function scopeByPeriod($query, $startDate, $endDate)
     {
         return $query->whereBetween('due_date', [$startDate, $endDate]);
@@ -129,9 +146,26 @@ class Charge extends Model implements Auditable
 
     public function isOverdue(): bool
     {
-        return $this->status !== 'paid' 
-            && $this->due_date 
+        return in_array($this->status, ['pending', 'overdue'], true)
+            && $this->due_date
             && $this->due_date->isPast();
+    }
+
+    public function effectiveStatus(): string
+    {
+        if ($this->status === 'cancelled') {
+            return 'cancelled';
+        }
+
+        if ($this->status === 'paid') {
+            return 'paid';
+        }
+
+        if ($this->isOverdue()) {
+            return 'overdue';
+        }
+
+        return $this->status;
     }
 
     public function markAsPaid()
@@ -235,7 +269,7 @@ class Charge extends Model implements Auditable
             return ['key' => 'payroll_due', 'label' => 'Folha pendente', 'color' => 'warning'];
         }
 
-        if ($this->status === 'overdue') {
+        if ($this->isOverdue()) {
             return ['key' => 'overdue', 'label' => 'Em atraso', 'color' => 'danger'];
         }
 

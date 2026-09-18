@@ -196,4 +196,37 @@ class CondominiumSubscriptionController extends Controller
 
         return $this->billing->exportCsv($subscription, $filters, 'cobrancas-saas');
     }
+
+    public function updateComplimentary(Request $request, Condominium $condominium)
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'saas_complimentary' => ['nullable', 'boolean'],
+            'saas_complimentary_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $isComplimentary = $request->boolean('saas_complimentary');
+
+        $condominium->update([
+            'saas_complimentary' => $isComplimentary,
+            'saas_complimentary_notes' => $validated['saas_complimentary_notes'] ?? null,
+        ]);
+
+        $request->user()?->logActivity(
+            'update_saas_complimentary',
+            'platform',
+            $isComplimentary
+                ? "Marcou {$condominium->name} como uso gratuito da plataforma"
+                : "Removeu uso gratuito da plataforma de {$condominium->name}",
+            ['condominium_id' => $condominium->id]
+        );
+
+        return back()->with(
+            'success',
+            $isComplimentary
+                ? 'Condomínio configurado para uso gratuito da plataforma.'
+                : 'Uso gratuito removido. O condomínio passa a seguir as regras normais de assinatura.'
+        );
+    }
 }

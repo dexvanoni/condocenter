@@ -939,9 +939,8 @@ body.cch-body {
 .cch-footer .sindcon-logo-wrap--footer {
     display: inline-flex;
     align-items: center;
-    background: #050505;
-    border-radius: 0.35rem;
-    padding: 0.15rem 0.35rem;
+    background: transparent;
+    padding: 0;
     margin-top: 0.15rem;
 }
 

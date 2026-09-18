@@ -56,7 +56,7 @@ class WebhookController extends Controller
         } catch (\Exception $e) {
             Log::error('Erro ao processar webhook Asaas: ' . $e->getMessage());
 
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            return response()->json(['status' => 'error'], 500);
         }
     }
 

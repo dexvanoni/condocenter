@@ -4,7 +4,7 @@
  * This file is part of the Predis package.
  *
  * (c) 2009-2020 Daniele Alessandri
- * (c) 2021-2025 Till Krüss
+ * (c) 2021-2026 Till Krüss
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -19,6 +19,7 @@ use Predis\Connection\Resource\Exception\StreamInitException;
 use Predis\Protocol\Parser\ParserStrategyResolver;
 use Predis\Protocol\Parser\Strategy\ParserStrategyInterface;
 use Predis\Protocol\ProtocolException;
+use Predis\TimeoutException;
 
 /**
  * Base class with the common logic used by connection classes to communicate
@@ -45,6 +46,17 @@ abstract class AbstractConnection implements NodeConnectionInterface
      * @var RawCommand[]
      */
     protected $initCommands = [];
+
+    /**
+     * Commands that restore server-side session state (e.g. HIMPORT fieldsets)
+     * on the physical connection. Unlike init commands, these are keyed so they
+     * can be replaced and removed, are replayed best-effort after init commands
+     * on every (re)connect, and are intentionally excluded from serialization: a
+     * deserialized or freshly created connection is a new server session.
+     *
+     * @var array<string, CommandInterface>
+     */
+    protected $sessionCommands = [];
 
     /**
      * @param ParametersInterface $parameters Initialization parameters for the connection.
@@ -127,6 +139,50 @@ abstract class AbstractConnection implements NodeConnectionInterface
     }
 
     /**
+     * Registers (or replaces) a session command under the given key so it is
+     * replayed on the next (re)connect. Keying makes replacement idempotent.
+     *
+     * @param string           $key     Identifier for the session command.
+     * @param CommandInterface $command Command replayed to restore session state.
+     */
+    public function addSessionCommand(string $key, CommandInterface $command): void
+    {
+        $this->sessionCommands[$key] = $command;
+    }
+
+    /**
+     * Removes a single session command previously registered under the key.
+     *
+     * @param string $key Identifier for the session command.
+     */
+    public function removeSessionCommand(string $key): void
+    {
+        unset($this->sessionCommands[$key]);
+    }
+
+    /**
+     * Removes every session command whose key starts with the given prefix.
+     *
+     * @param string $prefix Key prefix (e.g. "himport:") to match.
+     */
+    public function removeSessionCommandsByPrefix(string $prefix): void
+    {
+        foreach (array_keys($this->sessionCommands) as $key) {
+            if (strpos($key, $prefix) === 0) {
+                unset($this->sessionCommands[$key]);
+            }
+        }
+    }
+
+    /**
+     * @return array<string, CommandInterface>
+     */
+    public function getSessionCommands(): array
+    {
+        return $this->sessionCommands;
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function executeCommand(CommandInterface $command)
@@ -155,6 +211,20 @@ abstract class AbstractConnection implements NodeConnectionInterface
     {
         CommunicationException::handle(
             new ConnectionException($this, "$message [{$this->getParameters()}]", $code)
+        );
+    }
+
+    /**
+     * Helper method to handle timeout errors.
+     *
+     * @param  int                    $code
+     * @return void
+     * @throws CommunicationException
+     */
+    protected function onTimeoutError(int $code = 0): void
+    {
+        CommunicationException::handle(
+            new TimeoutException($this, $code)
         );
     }
 

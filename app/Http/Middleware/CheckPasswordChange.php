@@ -22,7 +22,7 @@ class CheckPasswordChange
             // Permite acesso apenas às rotas de troca de senha e logout
             $allowedRoutes = [
                 'password.change',
-                'password.update',
+                'password.change.update',
                 'logout',
             ];
 

@@ -7,13 +7,8 @@
             </div>
             <div class="card-body">
                 <p class="mb-3">
-                    O condomínio restringe moradores com cobranças vencidas. Enquanto houver débitos em atraso, as funções abaixo ficam bloqueadas:
+                    O condomínio restringe moradores com cobranças vencidas. Enquanto houver débitos em atraso, o acesso ao SindCON fica limitado a <strong>Minhas Cobranças</strong> e <strong>Fale com o Síndico</strong>.
                 </p>
-                <ul class="mb-4">
-                    @foreach($defaulterRestriction['restrictions'] as $restriction)
-                        <li class="text-danger-emphasis">{{ $restriction }}</li>
-                    @endforeach
-                </ul>
 
                 <h6 class="mb-3"><i class="bi bi-receipt-cutoff"></i> Débitos vencidos</h6>
                 <div class="table-responsive mb-3">

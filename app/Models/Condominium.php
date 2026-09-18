@@ -27,6 +27,8 @@ class Condominium extends Model implements Auditable
         'email',
         'description',
         'is_active',
+        'saas_complimentary',
+        'saas_complimentary_notes',
         'financial_mode',
         'payment_receiving_mode',
         'asaas_api_key',
@@ -49,6 +51,7 @@ class Condominium extends Model implements Auditable
 
     protected $casts = [
         'is_active' => 'boolean',
+        'saas_complimentary' => 'boolean',
         'marketplace_allow_agregados' => 'boolean',
         'restrict_defaulters' => 'boolean',
         'enabled_modules' => 'array',
@@ -129,8 +132,17 @@ class Condominium extends Model implements Auditable
         return $this->hasOne(CondominiumLandingPage::class);
     }
 
+    public function isSaasComplimentary(): bool
+    {
+        return (bool) $this->saas_complimentary;
+    }
+
     public function hasActiveSaasSubscription(): bool
     {
+        if ($this->isSaasComplimentary()) {
+            return true;
+        }
+
         return (bool) $this->subscription?->isAccessAllowed();
     }
 

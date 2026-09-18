@@ -8,13 +8,22 @@ import sql from '@shikijs/langs/sql';
 import darkPlus from '@shikijs/themes/dark-plus';
 import lightPlus from '@shikijs/themes/light-plus';
 
-tippy('[data-tippy-content]', {
+const tippyOptions = {
     arrow: false,
-    allowHTML: true,
     animation: 'shift-away',
     delay: [300, 0],
     duration: 200,
     theme: 'laravel',
+};
+
+tippy('[data-tippy-content]', {
+    ...tippyOptions,
+    allowHTML: false,
+});
+
+tippy('[data-tippy-html-content]', {
+    ...tippyOptions,
+    allowHTML: true,
 });
 
 window.copyToClipboard = async function (text) {
@@ -63,9 +72,6 @@ window.highlight = function (
                 pre(node) {
                     this.addClassToHast(node, ['bg-transparent!', truncate ? 'truncate' : 'w-fit min-w-full']);
                 },
-                code(node) {
-                    this.addClassToHast(node, 'flex flex-col');
-                },
                 line(node, line) {
                     if (!editor) {
                         return;
@@ -89,7 +95,7 @@ window.highlight = function (
                     node.children.unshift(lineNumberSpan);
 
                     this.addClassToHast(node, [
-                        'block px-4 py-1 h-7 even:bg-white odd:bg-white/2 even:dark:bg-white/2 odd:dark:bg-white/4',
+                        'inline-block w-full px-4 py-1 h-7 even:bg-white odd:bg-white/2 even:dark:bg-white/2 odd:dark:bg-white/4',
                         highlight ? 'bg-rose-200! dark:bg-rose-900!' : '',
                     ]);
                 },

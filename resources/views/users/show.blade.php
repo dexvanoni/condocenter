@@ -646,6 +646,86 @@
             </div>
         </div>
 
+        <!-- Liberação temporária por inadimplência -->
+        @if(($defaulterContext['has_overdue_charges'] ?? false) && \App\Helpers\SidebarHelper::canManageFinancialSettings(auth()->user()))
+        <div class="premium-card">
+            <div class="premium-card-header" style="background: linear-gradient(135deg, #dc2626 0%, #f97316 100%);">
+                <h5 class="text-white"><i class="bi bi-unlock"></i> Inadimplência — Liberação Temporária</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted small mb-3">
+                    Este morador possui cobranças vencidas
+                    (R$ {{ number_format($defaulterContext['total_overdue'], 2, ',', '.') }} em atraso).
+                    O acesso ao SindCON está restrito enquanto houver débitos.
+                </p>
+
+                @if($defaulterContext['temporary_unlock']['active'] ?? false)
+                <div class="alert alert-success mb-3">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-check-circle-fill fs-5"></i>
+                        <div>
+                            <strong>Acesso liberado temporariamente</strong>
+                            <div class="small mt-1">
+                                Válido até <strong>{{ $defaulterContext['temporary_unlock']['expires_at']->format('d/m/Y H:i') }}</strong>
+                                ({{ $defaulterContext['temporary_unlock']['days'] }} dia(s))
+                                @if($defaulterContext['temporary_unlock']['granted_by'])
+                                    <br>Concedido por: {{ $defaulterContext['temporary_unlock']['granted_by'] }}
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @can('update', $user)
+                <form action="{{ route('users.defaulter-access-override.destroy', $user) }}" method="POST"
+                      onsubmit="return confirm('Cancelar a liberação temporária? O acesso será bloqueado imediatamente.')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn btn-outline-danger btn-action w-100">
+                        <i class="bi bi-lock"></i> Cancelar liberação
+                    </button>
+                </form>
+                @endcan
+                @endif
+
+                @if($canGrantDefaulterAccess || ($defaulterContext['temporary_unlock']['active'] ?? false))
+                @can('update', $user)
+                <hr class="my-3">
+                <form action="{{ route('users.defaulter-access-override.store', $user) }}" method="POST">
+                    @csrf
+                    <label for="defaulter_days" class="form-label fw-semibold">
+                        {{ ($defaulterContext['temporary_unlock']['active'] ?? false) ? 'Renovar liberação' : 'Liberar acesso por' }}
+                    </label>
+                    <div class="input-group mb-2">
+                        <input type="number" name="days" id="defaulter_days"
+                               class="form-control @error('days') is-invalid @enderror"
+                               min="1" max="{{ \App\Services\DefaulterAccessOverrideService::MAX_DAYS }}"
+                               value="{{ old('days', 2) }}" required>
+                        <span class="input-group-text">dia(s)</span>
+                    </div>
+                    @error('days')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                    <div class="mb-3">
+                        <label for="defaulter_notes" class="form-label small text-muted">Observação (opcional)</label>
+                        <textarea name="notes" id="defaulter_notes" class="form-control form-control-sm" rows="2"
+                                  maxlength="500" placeholder="Ex.: Morador solicitou via Fale Com o Síndico">{{ old('notes') }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-action w-100">
+                        <i class="bi bi-unlock-fill"></i>
+                        {{ ($defaulterContext['temporary_unlock']['active'] ?? false) ? 'Renovar liberação' : 'Liberar acesso temporário' }}
+                    </button>
+                    <p class="text-muted small mt-2 mb-0">
+                        Após o prazo, o bloqueio retorna automaticamente se os débitos continuarem em aberto.
+                        Se o morador pagar, a liberação é imediata.
+                    </p>
+                </form>
+                @endcan
+                @endif
+            </div>
+        </div>
+        @endif
+
         <!-- Permissões Especiais (Agregados) -->
         @if($user->isAgregado())
         <div class="premium-card">

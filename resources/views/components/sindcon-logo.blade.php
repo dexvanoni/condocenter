@@ -6,10 +6,13 @@
 
 @php
     $altText = $alt ?? config('brand.logo_alt', config('app.name', 'SindCON'));
+    $onDark = asset(config('brand.logo_sidebar_path', config('brand.logo_path', 'images/logo_sindcon_br_fundo-removebg-preview.png')));
+    $onLight = asset(config('brand.logo_on_light_path', 'images/logo_sindcon_sem_nome.png'));
+
     $src = match ($variant) {
-        'sidebar' => asset(config('brand.logo_sidebar_path', config('brand.logo_path', 'images/logo_sindcon.png'))),
-        'navbar' => asset(config('brand.logo_path', 'images/logo_sindcon.png')),
-        default => asset(config('brand.logo_path', 'images/logo_sindcon.png')),
+        'sidebar', 'auth', 'footer' => $onDark,
+        'navbar', 'inline' => $onLight,
+        default => $onDark,
     };
 
     $variantClass = match ($variant) {

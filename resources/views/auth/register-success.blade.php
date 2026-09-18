@@ -24,7 +24,15 @@
             max-width: 520px;
             width: 100%;
             text-align: center;
-            padding: 2.5rem 2rem;
+            overflow: hidden;
+        }
+        .success-header {
+            background: linear-gradient(135deg, #0a1b67 0%, #3866d2 100%);
+            color: #fff;
+            padding: 2rem 2rem 1.5rem;
+        }
+        .success-body {
+            padding: 2rem;
         }
         .success-icon {
             width: 88px;
@@ -42,9 +50,10 @@
 </head>
 <body>
     <div class="success-card">
-        <div class="sindcon-logo-wrap--light">
-            <x-sindcon-logo variant="inline" class="mb-0" />
+        <div class="success-header">
+            <x-sindcon-logo variant="auth" class="mb-2" />
         </div>
+        <div class="success-body">
         <div class="success-icon"><i class="bi bi-check-lg"></i></div>
         <h2 class="fw-bold mb-3">Cadastro enviado!</h2>
         <p class="text-muted mb-4">
@@ -58,6 +67,7 @@
         <a href="{{ route('login') }}" class="btn btn-primary btn-lg w-100">
             <i class="bi bi-box-arrow-in-right me-1"></i> Ir para o login
         </a>
+        </div>
     </div>
 </body>
 </html>

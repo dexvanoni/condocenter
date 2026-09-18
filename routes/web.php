@@ -85,7 +85,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             Route::put('/forma-pagamento', [\App\Http\Controllers\SyndicSubscriptionController::class, 'updatePaymentMethod'])->name('payment-method.update');
         });
 
-        Route::middleware(['ensure.saas.subscription'])->group(function () {
+        Route::middleware(['ensure.saas.subscription', 'restrict.defaulter.navigation'])->group(function () {
             // Financeiro — taxas e cobranças (disponível em ambos os ambientes)
             Route::middleware(['can:view_charges', 'condominium.module:financial'])->group(function () {
                 Route::get('/minhas-cobrancas', [\App\Http\Controllers\ResidentChargeController::class, 'index'])->name('my-charges.index');
@@ -512,6 +512,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::post('/users/{user}/activate', [\App\Http\Controllers\UserController::class, 'activate'])->name('users.activate');
     Route::post('/users/{user}/deactivate', [\App\Http\Controllers\UserController::class, 'deactivate'])->name('users.deactivate');
     Route::post('/users/{user}/reset-password', [\App\Http\Controllers\UserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::post('/users/{user}/defaulter-access-override', [\App\Http\Controllers\DefaulterAccessOverrideController::class, 'store'])->name('users.defaulter-access-override.store');
+    Route::delete('/users/{user}/defaulter-access-override', [\App\Http\Controllers\DefaulterAccessOverrideController::class, 'destroy'])->name('users.defaulter-access-override.destroy');
     Route::get('/users/{user}/history', [\App\Http\Controllers\UserHistoryController::class, 'show'])->name('users.history');
     Route::get('/users/{user}/history/pdf', [\App\Http\Controllers\UserHistoryController::class, 'exportPdf'])->name('users.history.pdf');
     Route::get('/users/{user}/history/excel', [\App\Http\Controllers\UserHistoryController::class, 'exportExcel'])->name('users.history.excel');
@@ -607,6 +609,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             ->name('subscriptions.extend');
         Route::post('/condominiums/{condominium}/subscription/sync-asaas', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'syncAsaas'])
             ->name('subscriptions.sync-asaas');
+        Route::put('/condominiums/{condominium}/subscription/complimentary', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'updateComplimentary'])
+            ->name('subscriptions.complimentary.update');
         Route::post('/condominiums/{condominium}/subscription/documents', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'uploadDocument'])
             ->name('subscriptions.documents.store');
         Route::get('/condominiums/{condominium}/subscription/documents/{document}', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'downloadDocument'])
@@ -632,7 +636,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Rotas de troca de senha (sem middleware de verificação de senha)
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/password/change', [\App\Http\Controllers\PasswordChangeController::class, 'show'])->name('password.change');
-    Route::post('/password/change', [\App\Http\Controllers\PasswordChangeController::class, 'update'])->name('password.update');
+    Route::post('/password/change', [\App\Http\Controllers\PasswordChangeController::class, 'update'])->name('password.change.update');
 });
 
 // Rotas de Alertas de Pânico (apenas para Admin/Síndico)

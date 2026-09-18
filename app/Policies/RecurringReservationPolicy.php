@@ -4,70 +4,56 @@ namespace App\Policies;
 
 use App\Models\RecurringReservation;
 use App\Models\User;
+use App\Policies\Concerns\ChecksActiveCondominium;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class RecurringReservationPolicy
 {
     use HandlesAuthorization;
+    use ChecksActiveCondominium;
 
-    /**
-     * Determine whether the user can view any models.
-     */
+    protected function canManage(User $user): bool
+    {
+        return $user->isAdmin() || $user->isSindico();
+    }
+
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['admin', 'syndic']);
+        return $this->canManage($user) && $user->tenantCondominiumId() !== null;
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
-               $user->hasRole(['admin', 'syndic']);
+        return $this->canManage($user)
+            && $this->belongsToActiveCondominium($user, (int) $recurringReservation->condominium_id);
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin', 'syndic']);
+        return $this->canManage($user) && $user->tenantCondominiumId() !== null;
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
-               $user->hasRole(['admin', 'syndic']);
+        return $this->canManage($user)
+            && $this->belongsToActiveCondominium($user, (int) $recurringReservation->condominium_id);
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
-               $user->hasRole(['admin', 'syndic']);
+        return $this->canManage($user)
+            && $this->belongsToActiveCondominium($user, (int) $recurringReservation->condominium_id);
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
     public function restore(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
-               $user->hasRole(['admin', 'syndic']);
+        return $this->canManage($user)
+            && $this->belongsToActiveCondominium($user, (int) $recurringReservation->condominium_id);
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
     public function forceDelete(User $user, RecurringReservation $recurringReservation): bool
     {
-        return $user->tenantCondominiumId() === $recurringReservation->condominium_id &&
-               $user->hasRole(['admin', 'syndic']);
+        return $user->isAdmin()
+            && $this->belongsToActiveCondominium($user, (int) $recurringReservation->condominium_id);
     }
 }

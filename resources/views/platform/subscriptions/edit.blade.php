@@ -34,6 +34,36 @@
         <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
     @endif
 
+    <div class="card shadow-sm mb-4 border-{{ $condominium->saas_complimentary ? 'success' : 'secondary' }}">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-gift"></i> Uso gratuito da plataforma</h5>
+            @if($condominium->saas_complimentary)
+                <span class="badge bg-success">Ativo</span>
+            @endif
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                Condomínios com uso gratuito têm acesso ao sistema sem contrato de assinatura SaaS nem cobrança da plataforma.
+            </p>
+            <form method="POST" action="{{ route('platform.subscriptions.complimentary.update', $condominium) }}">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="saas_complimentary" value="0">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="saasComplimentary"
+                           name="saas_complimentary" value="1" @checked(old('saas_complimentary', $condominium->saas_complimentary))>
+                    <label class="form-check-label" for="saasComplimentary">Liberar acesso gratuito (sem assinatura SaaS)</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="saasComplimentaryNotes">Observações internas</label>
+                    <textarea class="form-control" id="saasComplimentaryNotes" name="saas_complimentary_notes" rows="2"
+                              placeholder="Ex.: parceria, período promocional, condomínio piloto">{{ old('saas_complimentary_notes', $condominium->saas_complimentary_notes) }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-outline-primary btn-sm">Salvar uso gratuito</button>
+            </form>
+        </div>
+    </div>
+
     @if($sub)
     <div class="row g-3 mb-4">
         <div class="col-md-3"><div class="card shadow-sm"><div class="card-body"><small class="text-muted">Valor recorrente</small><h4 class="mb-0">R$ {{ number_format($sub->recurring_amount, 2, ',', '.') }}</h4></div></div></div>

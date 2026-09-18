@@ -4,7 +4,7 @@
  * This file is part of the Predis package.
  *
  * (c) 2009-2020 Daniele Alessandri
- * (c) 2021-2025 Till Krüss
+ * (c) 2021-2026 Till Krüss
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -63,8 +63,12 @@ class Resp3Strategy extends Resp2Strategy
      */
     protected function parseDouble(string $string): float
     {
-        if ($string === 'inf' || $string === '-inf') {
+        if ($string === 'inf') {
             return INF;
+        }
+
+        if ($string === '-inf') {
+            return -INF;
         }
 
         return (float) $string;

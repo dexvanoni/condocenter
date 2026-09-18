@@ -9,6 +9,10 @@ use Illuminate\Support\Collection;
 
 class DefaulterRestrictionService
 {
+    public function __construct(
+        private readonly DefaulterAccessOverrideService $accessOverrideService,
+    ) {}
+
     public const RESTRICTION_LABELS = [
         'reservations' => 'Realizar novas reservas de espaços',
         'service_orders' => 'Abrir novas ordens de serviço',
@@ -58,7 +62,9 @@ class DefaulterRestrictionService
      *     overdue_charges: Collection,
      *     restrictions: array<int, string>,
      *     regularize_url: string,
-     *     total_overdue: float
+     *     total_overdue: float,
+     *     has_overdue_charges: bool,
+     *     temporary_unlock: array{active: bool, expires_at: ?\Illuminate\Support\Carbon, days: ?int, granted_by: ?string}|null
      * }
      */
     public function getContextForUser(?User $user): array
@@ -69,6 +75,13 @@ class DefaulterRestrictionService
             'restrictions' => [],
             'regularize_url' => route('my-charges.index', ['status' => 'overdue']),
             'total_overdue' => 0.0,
+            'has_overdue_charges' => false,
+            'temporary_unlock' => [
+                'active' => false,
+                'expires_at' => null,
+                'days' => null,
+                'granted_by' => null,
+            ],
         ];
 
         if (!$user) {
@@ -90,7 +103,9 @@ class DefaulterRestrictionService
         }
 
         $overdue = $this->getOverdueCharges($user);
-        $active = $overdue->isNotEmpty();
+        $hasOverdue = $overdue->isNotEmpty();
+        $activeOverride = $hasOverdue ? $this->accessOverrideService->getActiveOverride($user) : null;
+        $active = $hasOverdue && $activeOverride === null;
 
         return $this->rememberContext($user, [
             'active' => $active,
@@ -98,6 +113,13 @@ class DefaulterRestrictionService
             'restrictions' => $active ? array_values(self::RESTRICTION_LABELS) : [],
             'regularize_url' => route('my-charges.index', ['status' => 'overdue']),
             'total_overdue' => (float) $overdue->sum('amount'),
+            'has_overdue_charges' => $hasOverdue,
+            'temporary_unlock' => [
+                'active' => $activeOverride !== null,
+                'expires_at' => $activeOverride?->expires_at,
+                'days' => $activeOverride?->days,
+                'granted_by' => $activeOverride?->grantedBy?->name,
+            ],
         ]);
     }
 

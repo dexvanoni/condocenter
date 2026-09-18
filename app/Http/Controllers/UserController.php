@@ -10,6 +10,8 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Services\ActiveCondominiumService;
+use App\Services\DefaulterAccessOverrideService;
+use App\Services\DefaulterRestrictionService;
 use App\Services\FileUploadService;
 use App\Services\UserRoleLinkageService;
 use Illuminate\Http\Request;
@@ -30,6 +32,8 @@ class UserController extends Controller
         FileUploadService $fileUploadService,
         private ActiveCondominiumService $activeCondominiumService,
         private UserRoleLinkageService $userRoleLinkageService,
+        private DefaulterRestrictionService $defaulterRestrictionService,
+        private DefaulterAccessOverrideService $defaulterAccessOverrideService,
     ) {
         $this->fileUploadService = $fileUploadService;
     }
@@ -230,7 +234,11 @@ class UserController extends Controller
             'agregadoPermissions.grantedBy'
         ]);
 
-        return view('users.show', compact('user'));
+        $defaulterContext = $this->defaulterRestrictionService->getContextForUser($user);
+        $canGrantDefaulterAccess = \App\Helpers\SidebarHelper::canManageFinancialSettings($this->authUser())
+            && $this->defaulterAccessOverrideService->canGrantTo($user, $this->defaulterRestrictionService);
+
+        return view('users.show', compact('user', 'defaulterContext', 'canGrantDefaulterAccess'));
     }
 
     /**
@@ -660,26 +668,34 @@ class UserController extends Controller
     }
 
     /**
-     * Reseta senha do usuário para padrão
+     * Envia link de redefinição de senha por e-mail.
      */
     public function resetPassword(User $user)
     {
-        $this->authorize('update', $user);
+        $this->authorize('resetPassword', $user);
 
-        $user->update([
-            'password' => Hash::make('12345678'),
-            'senha_temporaria' => true,
+        if (blank($user->email)) {
+            return back()->with('error', 'Este usuário não possui e-mail cadastrado. Cadastre um e-mail antes de resetar a senha.');
+        }
+
+        $token = \Illuminate\Support\Facades\Password::createToken($user);
+        $resetUrl = route('password.reset', [
+            'token' => $token,
+            'email' => $user->email,
         ]);
 
-        // Log da atividade
+        \Illuminate\Support\Facades\Mail::to($user->email)->send(
+            new \App\Mail\AdminPasswordResetLinkMail($user, $resetUrl, $this->authUser()->name)
+        );
+
         $this->authUser()->logActivity(
             'reset_password',
             'users',
-            "Resetou a senha do usuário {$user->name}",
+            "Enviou link de redefinição de senha para {$user->name}",
             ['user_id' => $user->id]
         );
 
-        return back()->with('success', 'Senha resetada para: 12345678');
+        return back()->with('success', "Link de redefinição de senha enviado para {$user->email}.");
     }
 
     /**

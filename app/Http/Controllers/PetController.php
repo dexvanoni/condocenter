@@ -257,6 +257,13 @@ class PetController extends Controller
      */
     public function getOwnersByUnit($unitId)
     {
+        $unit = \App\Models\Unit::findOrFail($unitId);
+        $tenantId = $this->authUser()->tenantCondominiumId();
+
+        if (!$tenantId || (int) $unit->condominium_id !== (int) $tenantId) {
+            abort(403);
+        }
+
         $owners = User::where('unit_id', $unitId)
             ->whereHas('roles', function($query) {
                 $query->where('name', 'Morador');

@@ -35,18 +35,22 @@
         </div>
     </div>
 
+    @include('dashboard.partials.defaulter-restriction-card')
+
     @include('dashboard.partials.morador-quick-actions')
 
+    @unless($defaulterRestriction['active'] ?? false)
     <!-- Alerta de Status -->
     <div id="announcementBannerContainer"></div>
 
     @include('dashboard.partials.ride-alerts')
 
     @include('dashboard.partials.access-alerts')
+    @endunless
 
-    @include('dashboard.partials.defaulter-restriction-card')
+    @unless($defaulterRestriction['active'] ?? false)
 
-    @if(($chargesAtrasadas->count() > 0) && !($defaulterRestriction['active'] ?? false))
+    @if($chargesAtrasadas->count() > 0)
     <div class="row mb-4">
         <div class="col-12">
             <div class="widget-notification danger fade-in">
@@ -870,6 +874,8 @@
         @endif
     </div>
 </div>
+
+@endunless
 
 @if($onlinePaymentsEnabled ?? false)
     @include('charges.partials.payment-checkout')

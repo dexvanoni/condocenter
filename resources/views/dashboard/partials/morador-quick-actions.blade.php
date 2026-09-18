@@ -32,6 +32,15 @@
     </a>
     @endif
 
+    @if(Route::has('syndic-conversations.start') && SidebarHelper::moduleEnabled($user, 'communication') && ($isRestricted || $user->can('contact_sindico')))
+    <a href="{{ route('syndic-conversations.start') }}" class="md-quick-tile">
+        <span class="md-quick-tile__icon md-quick-tile__icon--message"><i class="bi bi-chat-dots"></i></span>
+        <span>Síndico</span>
+    </a>
+    @endif
+
+    @unless($isRestricted)
+
     @if($accountabilityUrl)
     <a href="{{ $accountabilityUrl }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--accountability"><i class="bi bi-journal-check"></i></span>
@@ -58,13 +67,6 @@
         <span class="md-quick-tile__badge">{{ $assembliesPendentes->count() }}</span>
         <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-check2-square"></i></span>
         <span>Votar</span>
-    </a>
-    @endif
-
-    @if(Route::has('syndic-conversations.start') && SidebarHelper::moduleEnabled($user, 'communication'))
-    <a href="{{ route('syndic-conversations.start') }}" class="md-quick-tile">
-        <span class="md-quick-tile__icon md-quick-tile__icon--message"><i class="bi bi-chat-dots"></i></span>
-        <span>Síndico</span>
     </a>
     @endif
 
@@ -104,4 +106,6 @@
         <span>Ordem de Serviço</span>
     </a>
     @endif
+
+    @endunless
 </div>

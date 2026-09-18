@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\GuardsTenantResource;
 use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,6 +13,8 @@ use Illuminate\Support\Str;
 
 class MessageController extends Controller
 {
+    use GuardsTenantResource;
+
     /**
      * Lista mensagens
      */
@@ -128,7 +131,10 @@ class MessageController extends Controller
 
         $user = Auth::user();
 
-        // Apenas o remetente pode editar
+        if ($response = $this->denyUnlessTenant($user, $message)) {
+            return $response;
+        }
+
         if ($message->from_user_id !== $user->id) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -158,7 +164,10 @@ class MessageController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Apenas o remetente ou síndico pode deletar
+        if ($response = $this->denyUnlessTenant($user, $message)) {
+            return $response;
+        }
+
         if ($message->from_user_id !== $user->id && !$user->isSindico() && !$user->isAdmin()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }

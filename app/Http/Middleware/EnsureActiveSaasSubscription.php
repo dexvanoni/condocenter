@@ -40,6 +40,10 @@ class EnsureActiveSaasSubscription
             return $next($request);
         }
 
+        if ($condominium->isSaasComplimentary()) {
+            return $next($request);
+        }
+
         $subscription = $condominium->subscription;
 
         if (!$subscription) {

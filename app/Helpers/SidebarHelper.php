@@ -306,6 +306,17 @@ class SidebarHelper
         return self::isAdminOrSindico($user) && (bool) $user->getActiveCondominiumId();
     }
 
+    public static function isDefaulterMenuLocked(?User $user): bool
+    {
+        if (!$user || !$user->isMorador() || $user->isSindico() || $user->isAdmin()) {
+            return false;
+        }
+
+        $restriction = app(\App\Services\DefaulterRestrictionService::class)->getContextForUser($user);
+
+        return (bool) ($restriction['active'] ?? false);
+    }
+
     public static function canManageReceivingSettings(User $user): bool
     {
         return self::canManageFinancialSettings($user);

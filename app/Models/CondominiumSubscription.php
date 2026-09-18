@@ -114,6 +114,10 @@ class CondominiumSubscription extends Model
 
     public function isAccessAllowed(): bool
     {
+        if ($this->condominium?->isSaasComplimentary() ?? (bool) $this->condominium()->value('saas_complimentary')) {
+            return true;
+        }
+
         if ($this->isContractExpired()) {
             return false;
         }

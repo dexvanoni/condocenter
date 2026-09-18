@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -11,9 +13,9 @@ use Spatie\Permission\Traits\HasRoles;
 use OwenIt\Auditing\Contracts\Auditable;
 use App\Models\Concerns\HasActiveProfileRole;
 
-class User extends Authenticatable implements Auditable
+class User extends Authenticatable implements Auditable, CanResetPasswordContract
 {
-    use HasFactory, Notifiable, HasApiTokens, SoftDeletes, \OwenIt\Auditing\Auditable;
+    use CanResetPassword, HasFactory, Notifiable, HasApiTokens, SoftDeletes, \OwenIt\Auditing\Auditable;
 
     use HasRoles, HasActiveProfileRole {
         HasRoles::hasRole as protected spatieHasRole;
@@ -163,6 +165,11 @@ class User extends Authenticatable implements Auditable
     public function assemblyVotes()
     {
         return $this->hasMany(AssemblyVote::class, 'voter_id');
+    }
+
+    public function defaulterAccessOverrides()
+    {
+        return $this->hasMany(DefaulterAccessOverride::class);
     }
 
     public function sentMessages()

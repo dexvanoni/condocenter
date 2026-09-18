@@ -12,18 +12,17 @@
         margin: 0 auto 0.75rem;
     }
     .sindcon-logo--inline {
-        height: 2rem;
+        height: 2.5rem;
         width: auto;
-        max-width: 10rem;
+        max-width: 2.5rem;
         margin: 0 auto 1rem;
     }
     .sindcon-logo-wrap--light {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         justify-content: center;
-        background: #050505;
-        border-radius: 0.45rem;
-        padding: 0.35rem 0.65rem;
+        background: transparent;
+        padding: 0;
         margin: 0 auto 1rem;
     }
 </style>

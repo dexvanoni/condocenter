@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SindCON - Sistema Completo de Gestão Condominial</title>
-    <link rel="icon" type="image/png" href="/images/logo_sindcon.png">
-    <link rel="apple-touch-icon" href="/images/logo_sindcon.png">
+    <link rel="icon" type="image/png" href="/images/logo_sindcon_sem_nome.png">
+    <link rel="apple-touch-icon" href="/images/logo_sindcon_sem_nome.png">
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -454,7 +454,7 @@
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-lg-8 hero-content">
-                    <img src="/images/logo_sindcon.png" alt="SindCON — Gestão Condominial Inteligente" style="max-height: 5rem; width: auto; max-width: min(100%, 22rem); margin-bottom: 1.5rem;">
+                    <img src="/images/logo_sindcon_br_fundo-removebg-preview.png" alt="SindCON — Gestão Condominial Inteligente" style="max-height: 5rem; width: auto; max-width: min(100%, 22rem); margin-bottom: 1.5rem;">
                     <p class="hero-subtitle">A Solução Completa para Gestão Condominial</p>
                     <p class="hero-description">
                         Sistema moderno e intuitivo desenvolvido especialmente para administradores e síndicos 

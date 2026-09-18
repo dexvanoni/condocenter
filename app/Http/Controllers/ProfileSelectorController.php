@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProfileSelection;
+use App\Services\ActiveCondominiumService;
+use App\Support\ProfileHomeRoute;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -65,11 +67,13 @@ class ProfileSelectorController extends Controller
                 ->with('error', 'Perfil inválido.');
         }
 
-        // Define na sessão
         session(['active_role' => $roleName]);
         $user->refreshActiveProfileCache();
 
-        // Registra seleção no banco
+        if ($roleName === 'Administrador') {
+            app(ActiveCondominiumService::class)->clearActiveCondominium();
+        }
+
         ProfileSelection::create([
             'user_id' => $user->id,
             'role_name' => $roleName,
@@ -77,7 +81,6 @@ class ProfileSelectorController extends Controller
             'ip_address' => request()->ip(),
         ]);
 
-        // Log da atividade
         $user->logActivity(
             'select_profile',
             'authentication',
@@ -85,7 +88,8 @@ class ProfileSelectorController extends Controller
             ['role' => $roleName]
         );
 
-        return redirect()->route('dashboard')
+        return redirect()
+            ->route(ProfileHomeRoute::routeNameForRole($roleName))
             ->with('success', "Perfil {$roleName} ativado com sucesso!");
     }
 
@@ -109,11 +113,13 @@ class ProfileSelectorController extends Controller
             ], 403);
         }
 
-        // Define na sessão
         session(['active_role' => $roleName]);
         $user->refreshActiveProfileCache();
 
-        // Registra seleção no banco
+        if ($roleName === 'Administrador') {
+            app(ActiveCondominiumService::class)->clearActiveCondominium();
+        }
+
         ProfileSelection::create([
             'user_id' => $user->id,
             'role_name' => $roleName,
@@ -121,7 +127,6 @@ class ProfileSelectorController extends Controller
             'ip_address' => request()->ip(),
         ]);
 
-        // Log da atividade
         $user->logActivity(
             'switch_profile',
             'authentication',
@@ -133,7 +138,7 @@ class ProfileSelectorController extends Controller
             'success' => true,
             'message' => "Perfil alterado para {$roleName}",
             'role' => $roleName,
-            'redirect' => route('dashboard', [], false),
+            'redirect' => route(ProfileHomeRoute::routeNameForRole($roleName), [], false),
         ]);
     }
 

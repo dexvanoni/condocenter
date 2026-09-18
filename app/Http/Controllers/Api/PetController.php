@@ -113,12 +113,15 @@ class PetController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $pet = Pet::findOrFail($id);
+        $pet = Pet::with('unit')->findOrFail($id);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Apenas o dono ou síndico pode editar
+        if ($pet->unit->condominium_id !== $user->tenantCondominiumId()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
         if ($pet->owner_id !== $user->id && !$user->isSindico() && !$user->isAdmin()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }
@@ -157,12 +160,15 @@ class PetController extends Controller
      */
     public function destroy($id)
     {
-        $pet = Pet::findOrFail($id);
+        $pet = Pet::with('unit')->findOrFail($id);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Apenas o dono ou síndico pode deletar
+        if ($pet->unit->condominium_id !== $user->tenantCondominiumId()) {
+            return response()->json(['error' => 'Não autorizado'], 403);
+        }
+
         if ($pet->owner_id !== $user->id && !$user->isSindico() && !$user->isAdmin()) {
             return response()->json(['error' => 'Não autorizado'], 403);
         }

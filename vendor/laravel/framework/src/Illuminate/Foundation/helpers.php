@@ -617,7 +617,6 @@ if (! function_exists('now')) {
      * Create a new Carbon instance for the current time.
      *
      * @param  \DateTimeZone|\UnitEnum|string|null  $tz
-     * @return \Illuminate\Support\Carbon
      */
     function now($tz = null): CarbonInterface
     {
@@ -1090,7 +1089,7 @@ if (! function_exists('view')) {
      * @param  array  $mergeData
      * @return ($view is null ? \Illuminate\Contracts\View\Factory : \Illuminate\Contracts\View\View)
      */
-    function view($view = null, $data = [], $mergeData = []): ViewContract|ViewFactory
+    function view($view = null, $data = [], $mergeData = []): ViewFactory|ViewContract
     {
         $factory = app(ViewFactory::class);
 
