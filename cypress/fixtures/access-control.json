@@ -1,0 +1,20 @@
+{
+  "presetVisitor": {
+    "visitor_name": "Entregador iFood",
+    "visitor_preset_key": "ifood",
+    "authorization_type": "allow"
+  },
+  "namedVisitor": {
+    "visitor_name": "João Cypress",
+    "visitor_preset_key": "other",
+    "authorization_type": "allow"
+  },
+  "prohibition": {
+    "visitor_name": "Pessoa Proibida Cypress",
+    "never_expires": true
+  },
+  "eventList": {
+    "title": "Festa Cypress",
+    "visitor_names": ["Convidado Um", "Convidado Dois"]
+  }
+}

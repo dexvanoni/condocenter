@@ -4,9 +4,15 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "cypress:open": "cypress open",
+        "cypress:run": "cypress run",
+        "cypress:access": "node cypress/scripts/run-access-tests.mjs",
+        "cypress:access:run": "cypress run --spec \"cypress/e2e/access-control/**/*.cy.js\"",
+        "cypress:prepare": "node -e \"require('child_process').execSync((process.env.CYPRESS_PHP_PATH||'php')+' cypress/scripts/ensure-test-users.php',{stdio:'inherit',cwd:'.'})\""
     },
     "devDependencies": {
+        "cypress": "^14.5.4",
         "@popperjs/core": "^2.11.8",
         "@tailwindcss/vite": "^4.0.0",
         "@vitejs/plugin-vue": "^6.0.1",

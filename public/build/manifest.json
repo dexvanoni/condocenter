@@ -1,8 +1,4 @@
 {
-  "_Encoder-BGD7kJpw.js": {
-    "file": "assets/Encoder-BGD7kJpw.js",
-    "name": "Encoder"
-  },
   "__plugin-vue_export-helper-DlAUqK2U.js": {
     "file": "assets/_plugin-vue_export-helper-DlAUqK2U.js",
     "name": "_plugin-vue_export-helper"
@@ -11,9 +7,15 @@
     "file": "assets/bootstrap-RV8msAai.js",
     "name": "bootstrap"
   },
-  "_vue.esm-bundler-tHNHQOf3.js": {
-    "file": "assets/vue.esm-bundler-tHNHQOf3.js",
+  "_vue.esm-bundler-BfsnM0pF.js": {
+    "file": "assets/vue.esm-bundler-BfsnM0pF.js",
     "name": "vue.esm-bundler"
+  },
+  "node_modules/@zxing/library/esm/index.js": {
+    "file": "assets/index-Dbo6nELR.js",
+    "name": "index",
+    "src": "node_modules/@zxing/library/esm/index.js",
+    "isDynamicEntry": true
   },
   "resources/css/app.css": {
     "file": "assets/app-UWONbYNu.css",
@@ -40,27 +42,29 @@
     ]
   },
   "resources/js/access-porteiro-checkin.js": {
-    "file": "assets/access-porteiro-checkin-D97Q5DAu.js",
+    "file": "assets/access-porteiro-checkin-R8gHCM6Q.js",
     "name": "access-porteiro-checkin",
     "src": "resources/js/access-porteiro-checkin.js",
     "isEntry": true,
     "imports": [
-      "_vue.esm-bundler-tHNHQOf3.js",
-      "_Encoder-BGD7kJpw.js",
+      "_vue.esm-bundler-BfsnM0pF.js",
       "__plugin-vue_export-helper-DlAUqK2U.js"
     ],
+    "dynamicImports": [
+      "node_modules/@zxing/library/esm/index.js"
+    ],
     "css": [
-      "assets/access-porteiro-checkin-Cfpw36jh.css"
+      "assets/access-porteiro-checkin-D_Vg-_cR.css"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-d2F0MpAW.js",
+    "file": "assets/app-CJfn2BBg.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
       "_bootstrap-RV8msAai.js",
-      "_vue.esm-bundler-tHNHQOf3.js"
+      "_vue.esm-bundler-BfsnM0pF.js"
     ]
   },
   "resources/js/landing-connect.js": {
@@ -76,14 +80,14 @@
     "isEntry": true
   },
   "resources/js/packages-intake.js": {
-    "file": "assets/packages-intake-Db2ZHOS-.js",
+    "file": "assets/packages-intake-DBx9Pew7.js",
     "name": "packages-intake",
     "src": "resources/js/packages-intake.js",
     "isEntry": true,
     "imports": [
       "_bootstrap-RV8msAai.js",
-      "_vue.esm-bundler-tHNHQOf3.js",
-      "_Encoder-BGD7kJpw.js",
+      "_vue.esm-bundler-BfsnM0pF.js",
+      "node_modules/@zxing/library/esm/index.js",
       "__plugin-vue_export-helper-DlAUqK2U.js"
     ],
     "css": [
@@ -91,13 +95,13 @@
     ]
   },
   "resources/js/packages-pickup.js": {
-    "file": "assets/packages-pickup-CKviRgeB.js",
+    "file": "assets/packages-pickup-B0xCOrbP.js",
     "name": "packages-pickup",
     "src": "resources/js/packages-pickup.js",
     "isEntry": true,
     "imports": [
       "_bootstrap-RV8msAai.js",
-      "_vue.esm-bundler-tHNHQOf3.js",
+      "_vue.esm-bundler-BfsnM0pF.js",
       "__plugin-vue_export-helper-DlAUqK2U.js"
     ],
     "css": [
@@ -105,13 +109,13 @@
     ]
   },
   "resources/js/pets-verify.js": {
-    "file": "assets/pets-verify-CkUB5oML.js",
+    "file": "assets/pets-verify-BmbBagkg.js",
     "name": "pets-verify",
     "src": "resources/js/pets-verify.js",
     "isEntry": true,
     "imports": [
-      "_vue.esm-bundler-tHNHQOf3.js",
-      "_Encoder-BGD7kJpw.js",
+      "_vue.esm-bundler-BfsnM0pF.js",
+      "node_modules/@zxing/library/esm/index.js",
       "__plugin-vue_export-helper-DlAUqK2U.js"
     ],
     "css": [

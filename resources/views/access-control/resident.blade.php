@@ -360,6 +360,12 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const bootAccessResident = () => {
+    if (typeof bootstrap === 'undefined') {
+        setTimeout(bootAccessResident, 50);
+        return;
+    }
+
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const editListModal = new bootstrap.Modal(document.getElementById('editListModal'));
     const editProviderModal = document.getElementById('editProviderModal')
@@ -1194,6 +1200,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadMyLists();
     loadMyProviders();
+    };
+    bootAccessResident();
 });
 </script>
 @endpush

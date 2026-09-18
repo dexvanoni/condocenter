@@ -582,6 +582,12 @@ body.porteiro-panorama .porteiro-brand__hint { display: none; }
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    const bootAccessPorteiro = () => {
+    if (typeof bootstrap === 'undefined') {
+        setTimeout(bootAccessPorteiro, 50);
+        return;
+    }
+
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const cardsGrid = document.getElementById('cardsGrid');
     const loadingPanel = document.getElementById('loadingPanel');
@@ -1366,6 +1372,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadPanel();
     pollTimer = setInterval(() => loadPanel(), 12000);
+    };
+    bootAccessPorteiro();
 });
 </script>
 @vite(['resources/js/access-porteiro-checkin.js'])

@@ -60,8 +60,6 @@
 </template>
 
 <script>
-import { BrowserMultiFormatReader } from '@zxing/library';
-
 export default {
   name: 'AccessCheckinApp',
   props: {
@@ -129,6 +127,8 @@ export default {
     async startScanner() {
       this.status = 'Solicitando câmera...';
       try {
+        const { BrowserMultiFormatReader } = await import('@zxing/library');
+
         if (!navigator.mediaDevices?.getUserMedia) {
           throw new Error('Câmera indisponível. Use HTTPS ou digite a senha.');
         }

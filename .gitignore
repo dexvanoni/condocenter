@@ -2,3 +2,7 @@
 .env.backup
 node_modules
 composer.lock
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
+cypress.env.json

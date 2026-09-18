@@ -2684,8 +2684,10 @@
                 if (alert.closest('#panicModal, #panicConfirmationModal, #globalPanicNotificationModal')) {
                     return;
                 }
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
+                if (typeof bootstrap !== 'undefined' && bootstrap.Alert) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                }
             });
         }, 5000);
 
