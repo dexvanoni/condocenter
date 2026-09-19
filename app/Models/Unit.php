@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use OwenIt\Auditing\Contracts\Auditable;
+use App\Support\PublicPropertyKinds;
 use App\Support\UnitModels;
+use App\Support\UnitOccupancyRegimes;
+use App\Support\UnitRentalPeriods;
 
 class Unit extends Model implements Auditable
 {
@@ -19,6 +22,11 @@ class Unit extends Model implements Auditable
         'block',
         'type',
         'unit_model',
+        'occupancy_regime',
+        'rental_period',
+        'public_property_kind',
+        'owner_user_id',
+        'lease_contract_ends_at',
         'situacao',
         'cep',
         'logradouro',
@@ -44,6 +52,7 @@ class Unit extends Model implements Auditable
         'is_active' => 'boolean',
         'default_payment_channel' => 'string',
         'possui_dividas' => 'boolean',
+        'lease_contract_ends_at' => 'date',
     ];
 
     protected $appends = [
@@ -59,6 +68,11 @@ class Unit extends Model implements Auditable
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'owner_user_id');
     }
 
     /**
@@ -151,6 +165,32 @@ class Unit extends Model implements Auditable
     public function getUnitModelLabelAttribute(): string
     {
         return UnitModels::label($this->unit_model);
+    }
+
+    public function getOccupancyRegimeLabelAttribute(): string
+    {
+        return UnitOccupancyRegimes::label($this->occupancy_regime);
+    }
+
+    public function getRentalPeriodLabelAttribute(): string
+    {
+        return UnitRentalPeriods::label($this->rental_period);
+    }
+
+    public function getPublicPropertyKindLabelAttribute(): string
+    {
+        return PublicPropertyKinds::label($this->public_property_kind);
+    }
+
+    public function isRental(): bool
+    {
+        return $this->occupancy_regime === UnitOccupancyRegimes::ALUGUEL;
+    }
+
+    public function isParticular(): bool
+    {
+        return $this->occupancy_regime === UnitOccupancyRegimes::PARTICULAR
+            || $this->occupancy_regime === null;
     }
 
     // Scopes

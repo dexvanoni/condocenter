@@ -29,6 +29,12 @@ class FinePolicy
             return false;
         }
 
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+        if ($occupancy->userLivesInRentalUnit($user)) {
+            return $fine->recipients()->where('user_id', $user->id)->exists();
+        }
+
         return $fine->recipients()
             ->where(function ($query) use ($user) {
                 $query->where('notified_user_id', $user->id)

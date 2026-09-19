@@ -8,6 +8,7 @@ use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
 use App\Services\ConversationAuthorization;
+use App\Services\SyndicConversationService;
 use App\Services\SyndicConversationStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,8 @@ use App\Jobs\SendConversationNotifications;
 class SyndicConversationController extends Controller
 {
     public function __construct(
-        private SyndicConversationStatsService $statsService
+        private SyndicConversationStatsService $statsService,
+        private SyndicConversationService $syndicConversationService,
     ) {}
 
     public function stats(Request $request)
@@ -57,24 +59,11 @@ class SyndicConversationController extends Controller
         return DB::transaction(function () use ($user, $request) {
             $priority = $request->get('priority', 'normal');
 
-            $conversation = Conversation::create([
-                'condominium_id' => $user->tenantCondominiumId(),
-                'created_by' => $user->id,
-                'subject' => $request->get('subject'),
-                'type' => 'direct',
-                'channel' => Conversation::CHANNEL_SYNDIC,
-                'priority' => $priority,
-                'is_active' => true,
-            ]);
-
-            ConversationParticipant::create([
-                'conversation_id' => $conversation->id,
-                'user_id' => $user->id,
-                'role' => 'owner',
-                'joined_at' => now(),
-            ]);
-
-            $this->attachSyndicParticipants($conversation);
+            $conversation = $this->syndicConversationService->createConversation(
+                $user,
+                $request->get('subject'),
+                $priority,
+            );
 
             $message = null;
             if ($request->filled('message')) {

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Charge;
 use App\Models\Condominium;
 use App\Models\User;
+use App\Services\UnitOccupancyService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -25,8 +26,12 @@ class ChargePaymentService
             ]);
         }
 
-        if (!$user->unit_id || (int) $charge->unit_id !== (int) $user->unit_id) {
-            abort(403, 'Você só pode pagar cobranças da sua unidade.');
+        $occupancy = app(UnitOccupancyService::class);
+
+        if (!$occupancy->canUserPayCharge($user, $charge)) {
+            throw ValidationException::withMessages([
+                'charge' => 'Você não tem permissão para pagar esta cobrança.',
+            ]);
         }
 
         $condominium = $charge->condominium ?? Condominium::query()->find($charge->condominium_id);

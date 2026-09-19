@@ -52,6 +52,7 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
         'qr_code',
         'senha_temporaria',
         'is_active',
+        'access_suspended_reason',
         'registration_status',
         'possui_dividas',
         'agregado_can_authorize_access',
@@ -115,6 +116,11 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function ownedUnits()
+    {
+        return $this->hasMany(Unit::class, 'owner_user_id');
     }
 
     public function transactions()
@@ -266,6 +272,11 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
     public function isAgregado(): bool
     {
         return $this->hasRole('Agregado');
+    }
+
+    public function isProprietario(): bool
+    {
+        return $this->hasRole('Proprietário');
     }
 
     /**

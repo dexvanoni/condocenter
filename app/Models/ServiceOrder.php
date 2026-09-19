@@ -62,6 +62,7 @@ class ServiceOrder extends Model
         'charge_id',
         'reimbursement_total',
         'whatsapp_notify',
+        'visible_to_tenant',
         'dispatched_at',
         'resolved_at',
         'closed_at',
@@ -75,6 +76,7 @@ class ServiceOrder extends Model
             'preferred_date' => 'date',
             'reimbursement_total' => 'decimal:2',
             'whatsapp_notify' => 'boolean',
+            'visible_to_tenant' => 'boolean',
             'dispatched_at' => 'datetime',
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
@@ -151,6 +153,14 @@ class ServiceOrder extends Model
         return $query->where('user_id', $userId);
     }
 
+    public function scopeVisibleToResident(Builder $query, User $user): Builder
+    {
+        return $query->orWhere(function (Builder $inner) use ($user) {
+            $inner->where('visible_to_tenant', true)
+                ->where('unit_id', $user->unit_id);
+        });
+    }
+
     public function getTypeLabelAttribute(): string
     {
         return self::TYPES[$this->type] ?? $this->type;
@@ -206,6 +216,17 @@ class ServiceOrder extends Model
             return true;
         }
 
-        return $this->user_id === $user->id;
+        if ($this->user_id === $user->id) {
+            return true;
+        }
+
+        if ($this->visible_to_tenant
+            && $user->isMorador()
+            && $this->unit_id
+            && (int) $user->unit_id === (int) $this->unit_id) {
+            return true;
+        }
+
+        return false;
     }
 }

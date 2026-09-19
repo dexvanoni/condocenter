@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 18/09/2026 (SMTP Brevo para e-mails transacionais)
+- **Última revisão:** 19/09/2026 (regime de ocupação das unidades e perfil Proprietário)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -537,6 +537,13 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-19 — Regime de ocupação (aluguel / particular / imóvel público)
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`).
+- Em produção, após o migrate, rode uma vez: `php artisan db:seed --class=RolesAndPermissionsSeeder --force` (cria o papel **Proprietário** e permissões).
+- Migrations: campos de regime em `units`, `lease_contract_ends_at`, `visible_to_tenant` em `service_orders`, `syndic_participant_profile` em `conversations` e `access_suspended_reason` em `users`. Sem variável de `.env` nova.
+- Cron diário 06:00: `php artisan leases:process-contracts` (já no scheduler do Passo 8).
 
 ### 2026-09-18 — SMTP Brevo (e-mails transacionais)
 

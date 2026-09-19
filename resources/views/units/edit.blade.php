@@ -406,6 +406,8 @@
                             @enderror
                         </div>
 
+                        @include('units.partials.occupancy-regime', ['unit' => $unit])
+                        @include('units.partials.owner-search', ['unit' => $unit, 'selectedOwner' => $selectedOwner ?? null])
                         @include('units.partials.morador-search', ['selectedMorador' => $selectedMorador ?? null])
                     </div>
                 </div>

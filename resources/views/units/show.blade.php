@@ -56,6 +56,38 @@
                         <span class="badge bg-secondary">{{ $unit->unit_model_label }}</span>
                     </div>
                     <div class="col-md-6 mb-3">
+                        <strong>Regime:</strong><br>
+                        <span class="badge bg-dark">{{ $unit->occupancy_regime_label }}</span>
+                        @if($unit->isRental())
+                            <small class="text-muted d-block">{{ $unit->rental_period_label }}</small>
+                        @endif
+                        @if($unit->public_property_kind)
+                            <small class="text-muted d-block">{{ $unit->public_property_kind_label }}</small>
+                        @endif
+                    </div>
+                    @if($unit->owner)
+                    <div class="col-md-6 mb-3">
+                        <strong>Proprietário:</strong><br>
+                        {{ $unit->owner->name }}
+                    </div>
+                    @endif
+                    @if($unit->isRental() && $unit->lease_contract_ends_at)
+                    <div class="col-12 mb-3">
+                        @php
+                            $leaseDays = app(\App\Services\LeaseContractService::class)->daysUntilLeaseEnds($unit);
+                            $leaseExpired = app(\App\Services\LeaseContractService::class)->leaseIsExpired($unit);
+                        @endphp
+                        <div class="alert {{ $leaseExpired ? 'alert-danger' : ($leaseDays !== null && $leaseDays <= 30 ? 'alert-warning' : 'alert-info') }} mb-0">
+                            <strong>Contrato de locação:</strong> válido até {{ $unit->lease_contract_ends_at->format('d/m/Y') }}.
+                            @if($leaseExpired)
+                                <span class="d-block mt-1">Contrato encerrado — o acesso do inquilino e agregados está suspenso até renovação da data na unidade.</span>
+                            @elseif($leaseDays !== null && $leaseDays <= 30)
+                                <span class="d-block mt-1">Faltam {{ $leaseDays }} dia(s). Após o término, o acesso do inquilino e dos agregados será suspenso automaticamente.</span>
+                            @endif
+                        </div>
+                    </div>
+                    @endif
+                    <div class="col-md-6 mb-3">
                         <strong>Uso:</strong><br>
                         <span class="badge bg-{{ $unit->type === 'residential' ? 'info' : 'warning' }}">
                             {{ $unit->type === 'residential' ? 'Residencial' : 'Comercial' }}

@@ -1237,7 +1237,13 @@
                 </li>
 
                 @if($defaulterMenuLocked)
-                @if(Route::has('my-charges.index') && $user->unit_id)
+                @if(\App\Helpers\SidebarHelper::canAccessRentalTenantPayables($user) && Route::has('tenant-payables.index'))
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('tenant-payables.*') ? 'active' : '' }}" href="{{ route('tenant-payables.index') }}">
+                        <i class="bi bi-wallet2"></i> Minhas pendências
+                    </a>
+                </li>
+                @elseif(Route::has('my-charges.index') && $user->unit_id)
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
                         <i class="bi bi-receipt"></i> Minhas Cobranças
@@ -1319,7 +1325,8 @@
                     $isFinanceAdmin = \App\Helpers\SidebarHelper::isAdminOrSindico($user);
                     $isFinanceResident = $user->isMorador();
                     $isFinancialSimplified = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
-                    $canViewFinance = !$user->isAgregado() && ($isFinanceAdmin || $isFinanceResident || $user->can('view_fines') || $user->can('view_transactions'));
+                    $canViewFinance = !$user->isAgregado()
+                        && \App\Helpers\SidebarHelper::canAccessModule($user, 'financial');
                 @endphp
                 @if($canViewFinance && $modOn('financial'))
                 <li class="nav-item nav-item-group">
@@ -1432,14 +1439,20 @@
                             </li>
                             @endif
 
-                            @if(!$isFinanceAdmin && Route::has('my-charges.index') && $isFinanceResident && $user->can('view_charges') && $user->unit_id)
+                            @if(!$isFinanceAdmin && \App\Helpers\SidebarHelper::canAccessRentalTenantPayables($user) && Route::has('tenant-payables.index'))
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('tenant-payables.*') ? 'active' : '' }}" href="{{ route('tenant-payables.index') }}">
+                                    <i class="bi bi-wallet2"></i> Minhas pendências
+                                </a>
+                            </li>
+                            @elseif(!$isFinanceAdmin && Route::has('my-charges.index') && $isFinanceResident && $user->can('view_charges') && $user->unit_id)
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
                                     <i class="bi bi-receipt"></i> Minhas Cobranças
                                 </a>
                             </li>
                             @endif
-                            @if(!$isFinanceAdmin && Route::has('fines.index') && $user->can('view_fines') && !$user->can('manage_fines'))
+                            @if(!$isFinanceAdmin && Route::has('fines.index') && $user->can('view_fines') && !$user->can('manage_fines') && \App\Helpers\SidebarHelper::canAccessModule($user, 'financial'))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('fines.*') ? 'active' : '' }}" href="{{ route('fines.index') }}">
                                     <i class="bi bi-exclamation-octagon"></i> {{ $user->hasRole('Conselho Fiscal') ? 'Multas' : 'Minhas Multas' }}

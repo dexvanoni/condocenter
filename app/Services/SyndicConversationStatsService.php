@@ -126,6 +126,9 @@ class SyndicConversationStatsService
 
         return [
             'id' => $conversation->id,
+            'syndic_participant_profile' => $conversation->syndic_participant_profile,
+            'syndic_participant_profile_label' => app(SyndicConversationService::class)
+                ->profileLabel($conversation->syndic_participant_profile),
             'subject' => $conversation->subject,
             'is_closed' => $conversation->is_closed,
             'priority' => $conversation->priority,

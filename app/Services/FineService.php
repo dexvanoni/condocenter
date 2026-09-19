@@ -6,7 +6,9 @@ use App\Models\Charge;
 use App\Models\Fine;
 use App\Models\FineRecipient;
 use App\Models\Notification;
+use App\Models\Unit;
 use App\Models\User;
+use App\Services\UnitOccupancyService;
 use Carbon\Carbon;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
@@ -18,6 +20,7 @@ class FineService
         private readonly DatabaseManager $database,
         private readonly ChargeSettlementService $chargeSettlementService,
         private readonly ChargeDueDateService $chargeDueDateService,
+        private readonly UnitOccupancyService $unitOccupancyService,
     ) {
     }
 
@@ -64,7 +67,10 @@ class FineService
                     ]);
                 }
 
-                $notifiedUser = $this->resolveNotificationRecipient($infractor);
+                $unit = Unit::query()->find($unitId);
+                $notifiedUser = $unit
+                    ? $this->unitOccupancyService->resolveFineNotificationRecipient($infractor, $unit)
+                    : $this->resolveNotificationRecipient($infractor);
 
                 $charge = Charge::create([
                     'condominium_id' => $condominiumId,

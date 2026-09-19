@@ -8,6 +8,8 @@ use App\Services\ActiveCondominiumService;
 use App\Services\ReportGeneratorService;
 use App\Http\Requests\StoreUnitRequest;
 use App\Http\Requests\UpdateUnitRequest;
+use App\Services\LeaseContractService;
+use App\Services\UnitOccupancyService;
 use App\Support\UnitModels;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -19,7 +21,9 @@ class UnitController extends Controller
     use AuthorizesRequests;
 
     public function __construct(
-        private ActiveCondominiumService $activeCondominiumService
+        private ActiveCondominiumService $activeCondominiumService,
+        private UnitOccupancyService $unitOccupancyService,
+        private LeaseContractService $leaseContractService,
     ) {}
 
     private function activeCondominiumId(): int
@@ -80,7 +84,7 @@ class UnitController extends Controller
 
     private function filteredUnitsQuery(Request $request)
     {
-        $query = Unit::with(['condominium', 'users', 'morador'])
+        $query = Unit::with(['condominium', 'users', 'morador', 'owner'])
             ->byCondominium($this->activeCondominiumId());
 
         if ($request->filled('search')) {
@@ -148,12 +152,16 @@ class UnitController extends Controller
 
         $validated = $request->validated();
         $moradorId = !empty($validated['morador_id']) ? (int) $validated['morador_id'] : null;
-        unset($validated['morador_id']);
+        $ownerId = !empty($validated['owner_user_id']) ? (int) $validated['owner_user_id'] : null;
+        unset($validated['morador_id'], $validated['owner_user_id']);
 
         $validated['condominium_id'] = $this->activeCondominiumId();
+        $validated = $this->unitOccupancyService->normalizeRegimeFields($validated);
 
         $unit = Unit::create($this->sanitizeUnitData($validated));
+        $this->syncOwner($ownerId, $unit);
         $this->syncMorador($moradorId, $unit);
+        $this->finalizeRentalLease($unit, $moradorId);
 
         // Log da atividade
         $this->authUser()->logActivity(
@@ -174,7 +182,7 @@ class UnitController extends Controller
     {
         $this->authorize('view', $unit);
         
-        $unit->load(['condominium', 'users.roles', 'charges', 'reservations']);
+        $unit->load(['condominium', 'users.roles', 'owner', 'charges', 'reservations']);
 
         return view('units.show', compact('unit'));
     }
@@ -186,12 +194,13 @@ class UnitController extends Controller
     {
         $this->authorize('update', $unit);
         
-        $unit->load(['condominium', 'morador']);
+        $unit->load(['condominium', 'morador', 'owner']);
         $selectedMorador = $unit->morador;
+        $selectedOwner = $unit->owner;
         $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
         $unitModelOptions = UnitModels::labels();
 
-        return view('units.edit', compact('unit', 'selectedMorador', 'activeCondominium', 'unitModelOptions'));
+        return view('units.edit', compact('unit', 'selectedMorador', 'selectedOwner', 'activeCondominium', 'unitModelOptions'));
     }
 
     /**
@@ -203,10 +212,15 @@ class UnitController extends Controller
 
         $validated = $request->validated();
         $moradorId = !empty($validated['morador_id']) ? (int) $validated['morador_id'] : null;
-        unset($validated['morador_id'], $validated['condominium_id']);
+        $ownerId = !empty($validated['owner_user_id']) ? (int) $validated['owner_user_id'] : null;
+        unset($validated['morador_id'], $validated['owner_user_id'], $validated['condominium_id']);
+
+        $validated = $this->unitOccupancyService->normalizeRegimeFields($validated);
 
         $unit->update($this->sanitizeUnitData($validated));
+        $this->syncOwner($ownerId, $unit);
         $this->syncMorador($moradorId, $unit);
+        $this->finalizeRentalLease($unit, $moradorId);
 
         // Log da atividade
         $this->authUser()->logActivity(
@@ -288,6 +302,76 @@ class UnitController extends Controller
             });
 
         return response()->json($users);
+    }
+
+    public function searchOwners(Request $request)
+    {
+        $this->authorize('viewAny', Unit::class);
+
+        $term = trim((string) $request->get('term', ''));
+        if (strlen($term) < 2) {
+            return response()->json([]);
+        }
+
+        $users = User::active()
+            ->byCondominium($this->activeCondominiumId())
+            ->where(function ($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                    ->orWhere('cpf', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%");
+            })
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name', 'cpf', 'email'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'cpf' => $user->cpf,
+                'email' => $user->email,
+                'text' => trim($user->name . ($user->cpf ? ' - ' . $user->cpf : '')),
+            ]);
+
+        return response()->json($users);
+    }
+
+    private function syncOwner(?int $ownerId, Unit $unit): void
+    {
+        $previousOwnerId = $unit->owner_user_id ? (int) $unit->owner_user_id : null;
+
+        $unit->update(['owner_user_id' => $ownerId]);
+
+        if ($ownerId) {
+            $owner = User::query()->find($ownerId);
+            if ($owner) {
+                $this->unitOccupancyService->syncOwnerRole($owner);
+            }
+        }
+
+        if ($previousOwnerId && $previousOwnerId !== $ownerId) {
+            $previous = User::query()->find($previousOwnerId);
+            if ($previous) {
+                $this->unitOccupancyService->syncOwnerRole($previous);
+            }
+        }
+    }
+
+    private function finalizeRentalLease(Unit $unit, ?int $moradorId): void
+    {
+        $unit->refresh();
+
+        if (!$unit->isRental() || !$moradorId) {
+            if ($unit->lease_contract_ends_at !== null) {
+                $unit->update(['lease_contract_ends_at' => null]);
+            }
+
+            return;
+        }
+
+        if ($this->leaseContractService->leaseIsExpired($unit)) {
+            $this->leaseContractService->suspendTenantAccessForUnit($unit);
+        } else {
+            $this->leaseContractService->restoreTenantAccessForUnit($unit);
+        }
     }
 
     private function syncMorador(?int $moradorId, Unit $unit): void

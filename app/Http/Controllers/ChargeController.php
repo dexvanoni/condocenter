@@ -37,7 +37,12 @@ class ChargeController extends Controller
         $baseQuery = Charge::with(['unit', 'payments'])
             ->where('condominium_id', $condominiumId);
 
-        if ($user->isMorador() && !$user->isAdmin() && !$user->isSindico() && $user->unit_id) {
+        if ($user->isProprietario() && !$user->isAdmin() && !$user->isSindico()) {
+            $ownedIds = app(\App\Services\UnitOccupancyService::class)->ownedUnitIds($user, $condominiumId);
+            if ($ownedIds !== []) {
+                $baseQuery->whereIn('unit_id', $ownedIds);
+            }
+        } elseif ($user->isMorador() && !$user->isAdmin() && !$user->isSindico() && $user->unit_id) {
             $baseQuery->where('unit_id', $user->unit_id);
         }
 
@@ -160,13 +165,34 @@ class ChargeController extends Controller
         ]);
     }
 
-    public function show(Request $request, Charge $charge): JsonResponse
+    public function showTenantPayable(Request $request, Charge $charge): JsonResponse
     {
         $user = $request->user();
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
 
         $this->ensureResourceBelongsToActiveCondominium($user, (int) $charge->condominium_id);
 
-        if ($user->isMorador() && $user->unit_id && $charge->unit_id !== $user->unit_id) {
+        if (!$occupancy->isMoradorResponsibleCharge($charge)
+            || !$occupancy->canUserPayCharge($user, $charge)) {
+            abort(403, 'Esta cobrança não está disponível para você.');
+        }
+
+        return $this->show($request, $charge);
+    }
+
+    public function show(Request $request, Charge $charge): JsonResponse
+    {
+        $user = $request->user();
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+        $this->ensureResourceBelongsToActiveCondominium($user, (int) $charge->condominium_id);
+
+        if ($user->isProprietario() && !$user->isAdmin() && !$user->isSindico()) {
+            $charge->loadMissing('unit');
+            if (!$charge->unit || !$occupancy->userOwnsUnit($user, $charge->unit)) {
+                abort(403);
+            }
+        } elseif ($user->isMorador() && $user->unit_id && $charge->unit_id !== $user->unit_id) {
             abort(403);
         }
 
@@ -192,8 +218,7 @@ class ChargeController extends Controller
         $condominium = $charge->condominium ?? Condominium::query()->find($charge->condominium_id);
         $onlinePaymentsEnabled = $condominium?->acceptsOnlinePayments() ?? false;
         $canPayOnline = $onlinePaymentsEnabled
-            && filled($user->unit_id)
-            && (int) $charge->unit_id === (int) $user->unit_id
+            && $occupancy->canUserPayCharge($user, $charge)
             && in_array($charge->status, ['pending', 'overdue'], true);
 
         return response()->json([

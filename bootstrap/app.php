@@ -34,6 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'restrict.defaulters' => \App\Http\Middleware\RestrictDefaulters::class,
             'restrict.defaulter.navigation' => \App\Http\Middleware\RestrictDefaulterNavigation::class,
             'condominium.module' => \App\Http\Middleware\EnsureCondominiumModule::class,
+            'rental.financial.access' => \App\Http\Middleware\EnsureRentalFinancialAccess::class,
+            'rental.tenant.payables' => \App\Http\Middleware\EnsureRentalTenantPayablesAccess::class,
+            'rental.lease.active' => \App\Http\Middleware\EnsureActiveRentalLease::class,
             'ensure.full.financial' => \App\Http\Middleware\EnsureFullFinancialMode::class,
             'ensure.saas.subscription' => \App\Http\Middleware\EnsureActiveSaasSubscription::class,
             'resolve.condominium' => \App\Http\Middleware\ResolveActiveCondominium::class,
@@ -46,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\ResolveActiveCondominium::class,
+            \App\Http\Middleware\EnsureActiveRentalLease::class,
         ]);
 
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);

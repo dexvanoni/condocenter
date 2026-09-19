@@ -195,6 +195,16 @@
                             </label>
                         </div>
 
+                        @if(!empty($canSetTenantVisibility))
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="visible_to_tenant" name="visible_to_tenant" value="1"
+                                   {{ old('visible_to_tenant') ? 'checked' : '' }}>
+                            <label class="form-check-label" for="visible_to_tenant">
+                                Permitir que o morador (inquilino) visualize esta OS
+                            </label>
+                        </div>
+                        @endif
+
                         <button type="submit" class="btn btn-primary btn-lg w-100">
                             <i class="bi bi-send"></i> Enviar solicitação
                         </button>

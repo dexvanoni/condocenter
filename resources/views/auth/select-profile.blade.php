@@ -20,6 +20,12 @@
             'bg' => 'rgba(5, 150, 105, 0.12)',
             'description' => 'Reservas, encomendas, finanças e comunicação.',
         ],
+        'Proprietário' => [
+            'icon' => 'bi-person-badge',
+            'color' => '#b45309',
+            'bg' => 'rgba(180, 83, 9, 0.12)',
+            'description' => 'Imóveis de aluguel: multas, ordens de serviço e assembleia.',
+        ],
         'Porteiro' => [
             'icon' => 'bi-door-open',
             'color' => '#d97706',

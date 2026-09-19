@@ -418,6 +418,8 @@
                             @enderror
                         </div>
 
+                        @include('units.partials.occupancy-regime')
+                        @include('units.partials.owner-search')
                         @include('units.partials.morador-search')
                     </div>
                 </div>

@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Conversation;
-use App\Models\ConversationParticipant;
 use App\Models\User;
-use App\Http\Controllers\Api\SyndicConversationController as SyndicConversationApiController;
+use App\Services\SyndicConversationService;
 use Illuminate\Http\Request;
 
 class SyndicConversationWebController extends Controller
 {
+    public function __construct(
+        private readonly SyndicConversationService $syndicConversationService,
+    ) {
+    }
+
     public function chat(Request $request)
     {
         /** @var User $user */
@@ -46,33 +49,10 @@ class SyndicConversationWebController extends Controller
             abort(403, 'Canal sigiloso com o síndico indisponível para administradores.');
         }
 
-        $conversation = Conversation::query()
-            ->where('condominium_id', $user->tenantCondominiumId())
-            ->where('channel', Conversation::CHANNEL_SYNDIC)
-            ->where('is_closed', false)
-            ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
-            ->latest('updated_at')
-            ->first();
+        $conversation = $this->syndicConversationService->findOpenConversation($user);
 
         if (!$conversation) {
-            $conversation = Conversation::create([
-                'condominium_id' => $user->tenantCondominiumId(),
-                'created_by' => $user->id,
-                'subject' => null,
-                'type' => 'direct',
-                'channel' => Conversation::CHANNEL_SYNDIC,
-                'priority' => 'normal',
-                'is_active' => true,
-            ]);
-
-            ConversationParticipant::create([
-                'conversation_id' => $conversation->id,
-                'user_id' => $user->id,
-                'role' => 'owner',
-                'joined_at' => now(),
-            ]);
-
-            SyndicConversationApiController::attachSyndicParticipants($conversation);
+            $conversation = $this->syndicConversationService->createConversation($user);
         }
 
         return redirect()->route('syndic-conversations.chat', ['open' => $conversation->id]);

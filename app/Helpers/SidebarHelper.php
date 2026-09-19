@@ -21,6 +21,21 @@ class SidebarHelper
             return $user->hasAgregadoPermission($module);
         }
 
+        if ($module === 'financial') {
+            $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+            if (!$occupancy->canAccessFinancialModule($user)) {
+                return false;
+            }
+        }
+
+        if ($user->isProprietario() && !$user->isMorador() && !$user->isSindico() && !$user->isAdmin()) {
+            return match ($module) {
+                'service_orders', 'messages', 'financial', 'notifications' => true,
+                default => false,
+            };
+        }
+
         // Para outros perfis, usar permissões padrão do Spatie
         return match($module) {
             'spaces' => $user->can('view_spaces'),
@@ -34,6 +49,18 @@ class SidebarHelper
             'financial' => $user->can('view_own_financial') || $user->can('view_transactions'),
             default => false,
         };
+    }
+
+    public static function canAccessRentalTenantPayables(User $user): bool
+    {
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+        if ($occupancy->canAccessFinancialModule($user)) {
+            return false;
+        }
+
+        return $occupancy->userLivesInRentalUnit($user)
+            || $occupancy->agregadoLinkedToRentalMorador($user);
     }
 
     /**

@@ -6,7 +6,9 @@ use App\Models\Charge;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
 use App\Models\ServiceOrderMessage;
+use App\Models\Unit;
 use App\Models\User;
+use App\Services\UnitOccupancyService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +18,7 @@ class ServiceOrderService
     public function __construct(
         private readonly DatabaseManager $database,
         private readonly ServiceOrderNotificationService $notificationService,
+        private readonly UnitOccupancyService $unitOccupancyService,
     ) {
     }
 
@@ -31,6 +34,17 @@ class ServiceOrderService
                 throw ValidationException::withMessages([
                     'unit_id' => 'Informe a unidade para solicitações na sua própria unidade.',
                 ]);
+            }
+
+            if ($unitId) {
+                $unit = Unit::query()->find($unitId);
+
+                if ($unit && $this->unitOccupancyService->isRental($unit)
+                    && !$this->unitOccupancyService->userOwnsUnit($requester, $unit)) {
+                    throw ValidationException::withMessages([
+                        'unit_id' => 'Somente o proprietário pode abrir ordem de serviço para imóveis de aluguel.',
+                    ]);
+                }
             }
 
             $order = ServiceOrder::create([
@@ -50,6 +64,7 @@ class ServiceOrderService
                 'availability_notes' => $data['availability_notes'] ?? null,
                 'status' => 'open',
                 'whatsapp_notify' => (bool) ($data['whatsapp_notify'] ?? true),
+                'visible_to_tenant' => (bool) ($data['visible_to_tenant'] ?? false),
                 'created_by' => $requester->id,
                 'updated_by' => $requester->id,
             ]);

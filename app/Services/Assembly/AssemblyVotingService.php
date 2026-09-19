@@ -6,6 +6,7 @@ use App\Models\Assembly;
 use App\Models\AssemblyItem;
 use App\Models\AssemblyVote;
 use App\Models\User;
+use App\Services\UnitOccupancyService;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -13,11 +14,19 @@ use Illuminate\Validation\ValidationException;
 class AssemblyVotingService
 {
     public function __construct(
-        private readonly DatabaseManager $db
+        private readonly DatabaseManager $db,
+        private readonly UnitOccupancyService $unitOccupancyService,
     ) {
     }
 
-    public function recordVote(Assembly $assembly, AssemblyItem $item, User $voter, string $choice, ?string $comment = null): AssemblyVote
+    public function recordVote(
+        Assembly $assembly,
+        AssemblyItem $item,
+        User $voter,
+        string $choice,
+        ?string $comment = null,
+        ?int $unitId = null,
+    ): AssemblyVote
     {
         if ($assembly->id !== $item->assembly_id) {
             throw ValidationException::withMessages([
@@ -56,6 +65,15 @@ class AssemblyVotingService
             ]);
         }
 
+        $voteUnitIds = $this->unitOccupancyService->assemblyVoteUnitIdsForVoter($voter, $unitId);
+        $voteUnitId = $voteUnitIds[0] ?? null;
+
+        if ($voteUnitId === null) {
+            throw ValidationException::withMessages([
+                'user' => 'Não foi possível identificar a unidade para o seu voto.',
+            ]);
+        }
+
         $availableOptions = $item->availableOptions();
         if (!in_array($choice, $availableOptions, true)) {
             throw ValidationException::withMessages([
@@ -67,10 +85,11 @@ class AssemblyVotingService
             $comment = null;
         }
 
-        return $this->db->transaction(function () use ($assembly, $item, $voter, $choice, $comment) {
+        return $this->db->transaction(function () use ($assembly, $item, $voter, $choice, $comment, $voteUnitId) {
             $existingVote = AssemblyVote::query()
                 ->where('assembly_item_id', $item->id)
                 ->where('voter_id', $voter->id)
+                ->where('unit_id', $voteUnitId)
                 ->lockForUpdate()
                 ->first();
 
@@ -80,18 +99,16 @@ class AssemblyVotingService
                 ]);
             }
 
-            if ($voter->unit_id) {
-                $unitVoteExists = AssemblyVote::query()
-                    ->where('assembly_item_id', $item->id)
-                    ->where('unit_id', $voter->unit_id)
-                    ->lockForUpdate()
-                    ->exists();
+            $unitVoteExists = AssemblyVote::query()
+                ->where('assembly_item_id', $item->id)
+                ->where('unit_id', $voteUnitId)
+                ->lockForUpdate()
+                ->exists();
 
-                if ($unitVoteExists) {
-                    throw ValidationException::withMessages([
-                        'vote' => 'Já existe um voto registrado para a sua unidade neste item.',
-                    ]);
-                }
+            if ($unitVoteExists) {
+                throw ValidationException::withMessages([
+                    'vote' => 'Já existe um voto registrado para esta unidade neste item.',
+                ]);
             }
 
             $isSecret = $assembly->voting_type === 'secret';
@@ -100,7 +117,7 @@ class AssemblyVotingService
                 'assembly_id' => $assembly->id,
                 'assembly_item_id' => $item->id,
                 'voter_id' => $voter->id,
-                'unit_id' => $voter->unit_id,
+                'unit_id' => $voteUnitId,
                 'choice' => $isSecret ? 'confidential' : $choice,
                 'encrypted_choice' => $isSecret ? encrypt($choice) : null,
                 'comment' => $comment,
@@ -140,9 +157,21 @@ class AssemblyVotingService
             ->values();
 
         if ($allowedRoles->isEmpty()) {
-            $allowedRoles = collect(['Morador', 'Síndico']);
+            $allowedRoles = collect(['Morador', 'Proprietário', 'Síndico']);
         }
 
-        return $user->roles()->whereIn('name', $allowedRoles)->exists();
+        if (!$user->roles()->whereIn('name', $allowedRoles)->exists()) {
+            return false;
+        }
+
+        if ($user->isProprietario()) {
+            return $this->unitOccupancyService->ownedRentalUnits($user, $user->tenantCondominiumId())->isNotEmpty();
+        }
+
+        if ($user->isMorador() && $user->unit_id) {
+            return $this->unitOccupancyService->moradorCanVoteInAssembly($user);
+        }
+
+        return true;
     }
 }

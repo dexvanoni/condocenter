@@ -37,6 +37,10 @@ Schedule::command('reservations:cancel-expired-prereservations')
     ->hourly()
     ->description('Cancela pré-reservas não pagas automaticamente');
 
+Schedule::command('leases:process-contracts')
+    ->dailyAt('06:00')
+    ->description('Suspende inquilinos com contrato vencido e avisa proprietários');
+
 // Limpar notificações antigas (30 dias)
 Schedule::call(function () {
     \App\Models\Notification::where('is_read', true)

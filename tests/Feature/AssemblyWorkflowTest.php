@@ -6,7 +6,9 @@ use App\Models\Assembly;
 use App\Models\AssemblyItem;
 use App\Models\AssemblyVote;
 use App\Models\Condominium;
+use App\Models\Unit;
 use App\Models\User;
+use App\Support\UnitOccupancyRegimes;
 use App\Services\Assembly\AssemblyService;
 use App\Services\Assembly\AssemblyVotingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -119,7 +121,11 @@ class AssemblyWorkflowTest extends TestCase
         $sindico = User::factory()->for($condominium)->create();
         $sindico->assignRole('Síndico');
 
-        $morador = User::factory()->for($condominium)->create();
+        $unit = Unit::factory()->for($condominium)->create([
+            'occupancy_regime' => UnitOccupancyRegimes::PARTICULAR,
+        ]);
+
+        $morador = User::factory()->for($condominium)->create(['unit_id' => $unit->id]);
         $morador->assignRole('Morador');
 
         /** @var AssemblyService $assemblyService */
@@ -163,9 +169,64 @@ class AssemblyWorkflowTest extends TestCase
             'assembly_id' => $assembly->id,
             'assembly_item_id' => $item->id,
             'voter_id' => $morador->id,
+            'unit_id' => $unit->id,
             'choice' => 'sim',
             'comment' => 'Apoiado.',
         ]);
+    }
+
+    public function test_unidade_aluguel_somente_proprietario_vota(): void
+    {
+        $condominium = Condominium::factory()->create();
+
+        $this->seedRoles(['Síndico', 'Morador', 'Proprietário']);
+        $this->seedPermission('create_assemblies', 'Síndico');
+        $this->seedPermission('vote_assemblies', 'Morador');
+        $this->seedPermission('vote_assemblies', 'Proprietário');
+
+        $sindico = User::factory()->for($condominium)->create();
+        $sindico->assignRole('Síndico');
+
+        $rentalUnit = Unit::factory()->for($condominium)->create([
+            'occupancy_regime' => UnitOccupancyRegimes::ALUGUEL,
+            'rental_period' => 'mensalista',
+        ]);
+
+        $proprietario = User::factory()->for($condominium)->create();
+        $proprietario->assignRole('Proprietário');
+        $rentalUnit->update(['owner_user_id' => $proprietario->id]);
+
+        $inquilino = User::factory()->for($condominium)->create(['unit_id' => $rentalUnit->id]);
+        $inquilino->assignRole('Morador');
+
+        $assemblyService = app(AssemblyService::class);
+        $assembly = $assemblyService->createAssembly([
+            'condominium_id' => $condominium->id,
+            'title' => 'Assembleia Aluguel',
+            'urgency' => 'normal',
+            'voting_opens_at' => now()->subMinute(),
+            'voting_closes_at' => now()->addHour(),
+            'voting_type' => 'open',
+            'allowed_role_ids' => [
+                Role::where('name', 'Morador')->first()->id,
+                Role::where('name', 'Proprietário')->first()->id,
+            ],
+            'items' => [
+                ['title' => 'Item teste', 'status' => 'open', 'options' => ['sim', 'não']],
+            ],
+        ], $sindico);
+
+        $item = $assembly->items()->first();
+        $votingService = app(AssemblyVotingService::class);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $votingService->recordVote($assembly, $item, $inquilino, 'sim');
+
+        session(['active_role' => 'Proprietário']);
+        $vote = $votingService->recordVote($assembly, $item, $proprietario->fresh(), 'sim', null, $rentalUnit->id);
+
+        $this->assertSame($rentalUnit->id, $vote->unit_id);
+        $this->assertSame($proprietario->id, $vote->voter_id);
     }
 
     public function test_conclusao_de_assembleia_secreta_gera_ata_publica(): void
@@ -179,7 +240,11 @@ class AssemblyWorkflowTest extends TestCase
         $sindico = User::factory()->for($condominium)->create();
         $sindico->assignRole('Síndico');
 
-        $morador = User::factory()->for($condominium)->create();
+        $unit = Unit::factory()->for($condominium)->create([
+            'occupancy_regime' => UnitOccupancyRegimes::PARTICULAR,
+        ]);
+
+        $morador = User::factory()->for($condominium)->create(['unit_id' => $unit->id]);
         $morador->assignRole('Morador');
 
         /** @var AssemblyService $assemblyService */

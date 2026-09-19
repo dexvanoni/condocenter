@@ -310,6 +310,31 @@ class RolesAndPermissionsSeeder extends Seeder
             'book_rides',
         ]);
 
+        // Proprietário (imóveis de aluguel)
+        $proprietarioRole = Role::firstOrCreate(['name' => 'Proprietário'], ['guard_name' => 'web']);
+        $proprietarioRole->syncPermissions([
+            'view_own_financial',
+            'view_transactions',
+            'view_charges',
+            'view_fines',
+            'view_financial_reports',
+            'export_financial_reports',
+            'view_bank_statements',
+            'view_bank_reconciliation',
+            'view_accountability_reports',
+            'export_accountability_reports',
+            'view_revenue',
+            'view_expenses',
+            'view_balance',
+            'view_employees',
+            'view_service_orders',
+            'create_service_orders',
+            'vote_assemblies',
+            'contact_sindico',
+            'view_messages',
+            'view_notifications',
+        ]);
+
         // Agregado
         $agregadoRole = Role::firstOrCreate(['name' => 'Agregado'], ['guard_name' => 'web']);
         $agregadoRole->syncPermissions([

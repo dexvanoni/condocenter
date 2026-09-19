@@ -28,7 +28,25 @@ class ServiceOrderController extends Controller
 
         $query = ServiceOrder::with(['unit', 'requester'])
             ->byCondominium($condominiumId)
-            ->forRequester($user->id)
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+
+                if ($user->isMorador() && $user->unit_id) {
+                    $q->orWhere(function ($inner) use ($user) {
+                        $inner->where('visible_to_tenant', true)
+                            ->where('unit_id', $user->unit_id);
+                    });
+                }
+
+                if ($user->isProprietario()) {
+                    $ownedIds = app(\App\Services\UnitOccupancyService::class)
+                        ->ownedUnitIds($user, (int) $condominiumId);
+
+                    if ($ownedIds !== []) {
+                        $q->orWhereIn('unit_id', $ownedIds);
+                    }
+                }
+            })
             ->latest();
 
         if ($request->filled('status')) {
@@ -56,16 +74,30 @@ class ServiceOrderController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $units = Unit::byCondominium($user->tenantCondominiumId())
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+        $condominiumId = (int) $user->tenantCondominiumId();
+
+        $units = Unit::byCondominium($condominiumId)
             ->active()
             ->orderBy('block')
             ->orderBy('number')
-            ->get();
+            ->get()
+            ->filter(function (Unit $unit) use ($user, $occupancy) {
+                if ($occupancy->isRental($unit)) {
+                    return $user->isProprietario() && $occupancy->userOwnsUnit($user, $unit);
+                }
+
+                return $user->isMorador() && (int) $user->unit_id === (int) $unit->id;
+            })
+            ->values();
 
         return view('service-orders.create', [
             'user' => $user,
             'units' => $units,
-            'prefilledUnit' => $user->unit,
+            'prefilledUnit' => $user->isProprietario()
+                ? $units->first()
+                : $user->unit,
+            'canSetTenantVisibility' => $user->isProprietario(),
         ]);
     }
 
@@ -89,6 +121,7 @@ class ServiceOrderController extends Controller
             'preferred_time_end' => 'nullable|date_format:H:i|after:preferred_time_start',
             'availability_notes' => 'nullable|string|max:2000',
             'whatsapp_notify' => 'nullable|boolean',
+            'visible_to_tenant' => 'nullable|boolean',
         ]);
 
         if ($validated['location_type'] === 'common_area' && empty($validated['location_detail'])) {
@@ -97,6 +130,7 @@ class ServiceOrderController extends Controller
 
         $order = $this->serviceOrderService->create($user, array_merge($validated, [
             'whatsapp_notify' => $request->boolean('whatsapp_notify'),
+            'visible_to_tenant' => $request->boolean('visible_to_tenant'),
         ]));
 
         return redirect()

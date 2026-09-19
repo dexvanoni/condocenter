@@ -316,6 +316,7 @@ class AssemblyController extends Controller
         $request->validate([
             'choice' => 'required|string|max:100',
             'comment' => 'nullable|string|max:1000',
+            'unit_id' => 'nullable|integer|exists:units,id',
         ]);
 
         $vote = $this->votingService->recordVote(
@@ -323,7 +324,8 @@ class AssemblyController extends Controller
             $item,
             Auth::user(),
             $request->input('choice'),
-            $request->input('comment')
+            $request->input('comment'),
+            $request->filled('unit_id') ? (int) $request->input('unit_id') : null,
         );
 
         $votePayload = $vote->load(['voter', 'unit']);

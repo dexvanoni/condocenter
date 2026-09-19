@@ -87,7 +87,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
         Route::middleware(['ensure.saas.subscription', 'restrict.defaulter.navigation'])->group(function () {
             // Financeiro — taxas e cobranças (disponível em ambos os ambientes)
-            Route::middleware(['can:view_charges', 'condominium.module:financial'])->group(function () {
+            Route::middleware(['can:view_charges', 'condominium.module:financial', 'rental.financial.access'])->group(function () {
                 Route::get('/minhas-cobrancas', [\App\Http\Controllers\ResidentChargeController::class, 'index'])->name('my-charges.index');
                 Route::get('/minhas-cobrancas/export/pdf', [\App\Http\Controllers\ResidentChargeController::class, 'exportPdf'])->name('my-charges.export-pdf');
                 Route::get('/charges', [\App\Http\Controllers\ChargeController::class, 'index'])->name('charges.index');
@@ -109,7 +109,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                     ->name('fees.invalidate');
             });
 
-            Route::middleware(['can:view_fines', 'condominium.module:financial'])->group(function () {
+            Route::middleware(['can:view_fines', 'condominium.module:financial', 'rental.financial.access'])->group(function () {
                 Route::get('fines', [FineController::class, 'index'])->name('fines.index');
                 Route::get('fines/create', [FineController::class, 'create'])->middleware('can:manage_fines')->name('fines.create');
                 Route::get('fines/search-infractors', [FineController::class, 'searchInfractors'])->middleware('can:manage_fines')->name('fines.search-infractors');
@@ -120,7 +120,19 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                 Route::put('fines/{fine}/due-date', [FineController::class, 'updateDueDate'])->middleware('can:manage_fines')->name('fines.due-date.update');
             });
 
-            Route::middleware(['can:manage_transactions', 'condominium.module:financial'])->group(function () {
+            Route::middleware(['rental.tenant.payables', 'can:view_charges'])->prefix('inquilino')->name('tenant-payables.')->group(function () {
+                Route::get('/pendencias', [\App\Http\Controllers\TenantPayableController::class, 'index'])->name('index');
+                Route::get('/cobrancas/{charge}', [\App\Http\Controllers\ChargeController::class, 'showTenantPayable'])->name('charges.show');
+                Route::post('/cobrancas/{charge}/checkout', [\App\Http\Controllers\ChargePaymentController::class, 'checkout'])->name('charges.checkout');
+                Route::post('/cobrancas/{charge}/pay-card', [\App\Http\Controllers\ChargePaymentController::class, 'payWithCard'])->name('charges.pay-card');
+                Route::get('/cobrancas/{charge}/payment-status', [\App\Http\Controllers\ChargePaymentController::class, 'status'])->name('charges.payment-status');
+            });
+
+            Route::middleware(['rental.tenant.payables', 'can:view_fines'])->group(function () {
+                Route::get('inquilino/multas/{fine}', [FineController::class, 'show'])->name('tenant-payables.fines.show');
+            });
+
+            Route::middleware(['can:manage_transactions', 'condominium.module:financial', 'rental.financial.access'])->group(function () {
                 Route::post('charges/{charge}/mark-paid', [ChargeSettlementController::class, 'markPaid'])
                     ->name('charges.mark-paid');
                 Route::post('charges/{charge}/revoke-payroll', [ChargeSettlementController::class, 'revokePayroll'])
@@ -130,7 +142,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             });
 
             // Ambiente financeiro simplificado — configuração e prestação de contas por upload
-            Route::middleware(['condominium.module:financial'])->group(function () {
+            Route::middleware(['condominium.module:financial', 'rental.financial.access'])->group(function () {
             Route::get('/financial/settings', [FinancialSettingsController::class, 'index'])->name('financial.settings.index');
             Route::put('/financial/settings/mode', [FinancialSettingsController::class, 'updateMode'])->name('financial.settings.mode');
             Route::put('/financial/settings/routing-rules', [FinancialSettingsController::class, 'updateRoutingRules'])->name('financial.settings.routing-rules');
@@ -502,6 +514,7 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
     // Unidades
     Route::get('/units/search/users', [\App\Http\Controllers\UnitController::class, 'searchUsers'])->name('units.search-users');
+    Route::get('/units/search/owners', [\App\Http\Controllers\UnitController::class, 'searchOwners'])->name('units.search-owners');
     Route::get('/units/export/{format}', [\App\Http\Controllers\UnitController::class, 'export'])->name('units.export');
     Route::resource('units', \App\Http\Controllers\UnitController::class);
 

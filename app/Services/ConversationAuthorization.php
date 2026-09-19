@@ -27,7 +27,11 @@ class ConversationAuthorization
                 return true;
             }
 
-            return $conversation->participants()->where('user_id', $user->id)->exists();
+            if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+                return false;
+            }
+
+            return self::syndicProfileMatches($user, $conversation);
         }
 
         if ($user->isSindico() || $user->isAdmin()) {
@@ -75,6 +79,18 @@ class ConversationAuthorization
         }
 
         return $query;
+    }
+
+    protected static function syndicProfileMatches(User $user, Conversation $conversation): bool
+    {
+        $expected = app(SyndicConversationService::class)->participantProfile($user);
+        $stored = $conversation->syndic_participant_profile;
+
+        if ($stored === null || $expected === null) {
+            return $stored === $expected;
+        }
+
+        return $stored === $expected;
     }
 
     public static function denyIfUnauthorized(User $user, Conversation $conversation): ?array

@@ -22,6 +22,7 @@ class Conversation extends Model
         'subject',
         'type',
         'channel',
+        'syndic_participant_profile',
         'priority',
         'is_active',
         'is_closed',

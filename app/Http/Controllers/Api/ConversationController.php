@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Jobs\SendConversationNotifications;
 use App\Services\ConversationAuthorization;
+use App\Services\SyndicConversationService;
 use App\Services\SyndicConversationStatsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -46,6 +47,10 @@ class ConversationController extends Controller
                 });
             } else {
                 $query->where('channel', $request->get('channel'));
+
+                if ($request->get('channel') === Conversation::CHANNEL_SYNDIC) {
+                    app(SyndicConversationService::class)->applyResidentSyndicScope($query, $user);
+                }
             }
         } else {
             $query->where(function ($sub) {

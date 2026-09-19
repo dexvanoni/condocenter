@@ -3,11 +3,13 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ResolvesTenantCondominium;
+use App\Http\Requests\Concerns\ValidatesUnitOccupancy;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateUnitRequest extends FormRequest
 {
     use ResolvesTenantCondominium;
+    use ValidatesUnitOccupancy;
 
     public function authorize(): bool
     {
@@ -25,6 +27,29 @@ class UpdateUnitRequest extends FormRequest
     {
         $unitId = $this->route('unit')->id;
         $condominiumId = $this->tenantCondominiumId();
+
+        $occupancyRules = $this->occupancyRegimeRules();
+        $occupancyRules['lease_contract_ends_at'][] = function ($attribute, $value, $fail) {
+            if ($this->input('occupancy_regime') === 'aluguel' && $this->input('morador_id') && !$value) {
+                $fail('Informe a validade do contrato de locação enquanto houver inquilino vinculado.');
+            }
+        };
+
+        $occupancyRules['owner_user_id'][] = function ($attribute, $value, $fail) use ($condominiumId) {
+            if (!$value) {
+                return;
+            }
+
+            $exists = \App\Models\User::query()
+                ->where('id', $value)
+                ->where('condominium_id', $condominiumId)
+                ->where('is_active', true)
+                ->exists();
+
+            if (!$exists) {
+                $fail('Selecione um proprietário válido deste condomínio.');
+            }
+        };
 
         return [
             'condominium_id' => ['required', 'integer', 'in:' . $condominiumId],
@@ -73,6 +98,7 @@ class UpdateUnitRequest extends FormRequest
             ],
             'possui_dividas' => ['boolean'],
             'is_active' => ['boolean'],
+            ...$occupancyRules,
         ];
     }
 

@@ -18,6 +18,7 @@ use App\Models\ServiceOrder;
 use App\Services\ActiveCondominiumService;
 use App\Services\MonthlyClosingChecklistService;
 use App\Services\OccurrenceBookService;
+use App\Services\LeaseContractService;
 use App\Services\SyndicConversationStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -96,6 +97,8 @@ class DashboardController extends Controller
                 return $this->porteiroDashboard($user, $condominium);
             case 'Conselho Fiscal':
                 return $this->conselhoFiscalDashboard($user, $condominium);
+            case 'Proprietário':
+                return $this->proprietarioDashboard($user, $condominium);
             default:
                 return null;
         }
@@ -891,6 +894,26 @@ class DashboardController extends Controller
         return view('dashboard.agregado', compact(
             'moradorResponsavel',
             'encomendas',
+            'notificacoes',
+            'condominium',
+        ));
+    }
+
+    protected function proprietarioDashboard(User $user, $condominium)
+    {
+        $leaseAlerts = app(LeaseContractService::class)->ownerLeaseAlerts(
+            $user,
+            (int) $condominium->id
+        );
+
+        $notificacoes = $user->notifications()
+            ->where('is_read', false)
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        return view('dashboard.proprietario', compact(
+            'leaseAlerts',
             'notificacoes',
             'condominium',
         ));
