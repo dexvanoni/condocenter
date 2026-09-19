@@ -1,0 +1,1733 @@
+[
+  {
+    "id": "TC001",
+    "title": "View current profile and credits after signing in",
+    "description": "This test verifies that an authenticated resident can sign in and load their current profile and credits successfully.",
+    "category": "Authentication API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the authenticated profile or account area"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the credits or wallet area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the current user profile is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user credits information is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Load resident profile and credits",
+    "description": "A logged-in resident can open their profile and view their credits in the correct condominium context.",
+    "category": "Communication API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the resident profile area"
+      },
+      {
+        "type": "action",
+        "description": "Open the resident credits view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the resident profile is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the resident credits are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Load resident profile and credits after login",
+    "description": "A resident can sign in and see their profile and credit information for the correct condominium tenant.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the resident profile area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the resident profile information is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the resident credits information is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Prevent anonymous access to financial transactions",
+    "description": "An unauthenticated visitor is blocked from opening financial transactions and reports.",
+    "category": "Financial Transactions API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to open financial transactions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the login screen is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Require sign-in for profile and credits access",
+    "description": "This test verifies that unauthenticated access to the current profile and credits areas is blocked.",
+    "category": "Authentication API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/user"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access to the current user profile is blocked"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /api/user/credits"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access to the user credits information is blocked"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "View notification unread count",
+    "description": "A logged-in user can open the notifications area and see the unread notification count for their tenant.",
+    "category": "Communication API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the notifications area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the unread notification count is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "See unread notifications and open a conversation",
+    "description": "A logged-in resident can view unread notifications, open conversations, and access messages within their condominium tenant.",
+    "category": "Communication API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the notifications area"
+      },
+      {
+        "type": "action",
+        "description": "Open the conversations area"
+      },
+      {
+        "type": "action",
+        "description": "Open a conversation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify unread notifications are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify conversation messages are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC008",
+    "title": "View unread notifications after login",
+    "description": "A resident can open the notifications area and see unread notifications for the current condominium tenant.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the notifications area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify unread notifications are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC009",
+    "title": "View the porteiro dashboard and visitor authorizations",
+    "description": "A porteiro can open the access control dashboard and review the current visitor authorization list for the condominium.",
+    "category": "Access Control API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the access control dashboard"
+      },
+      {
+        "type": "action",
+        "description": "Open the visitor authorizations list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the porteiro dashboard is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify visitor authorizations are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC010",
+    "title": "Create a visitor authorization",
+    "description": "A porteiro can create a visitor authorization and see it appear in the authorizations list.",
+    "category": "Access Control API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the access control authorization form"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the visitor details"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid expiration date and time"
+      },
+      {
+        "type": "action",
+        "description": "Submit the authorization form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new visitor authorization is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC011",
+    "title": "Create a new charge and view its details",
+    "description": "This test verifies that an authorized user can create a charge and open the created charge details successfully.",
+    "category": "Charges API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the charges area"
+      },
+      {
+        "type": "action",
+        "description": "Create a new charge using a valid unit, amount, and due date"
+      },
+      {
+        "type": "action",
+        "description": "Open the newly created charge"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the created charge details are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC012",
+    "title": "Check in a visitor by QR code",
+    "description": "A porteiro can complete a visitor check-in using a valid QR authorization and see the successful result.",
+    "category": "Access Control API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the QR check-in area"
+      },
+      {
+        "type": "action",
+        "description": "Scan or provide a valid QR code token"
+      },
+      {
+        "type": "action",
+        "description": "Submit the check-in"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the visitor check-in success result is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC013",
+    "title": "View financial transactions and reports",
+    "description": "An authorized user can open financial transactions and the core financial reports within the condominium context.",
+    "category": "Financial Transactions API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open financial transactions"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the financial report"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the balance report"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify financial transactions and report data are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC014",
+    "title": "Open resident messages and conversations",
+    "description": "A resident can access messages and conversations that belong to the current condominium tenant.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the messages area"
+      },
+      {
+        "type": "action",
+        "description": "Open a conversation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the conversation thread is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the messages belong to the current condominium context"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC015",
+    "title": "List charges as an authenticated condominium user",
+    "description": "This test verifies that an authenticated user can open the charges area and see the list of condominium charges.",
+    "category": "Charges API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the charges area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the charges list is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC016",
+    "title": "Create a reservation for an available space",
+    "description": "A resident can create a reservation for an available condominium space and see it recorded successfully.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the reservation creation flow"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the reservation details with a valid date and time"
+      },
+      {
+        "type": "action",
+        "description": "Submit the reservation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the reservation is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC017",
+    "title": "Start a direct conversation with another resident",
+    "description": "A logged-in resident can start a new direct conversation and see it created in their conversation list.",
+    "category": "Communication API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the conversations area"
+      },
+      {
+        "type": "action",
+        "description": "Start a direct conversation with another resident"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new conversation is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the conversation list is updated"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC018",
+    "title": "Generate Asaas payment for a charge",
+    "description": "This test verifies that an authenticated user can generate an Asaas payment from an existing charge.",
+    "category": "Charges API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the charges area"
+      },
+      {
+        "type": "action",
+        "description": "Open an existing charge"
+      },
+      {
+        "type": "action",
+        "description": "Generate the Asaas payment for the charge"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a payment generation result is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC019",
+    "title": "See available spaces before booking a reservation",
+    "description": "A resident can check space availability for a condominium space before creating a reservation.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the spaces area"
+      },
+      {
+        "type": "action",
+        "description": "Open the availability view for a space"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify space availability information is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC020",
+    "title": "Create and start an assembly session",
+    "description": "An authorized user can create an assembly and start its session so voting becomes available.",
+    "category": "Assemblies API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the assemblies area"
+      },
+      {
+        "type": "action",
+        "description": "Create a new assembly"
+      },
+      {
+        "type": "action",
+        "description": "Start the assembly session"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the assembly session is displayed as started"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC021",
+    "title": "Block financial reports for unauthorized access",
+    "description": "A signed-in user without full financial access is prevented from viewing advanced financial reports.",
+    "category": "Financial Transactions API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the financial report"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an access denied message is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC022",
+    "title": "Block panic alert check without authentication",
+    "description": "This verifies that an unauthenticated visitor cannot open the active panic alerts view.",
+    "category": "Panic Alert Web",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the panic alert check view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied for the active panic alerts view"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC023",
+    "title": "Approve a pending reservation",
+    "description": "An authorized user can approve a reservation that was created for the condominium.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the authorized user credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the reservations management area"
+      },
+      {
+        "type": "action",
+        "description": "Open a pending reservation"
+      },
+      {
+        "type": "action",
+        "description": "Approve the reservation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the reservation is marked as approved"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC024",
+    "title": "Vote on an active assembly item",
+    "description": "An authorized user can vote on an assembly item after the session has started and see the vote recorded.",
+    "category": "Assemblies API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the assemblies area"
+      },
+      {
+        "type": "action",
+        "description": "Open an active assembly"
+      },
+      {
+        "type": "action",
+        "description": "Vote on an agenda item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the vote result is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC025",
+    "title": "Prevent access to restricted bulk charge creation",
+    "description": "This test verifies that a user without the required condominium or module access cannot use bulk charge creation.",
+    "category": "Charges API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the charges area"
+      },
+      {
+        "type": "action",
+        "description": "Open the bulk charge creation flow"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify bulk charge creation is blocked"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC026",
+    "title": "Reject a pending reservation",
+    "description": "An authorized user can reject a reservation that was created for the condominium.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the authorized user credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the reservations management area"
+      },
+      {
+        "type": "action",
+        "description": "Open a pending reservation"
+      },
+      {
+        "type": "action",
+        "description": "Reject the reservation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the reservation is marked as rejected"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC027",
+    "title": "Offer a ride and book a seat",
+    "description": "A resident can create a ride offer and another resident can book an available seat.",
+    "category": "Rides API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open rides"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create a ride offer"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid destination into the destination field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the ride offer form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to book a ride seat"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the ride booking is confirmed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC028",
+    "title": "Register a pet and see it in the pet list",
+    "description": "A resident can register a pet and confirm it appears in the condominium pet list.",
+    "category": "Pets API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open pet registration"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a pet name into the name field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid pet species into the species field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the pet registration form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to view pets"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the newly registered pet appears in the pet list"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC029",
+    "title": "Find a package by pickup code and collect it",
+    "description": "A resident can find a package by pickup code and mark it as collected.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the package pickup area"
+      },
+      {
+        "type": "action",
+        "description": "Enter a valid pickup code"
+      },
+      {
+        "type": "action",
+        "description": "Search for the package"
+      },
+      {
+        "type": "action",
+        "description": "Collect the package"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the package is marked as collected"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC030",
+    "title": "Show validation feedback when required charge fields are invalid",
+    "description": "This test verifies that creating a charge with invalid data shows validation feedback and does not create the charge.",
+    "category": "Charges API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the charges area"
+      },
+      {
+        "type": "action",
+        "description": "Start creating a new charge"
+      },
+      {
+        "type": "action",
+        "description": "Submit the form with invalid or missing required charge data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a validation error is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the charge was not created"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC031",
+    "title": "Send an emergency panic alert",
+    "description": "This verifies that an authenticated user can send a valid panic alert and then see active panic alerts in the check view.",
+    "category": "Panic Alert Web",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the panic alert page"
+      },
+      {
+        "type": "action",
+        "description": "Send a panic alert with a valid panic type"
+      },
+      {
+        "type": "action",
+        "description": "Open the active panic alerts check view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the panic alert is present in the active alerts view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a submitted panic alert confirmation is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC032",
+    "title": "Block reservation access for a disabled spaces module",
+    "description": "Reservation availability and booking are blocked when the spaces module is disabled for the condominium.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the spaces area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a module access blocked message is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC033",
+    "title": "Block advanced reports in simplified financial mode",
+    "description": "A condominium in simplified financial mode cannot access advanced financial reports such as defaulters reporting.",
+    "category": "Financial Transactions API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the defaulters report"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an access denied message is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC034",
+    "title": "Create a marketplace listing",
+    "description": "A resident can publish a marketplace listing that appears in the resident marketplace.",
+    "category": "Reservations API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the resident credentials field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Open the marketplace area"
+      },
+      {
+        "type": "action",
+        "description": "Start creating a marketplace listing"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the listing details with valid information"
+      },
+      {
+        "type": "action",
+        "description": "Submit the listing"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the marketplace listing is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC035",
+    "title": "Block ride creation for a defaulter-restricted resident",
+    "description": "A resident who is subject to defaulter restrictions cannot create a ride offer.",
+    "category": "Rides API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open rides"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create a ride offer"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid destination into the destination field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the ride offer form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an access denied message is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC036",
+    "title": "View active panic alerts after logging in",
+    "description": "This verifies that an authenticated user can open the panic alert check view and see active alerts when present.",
+    "category": "Panic Alert Web",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the panic alert check view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify active panic alerts are displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the panic alert check view is accessible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC037",
+    "title": "Handle missing charge details gracefully",
+    "description": "This test verifies that opening a charge that no longer exists shows a not found state instead of charge details.",
+    "category": "Charges API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the username field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the charges area"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to open a charge that is not available in the current list or context"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a not found state is displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC038",
+    "title": "Process a valid Asaas webhook event",
+    "description": "This verifies that a valid Asaas webhook payload is accepted and the webhook processing confirmation is shown.",
+    "category": "Webhooks",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Asaas webhook endpoint"
+      },
+      {
+        "type": "action",
+        "description": "Submit a valid Asaas webhook payload"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify webhook processing confirmation is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC039",
+    "title": "Accept a minimal valid Asaas webhook event",
+    "description": "This verifies that the webhook endpoint accepts a valid payment update payload in its expected shape.",
+    "category": "Webhooks",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Asaas webhook endpoint"
+      },
+      {
+        "type": "action",
+        "description": "Submit a valid payment update webhook payload"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify webhook processing confirmation is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC040",
+    "title": "Block pet registration when the module is disabled",
+    "description": "A resident cannot access pet registration when the condominium has the pet module turned off.",
+    "category": "Pets API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open pet registration"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an access denied message is displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC041",
+    "title": "Prevent panic alert submission for a user without access",
+    "description": "This verifies that a user who is not allowed to use panic alerts is blocked from submitting one.",
+    "category": "Panic Alert Web",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the panic alert page"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to send a panic alert"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access to panic alerts is denied"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no alert submission confirmation is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC042",
+    "title": "Prevent ride booking when no seats remain",
+    "description": "A ride booking is blocked when all available seats have already been taken.",
+    "category": "Rides API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open rides"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to create a ride offer"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid origin into the origin field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in a valid destination into the destination field"
+      },
+      {
+        "type": "action",
+        "description": "Select the minimum available seats"
+      },
+      {
+        "type": "action",
+        "description": "Submit the ride offer form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to book a ride seat"
+      },
+      {
+        "type": "action",
+        "description": "Book all available seats one by one"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to book the ride again"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a full ride conflict message is displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC043",
+    "title": "Handle repeated Asaas webhook delivery safely",
+    "description": "This verifies that submitting the same valid webhook payload again does not create an unexpected duplicate success state.",
+    "category": "Webhooks",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Asaas webhook endpoint"
+      },
+      {
+        "type": "action",
+        "description": "Submit a valid Asaas webhook payload"
+      },
+      {
+        "type": "action",
+        "description": "Submit the same valid Asaas webhook payload again"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the webhook remains processed successfully"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no duplicate processing warning is visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC044",
+    "title": "Require pet registration fields",
+    "description": "The pet registration form shows validation errors when required information is missing.",
+    "category": "Pets API",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_USER}} into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Fill in {{LOGIN_PASSWORD}} into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open pet registration"
+      },
+      {
+        "type": "action",
+        "description": "Submit the pet registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify pet validation errors are displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC045",
+    "title": "Reject a panic alert without a valid type",
+    "description": "This verifies that sending a panic alert without a valid panic type shows validation feedback and does not create an alert.",
+    "category": "Panic Alert Web",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the panic alert page"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to send a panic alert without selecting a valid panic type"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a panic alert validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no new panic alert is shown"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC046",
+    "title": "Reject a malformed Asaas webhook payload",
+    "description": "This verifies that a malformed Asaas webhook payload is rejected and no processing confirmation is shown.",
+    "category": "Webhooks",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Asaas webhook endpoint"
+      },
+      {
+        "type": "action",
+        "description": "Submit a malformed Asaas webhook payload"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a webhook validation error is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify webhook processing confirmation is not visible"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC047",
+    "title": "Show no active panic alerts when none exist",
+    "description": "This verifies that the panic alert check view shows an empty state when there are no active alerts.",
+    "category": "Panic Alert Web",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the login credentials with {{LOGIN_USER}} and {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the panic alert check view"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state for active panic alerts is visible"
+      }
+    ],
+    "priority": "Low"
+  }
+]

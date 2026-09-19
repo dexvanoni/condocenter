@@ -1,0 +1,22 @@
+[
+  {"id": "SEC001", "title": "block_unauthenticated_api_access", "description": "Protected API endpoints must return 401 without session."},
+  {"id": "SEC002", "title": "block_csrf_on_state_changing_routes", "description": "POST /profile/set without CSRF token must return 419."},
+  {"id": "SEC003", "title": "reject_webhook_without_token", "description": "POST /webhooks/asaas without asaas-access-token must not process payment (401 in prod, verify behavior in local)."},
+  {"id": "SEC004", "title": "idor_charge_nonexistent_id", "description": "GET /api/charges/999999999 must return 404, not leak data."},
+  {"id": "SEC005", "title": "idor_package_nonexistent_id", "description": "GET /api/packages/999999999 must return 404."},
+  {"id": "SEC006", "title": "idor_notification_foreign_id", "description": "POST /api/notifications/1/read for another user must return 403 or 404."},
+  {"id": "SEC007", "title": "sql_injection_search_charges", "description": "GET /api/charges?search=' OR 1=1-- must not return 500 or expose SQL errors."},
+  {"id": "SEC008", "title": "sql_injection_user_search", "description": "GET /api/users/search?term='; DROP TABLE users;-- must return safe response (422/200), never 500."},
+  {"id": "SEC009", "title": "block_open_redirect_external", "description": "GET /login?redirect=https://evil.com must not set external redirect in session."},
+  {"id": "SEC010", "title": "security_headers_present", "description": "Responses should include X-Frame-Options or similar protective headers."},
+  {"id": "SEC011", "title": "rate_limit_login_bruteforce", "description": "After 6 failed logins, must receive 429 Too Many Requests."},
+  {"id": "SEC012", "title": "mass_assignment_user_role_blocked", "description": "Morador cannot escalate to Síndico via API user update."},
+  {"id": "SEC013", "title": "idor_marketplace_nonexistent", "description": "GET /api/marketplace/999999999 must return 404."},
+  {"id": "SEC014", "title": "block_unauthenticated_panic", "description": "GET /panic/check without auth must redirect or return 401/302."},
+  {"id": "SEC015", "title": "sensitive_api_no_cache_headers", "description": "GET /api/user must not expose session in public cache headers."},
+  {"id": "SEC016", "title": "path_traversal_dev_docs", "description": "GET /dev/docs/../../../etc/passwd must return 404."},
+  {"id": "SEC017", "title": "http_method_override_blocked", "description": "DELETE on read-only endpoint must return 405 or 403."},
+  {"id": "SEC018", "title": "idor_reservation_nonexistent", "description": "GET /api/reservations/999999999 must return 404."},
+  {"id": "SEC019", "title": "xss_reflection_search_safe", "description": "Search with <script>alert(1)</script> must not reflect unescaped in JSON error."},
+  {"id": "SEC020", "title": "tenant_isolation_charges_list", "description": "Authenticated syndic charges list must only return own condominium data."}
+]

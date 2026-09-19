@@ -6,3 +6,6 @@ cypress/videos/
 cypress/screenshots/
 cypress/downloads/
 cypress.env.json
+testsprite_tests/tmp/
+testsprite_tests/tmp/config.json
+testsprite_tests/.env
