@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.2 |
-| **Data** | 15/09/2026 |
+| **Versão do documento** | 2.3 |
+| **Data** | 18/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
@@ -72,6 +72,7 @@ O **SindCON** é uma plataforma SaaS multi-condomínio que centraliza gestão op
 | App mobile | `celular/CondoCenterMobile` | Expo/React Native — pânico + push (Firebase) |
 | Documentação | `DOCUMENTAÇÃO/` | PRD, VPS, módulos, API, regras |
 | Assets frontend | `resources/js`, `resources/css` | Vite — app, reservas Vue, encomendas (intake/pickup), **acesso porteiro (check-in QR/senha)**, landing classic/connect |
+| Identidade visual | `config/brand.php`, `resources/views/components/sindcon-*` | Logo, favicon e estilos de marca centralizados (SindCON) |
 
 ---
 
@@ -131,9 +132,10 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 
 #### P1 — Administrador da plataforma
 - **Quem:** equipe SindCON / operadora do SaaS
-- **Necessidades:** gerenciar condomínios, planos, assinaturas, Asaas/WhatsApp globais, novidades da plataforma
+- **Necessidades:** gerenciar condomínios, planos, assinaturas, Asaas/WhatsApp globais, novidades da plataforma, condomínios em uso gratuito
 - **Acesso:** painel `platform.*` (sem condomínio ativo obrigatório)
-- **Dashboard:** `dashboard/admin.blade.php`
+- **Home após login/seleção de perfil:** `platform.dashboard` (`ProfileHomeRoute`) — não o dashboard operacional do síndico
+- **Dashboard:** `platform/dashboard.blade.php`
 
 #### P2 — Síndico
 - **Quem:** gestor eleito ou profissional do condomínio
@@ -186,6 +188,8 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - Usuário pode possuir **múltiplos papéis** (ex.: Síndico + Morador)
 - Permissões avaliadas pelo **perfil ativo** em sessão (`HasActiveProfileRole`, `active_role`)
 - Troca via `ProfileSelectorController` → `/profile/select`, `/profile/switch`
+- Middleware `CheckActiveProfile`: auto-define `active_role` quando há um único papel; valida se o papel em sessão ainda pertence ao usuário; permite pânico e troca de senha antes da seleção
+- Redirecionamento pós-seleção via `ProfileHomeRoute` (Administrador → `platform.dashboard`; demais → `dashboard`)
 - Sidebar e dashboard renderizados conforme perfil ativo + módulos habilitados
 
 ---
@@ -196,14 +200,17 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 
 #### Plataforma e tenancy
 - SaaS multi-condomínio com assinatura, planos, trial e bloqueio por inadimplência com a plataforma
-- Admin plataforma: condomínios, planos, assinaturas, Asaas/WhatsApp globais, novidades (`PlatformAnnouncement`)
+- **Uso gratuito (complimentary):** flag `saas_complimentary` por condomínio — bypass de cobrança SaaS sem contrato ativo
+- Admin plataforma: condomínios, planos, assinaturas, Asaas/WhatsApp globais, novidades (`PlatformAnnouncement`), métricas de uso gratuito
 - Seletor de condomínio ativo para administradores e síndicos multi-condomínio
+- Home do perfil Administrador em `/platform` (dashboard SaaS consolidado)
 
 #### Gestão de pessoas
 - CRUD de unidades e usuários, histórico exportável (PDF/Excel)
-- Auto-cadastro com código do condomínio + aprovação do síndico
+- Auto-cadastro com código do condomínio + aprovação do síndico (com rate limit)
 - Permissões granulares para agregados (`AgregadoPermission`)
-- Onboarding: e-mail verificado, troca de senha obrigatória, seleção de perfil
+- Onboarding: e-mail verificado, troca de senha obrigatória (`CheckPasswordChange`, `PasswordChangeController`), seleção de perfil
+- Reset de senha pelo síndico/admin: **link por e-mail** (`AdminPasswordResetLinkMail`) — sem senha temporária fixa na tela
 
 #### Financeiro
 - Modo **completo** (caixa, contas bancárias, conciliação, funcionários, DRE) e **simplificado** (upload de prestação)
@@ -211,6 +218,8 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - Pagamentos Asaas: PIX, boleto, cartão; webhooks por plataforma e por condomínio
 - Fechamento mensal com checklist de 9 etapas
 - Transparência financeira para morador e conselho fiscal
+- **Restrição de inadimplentes:** toggle por condomínio (`restrict_defaulters`), bloqueio de features, **menu restrito** (`RestrictDefaulterNavigation`) e **liberação temporária** pelo síndico (`DefaulterAccessOverride`, até 30 dias)
+- Cobranças com vencimento passado exibidas como **Em atraso** em Minhas Cobranças antes do job diário marcar `overdue` no banco
 
 #### Operacional
 - Reservas (calendário Vue, recorrentes, créditos, cobrança online)
@@ -233,6 +242,8 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 #### Segurança
 - Alerta de pânico (7 tipos, slide-to-confirm, web + app mobile)
 - Auditoria Laravel Auditing em models críticos
+- Proteção IDOR na API: trait `GuardsTenantResource` + `tenantCondominiumId()` em controllers de espaços, mensagens, pets, marketplace e demais recursos tenant-scoped
+- Bloqueio de navegação de inadimplentes também na **API** (`restrict.defaulter.navigation` em `routes/api.php`)
 
 #### Canais
 - Web (Blade + Bootstrap 5 + Vue 3 parcial)
@@ -260,6 +271,8 @@ Plataforma SindCON
       ├── enabled_modules (JSON, 11 slugs)
       ├── financial_mode (full | simplified)
       ├── payment_receiving_mode (manual | platform)
+      ├── restrict_defaulters (bool)
+      ├── saas_complimentary (bool), saas_complimentary_notes
       ├── Assinatura SaaS (CondominiumSubscription)
       ├── Unidades → Morador responsável + Agregados
       ├── Usuários (condominium_id, unit_id, roles Spatie)
@@ -285,8 +298,9 @@ Plataforma SindCON
 | 4 | `condominium.module:{slug}` | Módulo habilitado no condomínio |
 | 5 | `can:{permission}` (Spatie) | Permissão do perfil ativo |
 | 6 | `check.module.access:{slug}` | Módulo + permissão + inadimplência |
-| 7 | `restrict.defaulters` | Bloqueio para inadimplentes (rotas específicas) |
-| 8 | `ensure.full.financial` | Modo financeiro completo |
+| 7 | `restrict.defaulters` | Bloqueio por feature para inadimplentes (marketplace, reservas, OS, caronas, voto) |
+| 8 | `restrict.defaulter.navigation` | Menu/navegação restrita — morador inadimplente só acessa rotas essenciais (web + API) |
+| 9 | `ensure.full.financial` | Modo financeiro completo |
 
 ### 6.4 Ambientes financeiros
 
@@ -306,14 +320,15 @@ Plataforma SindCON
 
 Regras de negócio concentradas em `app/Services/` (~50 classes), incluindo:
 
-- **Financeiro:** `FeeService`, `ChargePaymentService`, `ChargeSettlementService`, `MonthlyClosingService`, `BankReconciliationService`, `AccountabilityReportService`, `FineService`, `DefaulterRestrictionService`
+- **Financeiro:** `FeeService`, `ChargePaymentService`, `ChargeSettlementService`, `MonthlyClosingService`, `BankReconciliationService`, `AccountabilityReportService`, `FineService`, `DefaulterRestrictionService`, `DefaulterAccessOverrideService`
 - **Integrações:** `AsaasService`, `PlatformAsaasService`, `EvolutionApiService`, `WhatsAppNotificationService`
 - **Operacional:** `AccessControlService` (liberações, credencial visitante "Outro", check-in QR/senha), `PackageService`, `RideBookingService`, `ServiceOrderService`, `OccurrenceBookService`
 - **Encomendas (OCR/matching):** `OcrServiceInterface`, `TesseractOcrService`, `LabelImagePreprocessor`, `PackageRecipientMatcher`, `PackageSenderDetector`, `TextNormalizer`
 - **Assembleias:** namespace `App\Services\Assembly\*`
-- **Plataforma:** `CondominiumSubscriptionService`, `CondominiumLandingService`, `ActiveCondominiumService`
+- **Plataforma:** `CondominiumSubscriptionService`, `CondominiumLandingService`, `ActiveCondominiumService`, `PlatformSubscriptionStatsService`
+- **Autenticação/perfil:** `ProfileHomeRoute` (home por papel)
 
-Controllers permanecem finos; validação em Form Requests; autorização em Policies.
+Controllers permanecem finos; validação em Form Requests; autorização em Policies. API sensível usa `GuardsTenantResource` para validar `condominium_id` do recurso.
 
 ---
 
@@ -373,6 +388,9 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-07 | Dashboard consolidado da operação SaaS | Should | `platform/dashboard` |
 | PLT-08 | Documentação VPS servida por token | Should | `/dev/docs/{token}` |
 | PLT-09 | Teste de integração Asaas/WhatsApp global | Should | `PlatformIntegrationTestService` |
+| PLT-10 | Condomínio em uso gratuito (`saas_complimentary`) | Should | `CondominiumSubscriptionController`, `platform/subscriptions/edit` |
+| PLT-11 | Dashboard SaaS com métricas e lista de uso gratuito | Should | `platform/dashboard`, `PlatformSubscriptionStatsService` |
+| PLT-12 | Home do Administrador em `/platform` | Must | `ProfileHomeRoute`, `ProfileSelectorController` |
 
 ### 8.2 Gestão de unidades e usuários
 
@@ -386,8 +404,11 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-06 | Permissões granulares agregados (`view`/`crud` por módulo) | Must | `AgregadoPermission` |
 | USR-07 | Apenas Admin atribui/remove perfil Administrador | Must | `UserController` + policies |
 | USR-08 | Síndico atribui Síndico e Conselho Fiscal | Must | Idem |
-| USR-09 | Seleção de perfil ativo para multi-papel | Must | `ProfileSelectorController` |
+| USR-09 | Seleção de perfil ativo para multi-papel | Must | `ProfileSelectorController`, `CheckActiveProfile` |
 | USR-10 | Exportação de unidades (PDF/Excel/CSV) | Should | `UnitController@export` |
+| USR-11 | Reset de senha por link de e-mail (síndico/admin) | Must | `UserController@resetPassword`, `AdminPasswordResetLinkMail` |
+| USR-12 | Troca de senha obrigatória (senha temporária) | Must | `PasswordChangeController`, `CheckPasswordChange` |
+| USR-13 | Liberação temporária de inadimplente (síndico) | Must | `DefaulterAccessOverrideController`, ficha `users/show` |
 
 ### 8.3 Financeiro
 
@@ -411,6 +432,11 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | FIN-16 | Créditos de usuário para reservas | Should | `UserCreditService` |
 | FIN-17 | Modo simplificado (upload prestação) | Must | `AccountabilityReportUploadController` |
 | FIN-18 | Auditoria de cobertura de taxas por unidade | Should | `FeeChargeCoverageService` |
+| FIN-19 | Toggle restrição de inadimplentes por condomínio | Must | `CondominiumDefaulterSettingsController` |
+| FIN-20 | Status "Em atraso" em cobranças vencidas (UI) | Must | `Charge::isOverdue()`, `Charge::displayStatus()` |
+| FIN-21 | Menu restrito para morador inadimplente | Must | `RestrictDefaulterNavigation`, `SidebarHelper::isDefaulterMenuLocked()` |
+| FIN-22 | Liberação temporária de acesso (1–30 dias) | Must | `DefaulterAccessOverrideService`, tabela `defaulter_access_overrides` |
+| FIN-23 | Card de restrição no dashboard do morador | Must | `defaulter-restriction-card` |
 
 #### Passos do fechamento mensal (`MonthlyClosingSteps`)
 
@@ -1018,7 +1044,8 @@ A encomenda está disponível para retirada na portaria.
 | DSH-07 | Síndico: card encomendas → relatório movimentações | Must | `dashboard/sindico.blade.php` → `packages.reports` |
 | DSH-03 | Atalhos morador (liberar visitante, OS, ocorrências) | Should | `morador-quick-actions` |
 | DSH-04 | Pendências síndico (ocorrências, OS, fechamento) | Should | `sindico-*` partials |
-| DSH-05 | Card restrição inadimplente | Should | `defaulter-restriction-card` |
+| DSH-05 | Card restrição inadimplente com débitos e total | Must | `defaulter-restriction-card` |
+| DSH-08 | Quick actions do morador respeitam restrição ativa | Must | `morador-quick-actions` |
 
 ### 8.17 Assinatura SaaS (síndico)
 
@@ -1029,6 +1056,50 @@ A encomenda está disponível para retirada na portaria.
 | SUB-03 | Alterar forma de pagamento | Should | Views `syndic-subscription/` |
 | SUB-04 | Período de trial conforme plano | Must | `CondominiumSubscriptionService` |
 | SUB-05 | Bloqueio de módulos se inadimplente com plataforma | Must | `ensure.saas.subscription` |
+| SUB-06 | Uso gratuito (`saas_complimentary`) bypassa bloqueio SaaS | Must | `Condominium::isSaasComplimentary()`, `EnsureActiveSaasSubscription` |
+| SUB-07 | Configuração de uso gratuito com notas (admin plataforma) | Should | `platform/subscriptions/edit` |
+
+### 8.18 Restrição de inadimplentes (morador)
+
+Quando o condomínio ativa `restrict_defaulters`, moradores com cobranças vencidas na unidade ficam sujeitos a **dois níveis de bloqueio**:
+
+1. **Por feature** (`restrict.defaulters`) — impede criar reservas, OS, marketplace, caronas e votar em assembleias
+2. **Por navegação** (`restrict.defaulter.navigation`) — restringe o menu e rotas a um conjunto mínimo
+
+#### 8.18.1 Rotas permitidas durante bloqueio de menu
+
+| Categoria | Rotas / recursos |
+|-----------|------------------|
+| Essencial | `dashboard`, `my-charges.*`, checkout/pagamento de cobranças |
+| Comunicação | `syndic-conversations.*`, `api.conversations.syndic.*`, mensagens básicas |
+| Conta | `profile.*`, `password.change`, `logout`, `condominium.switch` |
+| Emergência | `panic.*` |
+| API | `api.charges.*`, `api.notifications.*` (demais rotas → 403 JSON) |
+
+Síndicos e administradores são **isentos** (`DefaulterRestrictionService::isExemptFromRestrictions`).
+
+#### 8.18.2 Liberação temporária
+
+| Item | Detalhe |
+|------|---------|
+| Quem concede | Síndico ou admin com `canManageFinancialSettings` |
+| Onde | Ficha do usuário (`users/show`) |
+| Duração | 1 a 30 dias (`DefaulterAccessOverrideService::MAX_DAYS`) |
+| Efeito | Suspende bloqueio enquanto `expires_at` > agora |
+| Revogação | Cancelamento manual na mesma ficha |
+| Modelo | `defaulter_access_overrides` (`user_id`, `condominium_id`, `granted_by`, `days`, `expires_at`, `notes`) |
+
+#### 8.18.3 Regras de negócio
+
+| ID | Regra |
+|----|-------|
+| DEF-RN-01 | Restrição só aplica se `restrict_defaulters = true` no condomínio |
+| DEF-RN-02 | Cobrança `pending` com `due_date` passada conta como inadimplência |
+| DEF-RN-03 | Liberação temporária válida apenas para usuário com débitos vencidos |
+| DEF-RN-04 | Nova liberação revoga a anterior automaticamente |
+| DEF-RN-05 | Menu bloqueado: morador vê card vermelho no dashboard com débitos e link para regularizar |
+| DEF-RN-06 | Pânico permanece acessível mesmo com menu restrito |
+| DEF-RN-07 | API e web compartilham a mesma lógica de navegação restrita |
 
 ---
 
@@ -1126,7 +1197,7 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-06 | Apenas **Administrador** atribui/remove perfil Administrador |
 | RN-07 | **Síndico** atribui Síndico e Conselho Fiscal |
 | RN-08 | Assinatura SaaS **ativa** obrigatória para módulos do condomínio |
-| RN-09 | `restrict_defaulters` bloqueia marketplace, reservas, OS, caronas e voto em assembleias |
+| RN-09 | `restrict_defaulters` bloqueia marketplace, reservas, OS, caronas e voto em assembleias; com menu restrito, morador inadimplente acessa apenas dashboard, cobranças, síndico e pânico |
 | RN-10 | Moradores e Conselho Fiscal têm **transparência financeira total** |
 | RN-11 | Auto-cadastro: código + **aprovação síndico** → `is_active = true` |
 | RN-12 | Marketplace: máx. **3 imagens**; JPG/PNG/WEBP até 5 MB |
@@ -1147,6 +1218,12 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-27 | Visitante "Outro": check-in por QR/senha não consome liberação (status `pending` até expirar) |
 | RN-28 | Visitante "Outro": senha enviada ao morador via WhatsApp; PDF com QR para encaminhar ao visitante |
 | RN-29 | Controle de acesso: matching de credencial restrito ao `condominium_id` do porteiro |
+| RN-30 | Cobrança `pending` com vencimento passado exibe status **Em atraso** na UI (`Charge::isOverdue`) |
+| RN-31 | Síndico pode conceder liberação temporária a inadimplente por até **30 dias** |
+| RN-32 | `saas_complimentary = true` isenta condomínio do bloqueio `ensure.saas.subscription` |
+| RN-33 | Reset de senha por admin/síndico envia **link por e-mail** — nunca senha fixa na interface |
+| RN-34 | Perfil **Administrador** redireciona para `platform.dashboard`, não para dashboard operacional |
+| RN-35 | Recursos da API devem validar `condominium_id` do tenant ativo (`GuardsTenantResource`) |
 
 ---
 
@@ -1181,7 +1258,8 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | `condominium.module:{slug}` | Módulo habilitado |
 | `check.module.access:{slug}` | Módulo + permissão + inadimplência |
 | `ensure.full.financial` | Modo financeiro completo |
-| `restrict.defaulters` | Bloqueio inadimplentes |
+| `restrict.defaulters` | Bloqueio por feature para inadimplentes |
+| `restrict.defaulter.navigation` | Menu/navegação restrita (web + API) |
 | `ResolveCondominiumLandingDomain` | Landing em domínio customizado |
 
 ---
@@ -1268,8 +1346,9 @@ Jobs: `SendVisitorAccessCredentialNotification` (criação), `SendAccessNotifica
 
 ### 13.2 API REST (`/api`)
 
-- Autenticação: Sanctum (`auth:sanctum`)
-- Middlewares: `require.condominium`, `ensure.saas.subscription`
+- Autenticação: Sanctum (`auth:sanctum`); expiração configurável via `SANCTUM_TOKEN_EXPIRATION`
+- Middlewares: `require.condominium`, `ensure.saas.subscription`, `restrict.defaulter.navigation`
+- Validação tenant em recursos individuais: `GuardsTenantResource` (espaços, mensagens, pets, marketplace)
 - Health: `GET /api/health`
 - Laravel health: `GET /up`
 
@@ -1360,6 +1439,16 @@ Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliaçã
 - Grace period configurável: `SAAS_GRACE_DAYS` (`config/saas.php`)
 - Síndico regulariza em `/minha-assinatura/*`
 
+### 14.5 Uso gratuito (complimentary)
+
+| Item | Detalhe |
+|------|---------|
+| Colunas | `condominiums.saas_complimentary` (bool), `saas_complimentary_notes` (text) |
+| Configuração | Plataforma → Assinatura do condomínio (`platform/subscriptions/edit`) |
+| Efeito | `EnsureActiveSaasSubscription` e `CondominiumSubscription::isAccessAllowed()` liberam acesso sem assinatura paga |
+| Dashboard | Lista de condomínios em uso gratuito em `platform/dashboard` |
+| Casos de uso | Parcerias, pilotos, períodos promocionais |
+
 ---
 
 ## 15. Operação em produção
@@ -1416,8 +1505,12 @@ Referência canônica: `DOCUMENTAÇÃO/INSTALACAO_VPS.md`
 | `TRUSTED_PROXIES` | Behind reverse proxy |
 | `OCR_*`, `TESSERACT_PATH` | OCR de etiquetas de encomenda |
 | `WHATSAPP_*`, `EVOLUTION_*` | WhatsApp (inclui senha de retirada) |
+| `SANCTUM_TOKEN_EXPIRATION` | Expiração de tokens API mobile (minutos; padrão `43200` = 30 dias) |
+| `MAIL_*` | E-mail transacional (ex.: Brevo SMTP para reset de senha) |
 
 **Nota:** credenciais Asaas/WhatsApp por condomínio ficam no **banco/painel**, não apenas no `.env`.
+
+**Deploy 18/09/2026:** `php artisan migrate --force` cria `defaulter_access_overrides` e adiciona `saas_complimentary` em `condominiums`.
 
 **Dependência de SO (encomendas):** pacote `tesseract-ocr` + idioma `tesseract-ocr-por` na VPS.
 
@@ -1432,7 +1525,8 @@ Plataforma
 └── Condominium
     ├── Unit (1:N) → User (morador/agregado)
     ├── Users ↔ syndics (N:N condominium_user)
-    ├── enabled_modules, financial_mode, payment_receiving_mode
+    ├── enabled_modules, financial_mode, payment_receiving_mode, restrict_defaulters
+    ├── saas_complimentary, saas_complimentary_notes
     ├── CondominiumSubscription → logs, documents
     ├── CondominiumLandingPage → CondominiumLandingItem[]
     │
@@ -1458,7 +1552,7 @@ Plataforma
     │   ├── Assembly → Items, Votes, Attachments
     │   └── InternalRegulation → History
     │
-    └── Auxiliar: AgregadoPermission, UserActivityLog
+    └── Auxiliar: AgregadoPermission, UserActivityLog, DefaulterAccessOverride
 ```
 
 **Conceitos transversais:** soft deletes, auditing (OwenIt), scoping por `condominium_id`, uploads em `storage/app/public/`.
@@ -1482,6 +1576,10 @@ Plataforma
 - Auditoria em models críticos
 - IP/user-agent em alertas de pânico
 - Canais sigilosos com policy rigorosa
+- Proteção IDOR multi-tenant na API (`GuardsTenantResource`, `tenantCondominiumId()`)
+- Reset de senha sem exposição de credencial fixa; link com token expirável
+- Rate limit no auto-cadastro
+- Policies de reserva alinhadas às permissões reais (`ReservationPolicy`, `RecurringReservationPolicy`)
 
 ### 17.3 Disponibilidade
 
@@ -1530,8 +1628,10 @@ Plataforma
 1. Painel adimplência (`finance/status`)
 2. Identifica unidades em atraso
 3. Envia lembretes (cron + manual)
-4. Ativa `restrict_defaulters` se desejado
-5. Inadimplente perde marketplace, reservas, OS, caronas, voto
+4. Ativa `restrict_defaulters` em Gestão → Meu Condomínio (`CondominiumDefaulterSettingsController`)
+5. Morador inadimplente: menu restrito a dashboard, Minhas Cobranças e Fale com o Síndico; features bloqueadas (marketplace, reservas, OS, caronas, voto)
+6. Opcional: concede **liberação temporária** na ficha do usuário (1–30 dias)
+7. Cobranças vencidas aparecem como **Em atraso** em Minhas Cobranças imediatamente (sem esperar job noturno)
 
 ### 18.3 Síndico configura módulos do condomínio
 
@@ -1647,6 +1747,37 @@ Plataforma
 7. Visitante pode repetir o fluxo em novas passagens até expirar a validade
 8. Liberações "Outro" também aparecem no grid com badge QR/Senha (visibilidade operacional)
 
+### 18.13 Morador inadimplente com menu restrito
+
+1. Condomínio tem `restrict_defaulters` ativo e morador possui cobranças vencidas na unidade
+2. Ao logar, vê card vermelho no dashboard com débitos e total em atraso
+3. Sidebar reduzida: apenas Dashboard, Minhas Cobranças e Fale com o Síndico (+ pânico)
+4. Tentativa de acessar outra rota → redirect ao dashboard com mensagem de erro (web) ou 403 JSON (API)
+5. Morador regulariza débitos via PIX/boleto/cartão em Minhas Cobranças → restrição removida automaticamente
+
+### 18.14 Síndico concede liberação temporária
+
+1. Acessa ficha do morador inadimplente (`users/{id}`)
+2. Seção **Inadimplência — Liberação Temporária** exibe total em atraso
+3. Informa dias (1–30) e observação opcional
+4. Sistema cria `DefaulterAccessOverride` e suspende bloqueio até `expires_at`
+5. Morador recupera acesso normal ao sistema durante o período
+6. Síndico pode cancelar ou renovar a liberação a qualquer momento
+
+### 18.15 Admin configura condomínio em uso gratuito
+
+1. Acessa Plataforma → Assinatura do condomínio
+2. Ativa toggle **Uso gratuito** e registra motivo em notas
+3. `saas_complimentary = true` → condomínio opera sem bloqueio SaaS
+4. Dashboard plataforma lista condomínios complimentary com link para gestão
+
+### 18.16 Síndico/admin reseta senha de usuário
+
+1. Na ficha do usuário, aciona reset de senha
+2. Sistema gera token Laravel Password e envia e-mail (`AdminPasswordResetLinkMail`)
+3. Usuário clica no link e define nova senha em `/password/reset`
+4. Nenhuma senha temporária fixa é exibida na interface do administrador
+
 ---
 
 ## 19. Cobertura de testes e qualidade
@@ -1736,6 +1867,11 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | **Liberação rápida** | Seção do painel porteiro para scan QR ou senha de visitante "Outro" |
 | **qr_token** | Token único embutido no QR (`visitor_access`) para check-in na API |
 | **access_pin_hash** | Hash bcrypt da senha de 4 dígitos do visitante "Outro" |
+| **Menu restrito** | Modo em que inadimplente acessa apenas rotas essenciais (`RestrictDefaulterNavigation`) |
+| **Liberação temporária** | Override de inadimplência concedido pelo síndico (`DefaulterAccessOverride`) |
+| **Uso gratuito (complimentary)** | Condomínio com `saas_complimentary` — acesso à plataforma sem assinatura paga |
+| **ProfileHomeRoute** | Rota home por papel ativo (Admin → `/platform`) |
+| **GuardsTenantResource** | Trait que valida ownership tenant em controllers API |
 
 ---
 
@@ -1785,6 +1921,13 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | Credencial visitante | `app/Jobs/SendVisitorAccessCredentialNotification.php`, `app/Helpers/QRCodeHelper.php` |
 | Vue check-in portaria | `resources/js/components/access/AccessCheckinApp.vue`, `access-porteiro-checkin.js` |
 | Migration credenciais | `database/migrations/2026_09_15_180000_add_visitor_credentials_to_access_authorizations.php` |
+| Inadimplência | `app/Services/DefaulterRestrictionService.php`, `DefaulterAccessOverrideService.php` |
+| Menu restrito | `app/Http/Middleware/RestrictDefaulterNavigation.php` |
+| Uso gratuito SaaS | `condominiums.saas_complimentary`, `EnsureActiveSaasSubscription` |
+| Reset senha e-mail | `AdminPasswordResetLinkMail`, `UserController@resetPassword` |
+| Perfil/home | `ProfileHomeRoute`, `CheckActiveProfile`, `ProfileSelectorController` |
+| Branding | `config/brand.php`, `sindcon-logo.blade.php`, `sindcon-favicon.blade.php` |
+| API tenant guard | `app/Http/Controllers/Concerns/GuardsTenantResource.php` |
 | SaaS config | `config/saas.php` |
 
 ### Ambiente demo
@@ -1800,4 +1943,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.2 — atualizado com base no estado do repositório CondoCenter em 15/09/2026. Inclui visitante "Outro" com credencial digital (PDF/QR + senha reutilizável, check-in automático na portaria, WhatsApp ao morador), encomenda inteligente (OCR, matching fuzzy, senha de retirada), módulos habilitáveis, landing dual-template, fechamento mensal e matriz de canais. Deploy: `php artisan migrate --force` (campos `visitor_preset_key`, `access_pin_hash`, `qr_token`). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*
+*Documento v2.3 — atualizado com base no estado do repositório CondoCenter em 18/09/2026. Inclui restrição de inadimplentes com menu bloqueado e liberação temporária (até 30 dias), uso gratuito SaaS (`saas_complimentary`), home do Administrador em `/platform`, reset de senha por link de e-mail, proteção IDOR na API, status "Em atraso" imediato em cobranças vencidas, além de visitante "Outro" (PDF/QR), encomenda inteligente (OCR), módulos habilitáveis e landing dual-template. Deploy: `php artisan migrate --force` (tabela `defaulter_access_overrides`, colunas `saas_complimentary`). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*
