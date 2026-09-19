@@ -146,8 +146,12 @@ class Package extends Model
         return $query->where('condominium_id', $condominiumId);
     }
 
-    public function scopeForUnit($query, int $unitId)
+    public function scopeForUnit($query, ?int $unitId)
     {
+        if ($unitId === null) {
+            return $query->whereRaw('0 = 1');
+        }
+
         return $query->where('unit_id', $unitId);
     }
 

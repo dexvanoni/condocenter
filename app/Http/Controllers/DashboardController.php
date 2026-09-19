@@ -473,6 +473,19 @@ class DashboardController extends Controller
 
     protected function moradorDashboard(User $user, $condominium)
     {
+        if (!$user->unit_id) {
+            $notificacoes = $user->notifications()
+                ->where('is_read', false)
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+
+            return view('dashboard.morador-sem-unidade', compact(
+                'notificacoes',
+                'condominium',
+            ));
+        }
+
         // Cobranças Pendentes
         $chargesPendentes = Charge::where('unit_id', $user->unit_id)
             ->effectivelyPending()

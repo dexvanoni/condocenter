@@ -1,7 +1,12 @@
 @php
     use App\Helpers\SidebarHelper;
     $user = Auth::user();
-    $chargesCount = ($chargesPendentes->count() ?? 0) + ($chargesAtrasadas->count() ?? 0);
+    $chargesPendentes = $chargesPendentes ?? collect();
+    $chargesAtrasadas = $chargesAtrasadas ?? collect();
+    $assembliesPendentes = $assembliesPendentes ?? collect();
+    $defaulterRestriction = $defaulterRestriction ?? ['active' => false];
+    $condominium = $condominium ?? $user->activeCondominium() ?? $user->condominium;
+    $chargesCount = $chargesPendentes->count() + $chargesAtrasadas->count();
     $isRestricted = $defaulterRestriction['active'] ?? false;
     $isFinancialSimplified = SidebarHelper::isFinancialSimplified($user);
     $accountabilityUrl = null;

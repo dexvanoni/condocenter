@@ -53,6 +53,6 @@
         </div>
     @endif
 
-    @include('dashboard.partials.morador-quick-actions')
+    @include('dashboard.partials.proprietario-quick-actions')
 </div>
 @endsection
