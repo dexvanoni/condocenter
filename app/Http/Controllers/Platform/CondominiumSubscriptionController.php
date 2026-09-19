@@ -7,11 +7,14 @@ use App\Http\Requests\ExtendCondominiumSubscriptionRequest;
 use App\Http\Requests\StoreCondominiumSubscriptionRequest;
 use App\Models\Condominium;
 use App\Models\CondominiumSubscriptionDocument;
+use App\Models\SubscriptionPlan;
+use App\Models\User;
 use App\Services\CondominiumSubscriptionService;
 use App\Services\SubscriptionBillingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class CondominiumSubscriptionController extends Controller
 {
@@ -20,9 +23,18 @@ class CondominiumSubscriptionController extends Controller
         private SubscriptionBillingService $billing,
     ) {}
 
+    private function adminUser(): User
+    {
+        /** @var User|null $user */
+        $user = auth()->user();
+        abort_unless($user instanceof User && $user->isAdmin(), 403);
+
+        return $user;
+    }
+
     public function edit(Request $request, Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $this->adminUser();
 
         $condominium->load([
             'subscription.documents',
@@ -36,7 +48,7 @@ class CondominiumSubscriptionController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $plans = \App\Models\SubscriptionPlan::query()
+        $plans = SubscriptionPlan::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -80,14 +92,14 @@ class CondominiumSubscriptionController extends Controller
 
     public function activate(Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $admin = $this->adminUser();
         $subscription = $condominium->subscription;
 
-        abort_if(!$subscription, 404, 'Configure o contrato antes de ativar.');
+        abort_if(! $subscription, 404, 'Configure o contrato antes de ativar.');
 
         try {
-            $this->subscriptions->activate($subscription, auth()->user());
-        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->subscriptions->activate($subscription, $admin);
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
 
@@ -96,22 +108,22 @@ class CondominiumSubscriptionController extends Controller
 
     public function suspend(Request $request, Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $admin = $this->adminUser();
         $subscription = $condominium->subscription;
-        abort_if(!$subscription, 404);
+        abort_if(! $subscription, 404);
 
-        $this->subscriptions->suspend($subscription, auth()->user(), $request->input('notes'));
+        $this->subscriptions->suspend($subscription, $admin, $request->input('notes'));
 
         return back()->with('success', 'Assinatura suspensa.');
     }
 
     public function cancel(Request $request, Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $admin = $this->adminUser();
         $subscription = $condominium->subscription;
-        abort_if(!$subscription, 404);
+        abort_if(! $subscription, 404);
 
-        $this->subscriptions->cancel($subscription, auth()->user(), $request->input('notes'));
+        $this->subscriptions->cancel($subscription, $admin, $request->input('notes'));
 
         return back()->with('success', 'Assinatura cancelada.');
     }
@@ -119,7 +131,7 @@ class CondominiumSubscriptionController extends Controller
     public function extend(ExtendCondominiumSubscriptionRequest $request, Condominium $condominium)
     {
         $subscription = $condominium->subscription;
-        abort_if(!$subscription, 404);
+        abort_if(! $subscription, 404);
 
         $this->subscriptions->extend(
             $subscription,
@@ -133,13 +145,13 @@ class CondominiumSubscriptionController extends Controller
 
     public function syncAsaas(Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $admin = $this->adminUser();
         $subscription = $condominium->subscription;
-        abort_if(!$subscription, 404);
+        abort_if(! $subscription, 404);
 
         try {
-            $this->subscriptions->syncAsaasSubscription($subscription, auth()->user());
-        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->subscriptions->syncAsaasSubscription($subscription, $admin);
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
 
@@ -148,9 +160,9 @@ class CondominiumSubscriptionController extends Controller
 
     public function uploadDocument(Request $request, Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $this->adminUser();
         $subscription = $condominium->subscription;
-        abort_if(!$subscription, 404);
+        abort_if(! $subscription, 404);
 
         $request->validate([
             'document' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,doc,docx'],
@@ -169,7 +181,7 @@ class CondominiumSubscriptionController extends Controller
 
     public function downloadDocument(Condominium $condominium, CondominiumSubscriptionDocument $document)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $this->adminUser();
         abort_if($document->subscription?->condominium_id !== $condominium->id, 404);
 
         return Storage::disk('public')->download($document->file_path, $document->original_name);
@@ -177,20 +189,20 @@ class CondominiumSubscriptionController extends Controller
 
     public function destroyDocument(Condominium $condominium, CondominiumSubscriptionDocument $document)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $admin = $this->adminUser();
         abort_if($document->subscription?->condominium_id !== $condominium->id, 404);
 
-        $this->subscriptions->deleteDocument($document, auth()->user());
+        $this->subscriptions->deleteDocument($document, $admin);
 
         return back()->with('success', 'Documento removido.');
     }
 
     public function exportCharges(Request $request, Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $this->adminUser();
 
         $subscription = $condominium->subscription;
-        abort_if(!$subscription, 404, 'Nenhum contrato configurado.');
+        abort_if(! $subscription, 404, 'Nenhum contrato configurado.');
 
         $filters = $this->billing->filtersFromRequest($request);
 
@@ -199,7 +211,7 @@ class CondominiumSubscriptionController extends Controller
 
     public function updateComplimentary(Request $request, Condominium $condominium)
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        $admin = $this->adminUser();
 
         $validated = $request->validate([
             'saas_complimentary' => ['nullable', 'boolean'],
@@ -213,7 +225,7 @@ class CondominiumSubscriptionController extends Controller
             'saas_complimentary_notes' => $validated['saas_complimentary_notes'] ?? null,
         ]);
 
-        $request->user()?->logActivity(
+        $admin->logActivity(
             'update_saas_complimentary',
             'platform',
             $isComplimentary
