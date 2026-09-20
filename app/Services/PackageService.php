@@ -2,7 +2,12 @@
 
 namespace App\Services;
 
-use App\Contracts\OcrServiceInterface;
+use App\DTO\OcrResult;
+use App\Services\Ocr\LabelOcrResultBuilder;
+use App\Services\Ocr\OcrEngineResolver;
+use App\Services\Ocr\PaddleOcrService;
+use App\Services\Ocr\TesseractOcrService;
+use App\Support\OcrEngine;
 use App\Jobs\SendPackageNotification;
 use App\Models\Package;
 use App\Models\Unit;
@@ -29,10 +34,13 @@ class PackageService
     ];
 
     public function __construct(
-        private readonly OcrServiceInterface $ocr,
+        private readonly OcrEngineResolver $ocrResolver,
         private readonly LabelImagePreprocessor $preprocessor,
         private readonly PackageRecipientMatcher $matcher,
         private readonly PackageSenderDetector $senderDetector,
+        private readonly TesseractOcrService $tesseractOcr,
+        private readonly PaddleOcrService $paddleOcr,
+        private readonly LabelOcrResultBuilder $labelOcrResultBuilder,
     ) {
     }
 
@@ -196,15 +204,20 @@ class PackageService
             throw new AuthorizationException('Você não tem permissão para registrar encomendas.');
         }
 
+        @set_time_limit(max(210, (int) config('ocr.paddle_timeout', 120) + 90));
+
         $condominiumId = (int) $porteiro->tenantCondominiumId();
 
         $relativePath = $this->preprocessor->storeOriginal($image, $condominiumId);
         $absoluteOriginal = $this->preprocessor->absolutePath($relativePath);
-        $processedPaths = $this->preprocessor->prepareVariantsForOcr($absoluteOriginal);
+        $processedPaths = [$this->preprocessor->prepareForOcr($absoluteOriginal)];
+        $ocr = $this->ocrResolver->forCondominium($condominiumId);
+        $ocrEngine = $this->ocrResolver->engineKeyForCondominium($condominiumId);
+        $hints = ['user_words' => $this->ocrUserWords($condominiumId)];
 
         try {
             $results = collect($processedPaths)
-                ->map(fn (string $path) => $this->ocr->extract($path));
+                ->map(fn (string $path) => $this->extractPreviewOcr($condominiumId, $path, $hints, $barcodeValue));
 
             $ocrResult = $results
                 ->sortByDesc(fn (\App\DTO\OcrResult $result) => $this->ocrResultQuality($result))
@@ -258,13 +271,211 @@ class PackageService
             'tracking_code' => $ocrResult->trackingCode,
             'identification_method' => $method,
             'label_image_path' => $relativePath,
-            'ocr_available' => $this->ocr->isAvailable(),
+            'ocr_available' => $ocr->isAvailable(),
+            'ocr_engine' => $ocrResult->extra['engine'] ?? $ocrEngine,
+            'ocr_engine_configured' => $ocrEngine,
             'error' => $ocrError,
             'message' => $ocrError
                 ?: ($match['level'] === 'low'
                     ? 'Não foi possível identificar o destinatário.'
                     : null),
         ];
+    }
+
+    /**
+     * Match em tempo real a partir do texto OCR do navegador (sem upload de imagem).
+     *
+     * @return array<string, mixed>
+     */
+    public function matchLabelText(
+        User $porteiro,
+        string $rawText,
+        ?float $confidence,
+        ?string $barcodeValue = null,
+        string $engine = 'paddle-js-v6'
+    ): array {
+        if (!$porteiro->can('register_packages')) {
+            throw new AuthorizationException('Você não tem permissão para registrar encomendas.');
+        }
+
+        $condominiumId = (int) $porteiro->tenantCondominiumId();
+        $ocrResult = $this->labelOcrResultBuilder->fromRawText($rawText, $confidence, [
+            'engine' => $engine,
+            'client_side' => true,
+        ]);
+        $ocrResult = $this->mergeBarcodeIntoOcrResult($ocrResult, $barcodeValue);
+        $match = $this->matcher->match($condominiumId, $ocrResult, $barcodeValue);
+
+        return [
+            'ocr' => $ocrResult->toArray(),
+            'match' => $match,
+            'sender' => $ocrResult->possibleSender,
+            'tracking_code' => $ocrResult->trackingCode,
+            'ocr_engine' => $engine,
+            'ocr_engine_configured' => $this->ocrResolver->engineKeyForCondominium($condominiumId),
+        ];
+    }
+
+    /**
+     * Confirma preview após OCR no cliente: persiste foto e reutiliza o texto já lido.
+     *
+     * @return array<string, mixed>
+     */
+    public function previewLabelFromClientOcr(
+        User $porteiro,
+        UploadedFile $image,
+        string $rawText,
+        ?float $confidence,
+        ?string $barcodeValue = null,
+        string $engine = 'paddle-js-v6'
+    ): array {
+        if (!$porteiro->can('register_packages')) {
+            throw new AuthorizationException('Você não tem permissão para registrar encomendas.');
+        }
+
+        $condominiumId = (int) $porteiro->tenantCondominiumId();
+        $relativePath = $this->preprocessor->storeOriginal($image, $condominiumId);
+        $ocrEngineConfigured = $this->ocrResolver->engineKeyForCondominium($condominiumId);
+
+        $ocrResult = $this->labelOcrResultBuilder->fromRawText($rawText, $confidence, [
+            'engine' => $engine,
+            'client_side' => true,
+        ]);
+        $ocrResult = $this->mergeBarcodeIntoOcrResult($ocrResult, $barcodeValue);
+        $match = $this->matcher->match($condominiumId, $ocrResult, $barcodeValue);
+
+        $method = Package::METHOD_OCR;
+        if ($barcodeValue && !$ocrResult->isEmpty()) {
+            $method = Package::METHOD_HYBRID;
+        } elseif ($barcodeValue && $ocrResult->isEmpty()) {
+            $method = Package::METHOD_BARCODE;
+        }
+
+        $porteiro->logActivity('package_label_preview', 'packages', 'Pré-visualização de etiqueta (OCR no navegador)', [
+            'match_level' => $match['level'],
+            'match_confidence' => $match['confidence'],
+            'ocr_confidence' => $ocrResult->confidence,
+            'identification_method' => $method,
+            'label_image_path' => $relativePath,
+            'ocr_engine' => $engine,
+        ]);
+
+        $ocrError = $ocrResult->extra['error'] ?? null;
+
+        return [
+            'ocr' => $ocrResult->toArray(),
+            'match' => $match,
+            'sender' => $ocrResult->possibleSender,
+            'tracking_code' => $ocrResult->trackingCode,
+            'identification_method' => $method,
+            'label_image_path' => $relativePath,
+            'ocr_available' => true,
+            'ocr_engine' => $engine,
+            'ocr_engine_configured' => $ocrEngineConfigured,
+            'error' => $ocrError,
+            'message' => $ocrError
+                ?: ($match['level'] === 'low'
+                    ? 'Não foi possível identificar o destinatário.'
+                    : null),
+        ];
+    }
+
+    private function mergeBarcodeIntoOcrResult(OcrResult $ocrResult, ?string $barcodeValue): OcrResult
+    {
+        $barcodeValue = trim((string) $barcodeValue);
+        if ($barcodeValue === '' || $ocrResult->trackingCode !== null) {
+            return $ocrResult;
+        }
+
+        return new OcrResult(
+            rawText: $ocrResult->rawText,
+            confidence: $ocrResult->confidence,
+            trackingCode: TextNormalizer::extractTrackingCode($barcodeValue) ?? $barcodeValue,
+            possibleName: $ocrResult->possibleName,
+            possibleAddress: $ocrResult->possibleAddress,
+            possibleUnit: $ocrResult->possibleUnit,
+            possibleBlock: $ocrResult->possibleBlock,
+            possibleSender: $ocrResult->possibleSender ?? $this->senderDetector->detect($barcodeValue),
+            extra: $ocrResult->extra,
+        );
+    }
+
+    private function extractPreviewOcr(int $condominiumId, string $path, array $hints, ?string $barcodeValue): OcrResult
+    {
+        $hints['preview'] = true;
+
+        if (app()->environment('testing')) {
+            return $this->ocrResolver->extractWithFallback($condominiumId, $path, $hints);
+        }
+
+        $configuredEngine = $this->ocrResolver->engineKeyForCondominium($condominiumId);
+
+        if ($configuredEngine !== OcrEngine::PADDLE) {
+            return $this->ocrResolver->extractWithFallback($condominiumId, $path, $hints);
+        }
+
+        $tesseractResult = $this->tesseractOcr->isAvailable()
+            ? $this->tesseractOcr->extract($path, $hints)
+            : null;
+
+        if (
+            config('ocr.preview_tesseract_fast_path', true)
+            && $tesseractResult !== null
+            && $this->previewMatchIsGoodEnough($condominiumId, $tesseractResult, $barcodeValue)
+        ) {
+            return new OcrResult(
+                rawText: $tesseractResult->rawText,
+                confidence: $tesseractResult->confidence,
+                trackingCode: $tesseractResult->trackingCode,
+                possibleName: $tesseractResult->possibleName,
+                possibleAddress: $tesseractResult->possibleAddress,
+                possibleUnit: $tesseractResult->possibleUnit,
+                possibleBlock: $tesseractResult->possibleBlock,
+                possibleSender: $tesseractResult->possibleSender,
+                extra: array_merge($tesseractResult->extra, [
+                    'engine' => OcrEngine::TESSERACT,
+                    'preview_fast_path' => true,
+                    'ocr_engine_configured' => OcrEngine::PADDLE,
+                ]),
+            );
+        }
+
+        $paddleResult = $this->paddleOcr->extract($path, $hints);
+        if (trim($paddleResult->rawText) !== '' && empty($paddleResult->extra['error'])) {
+            return $paddleResult;
+        }
+
+        if ($tesseractResult !== null && trim($tesseractResult->rawText) !== '' && empty($tesseractResult->extra['error'])) {
+            return new OcrResult(
+                rawText: $tesseractResult->rawText,
+                confidence: $tesseractResult->confidence,
+                trackingCode: $tesseractResult->trackingCode,
+                possibleName: $tesseractResult->possibleName,
+                possibleAddress: $tesseractResult->possibleAddress,
+                possibleUnit: $tesseractResult->possibleUnit,
+                possibleBlock: $tesseractResult->possibleBlock,
+                possibleSender: $tesseractResult->possibleSender,
+                extra: array_merge($tesseractResult->extra, [
+                    'engine' => OcrEngine::TESSERACT,
+                    'engine_fallback_from' => OcrEngine::PADDLE,
+                ]),
+            );
+        }
+
+        return $paddleResult;
+    }
+
+    private function previewMatchIsGoodEnough(int $condominiumId, OcrResult $ocrResult, ?string $barcodeValue): bool
+    {
+        if (trim($ocrResult->rawText) === '' || !empty($ocrResult->extra['error'])) {
+            return false;
+        }
+
+        $match = $this->matcher->match($condominiumId, $ocrResult, $barcodeValue);
+        $level = (string) ($match['level'] ?? 'low');
+        $confidence = (float) ($match['confidence'] ?? 0);
+
+        return in_array($level, ['high', 'medium'], true) && $confidence >= 0.55;
     }
 
     private function ocrResultQuality(\App\DTO\OcrResult $result): float
@@ -285,6 +496,31 @@ class PackageService
         }
 
         return $quality;
+    }
+
+    /**
+     * Palavras do cadastro para o Tesseract priorizar nomes reais do condomínio.
+     *
+     * @return list<string>
+     */
+    private function ocrUserWords(int $condominiumId): array
+    {
+        $names = User::query()
+            ->byCondominium($condominiumId)
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Morador', 'Agregado']))
+            ->limit(500)
+            ->pluck('name');
+
+        $words = [];
+        foreach ($names as $name) {
+            foreach (explode(' ', TextNormalizer::normalizeName((string) $name)) as $token) {
+                if (mb_strlen($token) >= 3) {
+                    $words[] = $token;
+                }
+            }
+        }
+
+        return array_values(array_unique($words));
     }
 
     /**

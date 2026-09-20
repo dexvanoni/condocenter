@@ -34,7 +34,7 @@ class ChargeController extends Controller
         $user = Auth::user();
         $condominiumId = $this->activeCondominiumId($user);
 
-        $baseQuery = Charge::with(['unit', 'payments'])
+        $baseQuery = Charge::with(['unit.morador', 'payments'])
             ->where('condominium_id', $condominiumId);
 
         if ($user->isProprietario() && !$user->isAdmin() && !$user->isSindico()) {
@@ -103,23 +103,36 @@ class ChargeController extends Controller
 
         $condominium = Condominium::query()->find($condominiumId);
         $onlinePaymentsEnabled = $condominium?->acceptsOnlinePayments() ?? false;
-        $userCanPayOnline = $onlinePaymentsEnabled && filled($user->unit_id);
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+        $ownedUnitIds = $user->isProprietario() && !$user->isAdmin() && !$user->isSindico()
+            ? $occupancy->ownedUnitIds($user, $condominiumId)
+            : [];
 
-        $unitOptions = $user->isMorador() && $user->unit_id
+        $userCanPayOnline = $onlinePaymentsEnabled && (
+            filled($user->unit_id)
+            || $ownedUnitIds !== []
+        );
+
+        $unitOptions = $user->isMorador() && $user->unit_id && !$user->isProprietario()
             ? Unit::where('id', $user->unit_id)->get(['id', 'block', 'number'])
-            : Unit::where('condominium_id', $condominiumId)
-                ->orderBy('block')
-                ->orderBy('number')
-                ->get(['id', 'block', 'number']);
+            : ($ownedUnitIds !== []
+                ? Unit::whereIn('id', $ownedUnitIds)->orderBy('block')->orderBy('number')->get(['id', 'block', 'number'])
+                : Unit::where('condominium_id', $condominiumId)
+                    ->orderBy('block')
+                    ->orderBy('number')
+                    ->get(['id', 'block', 'number']));
 
         $isResidentViewer = $user->isMorador() && !$user->isAdmin() && !$user->isSindico();
+        $isOwnerViewer = $user->isProprietario() && !$user->isAdmin() && !$user->isSindico();
 
         return response()->json([
-            'data' => collect($charges->items())->map(function (Charge $charge) use ($user, $userCanPayOnline, $isResidentViewer) {
+            'data' => collect($charges->items())->map(function (Charge $charge) use ($user, $userCanPayOnline, $isResidentViewer, $isOwnerViewer, $occupancy) {
                 $payload = $charge->toArray();
+                $payload['unit_label'] = $charge->unit?->full_identifier;
+                $payload['tenant_name'] = $charge->unit?->morador?->name;
                 $payload['can_pay_online'] = $userCanPayOnline
-                    && (int) $charge->unit_id === (int) $user->unit_id
-                    && in_array($charge->status, ['pending', 'overdue'], true);
+                    && $occupancy->canUserPayCharge($user, $charge)
+                    && in_array($charge->effectiveStatus(), ['pending', 'overdue'], true);
                 $payload['competence_period'] = $charge->competencePeriod();
                 $payload['competence_label'] = $charge->competenceLabel();
                 $payload['display_status'] = $charge->displayStatus();
@@ -161,6 +174,7 @@ class ChargeController extends Controller
                 'can_manage' => $user->can('manage_charges'),
                 'online_payments_enabled' => $onlinePaymentsEnabled,
                 'can_pay_online' => $userCanPayOnline,
+                'is_owner_viewer' => $isOwnerViewer,
             ],
         ]);
     }

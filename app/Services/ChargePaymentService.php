@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Charge;
 use App\Models\Condominium;
 use App\Models\User;
+use App\Support\Cpf;
 use App\Services\UnitOccupancyService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -303,25 +304,50 @@ class ChargePaymentService
             ]);
         }
 
+        $cpfDigits = Cpf::digits($user->cpf);
+
+        if (!Cpf::isValid($cpfDigits)) {
+            throw ValidationException::withMessages([
+                'cpf' => 'O CPF cadastrado no seu perfil é inválido. Atualize em Meu perfil antes de pagar online.',
+            ]);
+        }
+
+        if (!$asaas->isConfigured()) {
+            throw ValidationException::withMessages([
+                'payment' => 'Pagamentos online não estão configurados para este condomínio. Procure a administração.',
+            ]);
+        }
+
         $condominium = $charge->condominium;
-        $customerData = [
+        $charge->loadMissing('unit');
+        $unit = $charge->unit ?? $user->unit;
+
+        $postalCode = preg_replace('/\D/', '', $unit?->cep ?? $condominium->zip_code ?? '');
+        if (strlen($postalCode) !== 8) {
+            $postalCode = preg_replace('/\D/', '', $condominium->zip_code ?? '');
+        }
+
+        $customerData = array_filter([
             'name' => $user->name,
             'email' => $user->email,
-            'phone' => $user->phone ?: $user->telefone_celular,
-            'mobilePhone' => $user->telefone_celular ?: $user->phone,
-            'cpfCnpj' => preg_replace('/\D/', '', $user->cpf),
-            'postalCode' => preg_replace('/\D/', '', $condominium->zip_code ?? ''),
-            'address' => $condominium->address,
-            'addressNumber' => 'S/N',
-            'province' => $condominium->city,
+            'phone' => preg_replace('/\D/', '', (string) ($user->phone ?: $user->telefone_celular ?: '')),
+            'mobilePhone' => preg_replace('/\D/', '', (string) ($user->telefone_celular ?: $user->phone ?: '')),
+            'cpfCnpj' => $cpfDigits,
+            'postalCode' => strlen($postalCode) === 8 ? $postalCode : null,
+            'address' => $unit?->logradouro ?: $condominium->address,
+            'addressNumber' => $unit?->numero ?: 'S/N',
+            'province' => $unit?->bairro ?: $condominium->city,
             'externalReference' => 'USER-' . $user->id,
-        ];
+        ], fn ($value) => $value !== null && $value !== '');
 
         $customer = $asaas->createOrUpdateCustomer($customerData);
 
         if (!$customer) {
+            $detail = $asaas->getLastErrorMessage();
+
             throw ValidationException::withMessages([
-                'payment' => 'Não foi possível registrar seus dados no gateway de pagamento.',
+                'payment' => $detail
+                    ?: 'Não foi possível registrar seus dados no gateway de pagamento.',
             ]);
         }
 

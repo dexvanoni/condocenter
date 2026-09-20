@@ -23,7 +23,8 @@
     <!-- ETAPA 2: Câmera -->
     <CameraCapture
       v-else-if="step === 'camera'"
-      @captured="onCaptured"
+      @recognized="onRecognized"
+      @captured="onServerCapture"
       @cancel="resetToHome"
     />
 
@@ -31,7 +32,8 @@
     <div v-else-if="step === 'processing'" class="text-center py-5">
       <div class="spinner-border text-primary mb-3" role="status"></div>
       <h5>🔎 Lendo etiqueta...</h5>
-      <p class="text-muted">Aguarde o processamento OCR</p>
+      <p class="text-muted mb-1">Aguarde um instante.</p>
+      <p class="text-muted small">Na primeira vez do dia pode demorar um pouco mais.</p>
     </div>
 
     <!-- ETAPA 4: Resultado -->
@@ -104,7 +106,7 @@ export default {
     goPanel() {
       window.location.href = this.panelUrl;
     },
-    async onCaptured({ blob, barcode }) {
+    async onServerCapture({ blob, barcode }) {
       this.barcodeValue = barcode || null;
       this.step = 'processing';
       try {
@@ -116,40 +118,77 @@ export default {
 
         const { data } = await window.axios.post('/api/packages/label/preview', form, {
           headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 300000,
         });
 
-        this.preview = data;
-        this.sender = data.sender || '';
-        this.packageType = 'leve';
-
-        if (data.error || data.message) {
-          this.error = data.error || data.message;
+        this.applyPreviewResponse(data);
+      } catch (e) {
+        this.handlePreviewError(e);
+      }
+    },
+    async onRecognized({ blob, barcode, ocrText, ocrConfidence, matchPreview }) {
+      this.barcodeValue = barcode || null;
+      this.step = 'processing';
+      try {
+        const form = new FormData();
+        form.append('image', blob, 'label.jpg');
+        form.append('ocr_text', ocrText || '');
+        if (ocrConfidence != null) {
+          form.append('ocr_confidence', String(ocrConfidence));
+        }
+        form.append('ocr_engine', 'paddle-js-v6');
+        if (this.barcodeValue) {
+          form.append('barcode_value', this.barcodeValue);
         }
 
-        const match = data.match || {};
-        if (match.level === 'high' && match.candidates?.length) {
-          this.selectedCandidate = match.candidates[0];
-        } else if (match.level === 'medium' && match.candidates?.length) {
-          this.selectedCandidate = match.candidates[0];
-        } else {
-          this.selectedCandidate = null;
-        }
+        const { data } = await window.axios.post('/api/packages/label/preview-client', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 120000,
+        });
 
-        this.step = 'result';
-        } catch (e) {
+        this.applyPreviewResponse(data, matchPreview);
+      } catch (e) {
+        this.handlePreviewError(e);
+      }
+    },
+    applyPreviewResponse(data, matchPreview = null) {
+      this.preview = data;
+      if (matchPreview?.match && (!data.match || data.match.level === 'low')) {
+        this.preview = { ...data, match: matchPreview.match, ocr: matchPreview.ocr || data.ocr };
+      }
+      this.sender = data.sender || '';
+      this.packageType = 'leve';
+      this.error = data.error || data.message || null;
+
+      const match = this.preview.match || {};
+      if (match.level === 'high' && match.candidates?.length) {
+        this.selectedCandidate = match.candidates[0];
+      } else if (match.level === 'medium' && match.candidates?.length) {
+        this.selectedCandidate = match.candidates[0];
+      } else {
+        this.selectedCandidate = null;
+      }
+
+      this.step = 'result';
+    },
+    handlePreviewError(e) {
+      const status = e.response?.status;
+      if (status === 524 || status === 504 || e.code === 'ECONNABORTED') {
+        this.error = 'A leitura demorou mais que o limite do servidor. Tente novamente em instantes.';
+      } else {
         this.error = e.response?.data?.error
           || e.response?.data?.message
           || e.response?.data?.ocr?.extra?.error
           || e.message
           || 'Falha ao ler a etiqueta.';
-        this.preview = {
-          match: { level: 'low', candidates: [], confidence: 0 },
-          ocr: {},
-          error: this.error,
-          message: this.error,
-        };
-        this.step = 'result';
       }
+      this.preview = {
+        match: { level: 'low', candidates: [], confidence: 0 },
+        ocr: {},
+        error: this.error,
+        message: this.error,
+      };
+      this.step = 'result';
     },
     async confirmPackage() {
       if (!this.selectedCandidate?.unit_id) {

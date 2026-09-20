@@ -539,8 +539,11 @@ class DashboardController extends Controller
             ->whereMonth('received_at', now()->month)
             ->count();
 
+        $occupancyService = app(\App\Services\UnitOccupancyService::class);
+
         // Assembleias aguardando voto do usuário
-        $assembliesPendentes = Assembly::with(['items', 'allowedRoles'])
+        $assembliesPendentes = $occupancyService->canParticipateInAssemblies($user)
+            ? Assembly::with(['items', 'allowedRoles'])
             ->withCount([
                 'items as pending_items_count' => function ($query) use ($user) {
                     $query->whereDoesntHave('votes', function ($voteQuery) use ($user) {
@@ -576,7 +579,8 @@ class DashboardController extends Controller
                     'voted_items' => max(0, ($assembly->items_count ?? $assembly->items->count()) - ($assembly->pending_items_count ?? 0)),
                 ];
             })
-            ->values();
+            ->values()
+            : collect();
 
         // Notificações não lidas
         $notificacoes = $user->notifications()

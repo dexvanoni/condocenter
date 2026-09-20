@@ -54,7 +54,10 @@ class ChargePaymentController extends Controller
         $user = $request->user();
         $this->ensureResourceBelongsToActiveCondominium($user, (int) $charge->condominium_id);
 
-        if (!$user->unit_id || (int) $charge->unit_id !== (int) $user->unit_id) {
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+        if (!$user->can('manage_charges')
+            && !$occupancy->canUserPayCharge($user, $charge)) {
             abort(403);
         }
 

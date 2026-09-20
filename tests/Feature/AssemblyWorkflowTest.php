@@ -229,6 +229,36 @@ class AssemblyWorkflowTest extends TestCase
         $this->assertSame($proprietario->id, $vote->voter_id);
     }
 
+    public function test_inquilino_aluguel_nao_pode_votar_nem_ver_assembleia_no_modelo(): void
+    {
+        $condominium = Condominium::factory()->create();
+
+        $this->seedRoles(['Morador', 'Proprietário']);
+        $this->seedPermission('vote_assemblies', 'Morador');
+
+        $rentalUnit = Unit::factory()->for($condominium)->create([
+            'occupancy_regime' => UnitOccupancyRegimes::ALUGUEL,
+        ]);
+
+        $inquilino = User::factory()->for($condominium)->create(['unit_id' => $rentalUnit->id]);
+        $inquilino->assignRole('Morador');
+
+        $assembly = Assembly::query()->create([
+            'condominium_id' => $condominium->id,
+            'created_by' => $inquilino->id,
+            'title' => 'Teste aluguel',
+            'status' => 'in_progress',
+            'scheduled_at' => now()->subHour(),
+            'voting_opens_at' => now()->subMinute(),
+            'voting_closes_at' => now()->addHour(),
+            'voting_type' => 'open',
+            'urgency' => 'normal',
+        ]);
+
+        $this->assertFalse($assembly->canUserVote($inquilino));
+        $this->assertFalse(app(\App\Services\UnitOccupancyService::class)->canParticipateInAssemblies($inquilino));
+    }
+
     public function test_conclusao_de_assembleia_secreta_gera_ata_publica(): void
     {
         $condominium = Condominium::factory()->create();

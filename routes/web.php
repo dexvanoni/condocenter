@@ -123,9 +123,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             Route::middleware(['rental.tenant.payables', 'can:view_charges'])->prefix('inquilino')->name('tenant-payables.')->group(function () {
                 Route::get('/pendencias', [\App\Http\Controllers\TenantPayableController::class, 'index'])->name('index');
                 Route::get('/cobrancas/{charge}', [\App\Http\Controllers\ChargeController::class, 'showTenantPayable'])->name('charges.show');
-                Route::post('/cobrancas/{charge}/checkout', [\App\Http\Controllers\ChargePaymentController::class, 'checkout'])->name('charges.checkout');
-                Route::post('/cobrancas/{charge}/pay-card', [\App\Http\Controllers\ChargePaymentController::class, 'payWithCard'])->name('charges.pay-card');
-                Route::get('/cobrancas/{charge}/payment-status', [\App\Http\Controllers\ChargePaymentController::class, 'status'])->name('charges.payment-status');
+                Route::post('/cobrancas/{charge}/checkout', [\App\Http\Controllers\ChargePaymentController::class, 'checkout'])->name('tenant-payables.charges.checkout');
+                Route::post('/cobrancas/{charge}/pay-card', [\App\Http\Controllers\ChargePaymentController::class, 'payWithCard'])->name('tenant-payables.charges.pay-card');
+                Route::get('/cobrancas/{charge}/payment-status', [\App\Http\Controllers\ChargePaymentController::class, 'status'])->name('tenant-payables.charges.payment-status');
             });
 
             Route::middleware(['rental.tenant.payables', 'can:view_fines'])->group(function () {
@@ -559,6 +559,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         ->name('condominiums.settings.restrict-defaulters.update');
     Route::put('/condominiums/{condominium}/settings/modules', [\App\Http\Controllers\CondominiumModulesSettingsController::class, 'update'])
         ->name('condominiums.settings.modules.update');
+    Route::put('/condominiums/{condominium}/settings/ocr', [\App\Http\Controllers\CondominiumOcrSettingsController::class, 'update'])
+        ->name('condominiums.settings.ocr.update');
     Route::post('/condominiums/{condominium}/settings/receiving/test', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'test'])
         ->name('condominiums.settings.receiving.test');
     Route::post('/condominiums/{condominium}/settings/receiving/complete', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'completeSetup'])

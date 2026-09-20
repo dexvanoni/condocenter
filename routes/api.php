@@ -89,6 +89,8 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
         Route::get('packages/summary/units', [PackageController::class, 'summary'])->name('api.packages.summary');
         Route::get('packages/residents/search', [PackageController::class, 'residents'])->name('api.packages.residents');
         Route::post('packages/label/preview', [PackageController::class, 'previewLabel'])->name('api.packages.label.preview');
+        Route::post('packages/label/match-text', [PackageController::class, 'matchLabelText'])->name('api.packages.label.match-text');
+        Route::post('packages/label/preview-client', [PackageController::class, 'previewLabelClient'])->name('api.packages.label.preview-client');
         Route::post('packages/label/confirm', [PackageController::class, 'confirmLabel'])->name('api.packages.label.confirm');
         Route::post('packages/pickup/find', [PackageController::class, 'findByPickupCode'])->name('api.packages.pickup.find');
         Route::apiResource('packages', PackageController::class)->names([

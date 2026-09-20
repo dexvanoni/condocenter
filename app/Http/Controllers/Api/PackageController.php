@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Package\CollectPackageRequest;
 use App\Http\Requests\Package\ConfirmLabelPackageRequest;
 use App\Http\Requests\Package\FindPackageByPickupCodeRequest;
+use App\Http\Requests\Package\MatchLabelTextRequest;
+use App\Http\Requests\Package\PreviewLabelClientRequest;
 use App\Http\Requests\Package\PreviewLabelRequest;
 use App\Http\Requests\Package\StorePackageRequest;
 use App\Models\Package;
@@ -72,6 +74,41 @@ class PackageController extends Controller
             );
 
             return response()->json($result);
+        } catch (AuthorizationException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 403);
+        }
+    }
+
+    public function matchLabelText(MatchLabelTextRequest $request): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+
+            return response()->json($this->packageService->matchLabelText(
+                $request->user(),
+                (string) $validated['ocr_text'],
+                isset($validated['ocr_confidence']) ? (float) $validated['ocr_confidence'] : null,
+                $validated['barcode_value'] ?? null,
+                (string) ($validated['ocr_engine'] ?? 'paddle-js-v6'),
+            ));
+        } catch (AuthorizationException $exception) {
+            return response()->json(['error' => $exception->getMessage()], 403);
+        }
+    }
+
+    public function previewLabelClient(PreviewLabelClientRequest $request): JsonResponse
+    {
+        try {
+            $validated = $request->validated();
+
+            return response()->json($this->packageService->previewLabelFromClientOcr(
+                $request->user(),
+                $request->file('image'),
+                (string) $validated['ocr_text'],
+                isset($validated['ocr_confidence']) ? (float) $validated['ocr_confidence'] : null,
+                $validated['barcode_value'] ?? null,
+                (string) ($validated['ocr_engine'] ?? 'paddle-js-v6'),
+            ));
         } catch (AuthorizationException $exception) {
             return response()->json(['error' => $exception->getMessage()], 403);
         }

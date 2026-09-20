@@ -29,9 +29,17 @@ class SidebarHelper
             }
         }
 
+        if ($module === 'service_orders') {
+            $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+            if (!$occupancy->canAccessServiceOrdersModule($user)) {
+                return false;
+            }
+        }
+
         if ($user->isProprietario() && !$user->isMorador() && !$user->isSindico() && !$user->isAdmin()) {
             return match ($module) {
-                'service_orders', 'messages', 'financial', 'notifications' => true,
+                'service_orders', 'messages', 'financial', 'notifications', 'assemblies' => true,
                 default => false,
             };
         }
@@ -61,6 +69,61 @@ class SidebarHelper
 
         return $occupancy->userLivesInRentalUnit($user)
             || $occupancy->agregadoLinkedToRentalMorador($user);
+    }
+
+    /**
+     * Base URL para checkout/pagamento online (inquilino usa rotas em /inquilino/cobrancas).
+     */
+    public static function chargePaymentBaseUrl(User $user): string
+    {
+        if (self::canAccessRentalTenantPayables($user)) {
+            return url('/inquilino/cobrancas');
+        }
+
+        return url('/charges');
+    }
+
+    /**
+     * Inquilino (e agregado vinculado) não acessa o menu Gestão do condomínio.
+     */
+    public static function canAccessMyChargesIndex(User $user): bool
+    {
+        if (!$user->can('view_charges') || self::canAccessRentalTenantPayables($user)) {
+            return false;
+        }
+
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+        if ($user->isProprietario() && !$user->isSindico() && !$user->isAdmin()) {
+            return $occupancy->canAccessFinancialModule($user);
+        }
+
+        return filled($user->unit_id)
+            && $user->isMorador()
+            && !$user->isSindico()
+            && !$user->isAdmin();
+    }
+
+    public static function canSeeGestaoMenu(User $user): bool
+    {
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+        if ($occupancy->userLivesInRentalUnit($user) && $user->isMorador()) {
+            return false;
+        }
+
+        if ($occupancy->agregadoLinkedToRentalMorador($user)) {
+            return false;
+        }
+
+        $isFinancialSimplified = self::isFinancialSimplified($user);
+
+        return self::isAdminOrSindico($user)
+            || (
+                \Illuminate\Support\Facades\Route::has('financial.employees.index')
+                && $user->can('view_employees')
+                && !$isFinancialSimplified
+            );
     }
 
     /**
@@ -331,6 +394,23 @@ class SidebarHelper
     public static function canManageFinancialSettings(User $user): bool
     {
         return self::isAdminOrSindico($user) && (bool) $user->getActiveCondominiumId();
+    }
+
+    public static function canViewAssemblies(User $user): bool
+    {
+        if (!self::moduleEnabled($user, 'assemblies')) {
+            return false;
+        }
+
+        if ($user->isAgregado()) {
+            return false;
+        }
+
+        if (!$user->can('view_assemblies')) {
+            return false;
+        }
+
+        return app(\App\Services\UnitOccupancyService::class)->canParticipateInAssemblies($user);
     }
 
     public static function isDefaulterMenuLocked(?User $user): bool

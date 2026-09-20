@@ -28,7 +28,7 @@ class ServiceOrderController extends Controller
 
         $query = ServiceOrder::with(['unit', 'requester'])
             ->byCondominium($condominiumId)
-            ->where(function ($q) use ($user) {
+            ->where(function ($q) use ($user, $condominiumId) {
                 $q->where('user_id', $user->id);
 
                 if ($user->isMorador() && $user->unit_id) {

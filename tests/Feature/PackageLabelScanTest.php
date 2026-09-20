@@ -59,6 +59,24 @@ class PackageLabelScanTest extends TestCase
         ]);
     }
 
+    public function test_porteiro_can_match_label_text_from_client_ocr(): void
+    {
+        [$porteiro, $unit] = $this->createPorteiroWithUnit('B', '203');
+        $resident = $this->createResidentForUnit($unit, 'João da Silva');
+
+        Sanctum::actingAs($porteiro);
+
+        $this->postJson('/api/packages/label/match-text', [
+            'ocr_text' => "DESTINATARIO\nJOAO DA SILVA\nBLOCO B AP 203",
+            'ocr_confidence' => 0.91,
+            'ocr_engine' => 'paddle-js-v6',
+        ])
+            ->assertOk()
+            ->assertJsonPath('match.level', 'high')
+            ->assertJsonPath('match.candidates.0.resident_id', $resident->id)
+            ->assertJsonPath('ocr_engine', 'paddle-js-v6');
+    }
+
     public function test_confirm_label_registers_package_and_dispatches_notification(): void
     {
         Queue::fake();
@@ -324,6 +342,26 @@ class PackageLabelScanTest extends TestCase
         $this->assertNotNull($package->pickup_code_hash);
         $this->assertSame(Package::METHOD_MANUAL, $package->identification_method);
         $this->assertSame('Amazon', $package->sender);
+    }
+
+    public function test_preview_identifies_resident_when_name_shares_line_with_unit(): void
+    {
+        [$porteiro, $unit] = $this->createPorteiroWithUnit('B', '203');
+        $resident = $this->createResidentForUnit($unit, 'João da Silva');
+
+        $this->app->instance(OcrServiceInterface::class, new FakeOcrService(
+            "MERCADO LIVRE\nJOAO DA SILVA AP 203 BLOCO B\nCEP 65000000",
+            0.72
+        ));
+
+        Sanctum::actingAs($porteiro);
+
+        $this->post('/api/packages/label/preview', [
+            'image' => UploadedFile::fake()->image('label.jpg', 800, 600),
+        ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('match.level', 'high')
+            ->assertJsonPath('match.candidates.0.resident_id', $resident->id);
     }
 
     public function test_intake_page_is_accessible_for_porteiro(): void

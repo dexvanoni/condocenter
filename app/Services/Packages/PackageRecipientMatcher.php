@@ -37,17 +37,9 @@ class PackageRecipientMatcher
         $topConfidence = (float) $top['confidence'];
         $secondConfidence = (float) ($sorted->get(1)['confidence'] ?? 0.0);
         $gap = $topConfidence - $secondConfidence;
+        $isUnique = $sorted->count() === 1 || $gap >= 0.12;
 
-        // Nome forte e claramente único → alta confiança mesmo sem bloco/apto
-        if ($topConfidence >= 0.88 && ($sorted->count() === 1 || $gap >= 0.12)) {
-            return [
-                'level' => 'high',
-                'confidence' => $topConfidence,
-                'candidates' => [$top],
-            ];
-        }
-
-        if ($topConfidence >= self::CONFIDENCE_HIGH) {
+        if ($topConfidence >= 0.88 && $isUnique) {
             return [
                 'level' => 'high',
                 'confidence' => $topConfidence,
@@ -72,11 +64,8 @@ class PackageRecipientMatcher
 
     private function buildCandidates(int $condominiumId, OcrResult $ocr, ?string $barcodeValue): Collection
     {
-        $block = $ocr->possibleBlock;
-        $number = $ocr->possibleUnit;
-        $nameHint = $ocr->possibleName;
-
-        $units = $this->findCandidateUnits($condominiumId, $block, $number, $nameHint);
+        $haystack = TextNormalizer::nameSearchHaystack($ocr->rawText);
+        $units = $this->findCandidateUnits($condominiumId, $ocr, $haystack);
 
         $scores = collect();
 
@@ -93,7 +82,7 @@ class PackageRecipientMatcher
                     continue;
                 }
 
-                $score = $this->scoreResident($resident, $unit, $ocr, $barcodeValue);
+                $score = $this->scoreResident($resident, $unit, $ocr, $barcodeValue, $haystack);
 
                 if ($score < 0.35) {
                     continue;
@@ -115,74 +104,146 @@ class PackageRecipientMatcher
     }
 
     /**
+     * @param  array{tokens: list<string>, blob: string}  $haystack
      * @return Collection<int, Unit>
      */
-    private function findCandidateUnits(int $condominiumId, ?string $block, ?string $number, ?string $nameHint): Collection
+    private function findCandidateUnits(int $condominiumId, OcrResult $ocr, array $haystack): Collection
     {
         $query = Unit::query()->byCondominium($condominiumId)->where('is_active', true);
+        $units = collect();
 
-        if ($block !== null && $block !== '' && $number !== null && $number !== '') {
-            $exact = (clone $query)
-                ->whereRaw('UPPER(TRIM(block)) = ?', [mb_strtoupper(trim($block), 'UTF-8')])
-                ->whereRaw('UPPER(TRIM(number)) = ?', [mb_strtoupper(trim($number), 'UTF-8')])
-                ->limit(10)
-                ->get();
+        $block = $ocr->possibleBlock;
+        $number = $ocr->possibleUnit;
 
-            if ($exact->isNotEmpty()) {
-                return $exact;
-            }
+        if (filled($block) && filled($number)) {
+            $units = $units->merge(
+                (clone $query)
+                    ->whereRaw('UPPER(TRIM(block)) = ?', [mb_strtoupper(trim((string) $block), 'UTF-8')])
+                    ->whereRaw('UPPER(TRIM(number)) = ?', [mb_strtoupper(trim((string) $number), 'UTF-8')])
+                    ->limit(10)
+                    ->get()
+            );
         }
 
-        if ($number !== null && $number !== '') {
-            $byNumber = (clone $query)
-                ->whereRaw('UPPER(TRIM(number)) = ?', [mb_strtoupper(trim($number), 'UTF-8')])
-                ->when($block, fn ($q) => $q->whereRaw('UPPER(TRIM(block)) = ?', [mb_strtoupper(trim($block), 'UTF-8')]))
-                ->limit(20)
-                ->get();
-
-            if ($byNumber->isNotEmpty()) {
-                return $byNumber;
-            }
+        if (filled($number)) {
+            $units = $units->merge(
+                (clone $query)
+                    ->whereRaw('UPPER(TRIM(number)) = ?', [mb_strtoupper(trim((string) $number), 'UTF-8')])
+                    ->when($block, fn ($q) => $q->whereRaw('UPPER(TRIM(block)) = ?', [mb_strtoupper(trim((string) $block), 'UTF-8')]))
+                    ->limit(20)
+                    ->get()
+            );
         }
 
-        if ($nameHint) {
-            $tokens = TextNormalizer::significantNameTokens($nameHint);
+        $units = $units->merge($this->findUnitsByExtractedName($condominiumId, $ocr->possibleName));
+        $units = $units->merge($this->findUnitsByNamePresence($condominiumId, $haystack));
 
-            if ($tokens !== []) {
-                $unitIds = User::query()
-                    ->byCondominium($condominiumId)
-                    ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Morador', 'Agregado']))
-                    ->where(function ($q) use ($tokens) {
-                        foreach ($tokens as $token) {
-                            $q->orWhere('name', 'like', '%' . $token . '%');
-                        }
-                    })
-                    ->whereNotNull('unit_id')
-                    ->limit(50)
-                    ->pluck('unit_id')
-                    ->unique()
-                    ->filter()
-                    ->values();
-
-                if ($unitIds->isNotEmpty()) {
-                    return Unit::query()
-                        ->byCondominium($condominiumId)
-                        ->whereIn('id', $unitIds)
-                        ->limit(50)
-                        ->get();
-                }
-            }
-        }
-
-        return collect();
+        return $units->unique('id')->values();
     }
 
-    private function scoreResident(User $resident, Unit $unit, OcrResult $ocr, ?string $barcodeValue): float
+    /**
+     * @return Collection<int, Unit>
+     */
+    private function findUnitsByExtractedName(int $condominiumId, ?string $nameHint): Collection
     {
-        $nameScore = 0.0;
-        if ($ocr->possibleName) {
-            $nameScore = TextNormalizer::nameSimilarity($ocr->possibleName, $resident->name);
+        if (!filled($nameHint)) {
+            return collect();
         }
+
+        $tokens = TextNormalizer::significantNameTokens($nameHint);
+        if ($tokens === []) {
+            return collect();
+        }
+
+        $unitIds = User::query()
+            ->byCondominium($condominiumId)
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Morador', 'Agregado']))
+            ->where(function ($q) use ($tokens) {
+                foreach ($tokens as $token) {
+                    $q->orWhere('name', 'like', '%' . $token . '%');
+                }
+            })
+            ->whereNotNull('unit_id')
+            ->limit(50)
+            ->pluck('unit_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($unitIds->isEmpty()) {
+            return collect();
+        }
+
+        return Unit::query()
+            ->byCondominium($condominiumId)
+            ->whereIn('id', $unitIds)
+            ->limit(50)
+            ->get();
+    }
+
+    /**
+     * @param  array{tokens: list<string>, blob: string}  $haystack
+     * @return Collection<int, Unit>
+     */
+    private function findUnitsByNamePresence(int $condominiumId, array $haystack): Collection
+    {
+        if ($haystack['tokens'] === []) {
+            return collect();
+        }
+
+        $residents = User::query()
+            ->select('id', 'name', 'unit_id')
+            ->byCondominium($condominiumId)
+            ->whereNotNull('unit_id')
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Morador', 'Agregado']))
+            ->limit(500)
+            ->get();
+
+        $unitIds = $residents
+            ->filter(function (User $resident) use ($haystack) {
+                $tokens = array_values(array_filter(
+                    explode(' ', TextNormalizer::normalizeName($resident->name)),
+                    fn (string $token) => mb_strlen($token) >= 3
+                ));
+
+                return TextNormalizer::namePresenceInHaystack($tokens, $haystack) >= 0.62;
+            })
+            ->pluck('unit_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($unitIds->isEmpty()) {
+            return collect();
+        }
+
+        return Unit::query()
+            ->byCondominium($condominiumId)
+            ->whereIn('id', $unitIds)
+            ->get();
+    }
+
+    /**
+     * @param  array{tokens: list<string>, blob: string}  $haystack
+     */
+    private function scoreResident(
+        User $resident,
+        Unit $unit,
+        OcrResult $ocr,
+        ?string $barcodeValue,
+        array $haystack
+    ): float {
+        $extractedScore = 0.0;
+        if ($ocr->possibleName) {
+            $extractedScore = TextNormalizer::nameSimilarity($ocr->possibleName, $resident->name);
+        }
+
+        $nameTokens = array_values(array_filter(
+            explode(' ', TextNormalizer::normalizeName($resident->name)),
+            fn (string $token) => mb_strlen($token) >= 3
+        ));
+        $presenceScore = TextNormalizer::namePresenceInHaystack($nameTokens, $haystack);
+        $nameScore = max($extractedScore, $presenceScore);
 
         $hasBlock = filled($ocr->possibleBlock);
         $hasUnit = filled($ocr->possibleUnit);
@@ -214,7 +275,6 @@ class PackageRecipientMatcher
             }
         }
 
-        // Sem bloco/apto no OCR: o nome concentra o peso (caso típico de etiquetas de e-commerce)
         if (!$hasBlock && !$hasUnit) {
             $score = ($nameScore * 0.90) + ($addressScore * 0.10);
         } elseif (!$hasBlock || !$hasUnit) {
@@ -233,12 +293,18 @@ class PackageRecipientMatcher
             $score = min(1.0, $score + 0.01);
         }
 
-        if (!$ocr->possibleName && $blockScore >= 1.0 && $numberScore >= 1.0) {
-            $score = max($score, 0.92);
-            $score = min($score, 0.88);
+        if (!$ocr->possibleName && $presenceScore < 0.62 && $blockScore >= 1.0 && $numberScore >= 1.0) {
+            $score = min(max($score, 0.80), 0.88);
         }
 
-        // Nome muito forte sozinho já é evidência suficiente para confirmação
+        if ($nameScore >= 0.88) {
+            $score = max($score, 0.90);
+        }
+
+        if ($nameScore >= 0.88 && $blockScore >= 1.0 && $numberScore >= 1.0) {
+            $score = max($score, 0.97);
+        }
+
         if ($nameScore >= 0.94 && !$hasBlock && !$hasUnit) {
             $score = max($score, 0.92);
         }

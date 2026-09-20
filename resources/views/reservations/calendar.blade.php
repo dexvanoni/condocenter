@@ -10,6 +10,9 @@
     $canViewReservations = SidebarHelper::canViewReservations($user);
     $initialUserCredits = (float) ($initialUserCredits ?? 0);
     $defaulterBlocksReservations = $defaulterRestriction['active'] ?? false;
+    $tenantPayablesUrl = SidebarHelper::canAccessRentalTenantPayables($user)
+        ? route('tenant-payables.index')
+        : route('my-charges.index');
 @endphp
 
 <!-- Variáveis JavaScript para permissões -->
@@ -314,7 +317,9 @@
 </div>
 
 @if($onlinePaymentsEnabled ?? false)
-    @include('charges.partials.payment-checkout')
+    @include('charges.partials.payment-checkout', [
+        'chargePaymentBaseUrl' => SidebarHelper::chargePaymentBaseUrl($user),
+    ])
 @endif
 
 @push('styles')
@@ -1494,7 +1499,7 @@
     function handleReservationChargeResult(result, successMsg) {
         const onlineEnabled = result.online_payments_enabled ?? window.userPermissions.onlinePaymentsEnabled;
         const chargeId = result.payment_data?.charge_id || result.reservation_charge?.id;
-        const myChargesUrl = @json(route('my-charges.index'));
+        const myChargesUrl = @json($tenantPayablesUrl);
 
         if (result.credit_used) {
             successMsg += `\n\n💰 Créditos utilizados: R$ ${parseFloat(result.credit_amount).toFixed(2).replace('.', ',')}`;

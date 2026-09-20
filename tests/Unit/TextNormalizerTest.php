@@ -79,4 +79,51 @@ TEXT;
             TextNormalizer::extractPossibleName($ocrText)
         );
     }
+
+    public function test_extract_possible_name_keeps_name_on_same_line_as_apartment(): void
+    {
+        $this->assertSame(
+            'JOAO SILVA',
+            TextNormalizer::extractPossibleName('João da Silva AP 203 BLOCO B')
+        );
+    }
+
+    public function test_extract_possible_name_reads_destinatario_label(): void
+    {
+        $this->assertSame(
+            'MARIA SOUZA',
+            TextNormalizer::extractPossibleName("DESTINATARIO: Maria Souza\nRua das Flores 100")
+        );
+    }
+
+    public function test_extract_possible_name_ignores_street_before_cep(): void
+    {
+        $ocrText = <<<'TEXT'
+MERCADO LIVRE
+João da Silva
+Rua Santa Teresa SN
+CEP: 65715000
+TEXT;
+
+        $this->assertSame('JOAO SILVA', TextNormalizer::extractPossibleName($ocrText));
+    }
+
+    public function test_name_presence_finds_registered_name_inside_noisy_label(): void
+    {
+        $ocrText = <<<'TEXT'
+XPR1 SMN1 NF 13614
+Tayna Karine da Silva Fernandes
+Endereco: Rua Santa Teresa
+CEP 65715000
+TEXT;
+
+        $this->assertGreaterThanOrEqual(
+            0.88,
+            TextNormalizer::namePresenceInText('Tayna Fernandes', $ocrText)
+        );
+        $this->assertLessThan(
+            0.5,
+            TextNormalizer::namePresenceInText('Ana Paula Costa', $ocrText)
+        );
+    }
 }

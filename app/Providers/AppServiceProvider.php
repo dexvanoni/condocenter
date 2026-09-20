@@ -10,6 +10,7 @@ use App\Models\ServiceProvider as AccessServiceProvider;
 use App\Models\Unit;
 use App\Models\User as UserModel;
 use App\Observers\NotificationObserver;
+use App\Helpers\SidebarHelper;
 use App\Services\AccessAlertService;
 use App\Services\DefaulterRestrictionService;
 use App\Services\RideAlertService;
@@ -17,10 +18,12 @@ use App\Support\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
+use App\Services\UnitOccupancyService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -74,7 +77,16 @@ class AppServiceProvider extends ServiceProvider
                     'defaulterRestriction',
                     app(DefaulterRestrictionService::class)->getContextForUser($user)
                 );
+                $view->with('chargePaymentBaseUrl', SidebarHelper::chargePaymentBaseUrl($user));
             }
+        });
+
+        Gate::after(function (UserModel $user, string $ability, ?bool $result) {
+            if ($result !== true || $ability !== 'view_assemblies') {
+                return null;
+            }
+
+            return app(UnitOccupancyService::class)->canParticipateInAssemblies($user);
         });
     }
 

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Controllers\Api\SyndicConversationController;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
+use App\Models\Unit;
 use App\Models\User;
 
 class SyndicConversationService
@@ -103,6 +104,26 @@ class SyndicConversationService
         SyndicConversationController::attachSyndicParticipants($conversation);
 
         return $conversation;
+    }
+
+    public function findConversationForResidentOnUnit(User $resident, Unit $unit): ?Conversation
+    {
+        $profile = $this->unitOccupancyService->syndicProfileForRentalUnit($resident, $unit);
+
+        $query = Conversation::query()
+            ->where('condominium_id', $unit->condominium_id)
+            ->where('channel', Conversation::CHANNEL_SYNDIC)
+            ->whereHas('participants', function ($participantQuery) use ($resident) {
+                $participantQuery->where('user_id', $resident->id)->where('role', 'owner');
+            });
+
+        if ($profile !== null) {
+            $query->where('syndic_participant_profile', $profile);
+        } else {
+            $query->whereNull('syndic_participant_profile');
+        }
+
+        return $query->latest('updated_at')->first();
     }
 
     public function applyResidentSyndicScope($query, User $user): void

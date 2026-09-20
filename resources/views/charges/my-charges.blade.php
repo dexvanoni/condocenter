@@ -5,9 +5,14 @@
 @section('content')
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h2 class="mb-1">Minhas Cobranças</h2>
+        <h2 class="mb-1">{{ ($isOwnerViewer ?? false) ? 'Financeiro — meus imóveis' : 'Minhas Cobranças' }}</h2>
         <p class="text-muted mb-0">
-            Unidade <strong>{{ $unitLabel ?? '—' }}</strong> — acompanhe, pague e exporte o histórico das suas cobranças.
+            @if($isOwnerViewer ?? false)
+                Unidades: <strong>{{ $unitLabel ?? '—' }}</strong> — taxas e demais cobranças de sua responsabilidade como proprietário.
+                Multas e taxas de reserva do inquilino aparecem para acompanhamento, mas o pagamento é dele em Minhas pendências.
+            @else
+                Unidade <strong>{{ $unitLabel ?? '—' }}</strong> — acompanhe, pague e exporte o histórico das suas cobranças.
+            @endif
         </p>
     </div>
     <div class="d-flex flex-wrap gap-2">
@@ -98,6 +103,10 @@
                 <thead>
                     <tr>
                         <th>Título</th>
+                        @if($isOwnerViewer ?? false)
+                        <th>Unidade</th>
+                        <th>Inquilino</th>
+                        @endif
                         <th>Vencimento</th>
                         <th>Pago em</th>
                         <th>Valor</th>
@@ -107,7 +116,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td colspan="6" class="text-center py-4">
+                        <td colspan="{{ ($isOwnerViewer ?? false) ? 8 : 6 }}" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status"></div>
                             <p class="text-muted mt-2 mb-0">Carregando cobranças...</p>
                         </td>
@@ -130,6 +139,12 @@
                 <dl class="row mb-0">
                     <dt class="col-sm-4">Título</dt>
                     <dd class="col-sm-8" id="detailChargeTitle">—</dd>
+                    @if($isOwnerViewer ?? false)
+                    <dt class="col-sm-4">Unidade</dt>
+                    <dd class="col-sm-8" id="detailChargeUnit">—</dd>
+                    <dt class="col-sm-4">Inquilino</dt>
+                    <dd class="col-sm-8" id="detailChargeTenant">—</dd>
+                    @endif
                     <dt class="col-sm-4">Valor</dt>
                     <dd class="col-sm-8" id="detailChargeAmount">—</dd>
                     <dt class="col-sm-4">Vencimento</dt>
@@ -163,6 +178,8 @@
     const chargesExportUrl = "{{ route('my-charges.export-pdf') }}";
     const chargeBaseUrl = "{{ url('/charges') }}";
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const isOwnerViewer = @json($isOwnerViewer ?? false);
+    const chargesTableColspan = isOwnerViewer ? 8 : 6;
 
     let chargesCurrentPage = 1;
     let chargesCache = new Map();
@@ -252,7 +269,7 @@
     function setLoadingState() {
         document.querySelector('#chargesTable tbody').innerHTML = `
             <tr>
-                <td colspan="6" class="text-center py-4">
+                <td colspan="${chargesTableColspan}" class="text-center py-4">
                     <div class="spinner-border text-primary" role="status"></div>
                     <p class="text-muted mt-2 mb-0">Carregando cobranças...</p>
                 </td>
@@ -321,13 +338,17 @@
         const charges = Array.isArray(response.data) ? response.data : [];
 
         if (charges.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">Nenhuma cobrança encontrada.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="${chargesTableColspan}" class="text-center text-muted py-4">Nenhuma cobrança encontrada.</td></tr>`;
         } else {
             charges.forEach(charge => {
                 chargesCache.set(charge.id, charge);
+                const unitCell = isOwnerViewer
+                    ? `<td>${charge.unit_label || '—'}</td><td>${charge.tenant_name || '—'}</td>`
+                    : '';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${charge.title}</strong></td>
+                    ${unitCell}
                     <td>${formatDate(charge.due_date)}</td>
                     <td>${formatDate(charge.paid_at)}</td>
                     <td>${formatCurrency(charge.status === 'paid' ? (charge.amount_paid_display ?? charge.amount) : charge.amount)}</td>
@@ -369,6 +390,12 @@
         const payBtn = document.getElementById('detailChargePayBtn');
         receiptBtn.classList.add('d-none');
         payBtn.classList.add('d-none');
+
+        const cached = chargesCache.get(id);
+        if (isOwnerViewer) {
+            document.getElementById('detailChargeUnit').textContent = cached?.unit_label ?? '—';
+            document.getElementById('detailChargeTenant').textContent = cached?.tenant_name ?? '—';
+        }
 
         fetch(`${chargeBaseUrl}/${id}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' },

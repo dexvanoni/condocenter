@@ -1025,7 +1025,7 @@
         }
     </style>
 </head>
-<body>
+<body @auth data-charge-payment-base-url="{{ $chargePaymentBaseUrl ?? '' }}" @endauth>
     @php
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
@@ -1261,12 +1261,7 @@
                 @endcan
                 @else
 
-                @php
-                    $isFinancialSimplifiedGestao = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
-                    $canSeeGestao = SidebarHelper::isAdminOrSindico($user)
-                        || (Route::has('financial.employees.index') && $user->can('view_employees') && ! $isFinancialSimplifiedGestao);
-                @endphp
-                @if($canSeeGestao)
+                @if(SidebarHelper::canSeeGestaoMenu($user))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['gestao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuGestao" aria-expanded="{{ $menuActive['gestao'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-gear me-2"></i>Gestão</span>
@@ -1288,7 +1283,7 @@
                                 </a>
                             </li>
                             @endcan
-                            @if($modOn('financial') && !$isFinancialSimplifiedGestao && Route::has('financial.employees.index') && $user->can('view_employees'))
+                            @if($modOn('financial') && !\App\Helpers\SidebarHelper::isFinancialSimplified($user) && Route::has('financial.employees.index') && $user->can('view_employees'))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('financial.employees.*') ? 'active' : '' }}" href="{{ route('financial.employees.index') }}">
                                     <i class="bi bi-person-badge"></i> Quadro de Funcionários
@@ -1445,10 +1440,10 @@
                                     <i class="bi bi-wallet2"></i> Minhas pendências
                                 </a>
                             </li>
-                            @elseif(!$isFinanceAdmin && Route::has('my-charges.index') && $isFinanceResident && $user->can('view_charges') && $user->unit_id)
+                            @elseif(!$isFinanceAdmin && Route::has('my-charges.index') && \App\Helpers\SidebarHelper::canAccessMyChargesIndex($user))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
-                                    <i class="bi bi-receipt"></i> Minhas Cobranças
+                                    <i class="bi bi-receipt"></i> {{ $user->isProprietario() ? 'Cobranças dos imóveis' : 'Minhas Cobranças' }}
                                 </a>
                             </li>
                             @endif
@@ -1611,7 +1606,7 @@
                 </li>
                 @endif
 
-                @if($modOn('assemblies') && Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
+                @if($modOn('assemblies') && Route::has('assemblies.index') && \App\Helpers\SidebarHelper::canViewAssemblies($user))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['assemblies'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuAssemblies" aria-expanded="{{ $menuActive['assemblies'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-people me-2"></i>Assembleias</span>
@@ -2072,7 +2067,13 @@
                         </li>
 
                         @if($defaulterMenuLocked ?? false)
-                        @if(Route::has('my-charges.index') && $user->unit_id)
+                        @if(\App\Helpers\SidebarHelper::canAccessRentalTenantPayables($user) && Route::has('tenant-payables.index'))
+                        <li class="nav-item mt-2">
+                            <a class="nav-link {{ request()->routeIs('tenant-payables.*') ? 'active' : '' }}" href="{{ route('tenant-payables.index') }}">
+                                <i class="bi bi-wallet2"></i> Minhas pendências
+                            </a>
+                        </li>
+                        @elseif(Route::has('my-charges.index') && $user->unit_id)
                         <li class="nav-item mt-2">
                             <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
                                 <i class="bi bi-receipt"></i> Minhas Cobranças
@@ -2090,12 +2091,7 @@
                         @endcan
                         @else
 
-                        @php
-                            $mobileFinancialSimplifiedGestao = \App\Helpers\SidebarHelper::isFinancialSimplified($user);
-                            $mobileCanSeeGestao = SidebarHelper::isAdminOrSindico($user)
-                                || (Route::has('financial.employees.index') && $user->can('view_employees') && ! $mobileFinancialSimplifiedGestao);
-                        @endphp
-                        @if($mobileCanSeeGestao)
+                        @if(SidebarHelper::canSeeGestaoMenu($user))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['gestao'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuGestao" aria-expanded="{{ $menuActive['gestao'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-gear me-2"></i>Gestão</span>
@@ -2117,7 +2113,7 @@
                                         </a>
                                     </li>
                                     @endcan
-                                    @if($modOn('financial') && !$mobileFinancialSimplifiedGestao && Route::has('financial.employees.index') && $user->can('view_employees'))
+                                    @if($modOn('financial') && !\App\Helpers\SidebarHelper::isFinancialSimplified($user) && Route::has('financial.employees.index') && $user->can('view_employees'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('financial.employees.*') ? 'active' : '' }}" href="{{ route('financial.employees.index') }}">
                                             <i class="bi bi-person-badge"></i> Quadro de Funcionários
@@ -2267,10 +2263,10 @@
                                     </li>
                                     @endif
 
-                                    @if(!$mobileFinanceAdmin && Route::has('my-charges.index') && $mobileFinanceResident && $user->can('view_charges') && $user->unit_id)
+                                    @if(!$mobileFinanceAdmin && Route::has('my-charges.index') && \App\Helpers\SidebarHelper::canAccessMyChargesIndex($user))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('my-charges.*') ? 'active' : '' }}" href="{{ route('my-charges.index') }}">
-                                            <i class="bi bi-receipt"></i> Minhas Cobranças
+                                            <i class="bi bi-receipt"></i> {{ $user->isProprietario() ? 'Cobranças dos imóveis' : 'Minhas Cobranças' }}
                                         </a>
                                     </li>
                                     @endif
@@ -2440,7 +2436,7 @@
                         </li>
                         @endif
 
-                        @if($modOn('assemblies') && Route::has('assemblies.index') && $user->can('view_assemblies') && !$user->isAgregado())
+                        @if($modOn('assemblies') && Route::has('assemblies.index') && \App\Helpers\SidebarHelper::canViewAssemblies($user))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['assemblies'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuAssemblies" aria-expanded="{{ $menuActive['assemblies'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-people me-2"></i>Assembleias</span>

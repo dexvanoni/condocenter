@@ -152,6 +152,51 @@ TEXT;
         $this->assertSame($unit->id, $result['candidates'][0]['unit_id']);
     }
 
+    public function test_matches_resident_from_raw_text_even_when_extracted_name_is_wrong(): void
+    {
+        [$condo, $unit, $resident] = $this->seedResident('Tayna Fernandes', 'A', '9');
+        $this->makeMorador($condo, Unit::factory()->create([
+            'condominium_id' => $condo->id,
+            'block' => 'C',
+            'number' => '501',
+        ]), 'Ana Paula');
+
+        $ocrText = <<<'TEXT'
+Tayna Karine da Silva Fernandes Elk
+Endereço: Rua Santa Teresa SN
+CEP: 65715000
+TEXT;
+
+        $matcher = new PackageRecipientMatcher();
+        $result = $matcher->match($condo->id, new OcrResult(
+            rawText: $ocrText,
+            possibleName: 'SANTA TERESA',
+            possibleBlock: 'C',
+            possibleUnit: '501',
+        ));
+
+        $this->assertSame('high', $result['level']);
+        $this->assertSame($resident->id, $result['candidates'][0]['resident_id']);
+        $this->assertSame($unit->id, $result['candidates'][0]['unit_id']);
+    }
+
+    public function test_matches_resident_when_possible_name_is_missing(): void
+    {
+        [$condo, $unit, $resident] = $this->seedResident('João da Silva', 'B', '203');
+
+        $matcher = new PackageRecipientMatcher();
+        $result = $matcher->match($condo->id, new OcrResult(
+            rawText: "Destinatario Joao da Silva\nBloco B Apto 203",
+            possibleName: null,
+            possibleBlock: null,
+            possibleUnit: null,
+        ));
+
+        $this->assertSame('high', $result['level']);
+        $this->assertSame($resident->id, $result['candidates'][0]['resident_id']);
+        $this->assertSame($unit->id, $result['candidates'][0]['unit_id']);
+    }
+
     private function seedResident(string $name, string $block, string $number): array
     {
         $condo = Condominium::factory()->create();

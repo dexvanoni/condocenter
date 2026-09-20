@@ -33,4 +33,10 @@ export default defineConfig({
             vue: 'vue/dist/vue.esm-bundler.js',
         },
     },
+    worker: {
+        format: 'es',
+    },
+    optimizeDeps: {
+        exclude: ['ppu-paddle-ocr/web'],
+    },
 });

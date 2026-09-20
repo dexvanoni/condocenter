@@ -12,6 +12,8 @@ class AsaasService
     protected bool $isSandbox = true;
     protected ?int $condominiumId = null;
 
+    protected ?string $lastErrorMessage = null;
+
     public function __construct(
         private CondominiumAsaasSettingsService $condominiumSettings,
     ) {
@@ -30,6 +32,26 @@ class AsaasService
     public function isConfigured(): bool
     {
         return filled($this->apiKey);
+    }
+
+    public function getLastErrorMessage(): ?string
+    {
+        return $this->lastErrorMessage;
+    }
+
+    protected function rememberApiError($response): void
+    {
+        $this->lastErrorMessage = null;
+
+        if (!$response) {
+            return;
+        }
+
+        $errors = $response->json('errors');
+
+        if (is_array($errors) && isset($errors[0]['description'])) {
+            $this->lastErrorMessage = (string) $errors[0]['description'];
+        }
     }
 
     public function getCondominiumId(): ?int
@@ -149,8 +171,12 @@ class AsaasService
             ])->post("{$this->apiUrl}/customers", $data);
 
             if ($response->successful()) {
+                $this->lastErrorMessage = null;
+
                 return $response->json();
             }
+
+            $this->rememberApiError($response);
 
             Log::error('Erro ao criar cliente no Asaas', [
                 'condominium_id' => $this->condominiumId,
@@ -160,6 +186,7 @@ class AsaasService
 
             return null;
         } catch (\Exception $e) {
+            $this->lastErrorMessage = $e->getMessage();
             Log::error('Exceção ao criar cliente no Asaas: ' . $e->getMessage(), [
                 'condominium_id' => $this->condominiumId,
             ]);

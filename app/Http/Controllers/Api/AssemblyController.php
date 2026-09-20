@@ -41,6 +41,17 @@ class AssemblyController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        if (!$user->can('manage_assemblies')
+            && !app(\App\Services\UnitOccupancyService::class)->canParticipateInAssemblies($user)) {
+            return response()->json([
+                'data' => [],
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => $request->integer('per_page', 15),
+                'total' => 0,
+            ]);
+        }
+
         $relationships = [
             'creator',
             'allowedRoles',

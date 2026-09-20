@@ -67,7 +67,7 @@
     </a>
     @endif
 
-    @if(Route::has('assemblies.index') && SidebarHelper::moduleEnabled($user, 'assemblies') && ($assembliesPendentes->count() ?? 0) > 0 && !$isRestricted)
+    @if(Route::has('assemblies.index') && SidebarHelper::canViewAssemblies($user) && ($assembliesPendentes->count() ?? 0) > 0 && !$isRestricted)
     <a href="{{ route('assemblies.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__badge">{{ $assembliesPendentes->count() }}</span>
         <span class="md-quick-tile__icon md-quick-tile__icon--assembly"><i class="bi bi-check2-square"></i></span>

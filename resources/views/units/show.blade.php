@@ -65,12 +65,6 @@
                             <small class="text-muted d-block">{{ $unit->public_property_kind_label }}</small>
                         @endif
                     </div>
-                    @if($unit->owner)
-                    <div class="col-md-6 mb-3">
-                        <strong>Proprietário:</strong><br>
-                        {{ $unit->owner->name }}
-                    </div>
-                    @endif
                     @if($unit->isRental() && $unit->lease_contract_ends_at)
                     <div class="col-12 mb-3">
                         @php
@@ -120,6 +114,13 @@
                 </div>
             </div>
         </div>
+
+        @if($unit->isRental())
+            @include('units.partials.rental-occupants', [
+                'unit' => $unit,
+                'canContactResidents' => $canContactResidents ?? false,
+            ])
+        @endif
 
         <!-- Endereço (herdado do condomínio) -->
         @if($unit->full_address)

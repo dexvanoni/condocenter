@@ -90,8 +90,10 @@ class LabelImagePreprocessor
 
         try {
             $image->greyscale();
+            $image->contrast(22);
+            $image->brightness(6);
         } catch (\Throwable) {
-            // O driver pode não implementar grayscale.
+            // O driver pode não implementar todos os filtros.
         }
 
         if ($sharpen) {

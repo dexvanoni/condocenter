@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.3 |
-| **Data** | 18/09/2026 |
+| **Versão do documento** | 2.4 |
+| **Data** | 19/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
@@ -144,10 +144,17 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - **Dashboard:** `dashboard/sindico.blade.php`
 
 #### P3 — Morador (responsável pela unidade)
-- **Quem:** proprietário ou inquilino principal da unidade
-- **Necessidades:** pagar taxas, reservar espaços, marketplace, pets, votar, acionar pânico, registrar ocorrências, **liberar visitantes** (presets e visitante nomeado com PDF/QR)
-- **Regra:** uma unidade possui um morador responsável
-- **Dashboard:** `dashboard/morador.blade.php`
+- **Quem:** morador principal vinculado à unidade (`unit_id`). Em unidade **particular** ou **imóvel público**, costuma ser o proprietário residente; em unidade **aluguel**, é o **inquilino** cadastrado na ficha da unidade.
+- **Necessidades:** pagar taxas (conforme regime), reservar espaços, marketplace, pets, votar (exceto inquilino em aluguel), acionar pânico, registrar ocorrências, **liberar visitantes** (presets e visitante nomeado com PDF/QR)
+- **Regra:** uma unidade possui um morador responsável; em **aluguel**, o inquilino não acessa assembleias, menu Gestão, financeiro completo nem ordens de serviço do proprietário — quita multas/reservas/OS próprias em **Minhas pendências**
+- **Dashboard:** `dashboard/morador.blade.php` (ou `morador-sem-unidade` se sem `unit_id`)
+
+#### P3b — Proprietário (imóvel de aluguel)
+- **Quem:** titular cadastrado em `units.owner_user_id` para unidades com `occupancy_regime = aluguel` (papel Spatie **Proprietário**, atribuído automaticamente ao vincular proprietário na unidade)
+- **Necessidades:** pagar **taxas do condomínio** das unidades que possui, acompanhar contrato de locação, abrir **ordens de serviço**, votar em **assembleias** em nome das unidades alugadas, falar com o síndico (thread segregada do inquilino)
+- **Pode coexistir** com papel Morador em **outra** unidade (particular ou mesma unidade desabitada) — troca via **perfil ativo** (`active_role`)
+- **Dashboard:** `dashboard/proprietario.blade.php`
+- **Financeiro:** `ResidentChargeController` / **Cobranças dos imóveis** (`my-charges`) — colunas Unidade e Inquilino; badge do dashboard conta só cobranças de responsabilidade do proprietário
 
 #### P4 — Agregado
 - **Quem:** dependente vinculado ao morador (cônjuge, filho, empregada etc.)
@@ -177,11 +184,15 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 |-------|-----------------|------------|----------------------|--------|---------------|
 | Administrador | ✅ Total | ✅ Total | ✅ | ✅ Gestão | ❌ |
 | Síndico | ❌ | ✅ Total | ✅ | ✅ Gestão | ✅ |
-| Morador | ❌ | ✅ Uso | ✅ Visualização | ✅ Acionar | ❌ |
+| Morador | ❌ | ✅ Uso | ✅ Visualização* | ✅ Acionar | ❌ |
+| Proprietário (aluguel) | ❌ | ✅ Imóveis próprios | ✅ Taxas das unidades possuídas | ❌** | ❌ |
 | Agregado | ❌ | ⚙️ Configurável | ⚙️ Configurável | ✅ Acionar | ❌ |
 | Porteiro | ❌ | ✅ Portaria | ❌ | ❌ | ❌ |
 | Conselho Fiscal | ❌ | ✅ Fiscalização | ✅ Visualização | ❌ | ❌ |
 | Secretaria | ❌ | ✅ Operacional | ⚙️ Parcial | ❌ | ❌ |
+
+\* Em unidade **aluguel**, o inquilino **não** acessa o módulo financeiro completo; usa **Minhas pendências** (`tenant-payables`) para multas, taxas de reserva e cobranças de OS sob sua responsabilidade.  
+\** Proprietário aciona pânico apenas se também tiver outro papel com permissão (ex.: morador em outra unidade).
 
 ### 4.3 Perfil ativo e multi-papel
 
@@ -207,6 +218,8 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 
 #### Gestão de pessoas
 - CRUD de unidades e usuários, histórico exportável (PDF/Excel)
+- **Regimes de ocupação** por unidade: **Particular**, **Aluguel** (diária/mensalista + proprietário + inquilino + contrato), **Imóvel público** (subtipos administrativos: militar, funcional público/privado — cadastro, sem mudança de permissões)
+- Ficha da unidade (aluguel): bloco **Aluguel — ocupação** com proprietário, inquilino e atalhos de contato (WhatsApp, e-mail, mensagem SindCON) para síndico/secretaria
 - Auto-cadastro com código do condomínio + aprovação do síndico (com rate limit)
 - Permissões granulares para agregados (`AgregadoPermission`)
 - Onboarding: e-mail verificado, troca de senha obrigatória (`CheckPasswordChange`, `PasswordChangeController`), seleção de perfil
@@ -409,6 +422,28 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-11 | Reset de senha por link de e-mail (síndico/admin) | Must | `UserController@resetPassword`, `AdminPasswordResetLinkMail` |
 | USR-12 | Troca de senha obrigatória (senha temporária) | Must | `PasswordChangeController`, `CheckPasswordChange` |
 | USR-13 | Liberação temporária de inadimplente (síndico) | Must | `DefaulterAccessOverrideController`, ficha `users/show` |
+| USR-14 | Regime de ocupação na unidade (particular / aluguel / imóvel público) | Must | `occupancy_regime`, `UnitOccupancyService`, partials `occupancy-regime`, `owner-search` |
+| USR-15 | Proprietário e inquilino distintos em unidade aluguel | Must | `owner_user_id`, morador na unidade, `syncOwnerRole` |
+| USR-16 | Contrato de locação obrigatório com inquilino; avisos e suspensão ao vencer | Must | `LeaseContractService`, cron `leases:process-contracts` |
+| USR-17 | Visualização aluguel: contato síndico → proprietário/inquilino | Should | `units/partials/rental-occupants`, `SyndicConversationService::findConversationForResidentOnUnit` |
+| USR-18 | Papel **Proprietário** (Spatie) sincronizado com `owner_user_id` | Must | `RolesAndPermissionsSeeder`, `UnitOccupancyService::syncOwnerRole` |
+
+#### 8.2.1 Regimes de ocupação e perfil Proprietário (detalhamento)
+
+| Regime | Morador na unidade | Proprietário (`owner_user_id`) | Assembleia | Financeiro morador | Financeiro proprietário | OS |
+|--------|-------------------|-------------------------------|------------|-------------------|-------------------------|-----|
+| **Particular** | Morador + agregados | — | Morador vota | Minhas Cobranças | — | Morador da unidade |
+| **Aluguel** | Inquilino + agregados | Usuário com perfil Proprietário | **Só proprietário** vota (por unidade alugada) | **Minhas pendências** (multa, reserva, OS inquilino) | **Cobranças dos imóveis** (taxas condomínio) | **Só proprietário** cria/gerencia; inquilino vê OS com `visible_to_tenant` |
+| **Imóvel público** | Como particular | — | Morador vota | Minhas Cobranças | — | Morador |
+
+**Regras transversais (implementação):**
+
+- Serviço central: `UnitOccupancyService` (`canAccessFinancialModule`, `canParticipateInAssemblies`, `canAccessServiceOrdersModule`, `canUserPayCharge`, `assemblyVoteUnitIdsForVoter`, etc.)
+- Menu **Gestão** oculto para inquilino e agregado de inquilino (`SidebarHelper::canSeeGestaoMenu`)
+- **Fale com o síndico:** threads segregadas por `conversations.syndic_participant_profile` (`proprietario` | `morador`) — `SyndicConversationService`
+- Multas em aluguel: notificação ao **proprietário** (`FineService` / `resolveFineNotificationRecipient`); pagamento pelo **inquilino** quando aplicável
+- Pagamento online inquilino: rotas `/inquilino/cobrancas/{charge}/checkout` (`tenant-payables.*`), não `/charges/*` (middleware `rental.financial.access`)
+- Middlewares: `rental.financial.access`, `rental.tenant.payables`, `rental.lease.active` (suspensão inquilino/agregados por contrato vencido)
 
 ### 8.3 Financeiro
 
@@ -437,6 +472,11 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | FIN-21 | Menu restrito para morador inadimplente | Must | `RestrictDefaulterNavigation`, `SidebarHelper::isDefaulterMenuLocked()` |
 | FIN-22 | Liberação temporária de acesso (1–30 dias) | Must | `DefaulterAccessOverrideService`, tabela `defaulter_access_overrides` |
 | FIN-23 | Card de restrição no dashboard do morador | Must | `defaulter-restriction-card` |
+| FIN-24 | Proprietário: cobranças das unidades possuídas (aluguel) | Must | `ResidentChargeController`, `SidebarHelper::canAccessMyChargesIndex`, `ChargeController::data` |
+| FIN-25 | Inquilino: **Minhas pendências** (multa, reserva, OS) | Must | `TenantPayableController`, prefixo `/inquilino` |
+| FIN-26 | Checkout Asaas segregado por perfil (URL base inquilino vs morador) | Must | `SidebarHelper::chargePaymentBaseUrl`, `ChargePaymentService` |
+| FIN-27 | Proprietário paga só cobranças de sua responsabilidade (`canUserPayCharge`) | Must | `UnitOccupancyService::isMoradorResponsibleCharge` |
+| FIN-28 | Validação CPF antes do gateway; mensagem Asaas legível | Should | `App\Support\Cpf`, `AsaasService::getLastErrorMessage` |
 
 #### Passos do fechamento mensal (`MonthlyClosingSteps`)
 
@@ -499,10 +539,12 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 
 | ID | Requisito | Prioridade | Implementação |
 |----|-----------|------------|---------------|
-| OS-01 | Morador abre solicitação | Must | `ServiceOrderController` |
+| OS-01 | Morador abre solicitação (não inquilino em aluguel) | Must | `ServiceOrderController`, `ServiceOrderPolicy` |
 | OS-02 | Síndico gerencia status, mensagens, itens | Must | `ServiceOrderManagementController` |
 | OS-03 | Geração de cobrança de ressarcimento | Should | `ServiceOrderService` |
 | OS-04 | Bloqueio inadimplentes | Must | Middleware |
+| OS-05 | Aluguel: proprietário cria OS; flag `visible_to_tenant` por item | Must | `service_orders.visible_to_tenant`, `ResolvesUnitOccupancy` |
+| OS-06 | Inquilino vê apenas OS próprias ou marcadas visíveis ao inquilino | Must | `ServiceOrderController@index`, policy `view` |
 
 ### 8.9 Controle de acesso / Portaria
 
@@ -988,6 +1030,8 @@ A encomenda está disponível para retirada na portaria.
 | ASM-04 | Ciclo: iniciar, concluir, cancelar, reabrir | Must | Transições de status |
 | ASM-05 | Exportação de ata (PDF/markdown) | Should | `AssemblyMinutesService` |
 | ASM-06 | Bloqueio inadimplentes | Must | Middleware |
+| ASM-07 | Unidade **aluguel**: voto apenas **Proprietário** (unidade informada se múltiplas) | Must | `AssemblyVotingService`, `UnitOccupancyService::assemblyVoteUnitIdsForVoter` |
+| ASM-08 | Inquilino/agregado de inquilino sem menu nem API de assembleias | Must | `canParticipateInAssemblies`, `Assembly::canUserVote`, `Gate` + `SidebarHelper::canViewAssemblies` |
 
 ### 8.12 Comunicação
 
@@ -996,6 +1040,7 @@ A encomenda está disponível para retirada na portaria.
 | COM-01 | Mensagens (mural, privadas, prioridades) | Must | API `MessageController` |
 | COM-02 | Conversas (avisos, diretas, anexos, reuniões) | Must | `ConversationWebController` |
 | COM-03 | Fale com o Síndico (sigiloso) | Must | `SyndicConversationWebController` |
+| COM-09 | Aluguel: conversas segregadas proprietário × inquilino (`syndic_participant_profile`) | Must | `SyndicConversationService`, coluna `conversations.syndic_participant_profile` |
 | COM-04 | Broadcast de avisos | Must | `conversations/announcement` |
 | COM-05 | Centro de notificações + contador | Must | `NotificationController` |
 | COM-06 | Export CSV/PDF de conversas | Should | API |
@@ -1224,6 +1269,14 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-33 | Reset de senha por admin/síndico envia **link por e-mail** — nunca senha fixa na interface |
 | RN-34 | Perfil **Administrador** redireciona para `platform.dashboard`, não para dashboard operacional |
 | RN-35 | Recursos da API devem validar `condominium_id` do tenant ativo (`GuardsTenantResource`) |
+| RN-36 | Unidade **aluguel** exige `owner_user_id`, morador (inquilino) e `lease_contract_ends_at` quando há inquilino |
+| RN-37 | Em **aluguel**, assembleia: voto só do **proprietário** da unidade; inquilino e agregado vinculado **não** acessam módulo assembleias |
+| RN-38 | Em **aluguel**, **taxas do condomínio** → proprietário paga; **multa, reserva paga, OS (inquilino)** → inquilino paga em **Minhas pendências** |
+| RN-39 | Proprietário **não** usa menu Gestão do inquilino; inquilino **não** vê menu Gestão (`canSeeGestaoMenu`) |
+| RN-40 | Inquilino bloqueado em rotas `my-charges` / `charges/*` financeiras → redirecionado a **Minhas pendências** (`EnsureRentalFinancialAccess`) |
+| RN-41 | Contrato de locação vencido suspende inquilino e agregados (`access_suspended_reason = lease_expired`) até renovação na unidade |
+| RN-42 | Multa ao inquilino: notificação prioritária ao **proprietário** para acompanhamento |
+| RN-43 | Perfil ativo (`active_role`) define permissões efetivas quando usuário tem Morador + Proprietário |
 
 ---
 
@@ -1232,7 +1285,7 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 ### 11.1 Sistema Spatie
 
 - **~65 permissões** granulares em `RolesAndPermissionsSeeder` (inclui `register_packages`, `view_packages`, `export_packages_reports`)
-- **8 papéis:** Administrador, Síndico, Morador, Porteiro, Conselho Fiscal, Secretaria, Agregado (+ perfil ativo)
+- **9 papéis:** Administrador, Síndico, Morador, **Proprietário**, Porteiro, Conselho Fiscal, Secretaria, Agregado (+ perfil ativo)
 - Agrupamento: condomínios, usuários, financeiro, reservas, marketplace, portaria, assembleias, comunicação, pânico, landing
 
 ### 11.2 Policies registradas
@@ -1260,6 +1313,9 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | `ensure.full.financial` | Modo financeiro completo |
 | `restrict.defaulters` | Bloqueio por feature para inadimplentes |
 | `restrict.defaulter.navigation` | Menu/navegação restrita (web + API) |
+| `rental.financial.access` | Bloqueia financeiro completo a inquilino; redireciona a Minhas pendências |
+| `rental.tenant.payables` | Área `/inquilino/*` só inquilino/agregado de inquilino |
+| `rental.lease.active` | Valida contrato de locação ativo (inquilino/agregados) |
 | `ResolveCondominiumLandingDomain` | Landing em domínio customizado |
 
 ---
@@ -1778,6 +1834,24 @@ Plataforma
 3. Usuário clica no link e define nova senha em `/password/reset`
 4. Nenhuma senha temporária fixa é exibida na interface do administrador
 
+### 18.17 Proprietário gerencia imóvel de aluguel
+
+1. Síndico cadastra unidade com regime **Aluguel**, proprietário (João), inquilino (Paulo) e validade do contrato
+2. João recebe papel **Proprietário** e acessa dashboard `proprietario` ao selecionar esse perfil
+3. **Financeiro → Cobranças dos imóveis:** vê taxas das unidades possuídas (colunas Unidade / Inquilino); paga online o que for de sua responsabilidade
+4. Acompanha multas/reservas do inquilino na listagem (pagamento é do inquilino)
+5. Abre **Ordens de serviço** das unidades que possui; pode marcar visibilidade ao inquilino por OS
+6. Vota em **assembleias** selecionando a unidade de aluguel quando possuir mais de uma
+7. **Fale com o síndico** em thread separada da do inquilino (`syndic_participant_profile = proprietario`)
+
+### 18.18 Inquilino em unidade de aluguel
+
+1. Paulo (Morador) mora na unidade alugada; **não** vê Gestão, assembleias nem financeiro completo
+2. Reserva espaço com taxa → checkout em **Minhas pendências** (`/inquilino/cobrancas/.../checkout`)
+3. Recebe multa → quita em Minhas pendências; proprietário é notificado para acompanhamento
+4. **Fale com o síndico** em thread `morador` (segregada do proprietário)
+5. Se contrato vencer sem renovação: acesso suspenso até síndico atualizar `lease_contract_ends_at`
+
 ---
 
 ## 19. Cobertura de testes e qualidade
@@ -1872,6 +1946,12 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | **Uso gratuito (complimentary)** | Condomínio com `saas_complimentary` — acesso à plataforma sem assinatura paga |
 | **ProfileHomeRoute** | Rota home por papel ativo (Admin → `/platform`) |
 | **GuardsTenantResource** | Trait que valida ownership tenant em controllers API |
+| **Regime de ocupação** | `particular` \| `aluguel` \| `imovel_publico` em `units.occupancy_regime` |
+| **Inquilino** | Morador vinculado à unidade de aluguel |
+| **Proprietário (papel)** | Titular em `owner_user_id`; financeiro/OS/assembleia conforme RN-37–RN-38 |
+| **Minhas pendências** | Área financeira do inquilino (`tenant-payables`) |
+| **Cobranças dos imóveis** | Minhas cobranças do proprietário (`my-charges` com `isOwnerViewer`) |
+| **syndic_participant_profile** | Segrega canal sigiloso síndico entre proprietário e inquilino |
 
 ---
 
@@ -1929,6 +2009,12 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | Branding | `config/brand.php`, `sindcon-logo.blade.php`, `sindcon-favicon.blade.php` |
 | API tenant guard | `app/Http/Controllers/Concerns/GuardsTenantResource.php` |
 | SaaS config | `config/saas.php` |
+| Ocupação / aluguel | `app/Services/UnitOccupancyService.php`, `app/Support/UnitOccupancyRegimes.php`, migration `2026_09_19_120000_add_occupancy_regime_fields_to_units_table.php` |
+| Contrato locação | `app/Services/LeaseContractService.php`, `leases:process-contracts` em `routes/console.php` |
+| Proprietário UI | `dashboard/proprietario.blade.php`, `dashboard/partials/proprietario-quick-actions.blade.php` |
+| Pendências inquilino | `TenantPayableController`, `resources/views/tenant-payables/` |
+| Sidebar aluguel | `app/Helpers/SidebarHelper.php` (`canAccessMyChargesIndex`, `canSeeGestaoMenu`, `chargePaymentBaseUrl`) |
+| VPS / deploy | Changelog em `DOCUMENTAÇÃO/INSTALACAO_VPS.md` (migrate + `RolesAndPermissionsSeeder` para papel Proprietário) |
 
 ### Ambiente demo
 
@@ -1943,4 +2029,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.3 — atualizado com base no estado do repositório CondoCenter em 18/09/2026. Inclui restrição de inadimplentes com menu bloqueado e liberação temporária (até 30 dias), uso gratuito SaaS (`saas_complimentary`), home do Administrador em `/platform`, reset de senha por link de e-mail, proteção IDOR na API, status "Em atraso" imediato em cobranças vencidas, além de visitante "Outro" (PDF/QR), encomenda inteligente (OCR), módulos habilitáveis e landing dual-template. Deploy: `php artisan migrate --force` (tabela `defaulter_access_overrides`, colunas `saas_complimentary`). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*
+*Documento v2.4 — atualizado em 19/09/2026. Inclui **regimes de ocupação de unidades** (particular, aluguel, imóvel público), papel **Proprietário**, segregação financeira e de assembleias entre proprietário e inquilino, **Minhas pendências** (`/inquilino`), **Cobranças dos imóveis** para proprietário, contrato de locação com cron `leases:process-contracts`, Fale com o síndico segregado (`syndic_participant_profile`), OS com `visible_to_tenant`, e regras de menu (Gestão oculto ao inquilino). Deploy: `php artisan migrate --force` + `php artisan db:seed --class=RolesAndPermissionsSeeder` (papel Proprietário); ver changelog em `INSTALACAO_VPS.md`. Mantém conteúdo da v2.3 (inadimplentes, complimentary, visitante Outro, OCR encomendas, etc.). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*

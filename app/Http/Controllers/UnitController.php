@@ -182,9 +182,14 @@ class UnitController extends Controller
     {
         $this->authorize('view', $unit);
         
-        $unit->load(['condominium', 'users.roles', 'owner', 'charges', 'reservations']);
+        $unit->load(['condominium', 'users.roles', 'owner', 'morador', 'charges', 'reservations']);
 
-        return view('units.show', compact('unit'));
+        $authUser = $this->authUser();
+        $canContactResidents = $authUser->isSindico()
+            || $authUser->isSecretaria()
+            || $authUser->can('edit_units');
+
+        return view('units.show', compact('unit', 'canContactResidents'));
     }
 
     /**

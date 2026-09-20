@@ -171,6 +171,86 @@
         </div>
         @endcan
 
+        @can('update', $condominium)
+        @php
+            $ocrLabels = \App\Support\OcrEngine::labels();
+            $selectedOcrEngine = \App\Support\OcrEngine::normalize($condominium->label_ocr_engine);
+            $packagesModuleOn = in_array('packages', $condominium->enabled_modules ?? array_keys(\App\Support\CondominiumModules::catalog()), true);
+        @endphp
+        @if($packagesModuleOn)
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-upc-scan"></i> Leitura de etiquetas (OCR)</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Escolha o motor de OCR usado na portaria para este condomínio. Teste com etiquetas reais e mantenha o que identificar melhor os nomes dos moradores.
+                    Se o motor escolhido não estiver instalado no servidor, o sistema tenta o outro automaticamente.
+                </p>
+                <form method="POST" action="{{ route('condominiums.settings.ocr.update', $condominium) }}">
+                    @csrf
+                    @method('PUT')
+                    <div class="row g-3">
+                        @foreach($ocrLabels as $engineKey => $engineLabel)
+                            <div class="col-md-6">
+                                <label class="border rounded p-3 d-flex gap-3 h-100 mb-0" style="cursor: pointer;">
+                                    <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="label_ocr_engine" value="{{ $engineKey }}"
+                                           @checked($selectedOcrEngine === $engineKey) required>
+                                    <span>
+                                        <span class="d-block fw-semibold">{{ $engineLabel }}</span>
+                                        <small class="text-muted d-block">
+                                            @if($engineKey === 'tesseract')
+                                                Leve, rápido, já incluso na instalação padrão da VPS.
+                                            @else
+                                                Geralmente mais preciso em fotos difíceis; exige Python e PaddleOCR no servidor.
+                                            @endif
+                                        </small>
+                                        @php
+                                            $engineAvailable = $engineKey === 'paddle'
+                                                ? !empty($paddleOcrStatus['available'])
+                                                : !empty($ocrEngineAvailability[$engineKey]);
+                                        @endphp
+                                        @if($engineAvailable)
+                                            <span class="badge bg-success mt-2">Disponível no servidor</span>
+                                        @else
+                                            <span class="badge bg-secondary mt-2">Não detectado no servidor</span>
+                                        @endif
+                                    </span>
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+                    @error('label_ocr_engine')
+                        <div class="text-danger small mt-2">{{ $message }}</div>
+                    @enderror
+                    @if(empty($ocrEngineAvailability['paddle']) && !empty($paddleOcrStatus['error']))
+                        <div class="alert alert-warning small mt-3 mb-0">
+                            <strong>PaddleOCR não detectado pelo PHP.</strong>
+                            {{ $paddleOcrStatus['error'] }}
+                            @if(PHP_OS_FAMILY === 'Windows')
+                                <br>No seu terminal o pacote foi instalado com <code>pip</code>; use o mesmo executável no <code>.env</code>, por exemplo:
+                                <code>PADDLE_OCR_PYTHON=C:\Python313\python.exe</code>
+                            @endif
+                        </div>
+                    @elseif(!empty($paddleOcrStatus['available']) && !empty($paddleOcrStatus['python']))
+                        <p class="text-muted small mt-3 mb-0">
+                            Python do Paddle: <code>{{ $paddleOcrStatus['python'] }}</code>
+                            @if(($paddleOcrStatus['source'] ?? '') === 'diagnose')
+                                <span class="d-block">Confirmado pelo comando <code>php artisan ocr:diagnose</code> (válido por 24 h).</span>
+                            @elseif(($paddleOcrStatus['source'] ?? '') === 'configured')
+                                <span class="d-block">Caminho configurado no <code>.env</code>. Rode <code>php artisan ocr:diagnose</code> para validar o import do paddleocr.</span>
+                            @endif
+                        </p>
+                    @endif
+                    <button type="submit" class="btn btn-primary mt-3">
+                        <i class="bi bi-check2"></i> Salvar motor de OCR
+                    </button>
+                </form>
+            </div>
+        </div>
+        @endif
+        @endcan
+
         @if($isAdmin)
         <div class="card shadow-sm mb-4 border-primary">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">

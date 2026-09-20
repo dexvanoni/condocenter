@@ -70,10 +70,6 @@
         </select>
       </div>
 
-      <div v-if="preview?.tracking_code || preview?.ocr?.tracking_code" class="mb-3 text-muted small">
-        Rastreio: {{ preview.tracking_code || preview.ocr.tracking_code }}
-      </div>
-
       <div class="d-grid gap-2">
         <button
           class="btn btn-success btn-lg py-3"

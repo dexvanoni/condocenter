@@ -98,11 +98,18 @@ class CondominiumController extends Controller
             ));
         }
 
+        $ocrResolver = app(\App\Services\Ocr\OcrEngineResolver::class);
+        $paddleOcrStatus = $ocrResolver->paddleStatus(fresh: true);
+        $ocrEngineAvailability = $ocrResolver->availability();
+        $ocrEngineAvailability[\App\Support\OcrEngine::PADDLE] = $paddleOcrStatus['available'];
+
         return view('condominiums.show', compact(
             'condominium',
             'billingReport',
             'billingFilters',
             'exportUrl',
+            'ocrEngineAvailability',
+            'paddleOcrStatus',
         ));
     }
 

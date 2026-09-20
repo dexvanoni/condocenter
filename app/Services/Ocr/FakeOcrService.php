@@ -31,7 +31,7 @@ class FakeOcrService implements OcrServiceInterface
         return true;
     }
 
-    public function extract(string $imagePath): OcrResult
+    public function extract(string $imagePath, array $hints = []): OcrResult
     {
         $rawText = $this->forcedText ?? '';
 
@@ -49,7 +49,7 @@ class FakeOcrService implements OcrServiceInterface
             confidence: $this->forcedConfidence,
             trackingCode: TextNormalizer::extractTrackingCode($rawText),
             possibleName: TextNormalizer::extractPossibleName($rawText),
-            possibleAddress: null,
+            possibleAddress: TextNormalizer::extractPossibleAddress($rawText),
             possibleUnit: $unitParts['number'],
             possibleBlock: $unitParts['block'],
             possibleSender: $this->senderDetector->detect($rawText),

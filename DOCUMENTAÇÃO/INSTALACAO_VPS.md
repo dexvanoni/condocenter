@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 19/09/2026 (regime de ocupação das unidades e perfil Proprietário)
+- **Última revisão:** 20/09/2026 (motor OCR por condomínio: Tesseract ou PaddleOCR)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -217,6 +217,10 @@ OCR_TIMEOUT=30
 OCR_PREPROCESS_ENABLED=true
 # Deixe vazio no Ubuntu (usa PATH). Só preencha se o binário estiver fora do PATH.
 TESSERACT_PATH=
+# Opcional — PaddleOCR (motor alternativo; cada condomínio escolhe em Meu Condomínio)
+# PADDLE_OCR_PYTHON=python3
+# PADDLE_OCR_SCRIPT=/var/www/condocenter/scripts/ocr/paddle_label.py
+# PADDLE_OCR_TIMEOUT=120
 
 DEV_DOCS_TOKEN=
 DEV_DOCS_URL="${APP_URL}/dev/docs/"
@@ -537,6 +541,23 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-20 — Motor OCR por condomínio (Tesseract ou PaddleOCR)
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Sem variável obrigatória nova.
+- Migration adiciona `label_ocr_engine` em `condominiums` (padrão `tesseract`).
+- Síndico ou administrador da plataforma define o motor em **Meu Condomínio → Leitura de etiquetas (OCR)** (módulo Encomendas ativo).
+- Tesseract continua sendo o padrão da VPS (Passo 1). PaddleOCR é opcional: instale Python 3, `pip install paddlepaddle paddleocr` no servidor e configure `PADDLE_OCR_PYTHON` / `PADDLE_OCR_SCRIPT` no `.env` se for usar `paddle`.
+- Se o motor escolhido não estiver disponível, a leitura tenta o outro automaticamente; o registro manual permanece.
+- Após alterar `PADDLE_OCR_PYTHON`: `php artisan config:clear` e `php artisan ocr:diagnose` (limpa cache de detecção e confirma Tesseract/Paddle).
+- O script `scripts/ocr/paddle_label.py` desativa oneDNN/PIR por padrão (bug conhecido do PaddlePaddle 3.3+ em CPU). Na primeira leitura, modelos podem ser baixados — aguarde até `PADDLE_OCR_TIMEOUT` (padrão 120s).
+- No Windows, se `pip` instalou só no perfil do usuário, configure `PADDLE_OCR_PYTHONPATH` com o caminho de `site-packages` exibido por `php artisan ocr:diagnose` (ou instale com o mesmo usuário do PHP/serviço web).
+
+### 2026-09-20 — Intake de encomendas com OCR em tempo real no navegador (PaddleOCR.js PP-OCRv6)
+
+- Atualização: Parte 2 (`git pull` + `npm ci` + `npm run build`). Sem migration nem `.env` novo no servidor.
+- A portaria (`/packages/intake`) usa `getUserMedia` + PaddleOCR.js no **navegador** (modelos baixados na primeira leitura). O PHP só faz match (`POST /api/packages/label/match-text`) e grava a foto na confirmação (`POST /api/packages/label/preview-client`).
+- Evita timeout HTTP 524 do Cloudflare no preview com OCR no servidor; o motor configurado no condomínio (Tesseract/Paddle Python) continua válido para outros fluxos.
 
 ### 2026-09-19 — Regime de ocupação (aluguel / particular / imóvel público)
 

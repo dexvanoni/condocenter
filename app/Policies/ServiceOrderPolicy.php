@@ -13,7 +13,7 @@ class ServiceOrderPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_service_orders') || $user->can('manage_service_orders');
+        return $this->occupancyService()->canAccessServiceOrdersModule($user);
     }
 
     public function view(User $user, ServiceOrder $order): bool

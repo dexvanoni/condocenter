@@ -4,7 +4,6 @@ namespace App\Services\Ocr;
 
 use App\Contracts\OcrServiceInterface;
 use App\DTO\OcrResult;
-use App\Services\Packages\PackageSenderDetector;
 use App\Support\TextNormalizer;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\Process;
 class TesseractOcrService implements OcrServiceInterface
 {
     public function __construct(
-        private readonly PackageSenderDetector $senderDetector
+        private readonly LabelOcrResultBuilder $resultBuilder
     ) {
     }
 
@@ -44,7 +43,7 @@ class TesseractOcrService implements OcrServiceInterface
         }
     }
 
-    public function extract(string $imagePath): OcrResult
+    public function extract(string $imagePath, array $hints = []): OcrResult
     {
         if (!is_file($imagePath)) {
             return new OcrResult(extra: ['error' => 'Imagem não encontrada']);
@@ -63,13 +62,22 @@ class TesseractOcrService implements OcrServiceInterface
             ]);
         }
 
+        $userWordsFile = $this->writeUserWords($hints['user_words'] ?? []);
+
         try {
-            $lang = config('ocr.lang', 'por');
-            $timeout = (int) config('ocr.timeout', 30);
+            $lang = (string) config('ocr.lang', 'por');
+            $timeout = (int) config('ocr.timeout', 15);
             $passes = [];
 
-            foreach ([6, 11, 3] as $psm) {
-                $pass = $this->runPass($binary, $imagePath, $lang, $timeout, $psm);
+            foreach ([6, 4] as $psm) {
+                $pass = $this->runPass($binary, $imagePath, $lang, $timeout, $psm, $userWordsFile);
+                if ($pass['text'] !== '') {
+                    $passes[] = $pass;
+                }
+            }
+
+            if ($passes === [] && $userWordsFile) {
+                $pass = $this->runPass($binary, $imagePath, $lang, $timeout, 6, null);
                 if ($pass['text'] !== '') {
                     $passes[] = $pass;
                 }
@@ -85,24 +93,13 @@ class TesseractOcrService implements OcrServiceInterface
 
             usort($passes, fn (array $a, array $b) => $this->passScore($b) <=> $this->passScore($a));
             $best = $passes[0];
-            $rawText = $best['text'];
-            $confidence = $best['confidence'];
-            $unitParts = TextNormalizer::extractBlockAndUnit($rawText);
+            $rawText = $this->mergePassTexts($passes);
 
-            return new OcrResult(
-                rawText: $rawText,
-                confidence: $confidence,
-                trackingCode: TextNormalizer::extractTrackingCode($rawText),
-                possibleName: TextNormalizer::extractPossibleName($rawText),
-                possibleAddress: $this->extractAddressLine($rawText),
-                possibleUnit: $unitParts['number'],
-                possibleBlock: $unitParts['block'],
-                possibleSender: $this->senderDetector->detect($rawText),
-                extra: [
-                    'psm' => $best['psm'],
-                    'passes' => count($passes),
-                ],
-            );
+            return $this->resultBuilder->fromRawText($rawText, $best['confidence'], [
+                'psm' => $best['psm'],
+                'passes' => count($passes),
+                'engine' => 'tesseract',
+            ]);
         } catch (\Throwable $e) {
             Log::error('OCR extraction failed', [
                 'error' => $this->safeText($e->getMessage()),
@@ -117,33 +114,49 @@ class TesseractOcrService implements OcrServiceInterface
                     'error' => 'Falha ao processar a etiqueta. Tente novamente ou registre manualmente.',
                 ],
             );
+        } finally {
+            if ($userWordsFile && is_file($userWordsFile)) {
+                @unlink($userWordsFile);
+            }
         }
     }
 
     /**
      * @return array{text: string, confidence: float, psm: int}
      */
-    private function runPass(string $binary, string $imagePath, string $lang, int $timeout, int $psm): array
-    {
-        $outputBase = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ocr_out_' . uniqid('', true);
-        $result = Process::timeout($timeout)->run([
+    private function runPass(
+        string $binary,
+        string $imagePath,
+        string $lang,
+        int $timeout,
+        int $psm,
+        ?string $userWordsFile
+    ): array {
+        $command = [
             $binary,
             $imagePath,
-            $outputBase,
+            'stdout',
             '-l',
             $lang,
             '--oem',
             '1',
             '--psm',
             (string) $psm,
+            '--dpi',
+            '300',
             '-c',
             'preserve_interword_spaces=1',
-        ]);
+        ];
 
-        $txtFile = $outputBase . '.txt';
-        $text = is_file($txtFile) ? (string) file_get_contents($txtFile) : '';
-        @unlink($txtFile);
-        $text = $this->safeText($text);
+        if ($userWordsFile) {
+            $command[] = '--user-words';
+            $command[] = $userWordsFile;
+        }
+
+        $command[] = 'tsv';
+
+        $result = Process::timeout($timeout)->run($command);
+        $parsed = $this->parseTsv($this->safeText($result->output()));
 
         if (!$result->successful()) {
             Log::warning('OCR pass failed', [
@@ -153,10 +166,118 @@ class TesseractOcrService implements OcrServiceInterface
             ]);
         }
 
+        $text = $parsed['text'];
+
+        return [
+            'text' => $text,
+            'confidence' => $parsed['confidence'] > 0
+                ? $parsed['confidence']
+                : ($this->estimateConfidence($text) ?? 0.0),
+            'psm' => $psm,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $words
+     */
+    private function writeUserWords(array $words): ?string
+    {
+        $tokens = [
+            'DESTINATARIO', 'RECEBEDOR', 'BLOCO', 'APTO', 'APARTAMENTO',
+            'UNIDADE', 'TORRE', 'CEP', 'ENDERECO',
+        ];
+
+        foreach ($words as $word) {
+            $normalized = TextNormalizer::normalizeName((string) $word);
+            foreach (explode(' ', $normalized) as $token) {
+                if (mb_strlen($token) >= 3) {
+                    $tokens[] = $token;
+                }
+            }
+        }
+
+        $tokens = array_values(array_unique($tokens));
+        if ($tokens === []) {
+            return null;
+        }
+
+        $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ocr_words_' . uniqid('', true) . '.txt';
+        file_put_contents($path, implode(PHP_EOL, $tokens));
+
+        return $path;
+    }
+
+    /**
+     * @param  list<array{text: string, confidence: float, psm: int}>  $passes
+     */
+    private function mergePassTexts(array $passes): string
+    {
+        $seen = [];
+        $lines = [];
+
+        foreach ($passes as $pass) {
+            foreach (preg_split('/\r\n|\r|\n/', $pass['text']) ?: [] as $line) {
+                $trimmed = trim($line);
+                $key = TextNormalizer::normalizeText($trimmed);
+                if ($key === '' || isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $lines[] = $trimmed;
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @return array{text: string, confidence: float}
+     */
+    private function parseTsv(string $tsv): array
+    {
+        $rows = preg_split('/\r\n|\r|\n/', $tsv) ?: [];
+        $wordsByLine = [];
+        $confidences = [];
+        $headerSkipped = false;
+
+        foreach ($rows as $row) {
+            if (!$headerSkipped) {
+                $headerSkipped = true;
+                continue;
+            }
+
+            $cols = explode("\t", $row);
+            if (count($cols) < 12) {
+                continue;
+            }
+
+            if ((int) $cols[0] !== 5) {
+                continue;
+            }
+
+            $word = trim((string) ($cols[11] ?? ''));
+            $conf = (float) $cols[10];
+            if ($word === '' || $conf < 0) {
+                continue;
+            }
+
+            $lineKey = $cols[1] . '-' . $cols[2] . '-' . $cols[3] . '-' . $cols[4];
+            $wordsByLine[$lineKey][] = $word;
+            $confidences[] = $conf;
+        }
+
+        $text = implode("\n", array_map(
+            fn (array $words) => implode(' ', $words),
+            $wordsByLine
+        ));
+
+        $confidence = $confidences === []
+            ? 0.0
+            : round((array_sum($confidences) / count($confidences)) / 100, 4);
+
         return [
             'text' => trim($text),
-            'confidence' => $this->estimateConfidence($text) ?? 0.0,
-            'psm' => $psm,
+            'confidence' => $confidence,
         ];
     }
 
@@ -258,21 +379,4 @@ class TesseractOcrService implements OcrServiceInterface
         return round(max(0.1, min(0.99, $confidence)), 4);
     }
 
-    private function extractAddressLine(string $text): ?string
-    {
-        $lines = preg_split('/\r\n|\r|\n/', $text) ?: [];
-        foreach ($lines as $line) {
-            $normalized = TextNormalizer::normalizeAddress($line);
-            if (
-                str_contains($normalized, 'RUA')
-                || str_contains($normalized, 'AVENIDA')
-                || str_contains($normalized, 'BLOCO')
-                || str_contains($normalized, 'APARTAMENTO')
-            ) {
-                return trim($line);
-            }
-        }
-
-        return null;
-    }
 }

@@ -86,6 +86,79 @@ class UnitOccupancyService
     }
 
     /**
+     * Morador/agregado inquilino em unidade de aluguel não acessa assembleias (voto é do proprietário).
+     */
+    public function canParticipateInAssemblies(User $user): bool
+    {
+        if ($user->can('manage_assemblies')) {
+            return true;
+        }
+
+        if ($this->agregadoLinkedToRentalMorador($user)) {
+            return false;
+        }
+
+        if ($user->isMorador() && $this->userLivesInRentalUnit($user)) {
+            return false;
+        }
+
+        if ($user->isProprietario()) {
+            $tenantId = $user->tenantCondominiumId();
+
+            if ($tenantId !== null && $this->ownedRentalUnits($user, $tenantId)->isNotEmpty()) {
+                return true;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Inquilino em aluguel não gerencia ordens de serviço (apenas OS marcadas visíveis ao inquilino, via policy).
+     */
+    public function canAccessServiceOrdersModule(User $user): bool
+    {
+        if ($user->can('manage_service_orders')) {
+            return true;
+        }
+
+        if ($this->agregadoLinkedToRentalMorador($user)) {
+            return false;
+        }
+
+        if ($user->isMorador() && $this->userLivesInRentalUnit($user)) {
+            return false;
+        }
+
+        if ($user->isProprietario()) {
+            $tenantId = $user->tenantCondominiumId();
+
+            if ($tenantId !== null && $this->ownedUnitIds($user, $tenantId) !== []) {
+                return true;
+            }
+        }
+
+        return $user->can('view_service_orders') || $user->can('create_service_orders');
+    }
+
+    public function syndicProfileForRentalUnit(User $user, Unit $unit): ?string
+    {
+        if (!$this->isRental($unit)) {
+            return null;
+        }
+
+        if ($unit->owner_user_id && (int) $unit->owner_user_id === (int) $user->id) {
+            return SyndicConversationService::PROFILE_PROPRIETARIO;
+        }
+
+        if ($user->unit_id && (int) $user->unit_id === (int) $unit->id && $user->hasAssignedRole('Morador')) {
+            return SyndicConversationService::PROFILE_MORADOR;
+        }
+
+        return null;
+    }
+
+    /**
      * @return list<int>
      */
     public function assemblyVoteUnitIdsForVoter(User $voter, ?int $requestedUnitId = null): array

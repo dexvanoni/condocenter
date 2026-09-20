@@ -175,46 +175,216 @@ class TextNormalizer
         $bestScore = PHP_INT_MIN;
 
         foreach ($lines as $index => $line) {
-            $normalized = self::normalizeName($line);
-            if ($normalized === '' || preg_match('/\d/', $normalized)) {
+            $labeled = self::nameAfterRecipientLabel($line);
+            if ($labeled !== null) {
+                return $labeled;
+            }
+
+            $candidate = self::prepareNameCandidate($line);
+            if ($candidate === null) {
                 continue;
             }
 
-            $words = explode(' ', $normalized);
-            $wordCount = count($words);
-
-            if ($wordCount < 2 || $wordCount > 7 || self::looksLikeNonNameLine($normalized)) {
-                continue;
-            }
-
-            $score = $wordCount * 2;
-            $followingLines = implode(' ', array_slice($lines, $index + 1, 3));
-            $followingNormalized = self::normalizeText($followingLines);
-
-            // É o padrão mais confiável desta classe de etiquetas.
-            if (preg_match('/\b(ENDERECO|CEP|CIDADE\s+DE\s+DESTINO)\b/', $followingNormalized)) {
-                $score += 12;
-            }
-
-            // Algumas etiquetas imprimem na sequência o nome concatenado.
-            if (preg_match('/^\s*\([A-Z\s]+\)/u', $lines[$index + 1] ?? '')) {
-                $score += 8;
-            }
-
-            // Nomes humanos tendem a possuir mais de uma palavra com 3+ letras.
-            $meaningfulWords = count(array_filter(
-                $words,
-                fn (string $word) => mb_strlen($word) >= 3
-            ));
-            $score += $meaningfulWords * 2;
+            $score = self::scoreNameCandidate($candidate, $lines, $index);
 
             if ($score > $bestScore) {
                 $bestScore = $score;
-                $best = $normalized;
+                $best = $candidate;
             }
         }
 
-        return $best;
+        if ($best !== null) {
+            return $best;
+        }
+
+        $collapsed = self::normalizeText($text);
+
+        return self::nameAfterRecipientLabel($collapsed) ?? self::prepareNameCandidate($collapsed);
+    }
+
+    public static function extractPossibleAddress(?string $text): ?string
+    {
+        if ($text === null || $text === '') {
+            return null;
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $text) ?: [];
+        foreach ($lines as $line) {
+            $normalized = self::normalizeAddress($line);
+            if (
+                str_contains($normalized, 'RUA')
+                || str_contains($normalized, 'AVENIDA')
+                || str_contains($normalized, 'BLOCO')
+                || str_contains($normalized, 'APARTAMENTO')
+            ) {
+                return trim($line);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Presença do nome cadastrado no texto bruto da etiqueta.
+     * Não depende de o OCR ter isolado a linha certa do destinatário.
+     */
+    public static function namePresenceInText(string $name, string $text): float
+    {
+        $nameTokens = array_values(array_filter(
+            explode(' ', self::normalizeName($name)),
+            fn (string $token) => mb_strlen($token) >= 3
+        ));
+
+        if ($nameTokens === [] || trim($text) === '') {
+            return 0.0;
+        }
+
+        $haystack = self::nameSearchHaystack($text);
+
+        return self::namePresenceInHaystack($nameTokens, $haystack);
+    }
+
+    /**
+     * @return array{tokens: list<string>, blob: string}
+     */
+    public static function nameSearchHaystack(string $text): array
+    {
+        $normalized = self::normalizeText($text);
+        $tokens = array_values(array_filter(explode(' ', $normalized)));
+        $blob = preg_replace('/[^A-Z0-9]/', '', $normalized) ?? '';
+
+        return [
+            'tokens' => $tokens,
+            'blob' => $blob,
+        ];
+    }
+
+    /**
+     * @param  list<string>  $nameTokens
+     * @param  array{tokens: list<string>, blob: string}  $haystack
+     */
+    public static function namePresenceInHaystack(array $nameTokens, array $haystack): float
+    {
+        if ($nameTokens === [] || $haystack['tokens'] === []) {
+            return 0.0;
+        }
+
+        $matched = 0;
+        $firstMatched = false;
+
+        foreach ($nameTokens as $index => $token) {
+            $found = self::tokenInList($token, $haystack['tokens']);
+
+            if (!$found && mb_strlen($token) >= 4 && str_contains($haystack['blob'], $token)) {
+                $found = true;
+            }
+
+            if ($found) {
+                $matched++;
+                if ($index === 0) {
+                    $firstMatched = true;
+                }
+            }
+        }
+
+        $coverage = $matched / count($nameTokens);
+
+        if ($firstMatched && $coverage >= 1.0 && count($nameTokens) >= 2) {
+            return 0.97;
+        }
+
+        if ($firstMatched && $matched >= 2 && $coverage >= 0.66) {
+            return round(max(0.88, 0.70 + ($coverage * 0.25)), 4);
+        }
+
+        if ($firstMatched && $coverage >= 0.5 && count($nameTokens) >= 2) {
+            return round(max(0.70, $coverage * 0.85), 4);
+        }
+
+        if ($firstMatched && count($nameTokens) === 1) {
+            return 0.45;
+        }
+
+        return round($coverage * ($firstMatched ? 0.65 : 0.35), 4);
+    }
+
+    private static function nameAfterRecipientLabel(string $line): ?string
+    {
+        $normalized = self::normalizeText($line);
+        if (!preg_match('/\b(?:DESTINATARIO|RECEBEDOR|RECEIVER)\s*[:\-]?\s+(.+)$/', $normalized, $matches)) {
+            return null;
+        }
+
+        return self::prepareNameCandidate($matches[1]);
+    }
+
+    private static function prepareNameCandidate(string $line): ?string
+    {
+        $normalized = self::normalizeAddress($line);
+
+        if (preg_match(
+            '/^(.*?)(\b(?:ENDERECO|RUA|AVENIDA|CEP|BLOCO|APARTAMENTO|UNIDADE|COMPLEMENTO|REFERENCIA|CIDADE)\b)(.*)$/',
+            $normalized,
+            $matches
+        )) {
+            $left = self::normalizeName($matches[1]);
+
+            return self::isNameLike($left) ? $left : null;
+        }
+
+        $withoutDigits = preg_replace('/\d+/', ' ', $normalized) ?? $normalized;
+        $name = self::normalizeName($withoutDigits);
+
+        return self::isNameLike($name) ? $name : null;
+    }
+
+    private static function isNameLike(string $name): bool
+    {
+        if ($name === '') {
+            return false;
+        }
+
+        $words = explode(' ', $name);
+        $wordCount = count($words);
+
+        if ($wordCount < 2 || $wordCount > 8 || self::looksLikeNonNameLine($name)) {
+            return false;
+        }
+
+        $meaningfulWords = count(array_filter(
+            $words,
+            fn (string $word) => mb_strlen($word) >= 3
+        ));
+
+        return $meaningfulWords >= 2;
+    }
+
+    /**
+     * @param  list<string>  $lines
+     */
+    private static function scoreNameCandidate(string $candidate, array $lines, int $index): int
+    {
+        $words = explode(' ', $candidate);
+        $score = count($words) * 2;
+
+        $followingLines = implode(' ', array_slice($lines, $index + 1, 3));
+        $followingNormalized = self::normalizeText($followingLines);
+
+        if (preg_match('/\b(ENDERECO|CEP|CIDADE\s+DE\s+DESTINO)\b/', $followingNormalized)) {
+            $score += 12;
+        }
+
+        if (preg_match('/^\s*\([A-Z\s]+\)/u', $lines[$index + 1] ?? '')) {
+            $score += 8;
+        }
+
+        $meaningfulWords = count(array_filter(
+            $words,
+            fn (string $word) => mb_strlen($word) >= 3
+        ));
+        $score += $meaningfulWords * 2;
+
+        return $score;
     }
 
     private static function looksLikeNonNameLine(string $normalized): bool
@@ -223,7 +393,9 @@ class TextNormalizer
             'MERCADO', 'LIVRE', 'SHOPEE', 'AMAZON', 'CORREIOS', 'JADLOG', 'LOGGI',
             'EXPRESS', 'TRANSPORTADORA', 'DESTINATARIO', 'REMETENTE', 'ENDERECO',
             'CEP', 'CIDADE', 'DESTINO', 'COMPLEMENTO', 'REFERENCIA', 'LAVA', 'JATO',
-            'RUA', 'AVENIDA', 'VENDA', 'SKU', 'AGENCIA', 'FAMPLEMNTO',
+            'RUA', 'AVENIDA', 'VENDA', 'SKU', 'AGENCIA', 'FAMPLEMNTO', 'ZONA',
+            'RURAL', 'VOLUME', 'PACOTE', 'FRAGIL', 'CAIXA', 'ENCOMENDA', 'NOTA',
+            'FISCAL', 'PEDIDO', 'TRACKING', 'RASTREIO',
         ];
 
         $words = explode(' ', $normalized);
@@ -232,7 +404,6 @@ class TextNormalizer
                 return true;
             }
 
-            // Corrige ruídos comuns do OCR em cabeçalhos, ex.: FAMPLEMNTO.
             foreach (['COMPLEMENTO', 'ENDERECO', 'REFERENCIA'] as $header) {
                 if (mb_strlen($word) >= 7 && levenshtein($word, $header) <= 4) {
                     return true;

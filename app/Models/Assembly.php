@@ -148,6 +148,27 @@ class Assembly extends Model
 
     public function canUserVote(User $user): bool
     {
+        $occupancy = app(\App\Services\UnitOccupancyService::class);
+
+        if (!$occupancy->canParticipateInAssemblies($user)) {
+            return false;
+        }
+
+        if ($user->isProprietario()) {
+            $tenantId = $user->tenantCondominiumId();
+
+            return $tenantId !== null
+                && $occupancy->ownedRentalUnits($user, $tenantId)->isNotEmpty();
+        }
+
+        if ($user->isMorador() && !$occupancy->moradorCanVoteInAssembly($user)) {
+            return false;
+        }
+
+        if ($user->isAgregado() && $occupancy->agregadoLinkedToRentalMorador($user)) {
+            return false;
+        }
+
         $allowedRoles = $this->relationLoaded('allowedRoles')
             ? $this->allowedRoles->pluck('name')
             : $this->allowedRoles()->pluck('name');
@@ -162,6 +183,12 @@ class Assembly extends Model
 
         if ($permitted->isEmpty()) {
             $permitted = collect(['Morador', 'Agregado', 'Síndico']);
+        }
+
+        $activeRole = $user->getActiveRoleName();
+
+        if ($user->shouldUseActiveRoleOnly() && $activeRole) {
+            return $permitted->contains($activeRole);
         }
 
         return $user->roles()->whereIn('name', $permitted)->exists();

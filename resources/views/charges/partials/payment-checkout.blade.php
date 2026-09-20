@@ -133,6 +133,12 @@
     </div>
 </div>
 
+@php
+    use App\Helpers\SidebarHelper;
+    $chargePaymentBaseUrl = $chargePaymentBaseUrl ?? SidebarHelper::chargePaymentBaseUrl(auth()->user());
+@endphp
+<script>window.chargePaymentBaseUrl = @json($chargePaymentBaseUrl);</script>
+
 @once
 @push('scripts')
 <script>
@@ -142,7 +148,13 @@
     }
     window.__chargePaymentCheckoutLoaded = true;
 
-    const chargeBaseUrl = @json(url('/charges'));
+    const defaultChargeBaseUrl = @json(url('/charges'));
+
+    function chargeBaseUrl() {
+        const fromBody = document.body?.dataset?.chargePaymentBaseUrl;
+
+        return window.chargePaymentBaseUrl || fromBody || defaultChargeBaseUrl;
+    }
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const currentUser = {
         name: @json(auth()->user()->name ?? ''),
@@ -301,7 +313,7 @@
         paymentPollingTimer = setInterval(() => {
             if (!selectedChargeId) return;
 
-            fetch(`${chargeBaseUrl}/${selectedChargeId}/payment-status`, {
+            fetch(`${chargeBaseUrl()}/${selectedChargeId}/payment-status`, {
                 headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             })
                 .then(response => response.json())
@@ -334,7 +346,7 @@
             form.querySelector('[name="phone"]').value = currentUser.phone || '';
         }
 
-        fetch(`${chargeBaseUrl}/${id}/checkout`, {
+        fetch(`${chargeBaseUrl()}/${id}/checkout`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -356,9 +368,14 @@
             .catch(error => {
                 document.getElementById('chargePaymentLoading')?.classList.add('d-none');
                 const errorBox = document.getElementById('chargePaymentError');
+                const bag = error.errors || {};
                 const message = error.payment?.[0]
+                    || bag.payment?.[0]
                     || error.charge?.[0]
+                    || bag.charge?.[0]
                     || error.cpf?.[0]
+                    || bag.cpf?.[0]
+                    || error.error
                     || error.message
                     || 'Não foi possível iniciar o pagamento.';
                 if (errorBox) {
@@ -380,7 +397,7 @@
     window.checkChargePaymentStatus = function checkChargePaymentStatus() {
         if (!selectedChargeId) return;
 
-        fetch(`${chargeBaseUrl}/${selectedChargeId}/payment-status`, {
+        fetch(`${chargeBaseUrl()}/${selectedChargeId}/payment-status`, {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         })
             .then(response => response.json())
@@ -407,7 +424,7 @@
         clearCardErrors(errorsContainer);
         submitBtn.disabled = true;
 
-        fetch(`${chargeBaseUrl}/${selectedChargeId}/pay-card`, {
+        fetch(`${chargeBaseUrl()}/${selectedChargeId}/pay-card`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

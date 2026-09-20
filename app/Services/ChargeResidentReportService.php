@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\Charge;
+use App\Models\Unit;
 use App\Models\User;
+use App\Services\UnitOccupancyService;
 use App\Support\CondominiumDocuments;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,7 +41,7 @@ class ChargeResidentReportService
             'condominium' => CondominiumDocuments::presentCondominium($condominium),
             'resident' => [
                 'name' => $user->name,
-                'unit' => $user->unit?->full_identifier,
+                'unit' => $this->resolveUnitLabelForReport($user),
             ],
             'filters' => $this->describeFilters($request),
             'rows' => $rows,
@@ -66,9 +68,15 @@ class ChargeResidentReportService
 
     public function buildQuery(User $user, Request $request): Builder
     {
-        $query = Charge::query()
-            ->where('condominium_id', $user->tenantCondominiumId())
-            ->where('unit_id', $user->unit_id);
+        $condominiumId = (int) $user->tenantCondominiumId();
+        $query = Charge::query()->where('condominium_id', $condominiumId);
+
+        if ($user->isProprietario() && !$user->isAdmin() && !$user->isSindico()) {
+            $ownedIds = app(UnitOccupancyService::class)->ownedUnitIds($user, $condominiumId);
+            $query->whereIn('unit_id', $ownedIds !== [] ? $ownedIds : [0]);
+        } else {
+            $query->where('unit_id', $user->unit_id);
+        }
 
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
@@ -128,5 +136,27 @@ class ChargeResidentReportService
     protected function formatMoney($value): string
     {
         return 'R$ ' . number_format((float) $value, 2, ',', '.');
+    }
+
+    protected function resolveUnitLabelForReport(User $user): ?string
+    {
+        if ($user->isProprietario() && !$user->isAdmin() && !$user->isSindico()) {
+            $condominiumId = (int) $user->tenantCondominiumId();
+            $ownedIds = app(UnitOccupancyService::class)->ownedUnitIds($user, $condominiumId);
+
+            if ($ownedIds === []) {
+                return null;
+            }
+
+            return Unit::query()
+                ->whereIn('id', $ownedIds)
+                ->orderBy('block')
+                ->orderBy('number')
+                ->get()
+                ->pluck('full_identifier')
+                ->join(', ');
+        }
+
+        return $user->unit?->full_identifier;
     }
 }

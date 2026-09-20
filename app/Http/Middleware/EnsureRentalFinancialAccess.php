@@ -22,8 +22,26 @@ class EnsureRentalFinancialAccess
             return $next($request);
         }
 
+        $isRentalTenant = $this->unitOccupancyService->userLivesInRentalUnit($user)
+            || $this->unitOccupancyService->agregadoLinkedToRentalMorador($user);
+
         $message = 'O módulo financeiro é de responsabilidade do proprietário em imóveis de aluguel. '
             . 'Multas e taxas de reserva podem ser quitadas em Minhas pendências.';
+
+        if ($isRentalTenant && \Illuminate\Support\Facades\Route::has('tenant-payables.index')) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'error' => $message,
+                    'redirect' => route('tenant-payables.index'),
+                ], 403);
+            }
+
+            if ($request->routeIs('my-charges.*', 'charges.*')) {
+                return redirect()
+                    ->route('tenant-payables.index')
+                    ->with('info', $message);
+            }
+        }
 
         if ($request->expectsJson() || $request->is('api/*')) {
             return response()->json(['error' => $message], 403);

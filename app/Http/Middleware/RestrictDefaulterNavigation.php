@@ -22,6 +22,7 @@ class RestrictDefaulterNavigation
         'charges.checkout',
         'charges.pay-card',
         'charges.payment-status',
+        'tenant-payables.*',
         'syndic-conversations.*',
         'profile.*',
         'password.change',

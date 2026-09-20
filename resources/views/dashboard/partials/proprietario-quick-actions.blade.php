@@ -6,26 +6,26 @@
     $ownedUnitIds = app(UnitOccupancyService::class)->ownedUnitIds($user, (int) $user->tenantCondominiumId());
     $pendingChargesCount = 0;
 
+    $occupancy = app(UnitOccupancyService::class);
+
     if ($ownedUnitIds !== [] && SidebarHelper::canAccessModule($user, 'financial')) {
-        $pendingChargesCount = \App\Models\Charge::query()
+        $ownerPending = \App\Models\Charge::query()
             ->whereIn('unit_id', $ownedUnitIds)
-            ->effectivelyPending()
-            ->count()
-            + \App\Models\Charge::query()
-                ->whereIn('unit_id', $ownedUnitIds)
-                ->effectivelyOverdue()
-                ->count();
+            ->get()
+            ->filter(fn ($charge) => !$occupancy->isMoradorResponsibleCharge($charge));
+
+        $pendingChargesCount = $ownerPending->filter(fn ($c) => in_array($c->effectiveStatus(), ['pending', 'overdue'], true))->count();
     }
 @endphp
 
 <div class="md-quick-grid fade-in">
-    @if($pendingChargesCount > 0 && Route::has('my-charges.index') && SidebarHelper::canAccessModule($user, 'financial'))
+    @if($pendingChargesCount > 0 && Route::has('my-charges.index') && SidebarHelper::canAccessMyChargesIndex($user))
     <a href="{{ route('my-charges.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__badge">{{ $pendingChargesCount }}</span>
         <span class="md-quick-tile__icon md-quick-tile__icon--pay"><i class="bi bi-credit-card"></i></span>
         <span>Financeiro</span>
     </a>
-    @elseif(Route::has('my-charges.index') && SidebarHelper::canAccessModule($user, 'financial'))
+    @elseif(Route::has('my-charges.index') && SidebarHelper::canAccessMyChargesIndex($user))
     <a href="{{ route('my-charges.index') }}" class="md-quick-tile">
         <span class="md-quick-tile__icon md-quick-tile__icon--pay"><i class="bi bi-credit-card"></i></span>
         <span>Financeiro</span>

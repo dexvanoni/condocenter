@@ -2,6 +2,11 @@
 
 @section('title', 'Minhas pendências')
 
+@php
+    use App\Helpers\SidebarHelper;
+    $user = auth()->user();
+@endphp
+
 @section('content')
 <div class="container py-4">
     <h1 class="h3 mb-3"><i class="bi bi-wallet2"></i> Minhas pendências</h1>
@@ -27,7 +32,12 @@
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="fw-semibold">R$ {{ number_format((float) $charge->amount, 2, ',', '.') }}</span>
-                                <a href="{{ route('tenant-payables.charges.show', $charge) }}" class="btn btn-sm btn-primary">Ver / pagar</a>
+                                @if($onlinePaymentsEnabled)
+                                    <button type="button" class="btn btn-sm btn-success" onclick="window.openChargeCheckout({{ $charge->id }})">
+                                        Pagar online
+                                    </button>
+                                @endif
+                                <a href="{{ route('tenant-payables.charges.show', $charge) }}" class="btn btn-sm btn-outline-primary">Detalhes</a>
                             </div>
                         </li>
                     @endforeach
@@ -59,4 +69,10 @@
         </div>
     </div>
 </div>
+
+@if($onlinePaymentsEnabled)
+    @include('charges.partials.payment-checkout', [
+        'chargePaymentBaseUrl' => SidebarHelper::chargePaymentBaseUrl($user),
+    ])
+@endif
 @endsection
