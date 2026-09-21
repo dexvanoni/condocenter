@@ -198,6 +198,9 @@
 @endpush
 
 @section('content')
+@php
+    $tenantCondominiumId = $activeCondominiumContext['id'] ?? auth()->user()?->getActiveCondominiumId();
+@endphp
 <!-- Header -->
 <div class="mb-4">
     <div class="d-flex justify-content-between align-items-center">
@@ -227,6 +230,18 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 @endif
+
+@if(!empty($unitsLimitReached) && $unitsLimitReached)
+    @include('units.partials.units-limit-alert', [
+        'condominium' => $activeCondominium,
+        'developerContact' => $developerContact ?? null,
+    ])
+    <div class="d-grid gap-2 mb-4">
+        <a href="{{ route('units.index') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-arrow-left"></i> Voltar para unidades
+        </a>
+    </div>
+@else
 
 <!-- Progress Steps -->
 <div class="step-wizard">
@@ -267,7 +282,6 @@
                 <div class="section-body">
                     @php
                         $condominium = $activeCondominium ?? ($activeCondominiumContext['condominium'] ?? auth()->user()->condominium);
-                        $tenantCondominiumId = $activeCondominiumContext['id'] ?? auth()->user()->getActiveCondominiumId();
                     @endphp
                     @if($condominium?->address)
                     <div class="alert alert-info border-0 mb-4" style="background: #e7f3ff;">
@@ -509,8 +523,10 @@
         </div>
     </div>
 </form>
+@endif
 @endsection
 
+@if(empty($unitsLimitReached) || !$unitsLimitReached)
 @push('scripts')
 <script>
 // Inicializar tooltips quando Bootstrap estiver disponível
@@ -624,4 +640,5 @@ document.querySelector('input[name="number"]')?.addEventListener('input', checkD
 document.querySelector('input[name="block"]')?.addEventListener('input', checkDuplicateUnit);
 </script>
 @endpush
+@endif
 

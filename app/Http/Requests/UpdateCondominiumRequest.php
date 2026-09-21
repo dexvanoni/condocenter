@@ -45,6 +45,22 @@ class UpdateCondominiumRequest extends FormRequest
         if ($this->user()?->isAdmin()) {
             $rules['financial_mode'] = ['required', Rule::in(['full', 'simplified'])];
             $rules['is_active'] = ['nullable', 'boolean'];
+            $rules['units_limit'] = [
+                'required',
+                'integer',
+                'min:1',
+                'max:50000',
+                function ($attribute, $value, $fail) {
+                    $condominium = $this->route('condominium');
+                    if (!$condominium instanceof Condominium) {
+                        return;
+                    }
+                    $inUse = $condominium->units()->count();
+                    if ((int) $value < $inUse) {
+                        $fail("O limite não pode ser menor que o número de unidades já cadastradas ({$inUse}).");
+                    }
+                },
+            ];
         }
 
         return $rules;

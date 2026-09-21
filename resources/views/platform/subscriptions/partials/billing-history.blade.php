@@ -6,6 +6,8 @@
     $exportUrl = $exportUrl ?? '#';
     $showAnchor = $showAnchor ?? false;
     $syndicPortal = $syndicPortal ?? false;
+    $adminBillingControls = $adminBillingControls ?? false;
+    $billingCondominium = $condominium ?? null;
 @endphp
 
 <div class="card shadow-sm mb-4" @if($showAnchor) id="cobrancas-saas" @endif>
@@ -91,11 +93,51 @@
             </div>
         </form>
 
-        <div class="d-flex justify-content-end mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            @if($adminBillingControls && $billingCondominium && ($subscription ?? null))
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#saasManualChargeForm">
+                    <i class="bi bi-plus-circle"></i> Nova cobrança avulsa
+                </button>
+            @else
+                <span></span>
+            @endif
             <a href="{{ $exportUrl }}" class="btn btn-sm btn-outline-success">
                 <i class="bi bi-download"></i> Exportar CSV (período)
             </a>
         </div>
+
+        @if($adminBillingControls && $billingCondominium && ($subscription ?? null))
+        <div class="collapse mb-3" id="saasManualChargeForm">
+            <div class="card card-body bg-light border-0">
+                <form method="POST" action="{{ route('platform.subscriptions.charges.store', $billingCondominium) }}" class="row g-2 align-items-end">
+                    @csrf
+                    <div class="col-md-2">
+                        <label class="form-label small">Valor (R$)</label>
+                        <input type="number" step="0.01" min="0.01" name="value" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Vencimento</label>
+                        <input type="date" name="due_date" class="form-control form-control-sm" required min="{{ now()->toDateString() }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Forma</label>
+                        <select name="billing_type" class="form-select form-select-sm">
+                            <option value="BOLETO">Boleto</option>
+                            <option value="PIX">PIX</option>
+                            <option value="CREDIT_CARD">Cartão</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small">Descrição</label>
+                        <input type="text" name="description" class="form-control form-control-sm" placeholder="Opcional">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-sm btn-primary w-100">Criar no Asaas</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        @endif
 
         @if(empty($charges))
             <p class="text-muted mb-0">Nenhuma cobrança encontrada para os filtros selecionados.</p>
@@ -146,6 +188,27 @@
                                         </a>
                                     @elseif(!$syndicPortal)
                                         <span class="text-muted small">—</span>
+                                    @endif
+                                    @if($adminBillingControls && $billingCondominium && !empty($charge['id']))
+                                        @if(in_array($charge['status_group'], ['pending', 'overdue'], true))
+                                            <form method="POST" action="{{ route('platform.subscriptions.charges.cancel', $billingCondominium) }}"
+                                                  onsubmit="return confirm('Cancelar esta cobrança no Asaas?');" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="payment_id" value="{{ $charge['id'] }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancelar cobrança">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </form>
+                                        @elseif($charge['status_group'] === 'paid')
+                                            <form method="POST" action="{{ route('platform.subscriptions.charges.refund', $billingCondominium) }}"
+                                                  onsubmit="return confirm('Estornar esta cobrança no Asaas?');" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="payment_id" value="{{ $charge['id'] }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-warning" title="Estornar">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                            </form>
+                                        @endif
                                     @endif
                                     </div>
                                 </td>

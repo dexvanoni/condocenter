@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 20/09/2026 (motor OCR por condomínio: Tesseract ou PaddleOCR)
+- **Última revisão:** 21/09/2026 (limite de unidades por condomínio + OCR na portaria)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -53,10 +53,13 @@ apt install -y \
   php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl \
   php8.3-zip php8.3-gd php8.3-bcmath php8.3-intl php8.3-tokenizer
 
-# OCR de etiquetas de encomenda (Tesseract + português)
-apt install -y tesseract-ocr tesseract-ocr-por
+# OCR de etiquetas — Tesseract (obrigatório no servidor) + Python (opcional, só se usar Paddle no PHP)
+apt install -y tesseract-ocr tesseract-ocr-por python3 python3-venv python3-pip
 tesseract --version
+python3 --version
 ```
+
+O **Tesseract** atende o padrão do sistema e o fallback no servidor. O **Python 3** só é necessário se algum condomínio escolher o motor **PaddleOCR (Python)** em Meu Condomínio. A portaria (`/packages/intake`) usa **PaddleOCR.js no navegador** do celular (assets do `npm run build`); isso **não** depende do Python na VPS.
 
 Instale o Composer:
 
@@ -209,18 +212,27 @@ ASAAS_WEBHOOK_TOKEN=
 
 WHATSAPP_ENABLED=false
 SAAS_ENFORCE_SUBSCRIPTION=true
+SAAS_DEVELOPER_CONTACT=seu-email@exemplo.com
 
-# OCR de etiquetas (Encomenda Inteligente) — requer tesseract-ocr no SO (Passo 1)
+# --- OCR de etiquetas (Encomenda Inteligente) — ver também Passo 6 (ambiente Python) ---
 OCR_ENABLED=true
 OCR_LANG=por
 OCR_TIMEOUT=30
 OCR_PREPROCESS_ENABLED=true
-# Deixe vazio no Ubuntu (usa PATH). Só preencha se o binário estiver fora do PATH.
+OCR_MAX_DIMENSION=2400
+# Ubuntu: deixe vazio (usa PATH). Só preencha se o binário estiver fora do PATH.
 TESSERACT_PATH=
-# Opcional — PaddleOCR (motor alternativo; cada condomínio escolhe em Meu Condomínio)
-# PADDLE_OCR_PYTHON=python3
+
+# PaddleOCR via Python (opcional). Padrão no Linux: python3 do sistema ou venv do Passo 6.
+# PADDLE_OCR_PYTHON=/var/www/condocenter/storage/app/ocr/venv/bin/python
 # PADDLE_OCR_SCRIPT=/var/www/condocenter/scripts/ocr/paddle_label.py
 # PADDLE_OCR_TIMEOUT=120
+# PADDLE_OCR_PROBE_TIMEOUT=45
+# Só no Windows/Laragon se pip instalou no perfil do usuário (veja php artisan ocr:diagnose):
+# PADDLE_OCR_PYTHONPATH=
+# Preview legado no servidor (captura manual / APIs antigas): Tesseract rápido e limite do Paddle
+OCR_PREVIEW_TESSERACT_FAST_PATH=true
+PADDLE_OCR_PREVIEW_TIMEOUT=75
 
 DEV_DOCS_TOKEN=
 DEV_DOCS_URL="${APP_URL}/dev/docs/"
@@ -232,7 +244,10 @@ Regras:
 - `DEV_DOCS_TOKEN` vazio em produção (a página interna fica 404).
 - `QUEUE_CONNECTION=database` (a fila entra no Passo 9).
 - A câmera do porteiro no navegador exige **HTTPS** em produção (`APP_URL=https://...`).
-- Em desenvolvimento Windows/Laragon: instale [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) com pacote `por` e aponte `TESSERACT_PATH` (ex.: `C:\Program Files\Tesseract-OCR\tesseract.exe`). Sem Tesseract, o registro manual de encomendas continua funcionando.
+- **Portaria com câmera:** exige HTTPS (`APP_URL=https://...`). O primeiro acesso à intake baixa modelos WASM no celular (pode demorar); não é o Python da VPS.
+- **Motor por condomínio:** em **Meu Condomínio → Leitura de etiquetas (OCR)** o síndico escolhe Tesseract ou Paddle (Python). Se o motor escolhido falhar, o sistema tenta o outro quando possível; o registro manual sempre funciona.
+- Sem Tesseract no servidor: use `OCR_ENABLED=false` ou instale o pacote do Passo 1 — o registro manual de encomendas continua.
+
 Quando terminar: vá para o **Passo 6**.
 
 ---
@@ -254,6 +269,88 @@ sudo -u www-data php artisan view:cache
 ```
 
 **Não rode** `DemoDataSeeder` nem `db:wipe`.
+
+### Encomenda Inteligente — ambiente OCR no servidor
+
+| Camada | Onde roda | Quando precisa na VPS |
+|--------|-----------|------------------------|
+| **PaddleOCR.js (PP-OCRv6)** | Navegador do porteiro (`/packages/intake`) | Só `npm run build` (Passo 4) + HTTPS |
+| **Tesseract** | PHP (`www-data`) | `apt install tesseract-ocr tesseract-ocr-por` (Passo 1) |
+| **PaddleOCR (Python)** | Subprocesso PHP → `scripts/ocr/paddle_label.py` | Passo abaixo + variáveis `PADDLE_OCR_*` no `.env` |
+
+**1) Conferir Tesseract (sempre):**
+
+```bash
+cd /var/www/condocenter
+tesseract --version
+sudo -u www-data php artisan ocr:diagnose
+```
+
+Saída esperada: `Tesseract: disponível`. O comando também limpa o cache de detecção do Paddle e, se o Python estiver OK, pode pré-carregar modelos (`warm-up`).
+
+**2) Instalar PaddleOCR em Python (opcional)** — faça **como `www-data`**, para o PHP-FPM enxergar os mesmos pacotes:
+
+```bash
+cd /var/www/condocenter
+mkdir -p storage/app/ocr
+chown -R www-data:www-data storage/app/ocr
+
+# Ambiente virtual dedicado (recomendado; não misture com pip do root)
+sudo -u www-data python3 -m venv storage/app/ocr/venv
+sudo -u www-data storage/app/ocr/venv/bin/pip install --upgrade pip wheel
+
+# CPU (VPS sem GPU). Na primeira instalação o download pode levar vários minutos.
+sudo -u www-data storage/app/ocr/venv/bin/pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
+sudo -u www-data storage/app/ocr/venv/bin/pip install paddleocr
+
+# Teste rápido de import (deve imprimir caminho site-packages sem erro)
+sudo -u www-data storage/app/ocr/venv/bin/python -c "import paddleocr; print('paddleocr OK')"
+```
+
+No `.env` (Passo 5), descomente e ajuste:
+
+```env
+PADDLE_OCR_PYTHON=/var/www/condocenter/storage/app/ocr/venv/bin/python
+PADDLE_OCR_SCRIPT=/var/www/condocenter/scripts/ocr/paddle_label.py
+PADDLE_OCR_TIMEOUT=120
+```
+
+Depois:
+
+```bash
+sudo -u www-data php artisan config:clear
+sudo -u www-data php artisan ocr:diagnose
+```
+
+- Modelos e cache do Paddle no servidor ficam em `storage/app/ocr/paddle-runtime/` (criado automaticamente; precisa de escrita em `storage/`).
+- O script `paddle_label.py` desativa oneDNN/PIR por padrão (compatibilidade PaddlePaddle 3.3+ em CPU). A **primeira** leitura com Paddle Python pode baixar modelos — respeite `PADDLE_OCR_TIMEOUT` (padrão 120 s).
+- Se `ocr:diagnose` mostrar `paddleocr_not_installed` mas o `pip` funcionou no terminal, confira que instalou no **mesmo** Python do `.env` e, se necessário, copie o `site-packages` sugerido pelo comando para `PADDLE_OCR_PYTHONPATH=` (caso típico no Windows; raro na VPS com venv).
+
+**3) Variáveis OCR (referência):**
+
+| Variável | Padrão / uso |
+|----------|----------------|
+| `OCR_ENABLED` | `true` — desligue só se não houver Tesseract e não quiser OCR no servidor |
+| `OCR_LANG` | `por` |
+| `OCR_TIMEOUT` | Segundos por chamada Tesseract (30) |
+| `OCR_PREPROCESS_ENABLED` | Pré-processamento da imagem antes do OCR |
+| `OCR_MAX_DIMENSION` | Redimensiona imagem grande antes do OCR (2400 px) |
+| `TESSERACT_PATH` | Vazio no Ubuntu; caminho completo se necessário |
+| `PADDLE_OCR_PYTHON` | Linux: `python3` ou venv acima; Windows: caminho do `python.exe` |
+| `PADDLE_OCR_PYTHONPATH` | Pasta `site-packages` se o PHP não encontrar o pacote |
+| `PADDLE_OCR_SCRIPT` | Padrão: `scripts/ocr/paddle_label.py` no projeto |
+| `PADDLE_OCR_TIMEOUT` | Timeout do subprocesso Paddle (120 s) |
+| `PADDLE_OCR_PROBE_TIMEOUT` | Timeout do teste de disponibilidade (45 s) |
+| `OCR_PREVIEW_TESSERACT_FAST_PATH` | No preview no servidor, Tesseract rápido antes do Paddle |
+| `PADDLE_OCR_PREVIEW_TIMEOUT` | Limite do Paddle no preview (75 s; evita HTTP 524 em proxy ~100 s) |
+
+**4) Comando de operação:**
+
+```bash
+sudo -u www-data php artisan ocr:diagnose
+```
+
+Use após deploy, mudança de `.env`, instalação de pacotes Python ou quando **Meu Condomínio** mostrar Paddle indisponível.
 
 Quando terminar: vá para o **Passo 7**.
 
@@ -435,8 +532,8 @@ Quando terminar: vá para o **Passo 11**.
 1. No Asaas, webhook: `https://SEU_DOMINIO/webhooks/asaas`
 2. WhatsApp: só se for usar — `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`, depois `php artisan config:cache`
 3. Se upload de foto falhar: em `/etc/php/8.3/fpm/php.ini` aumente `upload_max_filesize` e `post_max_size`, depois `systemctl reload php8.3-fpm`
-4. Encomenda Inteligente (OCR): confirme `tesseract --version` e `OCR_ENABLED=true` no `.env`. Sem Tesseract, use `OCR_ENABLED=false` — o porteiro ainda registra manualmente.
-5. Câmera no celular: o site precisa estar em HTTPS (já previsto no Passo 7)
+4. Encomenda Inteligente (OCR): `sudo -u www-data php artisan ocr:diagnose`. Tesseract obrigatório para o padrão; Paddle Python só se o condomínio usar esse motor (Passo 6). Intake com câmera usa OCR no navegador — confira `npm run build` e HTTPS.
+5. Câmera no celular: o site precisa estar em HTTPS (já previsto no Passo 7). Proxy (Cloudflare): a intake evita OCR pesado no PHP; previews antigos com Paddle no servidor devem respeitar `PADDLE_OCR_PREVIEW_TIMEOUT`.
 
 Quando terminar: vá para o **Passo 12**.
 
@@ -458,6 +555,8 @@ Checklist:
 - [ ] Login com usuário criado no sistema funciona
 - [ ] `schedule:list` mostra os jobs da tabela do Passo 8
 - [ ] Supervisor `condocenter-worker` está `RUNNING`
+- [ ] `php artisan ocr:diagnose` — Tesseract disponível; Paddle conforme necessidade do condomínio
+- [ ] `/packages/intake` abre a câmera em HTTPS (teste no celular)
 
 **Primeira instalação concluída.** No dia a dia use só a **Parte 2**.
 
@@ -505,6 +604,12 @@ sudo -u www-data php artisan up
 
 Se o `.env` ganhou variável nova (veja o changelog abaixo), edite o `.env` **antes** do `config:cache`.
 
+Se o deploy alterou OCR, Python ou `scripts/ocr/`, rode após o `config:cache`:
+
+```bash
+sudo -u www-data php artisan ocr:diagnose
+```
+
 Não reexecute migrations antigas à mão. Só `php artisan migrate --force`.
 
 ### Depois do deploy (só se o changelog pedir)
@@ -530,6 +635,11 @@ sudo -u www-data php artisan charges:mark-overdue
 | Taxa não nasceu no mês seguinte | crontab do `www-data` com `schedule:run`; `php artisan schedule:list` |
 | Folha não pagou no vencimento | job 06:30; timezone `America/Fortaleza` |
 | E-mail / lembrete não sai | Supervisor `RUNNING`; tabela `jobs`; SMTP no `.env` |
+| OCR / etiqueta não lê no servidor | `php artisan ocr:diagnose`; `tesseract --version`; `.env` `TESSERACT_PATH` / `OCR_ENABLED` |
+| Paddle “indisponível” no condomínio | Mesmo usuário do PHP (`www-data`) instalou o venv? `PADDLE_OCR_PYTHON` aponta para o venv? `storage/app/ocr/paddle-runtime` gravável |
+| `paddleocr_not_installed` | `sudo -u www-data storage/app/ocr/venv/bin/pip install paddleocr`; `config:clear`; `ocr:diagnose` |
+| Leitura na portaria trava no “Preparando…” | Celular precisa HTTPS; primeira vez baixa WASM/modelos; rede lenta — aguardar ou usar fallback Capturar (se Paddle.js falhar) |
+| HTTP 524 / timeout na leitura | Intake usa OCR no navegador; em APIs com imagem no servidor, reduza Paddle ou use Tesseract no condomínio; `PADDLE_OCR_PREVIEW_TIMEOUT` |
 
 ```bash
 tail -f /var/www/condocenter/storage/logs/laravel.log
@@ -542,22 +652,25 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
 
-### 2026-09-20 — Motor OCR por condomínio (Tesseract ou PaddleOCR)
+### 2026-09-21 — Gestão SaaS: cobranças e contratos (administrador)
 
-- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Sem variável obrigatória nova.
-- Migration adiciona `label_ocr_engine` em `condominiums` (padrão `tesseract`).
-- Síndico ou administrador da plataforma define o motor em **Meu Condomínio → Leitura de etiquetas (OCR)** (módulo Encomendas ativo).
-- Tesseract continua sendo o padrão da VPS (Passo 1). PaddleOCR é opcional: instale Python 3, `pip install paddlepaddle paddleocr` no servidor e configure `PADDLE_OCR_PYTHON` / `PADDLE_OCR_SCRIPT` no `.env` se for usar `paddle`.
-- Se o motor escolhido não estiver disponível, a leitura tenta o outro automaticamente; o registro manual permanece.
-- Após alterar `PADDLE_OCR_PYTHON`: `php artisan config:clear` e `php artisan ocr:diagnose` (limpa cache de detecção e confirma Tesseract/Paddle).
-- O script `scripts/ocr/paddle_label.py` desativa oneDNN/PIR por padrão (bug conhecido do PaddlePaddle 3.3+ em CPU). Na primeira leitura, modelos podem ser baixados — aguarde até `PADDLE_OCR_TIMEOUT` (padrão 120s).
-- No Windows, se `pip` instalou só no perfil do usuário, configure `PADDLE_OCR_PYTHONPATH` com o caminho de `site-packages` exibido por `php artisan ocr:diagnose` (ou instale com o mesmo usuário do PHP/serviço web).
+- Atualização: Parte 2 (`git pull` + `npm run build` se houver assets). Sem migration.
+- Administrador: **Plataforma → Cobranças SaaS** (`/platform/billing`) — visão consolidada; por condomínio em **Gerenciar contrato** — cancelar/estornar cobrança Asaas, cobrança avulsa, cancelar/reativar assinatura, **Novo ciclo (rascunho)** para novo contrato.
 
-### 2026-09-20 — Intake de encomendas com OCR em tempo real no navegador (PaddleOCR.js PP-OCRv6)
+### 2026-09-21 — Limite de unidades por condomínio (SaaS)
 
-- Atualização: Parte 2 (`git pull` + `npm ci` + `npm run build`). Sem migration nem `.env` novo no servidor.
-- A portaria (`/packages/intake`) usa `getUserMedia` + PaddleOCR.js no **navegador** (modelos baixados na primeira leitura). O PHP só faz match (`POST /api/packages/label/match-text`) e grava a foto na confirmação (`POST /api/packages/label/preview-client`).
-- Evita timeout HTTP 524 do Cloudflare no preview com OCR no servidor; o motor configurado no condomínio (Tesseract/Paddle Python) continua válido para outros fluxos.
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Opcional no `.env`: `SAAS_DEVELOPER_CONTACT` (e-mail ou texto exibido ao síndico quando o limite de unidades for atingido).
+- Migration adiciona `units_limit` em `condominiums`. O administrador define na criação/edição do condomínio; o síndico não altera esse valor.
+- Condomínios antigos com `units_limit` nulo permanecem sem cota até o admin definir um limite na edição.
+
+### 2026-09-20 — OCR completo (Tesseract, Paddle Python, PaddleOCR.js na portaria)
+
+- **Instalação nova:** Passo 1 (`tesseract-ocr`, `tesseract-ocr-por`, `python3`, `python3-venv`, `python3-pip`); Passo 5 (bloco `OCR_*` / `PADDLE_OCR_*`); Passo 6 (subseção **Encomenda Inteligente — ambiente OCR** com venv opcional); Passo 4 (`npm run build` inclui worker WASM da intake).
+- **Atualização:** Parte 2 (`git pull` + `migrate --force` se ainda não rodou + `npm ci` + `npm run build`). Acrescente no `.env` as variáveis novas do `.env.example` (`OCR_MAX_DIMENSION`, `OCR_PREVIEW_TESSERACT_FAST_PATH`, `PADDLE_OCR_PREVIEW_TIMEOUT`, etc.) antes do `config:cache`.
+- Migration: `label_ocr_engine` em `condominiums` (padrão `tesseract`). Motor em **Meu Condomínio → Leitura de etiquetas (OCR)**.
+- **Portaria:** OCR em tempo real no **navegador** (`/packages/intake`); APIs `match-text` e `preview-client`. Não exige Python na VPS para esse fluxo.
+- **Servidor:** Tesseract (padrão) e Paddle Python (opcional, venv + `PADDLE_OCR_PYTHON`). Após mudanças: `php artisan ocr:diagnose`.
+- Fallback entre motores no PHP quando um falha; registro manual sempre disponível.
 
 ### 2026-09-19 — Regime de ocupação (aluguel / particular / imóvel público)
 
@@ -622,17 +735,8 @@ Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação,
 
 ### 2026-09-14 — Encomenda Inteligente (OCR de etiqueta + senha de retirada)
 
-- Instalação nova: no Passo 1 instale `tesseract-ocr` e `tesseract-ocr-por`; no Passo 5 inclua `OCR_*` / `TESSERACT_PATH`; o `migrate` cria campos OCR/senha em `packages`.
-- Atualização: Parte 2 (`git pull` + `npm ci` + `npm run build` + `php artisan migrate --force`). Antes do `config:cache`, acrescente no `.env`:
-
-```env
-OCR_ENABLED=true
-OCR_LANG=por
-OCR_TIMEOUT=30
-OCR_PREPROCESS_ENABLED=true
-TESSERACT_PATH=
-```
-
+- Instalação nova: Passo 1 (Tesseract + Python opcional), Passo 5 (`OCR_*`), Passo 6 (diagnóstico e venv Paddle se necessário); `migrate` cria campos OCR/senha em `packages`.
+- Atualização: Parte 2 (`git pull` + `npm ci` + `npm run build` + `php artisan migrate --force`). Antes do `config:cache`, confira o bloco OCR no `.env.example` (inclui `OCR_MAX_DIMENSION` e timeouts Paddle).
 - Se a VPS ainda não tem Tesseract: `apt install -y tesseract-ocr tesseract-ocr-por` (uma vez) e depois `OCR_ENABLED=true`.
 - HTTPS obrigatório para a câmera do porteiro (`/packages/intake`).
 - Sem comando Artisan one-off. Encomendas antigas sem senha continuam retiráveis sem código até esgotarem.

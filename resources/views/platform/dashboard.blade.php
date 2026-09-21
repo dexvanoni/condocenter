@@ -11,6 +11,7 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('condominiums.index') }}" class="btn btn-primary btn-sm">Condomínios</a>
+            <a href="{{ route('platform.billing.index') }}" class="btn btn-outline-primary btn-sm">Cobranças SaaS</a>
             <a href="{{ route('platform.plans.index') }}" class="btn btn-outline-primary btn-sm">Planos</a>
             <a href="{{ route('platform.settings.asaas') }}" class="btn btn-outline-secondary btn-sm">Financeiro Asaas</a>
             <a href="{{ route('platform.announcements.index') }}" class="btn btn-outline-primary btn-sm">Novidades</a>

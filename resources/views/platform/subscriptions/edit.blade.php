@@ -213,6 +213,8 @@
                 'formAction' => route('platform.subscriptions.edit', $condominium),
                 'exportUrl' => $exportUrl,
                 'subscription' => $sub,
+                'adminBillingControls' => true,
+                'condominium' => $condominium,
             ])
 
             <div class="card shadow-sm mb-4">
@@ -276,8 +278,23 @@
                         <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Motivo (opcional)">
                         <button class="btn btn-sm btn-outline-info w-100">Prorrogar contrato</button>
                     </form>
-                    <form method="POST" action="{{ route('platform.subscriptions.cancel', $condominium) }}" onsubmit="return confirm('Cancelar assinatura?')">
+                    @if(in_array($sub->status, ['suspended', 'cancelled', 'expired', 'past_due'], true))
+                    <form method="POST" action="{{ route('platform.subscriptions.reactivate', $condominium) }}">
                         @csrf
+                        <button class="btn btn-success w-100"><i class="bi bi-play-circle"></i> Reativar assinatura</button>
+                    </form>
+                    @endif
+                    <form method="POST" action="{{ route('platform.subscriptions.reset-contract', $condominium) }}"
+                          class="border rounded p-3"
+                          onsubmit="return confirm('Reinicia o contrato em rascunho e cancela a assinatura no Asaas. Confirma?');">
+                        @csrf
+                        <p class="small text-muted mb-2">Use após cancelar para montar um <strong>novo contrato</strong> sem apagar o histórico.</p>
+                        <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Motivo (opcional)">
+                        <button class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-file-earmark-plus"></i> Novo ciclo (rascunho)</button>
+                    </form>
+                    <form method="POST" action="{{ route('platform.subscriptions.cancel', $condominium) }}" onsubmit="return confirm('Cancelar assinatura e encerrar cobranças recorrentes no Asaas?')">
+                        @csrf
+                        <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Motivo do cancelamento (opcional)">
                         <button class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Cancelar assinatura</button>
                     </form>
                 </div>

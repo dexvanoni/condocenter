@@ -17,4 +17,9 @@ return [
     | URL pública base para webhooks (útil com ngrok).
     */
     'webhook_base_url' => env('SAAS_WEBHOOK_BASE_URL', env('APP_URL')),
+
+    /*
+    | Contato exibido quando o condomínio atinge o limite de unidades (portaria/síndico).
+    */
+    'developer_contact' => env('SAAS_DEVELOPER_CONTACT', ''),
 ];

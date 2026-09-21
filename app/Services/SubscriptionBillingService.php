@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Condominium;
 use App\Models\CondominiumSubscription;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -67,7 +68,55 @@ class SubscriptionBillingService
             'date_from' => $request->input('date_from'),
             'date_to' => $request->input('date_to'),
             'status' => $request->input('status'),
+            'condominium_id' => $request->input('condominium_id'),
         ], fn ($value) => filled($value));
+    }
+
+    /**
+     * Visão consolidada das cobranças SaaS (administrador da plataforma).
+     */
+    public function globalBillingReport(array $filters = [], int $maxRows = 250): array
+    {
+        $subscriptions = CondominiumSubscription::query()
+            ->with('condominium:id,name')
+            ->when(!empty($filters['condominium_id']), function ($query) use ($filters) {
+                $query->where('condominium_id', (int) $filters['condominium_id']);
+            })
+            ->where(function ($query) {
+                $query->whereNotNull('asaas_customer_id')
+                    ->orWhereNotNull('asaas_subscription_id');
+            })
+            ->get();
+
+        $rows = collect();
+
+        foreach ($subscriptions as $subscription) {
+            $report = $this->getBillingReport($subscription, $filters);
+            foreach ($report['charges'] as $charge) {
+                $rows->push(array_merge($charge, [
+                    'condominium_id' => $subscription->condominium_id,
+                    'condominium_name' => $subscription->condominium?->name ?? '—',
+                    'subscription_status' => $subscription->statusLabel(),
+                ]));
+            }
+        }
+
+        $rows = $rows
+            ->sortByDesc(fn (array $row) => $row['due_date']?->timestamp ?? 0)
+            ->take($maxRows)
+            ->values();
+
+        $condominiums = Condominium::query()
+            ->whereHas('subscription')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return [
+            'charges' => $rows->all(),
+            'summary' => $this->summarize($rows->all()),
+            'condominiums' => $condominiums,
+            'subscriptions_scanned' => $subscriptions->count(),
+        ];
     }
 
     public function exportCsv(CondominiumSubscription $subscription, array $filters, string $filenamePrefix): \Symfony\Component\HttpFoundation\StreamedResponse

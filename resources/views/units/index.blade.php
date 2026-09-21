@@ -6,11 +6,27 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="bi bi-houses"></i> Unidades</h1>
     @can('create_units')
-    <a href="{{ route('units.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> Nova Unidade
-    </a>
+        @if(!empty($unitsLimitReached) && $unitsLimitReached)
+            <span class="btn btn-primary disabled" title="Limite de unidades atingido">
+                <i class="bi bi-plus-circle"></i> Nova Unidade
+            </span>
+        @else
+            <a href="{{ route('units.create') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Nova Unidade
+            </a>
+        @endif
     @endcan
 </div>
+
+@can('create_units')
+    @if(!empty($unitsLimitReached) && $unitsLimitReached)
+        @include('units.partials.units-limit-alert', ['condominium' => $condominium ?? null])
+    @elseif(isset($condominium) && $condominium->hasUnitsQuota())
+        <p class="text-muted small mb-3">
+            Unidades cadastradas: <strong>{{ $condominium->unitsQuotaSummary() }}</strong>
+        </p>
+    @endif
+@endcan
 
 <!-- Filtros -->
 <div class="card mb-4">

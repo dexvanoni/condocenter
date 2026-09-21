@@ -68,7 +68,29 @@
         @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
     @if($showPlatformSettings)
-    <div class="col-md-6">
+    <div class="col-12">
+        <hr class="my-2">
+        <h6 class="text-muted mb-0"><i class="bi bi-sliders"></i> Configurações da plataforma (administrador)</h6>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label fw-semibold">Limite de unidades *</label>
+        <input type="number" name="units_limit" min="1" max="50000" step="1"
+               class="form-control @error('units_limit') is-invalid @enderror"
+               value="{{ old('units_limit', $condominium->units_limit ?? '') }}"
+               required
+               @if(isset($condominium) && $condominium->exists)
+                   min="{{ max(1, $condominium->unitsInUseCount()) }}"
+               @endif
+        >
+        @error('units_limit')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        <div class="form-text">
+            Máximo que o síndico poderá cadastrar.
+            @if(isset($condominium) && $condominium->exists)
+                Hoje: <strong>{{ $condominium->unitsQuotaSummary() }}</strong> em uso.
+            @endif
+        </div>
+    </div>
+    <div class="col-md-4">
         <label class="form-label fw-semibold">Modo financeiro *</label>
         <select name="financial_mode" class="form-select @error('financial_mode') is-invalid @enderror" required>
             <option value="full" @selected(old('financial_mode', $condominium->financial_mode ?? 'full') === 'full')>Completo</option>

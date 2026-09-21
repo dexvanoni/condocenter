@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Condominium;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\ActiveCondominiumService;
@@ -58,8 +59,12 @@ class UnitController extends Controller
         $units = $this->filteredUnitsQuery($request)->paginate(20)->withQueryString();
 
         $unitModelOptions = UnitModels::labels();
+        $condominium = Condominium::query()
+            ->withCount('units')
+            ->findOrFail($this->activeCondominiumId());
+        $unitsLimitReached = $condominium->isAtUnitsLimit();
 
-        return view('units.index', compact('units', 'unitModelOptions'));
+        return view('units.index', compact('units', 'unitModelOptions', 'condominium', 'unitsLimitReached'));
     }
 
     /**
@@ -138,9 +143,17 @@ class UnitController extends Controller
         $this->authorize('create', Unit::class);
 
         $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
+        $activeCondominium?->loadCount('units');
         $unitModelOptions = UnitModels::labels();
+        $unitsLimitReached = $activeCondominium?->isAtUnitsLimit() ?? false;
+        $developerContact = config('saas.developer_contact');
 
-        return view('units.create', compact('activeCondominium', 'unitModelOptions'));
+        return view('units.create', compact(
+            'activeCondominium',
+            'unitModelOptions',
+            'unitsLimitReached',
+            'developerContact',
+        ));
     }
 
     /**

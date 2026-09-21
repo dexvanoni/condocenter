@@ -4,7 +4,9 @@ namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\ResolvesTenantCondominium;
 use App\Http\Requests\Concerns\ValidatesUnitOccupancy;
+use App\Models\Condominium;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreUnitRequest extends FormRequest
 {
@@ -21,6 +23,19 @@ class StoreUnitRequest extends FormRequest
         $this->merge([
             'condominium_id' => $this->tenantCondominiumId(),
         ]);
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $condominium = Condominium::query()->withCount('units')->find($this->tenantCondominiumId());
+            if ($condominium && $condominium->isAtUnitsLimit()) {
+                $validator->errors()->add(
+                    'number',
+                    'Limite de unidades do condomínio atingido. Entre em contato com o desenvolvedor para ampliar a cota.'
+                );
+            }
+        });
     }
 
     public function rules(): array

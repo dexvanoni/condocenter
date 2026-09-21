@@ -80,7 +80,13 @@
                         </td>
                         <td>{{ $condominium->city }} / {{ $condominium->state }}</td>
                         <td><code>{{ $condominium->registration_code ?? '—' }}</code></td>
-                        <td class="text-center">{{ $condominium->units_count }}</td>
+                        <td class="text-center">
+                            @if($condominium->units_limit)
+                                {{ $condominium->units_count }} / {{ $condominium->units_limit }}
+                            @else
+                                {{ $condominium->units_count }}
+                            @endif
+                        </td>
                         <td class="text-center">{{ $condominium->users_count }}</td>
                         <td>
                             <span class="badge bg-{{ $condominium->financial_mode === 'simplified' ? 'info text-dark' : 'secondary' }}">

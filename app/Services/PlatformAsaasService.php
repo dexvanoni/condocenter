@@ -115,6 +115,59 @@ class PlatformAsaasService
         return $this->post('/payments', $data);
     }
 
+    /**
+     * Remove cobrança pendente/vencida no Asaas (idempotente em 404).
+     */
+    public function deletePayment(string $paymentId): bool
+    {
+        if (!$this->isConfigured()) {
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders($this->headers())
+                ->delete("{$this->apiUrl}/payments/{$paymentId}");
+
+            if ($response->successful()) {
+                return true;
+            }
+
+            if (in_array($response->status(), [400, 404], true)) {
+                return true;
+            }
+
+            Log::warning('Platform Asaas delete payment failed', [
+                'payment_id' => $paymentId,
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Platform Asaas delete payment exception: ' . $e->getMessage());
+        }
+
+        return false;
+    }
+
+    public function refundPayment(string $paymentId, ?float $value = null): bool
+    {
+        if (!$this->isConfigured()) {
+            return false;
+        }
+
+        $payload = $value !== null ? ['value' => $value] : [];
+
+        try {
+            $response = Http::withHeaders($this->headers())
+                ->post("{$this->apiUrl}/payments/{$paymentId}/refund", $payload);
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::error('Platform Asaas refund payment exception: ' . $e->getMessage());
+
+            return false;
+        }
+    }
+
     public function updateSubscription(string $subscriptionId, array $data): ?array
     {
         return $this->put("/subscriptions/{$subscriptionId}", $data);

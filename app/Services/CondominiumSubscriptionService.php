@@ -148,6 +148,137 @@ class CondominiumSubscriptionService
         return $this->activate($subscription, $admin);
     }
 
+    public function cancelAsaasPayment(CondominiumSubscription $subscription, User $admin, string $paymentId): void
+    {
+        $payment = $this->assertPaymentBelongsToSubscription($subscription, $paymentId);
+        $status = strtoupper((string) ($payment['status'] ?? ''));
+
+        if (in_array($status, ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true)) {
+            throw ValidationException::withMessages([
+                'payment_id' => 'Cobranças já pagas devem ser estornadas (não canceladas).',
+            ]);
+        }
+
+        if (!$this->asaas->deletePayment($paymentId)) {
+            throw ValidationException::withMessages([
+                'payment_id' => 'Não foi possível cancelar a cobrança no Asaas.',
+            ]);
+        }
+
+        $this->log(
+            $subscription,
+            $admin,
+            'payment_cancelled',
+            "Cobrança {$paymentId} cancelada no Asaas.",
+            ['payment_id' => $paymentId]
+        );
+    }
+
+    public function refundAsaasPayment(CondominiumSubscription $subscription, User $admin, string $paymentId): void
+    {
+        $payment = $this->assertPaymentBelongsToSubscription($subscription, $paymentId);
+        $status = strtoupper((string) ($payment['status'] ?? ''));
+
+        if (!in_array($status, ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true)) {
+            throw ValidationException::withMessages([
+                'payment_id' => 'Somente cobranças pagas podem ser estornadas.',
+            ]);
+        }
+
+        if (!$this->asaas->refundPayment($paymentId)) {
+            throw ValidationException::withMessages([
+                'payment_id' => 'Não foi possível estornar a cobrança no Asaas.',
+            ]);
+        }
+
+        $this->log(
+            $subscription,
+            $admin,
+            'payment_refunded',
+            "Estorno solicitado para cobrança {$paymentId}.",
+            ['payment_id' => $paymentId]
+        );
+    }
+
+    /**
+     * @param  array{value: float|int, due_date: string, billing_type?: string, description?: string}  $data
+     */
+    public function createManualAsaasCharge(CondominiumSubscription $subscription, User $admin, array $data): array
+    {
+        if (!$subscription->usesAsaas()) {
+            throw ValidationException::withMessages([
+                'charge' => 'Depósito bancário manual não gera cobrança no Asaas.',
+            ]);
+        }
+
+        if (!$this->platformSettings->isAsaasConfigured()) {
+            throw ValidationException::withMessages([
+                'asaas' => 'Configure a API do Asaas na plataforma.',
+            ]);
+        }
+
+        if (!$subscription->asaas_customer_id) {
+            throw ValidationException::withMessages([
+                'asaas' => 'Sincronize o cliente no Asaas antes de criar cobranças avulsas.',
+            ]);
+        }
+
+        $condominium = $subscription->condominium()->firstOrFail();
+        $billingType = strtoupper((string) ($data['billing_type'] ?? 'BOLETO'));
+
+        $payment = $this->asaas->createPayment([
+            'customer' => $subscription->asaas_customer_id,
+            'billingType' => $billingType,
+            'value' => round((float) $data['value'], 2),
+            'dueDate' => $data['due_date'],
+            'description' => $data['description'] ?? "SindCON — {$condominium->name}",
+            'externalReference' => 'subscription:' . $subscription->id,
+        ]);
+
+        if (!$payment) {
+            throw ValidationException::withMessages([
+                'charge' => 'Não foi possível criar a cobrança no Asaas.',
+            ]);
+        }
+
+        $this->log(
+            $subscription,
+            $admin,
+            'payment_created',
+            'Cobrança avulsa criada no Asaas.',
+            ['payment_id' => $payment['id'] ?? null]
+        );
+
+        return $payment;
+    }
+
+    public function resetForNewContract(CondominiumSubscription $subscription, User $admin, ?string $notes = null): CondominiumSubscription
+    {
+        if ($subscription->asaas_subscription_id && $subscription->usesAsaas()) {
+            $this->asaas->cancelSubscription($subscription->asaas_subscription_id);
+        }
+
+        $subscription->update([
+            'status' => CondominiumSubscription::STATUS_DRAFT,
+            'asaas_subscription_id' => null,
+            'activated_at' => null,
+            'suspended_at' => null,
+            'cancelled_at' => null,
+            'past_due_at' => null,
+            'trial_starts_at' => null,
+            'trial_ends_at' => null,
+        ]);
+
+        $this->log(
+            $subscription,
+            $admin,
+            'contract_reset',
+            $notes ?: 'Contrato reiniciado em rascunho para novo ciclo.'
+        );
+
+        return $subscription->fresh();
+    }
+
     public function cancel(CondominiumSubscription $subscription, User $admin, ?string $notes = null): CondominiumSubscription
     {
         if ($subscription->asaas_subscription_id && $subscription->usesAsaas()) {
@@ -418,6 +549,34 @@ class CondominiumSubscriptionService
             CondominiumSubscription::PAYMENT_PIX_RECURRING => 'PIX',
             default => 'BOLETO',
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function assertPaymentBelongsToSubscription(CondominiumSubscription $subscription, string $paymentId): array
+    {
+        if (!$this->platformSettings->isAsaasConfigured()) {
+            throw ValidationException::withMessages([
+                'asaas' => 'Asaas não configurado.',
+            ]);
+        }
+
+        $payment = $this->asaas->getPayment($paymentId);
+        if (!$payment) {
+            throw ValidationException::withMessages([
+                'payment_id' => 'Cobrança não encontrada no Asaas.',
+            ]);
+        }
+
+        $customerId = $payment['customer'] ?? null;
+        if ($subscription->asaas_customer_id && $customerId !== $subscription->asaas_customer_id) {
+            throw ValidationException::withMessages([
+                'payment_id' => 'Esta cobrança não pertence a este condomínio.',
+            ]);
+        }
+
+        return $payment;
     }
 
     protected function log(

@@ -92,6 +92,20 @@
                             {{ $condominium->financial_mode_label }}
                         </span>
                     </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block">Unidades (cadastradas / limite)</small>
+                        <strong>
+                            @if($condominium->hasUnitsQuota())
+                                {{ $condominium->unitsQuotaSummary() }}
+                            @else
+                                {{ $condominium->units_count ?? 0 }}
+                                <span class="text-muted small">(sem limite definido)</span>
+                            @endif
+                        </strong>
+                        @if($isAdmin)
+                            <div class="form-text">Altere o limite em Editar condomínio.</div>
+                        @endif
+                    </div>
                     @if($condominium->description)
                     <div class="col-12">
                         <small class="text-muted d-block">Descrição</small>
@@ -303,6 +317,8 @@
                 'exportUrl' => $exportUrl,
                 'showAnchor' => true,
                 'subscription' => $condominium->subscription,
+                'adminBillingControls' => true,
+                'condominium' => $condominium,
             ])
         @endif
 
@@ -367,7 +383,7 @@
                 <ul class="list-unstyled mb-0">
                     <li class="d-flex justify-content-between py-2 border-bottom">
                         <span>Unidades</span>
-                        <strong>{{ $condominium->units_count ?? 0 }}</strong>
+                        <strong>{{ $condominium->hasUnitsQuota() ? $condominium->unitsQuotaSummary() : ($condominium->units_count ?? 0) }}</strong>
                     </li>
                     <li class="d-flex justify-content-between py-2 border-bottom">
                         <span>Usuários</span>

@@ -571,6 +571,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
         Route::get('/', [\App\Http\Controllers\Platform\PlatformDashboardController::class, 'index'])
             ->name('dashboard');
 
+        Route::get('/billing', [\App\Http\Controllers\Platform\PlatformSaasBillingController::class, 'index'])
+            ->name('billing.index');
+
         Route::get('/plans', [\App\Http\Controllers\Platform\SubscriptionPlanController::class, 'index'])
             ->name('plans.index');
         Route::post('/plans', [\App\Http\Controllers\Platform\SubscriptionPlanController::class, 'store'])
@@ -620,6 +623,16 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             ->name('subscriptions.suspend');
         Route::post('/condominiums/{condominium}/subscription/cancel', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'cancel'])
             ->name('subscriptions.cancel');
+        Route::post('/condominiums/{condominium}/subscription/reactivate', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'reactivate'])
+            ->name('subscriptions.reactivate');
+        Route::post('/condominiums/{condominium}/subscription/reset-contract', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'resetContract'])
+            ->name('subscriptions.reset-contract');
+        Route::post('/condominiums/{condominium}/subscription/charges', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'storeCharge'])
+            ->name('subscriptions.charges.store');
+        Route::post('/condominiums/{condominium}/subscription/charges/cancel', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'cancelCharge'])
+            ->name('subscriptions.charges.cancel');
+        Route::post('/condominiums/{condominium}/subscription/charges/refund', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'refundCharge'])
+            ->name('subscriptions.charges.refund');
         Route::post('/condominiums/{condominium}/subscription/extend', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'extend'])
             ->name('subscriptions.extend');
         Route::post('/condominiums/{condominium}/subscription/sync-asaas', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'syncAsaas'])

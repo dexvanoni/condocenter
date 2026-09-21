@@ -128,6 +128,97 @@ class CondominiumSubscriptionController extends Controller
         return back()->with('success', 'Assinatura cancelada.');
     }
 
+    public function reactivate(Condominium $condominium)
+    {
+        $admin = $this->adminUser();
+        $subscription = $condominium->subscription;
+        abort_if(! $subscription, 404);
+
+        try {
+            $this->subscriptions->reactivate($subscription, $admin);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('success', 'Assinatura reativada.');
+    }
+
+    public function resetContract(Request $request, Condominium $condominium)
+    {
+        $admin = $this->adminUser();
+        $subscription = $condominium->subscription;
+        abort_if(! $subscription, 404);
+
+        $this->subscriptions->resetForNewContract($subscription, $admin, $request->input('notes'));
+
+        return back()->with('success', 'Contrato reiniciado em rascunho. Ajuste os dados e ative novamente.');
+    }
+
+    public function cancelCharge(Request $request, Condominium $condominium)
+    {
+        $admin = $this->adminUser();
+        $subscription = $condominium->subscription;
+        abort_if(! $subscription, 404);
+
+        $validated = $request->validate([
+            'payment_id' => ['required', 'string', 'max:64'],
+        ]);
+
+        try {
+            $this->subscriptions->cancelAsaasPayment($subscription, $admin, $validated['payment_id']);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('success', 'Cobrança cancelada no Asaas.');
+    }
+
+    public function refundCharge(Request $request, Condominium $condominium)
+    {
+        $admin = $this->adminUser();
+        $subscription = $condominium->subscription;
+        abort_if(! $subscription, 404);
+
+        $validated = $request->validate([
+            'payment_id' => ['required', 'string', 'max:64'],
+        ]);
+
+        try {
+            $this->subscriptions->refundAsaasPayment($subscription, $admin, $validated['payment_id']);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('success', 'Estorno solicitado no Asaas.');
+    }
+
+    public function storeCharge(Request $request, Condominium $condominium)
+    {
+        $admin = $this->adminUser();
+        $subscription = $condominium->subscription;
+        abort_if(! $subscription, 404);
+
+        $validated = $request->validate([
+            'value' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
+            'due_date' => ['required', 'date', 'after_or_equal:today'],
+            'billing_type' => ['nullable', 'in:BOLETO,PIX,CREDIT_CARD'],
+            'description' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        try {
+            $this->subscriptions->createManualAsaasCharge($subscription, $admin, [
+                'value' => $validated['value'],
+                'due_date' => $validated['due_date'],
+                'billing_type' => $validated['billing_type'] ?? 'BOLETO',
+                'description' => $validated['description'] ?? null,
+            ]);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('success', 'Cobrança avulsa criada no Asaas.');
+    }
+
     public function extend(ExtendCondominiumSubscriptionRequest $request, Condominium $condominium)
     {
         $subscription = $condominium->subscription;

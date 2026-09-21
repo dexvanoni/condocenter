@@ -39,6 +39,7 @@ class Condominium extends Model implements Auditable
         'marketplace_allow_agregados',
         'restrict_defaulters',
         'enabled_modules',
+        'units_limit',
         'label_ocr_engine',
         'occurrence_book_public_enabled',
         'registration_code',
@@ -64,6 +65,7 @@ class Condominium extends Model implements Auditable
         'asaas_setup_completed_at' => 'datetime',
         'whatsapp_notify_groups' => 'array',
         'evolution_api_key' => 'encrypted',
+        'units_limit' => 'integer',
     ];
 
     public function hasModule(string $module): bool
@@ -245,5 +247,48 @@ class Condominium extends Model implements Auditable
         return $this->financial_mode === 'simplified'
             ? 'Simplificado'
             : 'Completo';
+    }
+
+    public function hasUnitsQuota(): bool
+    {
+        return $this->units_limit !== null;
+    }
+
+    public function unitsInUseCount(): int
+    {
+        if ($this->relationLoaded('units')) {
+            return $this->units->count();
+        }
+
+        if (isset($this->units_count)) {
+            return (int) $this->units_count;
+        }
+
+        return (int) $this->units()->count();
+    }
+
+    public function canCreateMoreUnits(): bool
+    {
+        if (!$this->hasUnitsQuota()) {
+            return true;
+        }
+
+        return $this->unitsInUseCount() < (int) $this->units_limit;
+    }
+
+    public function isAtUnitsLimit(): bool
+    {
+        return $this->hasUnitsQuota() && !$this->canCreateMoreUnits();
+    }
+
+    public function unitsQuotaSummary(): string
+    {
+        $used = $this->unitsInUseCount();
+
+        if (!$this->hasUnitsQuota()) {
+            return (string) $used;
+        }
+
+        return "{$used} / {$this->units_limit}";
     }
 }

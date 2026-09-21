@@ -117,6 +117,8 @@ class CondominiumController extends Controller
     {
         $this->authorize('update', $condominium);
 
+        $condominium->loadCount('units');
+
         return view('condominiums.edit', compact('condominium'));
     }
 
@@ -131,7 +133,7 @@ class CondominiumController extends Controller
         if ($user->isAdmin()) {
             $data['is_active'] = $request->boolean('is_active');
         } else {
-            unset($data['financial_mode'], $data['is_active']);
+            unset($data['financial_mode'], $data['is_active'], $data['units_limit']);
         }
 
         $condominium->update($data);

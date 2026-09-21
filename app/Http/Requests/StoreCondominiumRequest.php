@@ -28,6 +28,7 @@ class StoreCondominiumRequest extends FormRequest
             'financial_mode' => ['required', Rule::in(['full', 'simplified'])],
             'marketplace_allow_agregados' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
+            'units_limit' => ['required', 'integer', 'min:1', 'max:50000'],
         ];
     }
 
@@ -42,6 +43,8 @@ class StoreCondominiumRequest extends FormRequest
             'zip_code.required' => 'Informe o CEP.',
             'cnpj.unique' => 'Este CNPJ já está cadastrado.',
             'financial_mode.required' => 'Selecione o modo financeiro inicial.',
+            'units_limit.required' => 'Informe o limite de unidades que o condomínio poderá cadastrar.',
+            'units_limit.min' => 'O limite de unidades deve ser pelo menos 1.',
         ];
     }
 }
