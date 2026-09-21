@@ -1,4 +1,40 @@
 <style>
+	.comm-hub.comm-hub--syndic {
+		grid-template-columns: 88px min(380px, 32vw) 1fr;
+		min-height: calc(100vh - 280px);
+	}
+	.comm-hub--syndic .comm-hub__inbox {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+	.comm-hub--syndic .comm-hub__thread {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		overflow: hidden;
+	}
+	.comm-hub--syndic .comm-thread-body {
+		flex: 1 1 auto;
+		min-height: 0;
+	}
+	@media (max-width: 991.98px) {
+		.comm-hub.comm-hub--syndic {
+			grid-template-columns: 1fr;
+			grid-template-rows: auto auto minmax(320px, 1fr);
+		}
+		.comm-hub--syndic .comm-hub__thread {
+			min-height: 320px;
+		}
+	}
+	.comm-rail-link {
+		text-decoration: none;
+		display: block;
+	}
+	.comm-hub--syndic .comm-send-progress__bar .progress-bar {
+		background: linear-gradient(90deg, #0f766e, #14b8a6);
+	}
+	.comm-hub--syndic .syndic-btn-send { background: #0f766e; border-color: #0f766e; }
 	.conv-avatar {
 		width: 40px;
 		height: 40px;
@@ -54,10 +90,34 @@
 		max-height: calc(100vh - 300px);
 		overflow-y: auto;
 	}
-	.syndic-chat-root {
-		height: calc(100vh - 260px);
-		display: flex;
-		flex-direction: column;
+	/* Não usar display:flex no root — quebra o grid da central (rail | inbox | thread) */
+	.syndic-chat-root.comm-hub {
+		min-height: calc(100vh - 280px);
 	}
-	.syndic-chat-root .card-body { flex: 1; overflow-y: auto; }
+	.syndic-send-progress { margin-bottom: 10px; }
+	.syndic-send-progress__bar { height: 5px; border-radius: 999px; background: #e2e8f0; }
+	.syndic-send-progress__bar .progress-bar { border-radius: 999px; }
+	.syndic-compose-area.is-sending { opacity: 0.92; pointer-events: none; }
+	.message-attachments { font-size: 12px; }
+	.message-attachment-item {
+		padding: 8px 10px;
+		border-radius: 10px;
+		background: rgba(15, 23, 42, 0.06);
+		margin-top: 4px;
+	}
+	.message-attachment-item--sent { background: rgba(255, 255, 255, 0.15); }
+	.message-attachment-link { text-decoration: none; font-weight: 500; }
+	.message-attachment-link--sent { color: #fff !important; }
+	.message-attachment-link:not(.message-attachment-link--sent) { color: #0f766e !important; }
+	.message-attachment-download { font-size: 11px; }
+	.message-attachment-preview {
+		max-width: min(260px, 100%);
+		max-height: 200px;
+		object-fit: contain;
+		border: 1px solid rgba(0, 0, 0, 0.08);
+	}
+	#syndicSendProgress + .syndic-message-form .syndic-btn-send-spinner {
+		width: 1rem;
+		height: 1rem;
+	}
 </style>

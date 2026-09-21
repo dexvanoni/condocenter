@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 21/09/2026 (limite de unidades por condomínio + OCR na portaria)
+- **Última revisão:** 21/09/2026 (expiração automática de avisos + `announcements:close-expired`)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -455,6 +455,7 @@ O Laravel dispara sozinho, no fuso `America/Fortaleza`:
 | Todo dia 09:00 | Aviso de atraso (`charges:check-overdue`) |
 | Dia 1 às 08:00 | Relatórios mensais (`reports:generate-monthly`) |
 | A cada hora | Cancela pré-reservas não pagas |
+| A cada 15 min | Encerra avisos do condomínio após `expires_at` (`announcements:close-expired`) |
 | Semanal | Apaga notificações lidas com mais de 30 dias |
 
 Você **não** precisa rodar esses comandos na instalação. O cron cuida.
@@ -651,6 +652,15 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-21 — Expiração automática de avisos do síndico
+
+- Atualização: Parte 2 (`git pull`). Sem migration. O cron do Passo 8 passa a executar `announcements:close-expired` a cada 15 minutos (encerra avisos com `expires_at` vencido).
+- Ao abrir dashboard ou listar avisos, o sistema também encerra na hora os vencidos do condomínio. Opcional após deploy: `php artisan announcements:close-expired`.
+
+### 2026-09-21 — Central de comunicação (manutenção)
+
+- Comando opcional **somente homologação / reset de testes:** `php artisan communications:purge --force` — apaga todas as conversas (diretas, avisos, sigilosas), mensagens, anexos e reuniões vinculadas. **Não** usar em produção com dados reais sem backup.
 
 ### 2026-09-21 — Gestão SaaS: cobranças e contratos (administrador)
 

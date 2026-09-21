@@ -260,6 +260,24 @@
     @include('dashboard.partials.sindico-action-bar')
 
     <div id="announcementBannerContainer"></div>
+    <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="announcementModalLabel">Aviso do Síndico</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="announcementModalBody"><div class="text-muted">Carregando...</div></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" id="btnMarkAnnouncementRead" disabled>Marcar como lido</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @include('dashboard.partials.announcement-banner-script')
     @include('dashboard.partials.ride-alerts')
 
     {{-- Demandas prioritárias --}}
@@ -598,84 +616,6 @@
         </div>
     </div>
 </div>
-
-@can('manage_transactions')
-    <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="announcementModalLabel">Aviso do Síndico</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-            <div class="modal-body"><div id="announcementModalBody"><div class="text-muted">Carregando...</div></div></div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-                    <button type="button" class="btn btn-primary" id="btnMarkAnnouncementRead" disabled>Marcar como lido</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-    (function () {
-        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        const container = document.getElementById('announcementBannerContainer');
-        const modalEl = document.getElementById('announcementModal');
-        const modalBody = document.getElementById('announcementModalBody');
-        const btnMarkRead = document.getElementById('btnMarkAnnouncementRead');
-        let currentNotificationId = null;
-
-        const priorityClasses = {
-            urgent: 'border-danger bg-danger bg-opacity-10',
-            high: 'border-warning bg-warning bg-opacity-10',
-            normal: 'border-primary bg-primary bg-opacity-10',
-            low: 'border-secondary bg-secondary bg-opacity-10',
-        };
-        const badgeClasses = {
-        urgent: 'bg-danger', high: 'bg-warning text-dark', normal: 'bg-primary', low: 'bg-secondary',
-        };
-
-        async function loadLatestAnnouncement() {
-            try {
-            const res = await fetch('/api/conversations/announcement/list', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
-                if (!res.ok) return;
-                const data = await res.json();
-            (data?.conversations ?? []).forEach(conv => renderBannerFrom(conv));
-            } catch {}
-        }
-
-        async function getConversation(id) {
-        const convRes = await fetch(`/api/conversations/${id}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
-        return convRes.ok ? convRes.json() : null;
-    }
-
-    function renderBannerFrom(conversation) {
-        const priority = conversation.priority || 'normal';
-            const latestMessage = (conversation.messages ?? [])[0] ?? null;
-        const brief = latestMessage ? (latestMessage.message ?? '').slice(0, 160) : '';
-            const banner = document.createElement('div');
-        banner.className = `announcement-banner d-flex align-items-center p-3 mb-3 rounded border ${priorityClasses[priority] ?? priorityClasses.normal}`;
-            banner.style.cursor = 'pointer';
-        banner.innerHTML = `<i class="bi bi-megaphone-fill me-3 fs-4"></i><div class="flex-grow-1"><strong>Aviso do Síndico</strong><div class="small text-muted">${escapeHtml(brief)}</div></div>`;
-        banner.addEventListener('click', async () => { const conv = await getConversation(conversation.id); if (conv) openModal(conv); });
-        container?.appendChild(banner);
-        }
-
-        function openModal(conversation) {
-        const first = (conversation.messages ?? [])[0] ?? null;
-        modalBody.innerHTML = `<h5>${escapeHtml(conversation.subject || 'Aviso')}</h5><div class="mt-2">${escapeHtml(first?.message ?? '')}</div>`;
-            btnMarkRead.disabled = false;
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
-        }
-
-        function escapeHtml(str) {
-        return (str ?? '').toString().replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-        }
-
-        loadLatestAnnouncement();
-    })();
-    </script>
-    @endcan
 
 @if($isFinancialFull)
 @can('manage_transactions')

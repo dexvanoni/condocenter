@@ -159,6 +159,7 @@ Route::middleware(['auth:sanctum', 'require.condominium', 'ensure.saas.subscript
     // Conversas (novo módulo de mensagens)
     Route::get('conversations', [ConversationController::class, 'index'])->name('api.conversations.index');
     Route::post('conversations/announcement', [ConversationController::class, 'storeAnnouncement'])->name('api.conversations.announcement');
+    Route::put('conversations/{conversation}/announcement', [ConversationController::class, 'updateAnnouncement'])->name('api.conversations.announcement.update');
     Route::post('conversations/direct', [ConversationController::class, 'storeDirect'])->name('api.conversations.direct');
     Route::get('conversations/announcement/latest', [ConversationController::class, 'latestAnnouncement'])->name('api.conversations.latest-announcement');
     Route::get('conversations/announcement/list', [ConversationController::class, 'listAnnouncements'])->name('api.conversations.list-announcements');

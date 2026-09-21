@@ -41,6 +41,10 @@ Schedule::command('leases:process-contracts')
     ->dailyAt('06:00')
     ->description('Suspende inquilinos com contrato vencido e avisa proprietários');
 
+Schedule::command('announcements:close-expired')
+    ->everyFifteenMinutes()
+    ->description('Encerra avisos do condomínio após a data de expiração');
+
 // Limpar notificações antigas (30 dias)
 Schedule::call(function () {
     \App\Models\Notification::where('is_read', true)

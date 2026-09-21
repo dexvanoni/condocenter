@@ -77,6 +77,11 @@ class Conversation extends Model
         return $this->hasMany(Message::class);
     }
 
+    public function latestMessage(): HasOne
+    {
+        return $this->hasOne(Message::class)->latestOfMany();
+    }
+
     public function meeting(): HasOne
     {
         return $this->hasOne(Meeting::class);

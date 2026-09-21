@@ -18,7 +18,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Jobs\SendConversationNotifications;
+use App\Services\AnnouncementExpirationService;
 use App\Services\ConversationAuthorization;
+use App\Services\ConversationInboxService;
 use App\Services\SyndicConversationService;
 use App\Services\SyndicConversationStatsService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -26,7 +28,9 @@ use Barryvdh\DomPDF\Facade\Pdf;
 class ConversationController extends Controller
 {
     public function __construct(
-        private SyndicConversationStatsService $statsService
+        private SyndicConversationStatsService $statsService,
+        private ConversationInboxService $inboxService,
+        private AnnouncementExpirationService $announcementExpiration,
     ) {}
 
     public function index(Request $request)
@@ -35,36 +39,43 @@ class ConversationController extends Controller
         $user = $request->user();
 
         $query = Conversation::query()
-            ->with(['participants.user:id,name', 'meeting']);
+            ->with([
+                'participants.user:id,name',
+                'meeting',
+                'latestMessage.fromUser:id,name',
+                'creator:id,name',
+            ]);
 
         ConversationAuthorization::applyVisibilityScope($query, $user);
 
-        if ($request->filled('channel')) {
-            if ($request->get('channel') === Conversation::CHANNEL_PEER) {
-                $query->where(function ($sub) {
-                    $sub->where('channel', Conversation::CHANNEL_PEER)
-                        ->orWhereNull('channel');
-                });
-            } else {
-                $query->where('channel', $request->get('channel'));
+        $channel = $request->get('channel', Conversation::CHANNEL_PEER);
 
-                if ($request->get('channel') === Conversation::CHANNEL_SYNDIC) {
-                    app(SyndicConversationService::class)->applyResidentSyndicScope($query, $user);
-                }
-            }
-        } else {
+        if ($channel === 'legacy') {
             $query->where(function ($sub) {
                 $sub->whereNull('channel')
                     ->orWhere('channel', '!=', Conversation::CHANNEL_SYNDIC);
             });
+        } else {
+            $this->inboxService->applyChannelScope($query, $user, $channel);
         }
 
         if ($request->filled('type')) {
             $query->where('type', $request->get('type'));
+        } elseif ($channel === Conversation::CHANNEL_PEER) {
+            $query->where('type', 'direct');
         }
+
         if ($request->filled('priority')) {
             $query->where('priority', $request->get('priority'));
         }
+
+        $statusFilter = $request->get('status');
+        $this->inboxService->applyStatusScope($query, $user, $statusFilter);
+
+        if ($request->get('type') === 'announcement' || $channel === 'announcement') {
+            $this->announcementExpiration->closeExpired($user->tenantCondominiumId());
+        }
+
         if ($request->boolean('only_active', false)) {
             $now = now();
             $query->where('is_active', true)
@@ -73,8 +84,28 @@ class ConversationController extends Controller
                 });
         }
 
-        $conversations = $query->orderByDesc('created_at')->paginate(20);
-        return response()->json($conversations);
+        $perPage = min((int) $request->get('per_page', 50), 100);
+        $paginator = $query->orderByDesc('updated_at')->paginate($perPage);
+
+        $serialized = $this->inboxService->serializeCollection(
+            $paginator->getCollection(),
+            $user,
+            $statusFilter
+        );
+
+        return response()->json([
+            'data' => $serialized,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+            'links' => [
+                'next' => $paginator->nextPageUrl(),
+                'prev' => $paginator->previousPageUrl(),
+            ],
+        ]);
     }
 
     public function show(Request $request, Conversation $conversation)
@@ -93,11 +124,17 @@ class ConversationController extends Controller
             }
         }
 
-        $conversation->load([
+        $loads = [
             'participants.user:id,name',
             'messages' => fn ($q) => $q->with(['fromUser:id,name', 'attachments'])->orderBy('created_at'),
             'meeting',
-        ]);
+        ];
+
+        if ($conversation->type === 'announcement' && ($user->isSindico() || $user->isAdmin())) {
+            $loads[] = 'recipients';
+        }
+
+        $conversation->load($loads);
 
         return response()->json($conversation);
     }
@@ -133,7 +170,9 @@ class ConversationController extends Controller
                 'type' => 'announcement',
                 'priority' => $priority,
                 'is_active' => true,
-                'expires_at' => $request->get('expires_at'),
+                'expires_at' => $request->filled('expires_at')
+                    ? \Illuminate\Support\Carbon::parse($request->get('expires_at'))
+                    : null,
             ]);
 
             ConversationParticipant::create([
@@ -170,6 +209,86 @@ class ConversationController extends Controller
             SendConversationNotifications::dispatchSync($conversation->id, $user->id, $request->get('message'), $priority);
 
             return $response;
+        });
+    }
+
+    public function updateAnnouncement(Request $request, Conversation $conversation)
+    {
+        /** @var User $user */
+        $user = $request->user();
+        if (!($user->isSindico() || $user->isAdmin())) {
+            return response()->json(['error' => 'Sem permissão para editar avisos'], 403);
+        }
+        if ($conversation->condominium_id !== $user->tenantCondominiumId() || $conversation->type !== 'announcement') {
+            return response()->json(['error' => 'Operação inválida'], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'subject' => ['nullable', 'string', 'max:255'],
+            'message' => ['required', 'string'],
+            'priority' => ['nullable', Rule::in(['low', 'normal', 'high', 'urgent'])],
+            'recipients' => ['required', 'array', 'min:1'],
+            'recipients.*.type' => ['required', Rule::in(['all', 'role', 'user'])],
+            'recipients.*.value' => ['nullable'],
+            'expires_at' => ['nullable', 'date'],
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $priority = $request->get('priority', 'normal');
+        $expiresAt = null;
+        if ($request->has('expires_at') && $request->input('expires_at') !== null && $request->input('expires_at') !== '') {
+            $expiresAt = \Illuminate\Support\Carbon::parse($request->input('expires_at'));
+        }
+
+        return DB::transaction(function () use ($conversation, $request, $priority, $expiresAt) {
+            $attrs = [
+                'subject' => $request->get('subject'),
+                'priority' => $priority,
+                'expires_at' => $expiresAt,
+            ];
+
+            if ($expiresAt === null || $expiresAt->isFuture()) {
+                $attrs['is_closed'] = false;
+                $attrs['is_active'] = true;
+                $attrs['closed_at'] = null;
+            }
+
+            $conversation->update($attrs);
+
+            $announcementMessage = $conversation->messages()
+                ->where('type', 'announcement')
+                ->orderBy('id')
+                ->first()
+                ?? $conversation->messages()->orderBy('id')->first();
+
+            if ($announcementMessage) {
+                $announcementMessage->update([
+                    'subject' => $request->get('subject'),
+                    'message' => $request->get('message'),
+                    'priority' => $priority,
+                ]);
+            }
+
+            $conversation->recipients()->delete();
+            foreach ($request->get('recipients', []) as $rcp) {
+                ConversationRecipient::create([
+                    'conversation_id' => $conversation->id,
+                    'target_type' => $rcp['type'],
+                    'target_value' => $rcp['value'] ?? null,
+                ]);
+            }
+
+            $conversation->load([
+                'recipients',
+                'messages' => fn ($q) => $q->with(['fromUser:id,name', 'attachments'])->orderBy('created_at'),
+            ]);
+
+            return response()->json([
+                'message' => 'Aviso atualizado',
+                'conversation' => $conversation,
+            ]);
         });
     }
 
@@ -551,6 +670,7 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+        $this->announcementExpiration->closeExpired($user->tenantCondominiumId());
         $now = now();
         $userRoleNames = $user->roles?->pluck('name')->all() ?? [];
 
@@ -596,6 +716,7 @@ class ConversationController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+        $this->announcementExpiration->closeExpired($user->tenantCondominiumId());
         $now = now();
         $userRoleNames = $user->roles?->pluck('name')->all() ?? [];
 
@@ -604,6 +725,7 @@ class ConversationController extends Controller
             ->where('condominium_id', $user->tenantCondominiumId())
             ->where('type', 'announcement')
             ->where('is_active', true)
+            ->where('is_closed', false)
             ->where(function ($q) use ($now) {
                 $q->whereNull('expires_at')->orWhere('expires_at', '>', $now);
             })

@@ -76,6 +76,8 @@ class DashboardController extends Controller
             return $this->porteiroDashboard($user, $condominium);
         } elseif ($user->isConselhoFiscal()) {
             return $this->conselhoFiscalDashboard($user, $condominium);
+        } elseif ($user->isProprietario()) {
+            return $this->proprietarioDashboard($user, $condominium);
         }
 
         // Fallback para perfis não tratados
@@ -923,6 +925,11 @@ class DashboardController extends Controller
             (int) $condominium->id
         );
 
+        $ownerPanorama = app(\App\Services\OwnerDashboardService::class)->panorama(
+            $user,
+            (int) $condominium->id
+        );
+
         $notificacoes = $user->notifications()
             ->where('is_read', false)
             ->orderBy('created_at', 'desc')
@@ -931,6 +938,7 @@ class DashboardController extends Controller
 
         return view('dashboard.proprietario', compact(
             'leaseAlerts',
+            'ownerPanorama',
             'notificacoes',
             'condominium',
         ));

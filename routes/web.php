@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Condominium;
 use App\Http\Controllers\ConversationWebController;
+use App\Http\Controllers\OwnerUnitDashboardController;
 use App\Http\Controllers\CondominiumLandingPublicController;
 use App\Http\Controllers\CondominiumLandingAdminController;
 
@@ -77,6 +78,13 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::post('/condominium/switch', [\App\Http\Controllers\CondominiumSelectorController::class, 'switch'])->name('condominium.switch');
 
     Route::middleware(['require.condominium'])->group(function () {
+        Route::prefix('proprietario')->name('owner.')->group(function () {
+            Route::get('/unidades/{unit}/relatorio-inquilino.pdf', [OwnerUnitDashboardController::class, 'exportTenantReportPdf'])
+                ->name('tenant-report.pdf');
+            Route::get('/unidades/{unit}/conversa-morador', [OwnerUnitDashboardController::class, 'startMoradorConversation'])
+                ->name('morador-conversation.start');
+        });
+
         Route::prefix('minha-assinatura')->name('syndic-subscription.')->group(function () {
             Route::get('/', [\App\Http\Controllers\SyndicSubscriptionController::class, 'show'])->name('show');
             Route::get('/cobrancas/export', [\App\Http\Controllers\SyndicSubscriptionController::class, 'exportCharges'])->name('charges.export');
@@ -504,7 +512,19 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     });
     
     // Mensagens
-    Route::get('/messages', function() { return view('messages.index'); })
+    Route::get('/messages', function (\Illuminate\Http\Request $request) {
+        $user = $request->user();
+        $syndicService = app(\App\Services\SyndicConversationService::class);
+        $profile = $syndicService->participantProfile($user);
+
+        return view('messages.index', [
+            'canSyndicChannel' => !($user->isAdmin() && !$user->isSindico()),
+            'syndicProfileLabel' => $syndicService->profileLabel($profile),
+            'hasSyndicProfileSplit' => $profile !== null,
+            'isSindico' => $user->isSindico(),
+            'canSendAnnouncements' => $user->can('send_announcements'),
+        ]);
+    })
         ->middleware('condominium.module:communication')
         ->name('messages.index');
     

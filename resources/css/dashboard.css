@@ -1183,9 +1183,21 @@
     flex-shrink: 0;
 }
 
-.announcement-banner .btn {
+.announcement-banner .btn,
+.announcement-banner__details-btn {
     padding: 0.2rem 0.55rem;
     font-size: 0.75rem;
+}
+
+@media (max-width: 576px) {
+    .announcement-banner {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    .announcement-banner__details-btn {
+        width: 100%;
+        margin-top: 0.25rem;
+    }
 }
 
 .md-chart-panel {

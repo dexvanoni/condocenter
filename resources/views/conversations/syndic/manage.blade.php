@@ -3,17 +3,25 @@
 @section('title', 'Atendimento Sigiloso')
 
 @section('content')
+@include('messages.partials.hub-styles')
 @include('conversations.partials.syndic-channel-styles')
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 comm-hub-page">
 	<div class="row mb-4">
 		<div class="col-12 d-flex flex-wrap justify-content-between align-items-start gap-3">
 			<div>
 				<h2 class="mb-1 fw-bold"><i class="bi bi-clipboard-data me-2"></i>Atendimento Sigiloso</h2>
 				<p class="text-muted mb-0">Gerencie conversas confidenciais recebidas dos moradores.</p>
 			</div>
-			<div class="badge bg-dark fs-6 px-3 py-2">
-				<i class="bi bi-shield-lock me-1"></i> Acesso restrito ao perfil Síndico
+			<div class="d-flex flex-wrap gap-2 align-items-center">
+				@if(Route::has('messages.index'))
+					<a href="{{ route('messages.index') }}" class="btn btn-outline-primary btn-sm">
+						<i class="bi bi-chat-dots"></i> Central de comunicação
+					</a>
+				@endif
+				<span class="badge bg-dark fs-6 px-3 py-2">
+					<i class="bi bi-shield-lock me-1"></i> Acesso restrito ao perfil Síndico
+				</span>
 			</div>
 		</div>
 	</div>

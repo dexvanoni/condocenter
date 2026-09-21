@@ -3,9 +3,10 @@
 @section('title', 'Conversa Sigilosa com o Síndico')
 
 @section('content')
+@include('messages.partials.hub-styles')
 @include('conversations.partials.syndic-channel-styles')
 
-<div class="container-fluid py-4">
+<div class="container-fluid py-4 comm-hub-page">
 	<div class="row mb-4">
 		<div class="col-12">
 			<h2 class="mb-1 fw-bold"><i class="bi bi-shield-lock me-2"></i>Conversa Sigilosa com o Síndico</h2>
