@@ -498,6 +498,16 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/conversations/direct', [\App\Http\Controllers\SyndicConversationWebController::class, 'start'])
         ->name('conversations.direct.start');
     
+    // Biblioteca de documentos do condomínio (leitura + busca; síndico gerencia uploads)
+    Route::prefix('library-documents')->name('library-documents.')->middleware('condominium.module:documents')->group(function () {
+        Route::get('/', [\App\Http\Controllers\CondominiumLibraryDocumentController::class, 'index'])->name('index');
+        Route::get('/manage', [\App\Http\Controllers\CondominiumLibraryDocumentController::class, 'manage'])->name('manage');
+        Route::post('/', [\App\Http\Controllers\CondominiumLibraryDocumentController::class, 'store'])->name('store');
+        Route::put('/{document}', [\App\Http\Controllers\CondominiumLibraryDocumentController::class, 'update'])->name('update');
+        Route::delete('/{document}', [\App\Http\Controllers\CondominiumLibraryDocumentController::class, 'destroy'])->name('destroy');
+        Route::get('/{document}/file', [\App\Http\Controllers\CondominiumLibraryDocumentController::class, 'file'])->name('file');
+    });
+
     // Regimento Interno (todos os usuários podem ver, apenas admin/síndico pode editar)
     Route::prefix('internal-regulations')->name('internal-regulations.')->middleware('condominium.module:documents')->group(function () {
         Route::get('/', [\App\Http\Controllers\InternalRegulationController::class, 'index'])->name('index');

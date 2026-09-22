@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 21/09/2026 (expiração automática de avisos + `announcements:close-expired`)
+- **Última revisão:** 22/09/2026 (biblioteca de documentos do condomínio + busca textual)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -652,6 +652,11 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-22 — Biblioteca de documentos (módulo Documentos)
+
+- Atualização: Parte 2 (`git pull` + `composer install --no-dev --optimize-autoloader` + `php artisan migrate --force`). Dependência PHP nova: `smalot/pdfparser` (extração de texto de PDF para busca).
+- Arquivos enviados pelo síndico ficam em `storage/app/condominium_library/{condominium_id}/` (disco `local`, não público). Sem variável de `.env` nova. O regimento interno existente aparece na biblioteca após a primeira visita à tela (sincronização automática).
 
 ### 2026-09-21 — Expiração automática de avisos do síndico
 

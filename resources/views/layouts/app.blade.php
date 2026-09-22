@@ -1075,7 +1075,7 @@
             'pets' => request()->routeIs('pets.*'),
             'service_orders' => request()->routeIs('service-orders.*'),
             'assemblies' => request()->routeIs('assemblies.*'),
-            'documents' => request()->routeIs('internal-regulations.*'),
+            'documents' => request()->routeIs('library-documents.*') || request()->routeIs('internal-regulations.*'),
             'packages' => request()->routeIs('packages.*'),
             'access_control' => request()->routeIs('access-control.*'),
             'portaria' => request()->routeIs('entries.*') || request()->routeIs('access-control.porteiro'),
@@ -1633,7 +1633,7 @@
                 </li>
                 @endif
 
-                @if($modOn('documents') && Route::has('internal-regulations.index'))
+                @if($modOn('documents') && Route::has('library-documents.index'))
                 <li class="nav-item nav-item-group">
                     <button class="nav-link-toggle {{ $menuActive['documents'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#menuDocumentos" aria-expanded="{{ $menuActive['documents'] ? 'true' : 'false' }}">
                         <span><i class="bi bi-file-earmark-text me-2"></i>Documentos</span>
@@ -1642,8 +1642,8 @@
                     <div class="collapse {{ $menuActive['documents'] ? 'show' : '' }}" id="menuDocumentos" data-bs-parent="#sidebarMenu">
                         <ul class="nav flex-column inner-nav">
                             <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
-                                    <i class="bi bi-journal-text"></i> Regimento Interno
+                                <a class="nav-link {{ request()->routeIs('library-documents.*') ? 'active' : '' }}" href="{{ route('library-documents.index') }}">
+                                    <i class="bi bi-folder2-open"></i> Biblioteca de documentos
                                 </a>
                             </li>
                         </ul>
@@ -2463,7 +2463,7 @@
                         </li>
                         @endif
 
-                        @if($modOn('documents') && Route::has('internal-regulations.index'))
+                        @if($modOn('documents') && Route::has('library-documents.index'))
                         <li class="nav-item nav-item-group mt-2">
                             <button class="nav-link-toggle {{ $menuActive['documents'] ? 'active' : 'collapsed' }}" data-bs-toggle="collapse" data-bs-target="#mobileMenuDocumentos" aria-expanded="{{ $menuActive['documents'] ? 'true' : 'false' }}">
                                 <span><i class="bi bi-file-earmark-text me-2"></i>Documentos</span>
@@ -2472,8 +2472,8 @@
                             <div class="collapse {{ $menuActive['documents'] ? 'show' : '' }}" id="mobileMenuDocumentos" data-bs-parent="#mobileSidebarMenu">
                                 <ul class="nav flex-column inner-nav">
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('internal-regulations.*') ? 'active' : '' }}" href="{{ route('internal-regulations.index') }}">
-                                            <i class="bi bi-journal-text"></i> Regimento Interno
+                                        <a class="nav-link {{ request()->routeIs('library-documents.*') ? 'active' : '' }}" href="{{ route('library-documents.index') }}">
+                                            <i class="bi bi-folder2-open"></i> Biblioteca de documentos
                                         </a>
                                     </li>
                                 </ul>

@@ -249,6 +249,18 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
         return $this->hasRole('Morador');
     }
 
+    /** Morador cuja unidade está em regime de aluguel (inquilino). */
+    public function isMoradorInquilino(): bool
+    {
+        if (!$this->isMorador() || !$this->unit_id) {
+            return false;
+        }
+
+        $unit = $this->relationLoaded('unit') ? $this->unit : $this->unit()->first();
+
+        return $unit?->isRental() ?? false;
+    }
+
     public function isPorteiro(): bool
     {
         return $this->hasRole('Porteiro');

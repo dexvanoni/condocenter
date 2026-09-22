@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\InternalRegulation;
 use App\Models\InternalRegulationHistory;
+use App\Services\LibraryDocumentRegulationSync;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -21,17 +22,15 @@ class InternalRegulationController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $regulation = InternalRegulation::with(['updatedBy', 'history.updatedBy'])
-            ->byCondominium($user->tenantCondominiumId())
+        $regulation = InternalRegulation::byCondominium($user->tenantCondominiumId())
             ->active()
             ->first();
 
-        // Se não existir regimento, verifica se o usuário é admin para criar
         if (!$regulation && ($user->hasRole('Administrador') || $user->hasRole('Síndico'))) {
             return redirect()->route('internal-regulations.create');
         }
 
-        return view('internal-regulations.index', compact('regulation'));
+        return redirect()->route('library-documents.index');
     }
 
     /**
@@ -86,6 +85,8 @@ class InternalRegulationController extends Controller
 
         $regulation = InternalRegulation::create($validated);
 
+        app(LibraryDocumentRegulationSync::class)->syncFromRegulation($regulation);
+
         // Log da atividade
         $user->logActivity(
             'create',
@@ -94,7 +95,7 @@ class InternalRegulationController extends Controller
             ['regulation_id' => $regulation->id]
         );
 
-        return redirect()->route('internal-regulations.index')
+        return redirect()->route('library-documents.index')
             ->with('success', 'Regimento interno criado com sucesso!');
     }
 
@@ -148,6 +149,8 @@ class InternalRegulationController extends Controller
         $regulation->updated_by = $user->id;
         $regulation->save();
 
+        app(LibraryDocumentRegulationSync::class)->syncFromRegulation($regulation->fresh());
+
         // Atualizar o histórico com o resumo das mudanças se fornecido
         if (!empty($validated['changes_summary'])) {
             $latestHistory = InternalRegulationHistory::where('internal_regulation_id', $regulation->id)
@@ -168,7 +171,11 @@ class InternalRegulationController extends Controller
             ['regulation_id' => $regulation->id, 'version' => $regulation->version]
         );
 
-        return redirect()->route('internal-regulations.index')
+        return redirect()->route('library-documents.index', ['doc' => optional(
+            \App\Models\CondominiumLibraryDocument::query()
+                ->where('internal_regulation_id', $regulation->id)
+                ->value('id')
+        )])
             ->with('success', 'Regimento interno atualizado com sucesso! Nova versão: ' . $regulation->version);
     }
 

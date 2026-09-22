@@ -3,219 +3,234 @@
 @section('title', 'Usuários')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="mb-1"><i class="bi bi-people-fill"></i> Usuários</h1>
-        @if(!empty($activeCondominium))
-        <p class="text-muted mb-0">
-            Condomínio selecionado: <strong>{{ $activeCondominium->name }}</strong>
-        </p>
-        @endif
-    </div>
-    @can('manage_users')
-    <a href="{{ route('users.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i> Novo Usuário
-    </a>
-    @endcan
-</div>
+@include('users.partials.index-styles')
 
-<!-- Filtros -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" action="{{ route('users.index') }}" class="row g-3">
-            <!-- Primeira linha -->
-            <div class="col-md-4">
-                <input type="text" name="search" class="form-control" placeholder="Buscar (nome, email, CPF)..." value="{{ request('search') }}">
-            </div>
-            <div class="col-md-3">
-                <select name="role" class="form-select">
-                    <option value="">Todos os perfis</option>
-                    @foreach($roles as $role)
-                    <option value="{{ $role->name }}" {{ request('role') === $role->name ? 'selected' : '' }}>{{ $role->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select name="unit_id" class="form-select">
-                    <option value="">Todas unidades</option>
-                    @foreach($units as $unit)
-                    <option value="{{ $unit->id }}" {{ request('unit_id') == $unit->id ? 'selected' : '' }}>{{ $unit->full_identifier }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-search"></i> Filtrar
-                </button>
-            </div>
-            
-            <!-- Segunda linha -->
-            <div class="col-md-3">
-                <select name="status" class="form-select">
-                    <option value="">Todos cadastros</option>
-                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pendentes de aprovação</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select name="is_active" class="form-select">
-                    <option value="">Todos status</option>
-                    <option value="1" {{ request('is_active') === '1' ? 'selected' : '' }}>Ativos</option>
-                    <option value="0" {{ request('is_active') === '0' ? 'selected' : '' }}>Inativos</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select name="possui_dividas" class="form-select">
-                    <option value="">Todas dívidas</option>
-                    <option value="1" {{ request('possui_dividas') === '1' ? 'selected' : '' }}>Com dívidas</option>
-                    <option value="0" {{ request('possui_dividas') === '0' ? 'selected' : '' }}>Sem dívidas</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <a href="{{ route('users.index') }}" class="btn btn-secondary w-100">
-                    <i class="bi bi-x-circle"></i> Limpar Filtros
-                </a>
-            </div>
-            <div class="col-md-3">
-                <small class="text-muted d-flex align-items-center h-100">
-                    <i class="bi bi-info-circle me-1"></i>
-                    {{ $users->total() }} usuário(s) encontrado(s)
-                </small>
-            </div>
-        </form>
-    </div>
-</div>
+<div class="users-page">
+	<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+		<div>
+			<h1 class="mb-1"><i class="bi bi-people text-primary me-1"></i> Usuários</h1>
+			@if(!empty($activeCondominium))
+				<p class="text-muted mb-0 small">{{ $activeCondominium->name }}</p>
+			@endif
+		</div>
+		@can('manage_users')
+			<a href="{{ route('users.create') }}" class="btn btn-primary btn-sm">
+				<i class="bi bi-plus-lg"></i> Novo usuário
+			</a>
+		@endcan
+	</div>
 
-<!-- Listagem -->
-<div class="card">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Foto</th>
-                        <th>Nome</th>
-                        <th>Email</th>
-                        <th>CPF</th>
-                        <th>Unidade</th>
-                        <th>Perfil(s)</th>
-                        <th>Status</th>
-                        <th width="150">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($users as $user)
-                    <tr>
-                        <td>
-                            @if($user->photo)
-                            <img src="{{ Storage::url($user->photo) }}" alt="{{ $user->name }}" class="rounded-circle" width="40" height="40">
-                            @else
-                            <i class="bi bi-person-circle fs-3 text-muted"></i>
-                            @endif
-                        </td>
-                        <td><strong>{{ $user->name }}</strong></td>
-                        <td>{{ $user->email }}</td>
-                        <td>{{ $user->cpf }}</td>
-                        <td>{{ $user->unit?->full_identifier ?? '-' }}</td>
-                        <td>
-                            @foreach($user->roles as $role)
-                                <span class="badge bg-primary">{{ $role->name }}</span>
-                            @endforeach
-                        </td>
-                        <td>
-                            @if($user->isPendingApproval())
-                                <span class="badge bg-warning text-dark">Pendente</span>
-                            @elseif($user->isRegistrationRejected())
-                                <span class="badge bg-danger">Rejeitado</span>
-                            @elseif($user->is_active)
-                                <span class="badge bg-success">Ativo</span>
-                            @else
-                                <span class="badge bg-secondary">Inativo</span>
-                            @endif
-                            @if($user->possui_dividas)
-                                <span class="badge bg-danger ms-1">Dívidas</span>
-                            @endif
-                            @if($user->senha_temporaria)
-                                <span class="badge bg-warning ms-1">Senha Temp.</span>
-                            @endif
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ route('users.show', $user) }}" class="btn btn-info" title="Ver">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                @can('update', $user)
-                                @if($user->isPendingApproval())
-                                <form action="{{ route('users.approve', $user) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    <button type="submit" class="btn btn-success" title="Aprovar cadastro"
-                                            onclick="return confirm('Aprovar o cadastro de {{ $user->name }}?')">
-                                        <i class="bi bi-check2-circle"></i>
-                                    </button>
-                                </form>
-                                <form action="{{ route('users.reject', $user) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    <button type="submit" class="btn btn-outline-danger" title="Rejeitar cadastro"
-                                            onclick="return confirm('Rejeitar o cadastro de {{ $user->name }}?')">
-                                        <i class="bi bi-x-circle"></i>
-                                    </button>
-                                </form>
-                                @elseif($user->isRegistrationApproved())
-                                    @if($user->is_active)
-                                    <form action="{{ route('users.deactivate', $user) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="btn btn-outline-secondary" title="Desativar"
-                                                onclick="return confirm('Desativar {{ $user->name }}?')">
-                                            <i class="bi bi-person-dash"></i>
-                                        </button>
-                                    </form>
-                                    @else
-                                    <form action="{{ route('users.activate', $user) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        <button type="submit" class="btn btn-success" title="Ativar"
-                                                onclick="return confirm('Ativar {{ $user->name }}?')">
-                                            <i class="bi bi-person-check"></i>
-                                        </button>
-                                    </form>
-                                    @endif
-                                @endif
-                                <a href="{{ route('users.edit', $user) }}" class="btn btn-warning" title="Editar">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                @endcan
-                                @can('viewHistory', $user)
-                                <a href="{{ route('users.history', $user) }}" class="btn btn-secondary" title="Histórico">
-                                    <i class="bi bi-clock-history"></i>
-                                </a>
-                                @endcan
-                                @can('delete', $user)
-                                <form action="{{ route('users.destroy', $user) }}" method="POST" class="d-inline" 
-                                      onsubmit="return confirm('Tem certeza que deseja excluir este usuário?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger" title="Excluir">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </form>
-                                @endcan
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="8" class="text-center py-4">
-                            <i class="bi bi-inbox fs-1 text-muted d-block mb-2"></i>
-                            Nenhum usuário encontrado.
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+	<form method="GET" action="{{ route('users.index') }}" class="users-toolbar mb-3">
+		<div class="row g-2 align-items-end">
+			<div class="col-lg-4 col-md-5">
+				<label class="form-label small text-muted mb-1">Buscar</label>
+				<input type="text" name="search" class="form-control" placeholder="Nome, e-mail ou CPF…" value="{{ request('search') }}">
+			</div>
+			<div class="col-6 col-md-3 col-lg-2">
+				<label class="form-label small text-muted mb-1">Perfil</label>
+				<select name="role" class="form-select">
+					<option value="">Todos</option>
+					@foreach($roles as $role)
+						<option value="{{ $role->name }}" @selected(request('role') === $role->name)>{{ $role->name }}</option>
+					@endforeach
+				</select>
+			</div>
+			<div class="col-6 col-md-4 col-lg-2">
+				<label class="form-label small text-muted mb-1">Unidade</label>
+				<select name="unit_id" class="form-select">
+					<option value="">Todas</option>
+					@foreach($units as $unit)
+						<option value="{{ $unit->id }}" @selected(request('unit_id') == $unit->id)>{{ $unit->full_identifier }}</option>
+					@endforeach
+				</select>
+			</div>
+			<div class="col-6 col-md-3 col-lg-1">
+				<label class="form-label small text-muted mb-1">Cadastro</label>
+				<select name="status" class="form-select">
+					<option value="">Todos</option>
+					<option value="pending" @selected(request('status') === 'pending')>Pendentes</option>
+				</select>
+			</div>
+			<div class="col-6 col-md-3 col-lg-1">
+				<label class="form-label small text-muted mb-1">Status</label>
+				<select name="is_active" class="form-select">
+					<option value="">Todos</option>
+					<option value="1" @selected(request('is_active') === '1')>Ativos</option>
+					<option value="0" @selected(request('is_active') === '0')>Inativos</option>
+				</select>
+			</div>
+			<div class="col-6 col-md-3 col-lg-1">
+				<label class="form-label small text-muted mb-1">Dívidas</label>
+				<select name="possui_dividas" class="form-select">
+					<option value="">Todas</option>
+					<option value="1" @selected(request('possui_dividas') === '1')>Com</option>
+					<option value="0" @selected(request('possui_dividas') === '0')>Sem</option>
+				</select>
+			</div>
+			<div class="col-12 col-lg-auto d-flex flex-wrap gap-2 pt-lg-0 pt-1">
+				<button type="submit" class="btn btn-primary btn-sm">
+					<i class="bi bi-search"></i> Filtrar
+				</button>
+				<a href="{{ route('users.index') }}" class="btn btn-outline-secondary btn-sm">
+					Limpar
+				</a>
+			</div>
+		</div>
+		<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 pt-2 border-top border-light">
+			<span class="users-toolbar__meta">{{ $users->total() }} usuário(s)</span>
+			<span class="users-legend">
+				<span class="users-inquilino-badge" title="Morador inquilino"><i class="bi bi-key-fill"></i></span>
+				Inquilino (unidade em aluguel)
+			</span>
+		</div>
+	</form>
 
-        <div class="mt-3">
-            {{ $users->links() }}
-        </div>
-    </div>
+	<div class="users-table-wrap">
+		<div class="table-responsive">
+			<table class="table users-table align-middle">
+				<thead>
+					<tr>
+						<th>Usuário</th>
+						<th class="col-email">E-mail</th>
+						<th class="col-cpf">CPF</th>
+						<th>Unidade</th>
+						<th>Perfis</th>
+						<th>Status</th>
+						<th class="text-end" width="120">Ações</th>
+					</tr>
+				</thead>
+				<tbody>
+					@forelse($users as $user)
+						<tr>
+							<td>
+								<div class="users-identity">
+									@if($user->photo)
+										<img src="{{ Storage::url($user->photo) }}" alt="" class="users-avatar">
+									@else
+										<span class="users-avatar users-avatar--placeholder"><i class="bi bi-person"></i></span>
+									@endif
+									<div class="min-w-0">
+										<div class="users-identity__name">
+											<span class="text-truncate">{{ $user->name }}</span>
+											@if($user->isMoradorInquilino())
+												<span class="users-inquilino-badge" title="Morador inquilino — unidade em regime de aluguel">
+													<i class="bi bi-key-fill"></i>
+												</span>
+											@endif
+										</div>
+										<div class="users-identity__sub d-lg-none">
+											{{ $user->email }}
+										</div>
+									</div>
+								</div>
+							</td>
+							<td class="col-email text-muted small">{{ $user->email }}</td>
+							<td class="col-cpf text-muted small">{{ $user->cpf ?: '—' }}</td>
+							<td class="small">{{ $user->unit?->full_identifier ?? '—' }}</td>
+							<td>
+								<div class="users-role-chips">
+									@foreach($user->roles as $role)
+										<span class="badge">{{ $role->name }}</span>
+									@endforeach
+								</div>
+							</td>
+							<td>
+								<div class="users-status-stack">
+									@if($user->isPendingApproval())
+										<span class="badge bg-warning text-dark">Pendente</span>
+									@elseif($user->isRegistrationRejected())
+										<span class="badge bg-danger">Rejeitado</span>
+									@elseif($user->is_active)
+										<span class="badge bg-success">Ativo</span>
+									@else
+										<span class="badge bg-secondary">Inativo</span>
+									@endif
+									@if($user->possui_dividas)
+										<span class="badge bg-danger">Dívidas</span>
+									@endif
+									@if($user->senha_temporaria)
+										<span class="badge bg-warning text-dark">Senha temp.</span>
+									@endif
+								</div>
+							</td>
+							<td class="text-end">
+								<div class="users-actions d-inline-flex flex-wrap justify-content-end gap-1">
+									<a href="{{ route('users.show', $user) }}" class="btn btn-sm btn-outline-secondary" title="Ver">
+										<i class="bi bi-eye"></i>
+									</a>
+									@can('update', $user)
+										@if($user->isPendingApproval())
+											<form action="{{ route('users.approve', $user) }}" method="POST" class="d-inline">
+												@csrf
+												<button type="submit" class="btn btn-sm btn-outline-success" title="Aprovar"
+													onclick="return confirm('Aprovar o cadastro de {{ $user->name }}?')">
+													<i class="bi bi-check2"></i>
+												</button>
+											</form>
+											<form action="{{ route('users.reject', $user) }}" method="POST" class="d-inline">
+												@csrf
+												<button type="submit" class="btn btn-sm btn-outline-danger" title="Rejeitar"
+													onclick="return confirm('Rejeitar o cadastro de {{ $user->name }}?')">
+													<i class="bi bi-x"></i>
+												</button>
+											</form>
+										@elseif($user->isRegistrationApproved())
+											@if($user->is_active)
+												<form action="{{ route('users.deactivate', $user) }}" method="POST" class="d-inline">
+													@csrf
+													<button type="submit" class="btn btn-sm btn-outline-secondary" title="Desativar"
+														onclick="return confirm('Desativar {{ $user->name }}?')">
+														<i class="bi bi-person-dash"></i>
+													</button>
+												</form>
+											@else
+												<form action="{{ route('users.activate', $user) }}" method="POST" class="d-inline">
+													@csrf
+													<button type="submit" class="btn btn-sm btn-outline-success" title="Ativar"
+														onclick="return confirm('Ativar {{ $user->name }}?')">
+														<i class="bi bi-person-check"></i>
+													</button>
+												</form>
+											@endif
+										@endif
+										<a href="{{ route('users.edit', $user) }}" class="btn btn-sm btn-outline-secondary" title="Editar">
+											<i class="bi bi-pencil"></i>
+										</a>
+									@endcan
+									@can('viewHistory', $user)
+										<a href="{{ route('users.history', $user) }}" class="btn btn-sm btn-outline-secondary" title="Histórico">
+											<i class="bi bi-clock-history"></i>
+										</a>
+									@endcan
+									@can('delete', $user)
+										<form action="{{ route('users.destroy', $user) }}" method="POST" class="d-inline"
+											onsubmit="return confirm('Tem certeza que deseja excluir este usuário?')">
+											@csrf
+											@method('DELETE')
+											<button type="submit" class="btn btn-sm btn-outline-secondary btn-danger-outline" title="Excluir">
+												<i class="bi bi-trash"></i>
+											</button>
+										</form>
+									@endcan
+								</div>
+							</td>
+						</tr>
+					@empty
+						<tr>
+							<td colspan="7" class="text-center py-5 text-muted">
+								<i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
+								Nenhum usuário encontrado.
+							</td>
+						</tr>
+					@endforelse
+				</tbody>
+			</table>
+		</div>
+		@if($users->hasPages())
+			<div class="px-3 py-2 border-top bg-light">
+				{{ $users->links() }}
+			</div>
+		@endif
+	</div>
 </div>
 @endsection
-

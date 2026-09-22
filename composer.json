@@ -16,6 +16,7 @@
         "owen-it/laravel-auditing": "^14.0",
         "predis/predis": "^3.2",
         "simplesoftwareio/simple-qrcode": "^4.2",
+        "smalot/pdfparser": "^2.0",
         "spatie/laravel-permission": "^6.21",
         "yajra/laravel-datatables-oracle": "^12.0"
     },
