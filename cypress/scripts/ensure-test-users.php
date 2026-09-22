@@ -84,52 +84,41 @@ $moradorRole->syncPermissions(array_merge(
 $porteiroRole = Role::firstOrCreate(['name' => 'Porteiro', 'guard_name' => 'web']);
 $porteiroRole->givePermissionTo('process_access');
 
-$morador = User::query()->where('email', $moradorEmail)->first();
-if (!$morador) {
-    $morador = User::create([
+$morador = User::withTrashed()->where('email', $moradorEmail)->first();
+if ($morador && $morador->trashed()) {
+    $morador->restore();
+}
+$morador = User::query()->updateOrCreate(
+    ['email' => $moradorEmail],
+    [
         'condominium_id' => $condominium->id,
         'unit_id' => $unit->id,
         'name' => 'Morador Cypress',
-        'email' => $moradorEmail,
         'password' => Hash::make($password),
         'phone' => '(11) 98888-0001',
         'is_active' => true,
         'senha_temporaria' => false,
         'email_verified_at' => now(),
-    ]);
-} else {
-    $morador->update([
-        'condominium_id' => $condominium->id,
-        'unit_id' => $unit->id,
-        'password' => Hash::make($password),
-        'is_active' => true,
-        'senha_temporaria' => false,
-        'email_verified_at' => $morador->email_verified_at ?? now(),
-    ]);
-}
+    ]
+);
 $morador->syncRoles(['Morador']);
 
-$porteiro = User::query()->where('email', $porteiroEmail)->first();
-if (!$porteiro) {
-    $porteiro = User::create([
+$porteiro = User::withTrashed()->where('email', $porteiroEmail)->first();
+if ($porteiro && $porteiro->trashed()) {
+    $porteiro->restore();
+}
+$porteiro = User::query()->updateOrCreate(
+    ['email' => $porteiroEmail],
+    [
         'condominium_id' => $condominium->id,
         'name' => 'Porteiro Cypress',
-        'email' => $porteiroEmail,
         'password' => Hash::make($password),
         'phone' => '(11) 98888-0002',
         'is_active' => true,
         'senha_temporaria' => false,
         'email_verified_at' => now(),
-    ]);
-} else {
-    $porteiro->update([
-        'condominium_id' => $condominium->id,
-        'password' => Hash::make($password),
-        'is_active' => true,
-        'senha_temporaria' => false,
-        'email_verified_at' => $porteiro->email_verified_at ?? now(),
-    ]);
-}
+    ]
+);
 $porteiro->syncRoles(['Porteiro']);
 $porteiro->givePermissionTo('process_access');
 app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
