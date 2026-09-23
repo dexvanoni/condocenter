@@ -60,5 +60,10 @@ class BankAccount extends Model implements Auditable
     {
         return $this->hasMany(BankAccountRoutingRule::class);
     }
+
+    public function statements()
+    {
+        return $this->hasMany(BankStatement::class);
+    }
 }
 

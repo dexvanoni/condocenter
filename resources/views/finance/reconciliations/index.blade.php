@@ -71,10 +71,17 @@
         <div>
             <h2 class="mb-1 h3 fw-bold"><i class="bi bi-bank2 me-2"></i>Conciliação Bancária</h2>
             <p class="mb-0 opacity-75 small">
-                Consolide os lançamentos por conta bancária e mantenha o saldo do sistema alinhado ao extrato.
+                Importe o extrato (CSV/OFX), vincule os lançamentos e feche o saldo da conta.
             </p>
         </div>
         <div class="d-flex gap-2">
+            @if($selectedAccount ?? null)
+                @can('manage_bank_statements')
+                    <a href="{{ route('bank-statements.create', ['account_id' => $selectedAccount->id]) }}" class="btn btn-warning btn-sm">
+                        <i class="bi bi-upload"></i> Importar extrato
+                    </a>
+                @endcan
+            @endif
             <a href="{{ route('financial.settings.index') }}" class="btn btn-light btn-sm">
                 <i class="bi bi-sliders"></i> Regras de destino
             </a>
@@ -205,9 +212,55 @@
                 </div>
             </div>
             @endif
+
+            @if(($recentStatements ?? collect())->isNotEmpty())
+            <div class="col-12">
+                <div class="border rounded-3 p-3 bg-light">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <strong class="small"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Extratos recentes</strong>
+                        @can('manage_bank_statements')
+                            <a href="{{ route('bank-statements.create', ['account_id' => $selectedAccount->id]) }}" class="btn btn-sm btn-outline-primary">
+                                Novo upload
+                            </a>
+                        @endcan
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Arquivo</th>
+                                    <th>Período</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Vínculos</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($recentStatements as $stmt)
+                                    <tr>
+                                        <td>{{ $stmt->original_filename }}</td>
+                                        <td class="small">
+                                            @if($stmt->period_start && $stmt->period_end)
+                                                {{ $stmt->period_start->format('d/m/Y') }} – {{ $stmt->period_end->format('d/m/Y') }}
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                        <td><span class="badge bg-secondary">{{ $stmt->status }}</span></td>
+                                        <td class="text-end small">{{ $stmt->reconciled_transactions }}/{{ $stmt->total_transactions }}</td>
+                                        <td class="text-end">
+                                            <a href="{{ route('bank-statements.show', $stmt) }}" class="btn btn-link btn-sm p-0">Revisar</a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
             @endif
-        </form>
-        @endif
+            @endif
+        </form>        @endif
     </div>
 </div>
 
@@ -293,6 +346,28 @@
                 </div>
             </div>
 
+            @if(!empty($activeStatement))
+                <div class="alert alert-primary mb-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <div>
+                            <strong><i class="bi bi-bank me-1"></i> Extrato ativo neste período</strong>
+                            <div class="small mt-1">
+                                {{ $activeStatement->original_filename }}
+                                · {{ $activeStatement->reconciled_transactions }}/{{ $activeStatement->total_transactions }} vinculados
+                                · Somente lançamentos já cruzados com o extrato entrarão neste fechamento.
+                            </div>
+                            @if($balanceDifference !== null && abs($balanceDifference) >= 0.01)
+                                <div class="small text-warning mt-1">
+                                    Diferença em relação ao saldo do extrato:
+                                    <strong>R$ {{ number_format($balanceDifference, 2, ',', '.') }}</strong>
+                                </div>
+                            @endif
+                        </div>
+                        <a href="{{ route('bank-statements.show', $activeStatement) }}" class="btn btn-sm btn-outline-primary">Abrir revisão</a>
+                    </div>
+                </div>
+            @endif
+
             <h6 class="fw-semibold mb-3">Lançamentos pendentes de conciliação</h6>
 
             @if($hasPendingEntries)
@@ -358,12 +433,19 @@
                             <input type="hidden" name="start_date" value="{{ $filters['start_date'] }}">
                             <input type="hidden" name="end_date" value="{{ $filters['end_date'] }}">
                         @endif
+                        @if(!empty($activeStatement) && $balanceDifference !== null && abs($balanceDifference) >= 0.01)
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" value="1" id="ackBalanceDiff" name="acknowledge_balance_difference" required>
+                                <label class="form-check-label small" for="ackBalanceDiff">
+                                    Estou ciente de que o saldo do extrato difere do saldo projetado.
+                                </label>
+                            </div>
+                        @endif
                         <button type="submit" class="btn btn-success" @disabled(!$hasPendingEntries)>
                             <i class="bi bi-check-circle"></i>
                             {{ ($pendingOnly ?? false) ? 'Confirmar conciliação das pendências' : 'Confirmar conciliação' }}
                         </button>
-                    </form>
-                    @if($latestReconciliation && $latestReconciliation->bank_account_id === $selectedAccount->id)
+                    </form>                    @if($latestReconciliation && $latestReconciliation->bank_account_id === $selectedAccount->id)
                         <form method="POST" action="{{ route('bank-reconciliation.cancel') }}" onsubmit="return confirm('Cancelar a última conciliação? Esta ação reverte o saldo da conta.');">
                             @csrf
                             <input type="hidden" name="account_id" value="{{ $selectedAccount->id }}">

@@ -137,6 +137,16 @@
                             </select>
                         </div>
                         <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Categoria <span class="text-danger">*</span></label>
+                            <select name="category" class="form-select form-select-lg" required>
+                                <option value="">Selecione a categoria...</option>
+                                @foreach(\App\Support\ExpenseCategories::all() as $key => $label)
+                                    <option value="{{ $key }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Usada nos gráficos e alertas do dashboard</small>
+                        </div>
+                        <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold">Método de Pagamento</label>
                             <select name="payment_method" class="form-select form-select-lg">
                                 <option value="">Selecione...</option>
@@ -160,7 +170,7 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold">Observações</label>
-                            <textarea name="notes" class="form-control" rows="3" placeholder="Detalhes da compra, centro de custo, etc. (opcional)"></textarea>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="Detalhes da compra, fornecedor, NF, etc. (opcional)"></textarea>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold mb-3">Comprovante</label>

@@ -243,6 +243,11 @@
                         <i class="bi bi-file-earmark-arrow-up"></i> Prestação de contas
                     </a>
                 @endif
+                @if(Route::has('learning.index') && app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter(auth()->user()))
+                <a href="{{ route('learning.index') }}" class="btn btn-outline-light btn-sm">
+                    <i class="bi bi-mortarboard"></i> Aprenda
+                </a>
+                @endif
                 @if(Route::has('occurrence-book.manage.index') && auth()->user()->can('manage_occurrence_book') && auth()->user()->isSindico())
                 <a href="{{ route('occurrence-book.manage.index') }}" class="btn btn-outline-light btn-sm">
                     <i class="bi bi-journal-bookmark"></i> Livro
@@ -380,6 +385,33 @@
                             {{ $monthlyClosing['attention'] }} passo(s) pendente(s)
                         @else
                             Pronto para encerrar
+                        @endif
+                    </p>
+                </span>
+            </a>
+        </div>
+        @endif
+
+        @if($isFinancialFull && auth()->user()->can('view_financial_reports'))
+        @php
+            $custosAtencao = (int) ($categoryAttentionCount ?? 0);
+            $custosTone = $custosAtencao > 0 ? 'danger' : 'success';
+            $topInsight = collect($categoryInsights['insights'] ?? [])
+                ->first(fn ($i) => in_array($i['level'] ?? '', ['critical', 'attention'], true));
+        @endphp
+        <div class="col-xl-3 col-md-6">
+            <a href="#sd-alertas-categorias" class="sd-alert-card sd-alert-card--{{ $custosTone }}">
+                <span class="sd-alert-card__icon"><i class="bi bi-graph-up-arrow"></i></span>
+                <span>
+                    <span class="sd-alert-card__label">Alertas de custos</span>
+                    <div class="sd-alert-card__value">{{ $custosAtencao }}</div>
+                    <p class="sd-alert-card__hint">
+                        @if($custosAtencao > 0 && $topInsight)
+                            {{ $topInsight['label'] }} em atenção
+                        @elseif($custosAtencao > 0)
+                            Categorias pedem revisão
+                        @else
+                            Custos sob controle
                         @endif
                     </p>
                 </span>

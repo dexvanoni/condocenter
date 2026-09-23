@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\ResolvesActiveCondominium;
 use App\Models\BankAccount;
 use App\Models\BankAccountReconciliation;
+use App\Models\BankStatement;
 use App\Services\BankReconciliationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -43,7 +44,9 @@ class BankReconciliationController extends Controller
         $suggestedStartDate = null;
         $pendingForAccount = null;
         $accountPeriodDefaults = [];
-
+        $activeStatement = null;
+        $recentStatements = collect();
+        $balanceDifference = null;
         foreach ($accounts as $account) {
             $accountPeriodDefaults[$account->id] = $this->defaultPeriodForAccount(
                 $condominiumId,
@@ -84,10 +87,31 @@ class BankReconciliationController extends Controller
                 null,
                 null
             )['totals'];
+
+            $recentStatements = BankStatement::query()
+                ->where('bank_account_id', $selectedAccount->id)
+                ->where('condominium_id', $condominiumId)
+                ->latest('id')
+                ->limit(5)
+                ->get();
+
+            if ($filters['start_date'] && $filters['end_date']) {
+                $activeStatement = $this->service->activeStatementCovering(
+                    $selectedAccount->id,
+                    Carbon::parse($filters['start_date'])->startOfDay(),
+                    Carbon::parse($filters['end_date'])->endOfDay()
+                );
+            }
         }
 
         if ($selectedAccount && $pendingOnly) {
-            $preview = $this->service->preview($condominiumId, $selectedAccount, null, null);
+            $preview = $this->service->preview(
+                $condominiumId,
+                $selectedAccount,
+                null,
+                null,
+                $activeStatement !== null
+            );
 
             if (($preview['totals']['count_entries'] ?? 0) > 0) {
                 [$periodStart, $periodEnd] = $this->service->resolvePeriodFromPreview($preview);
@@ -109,7 +133,23 @@ class BankReconciliationController extends Controller
             if ($validator->passes()) {
                 $startDate = Carbon::parse($filters['start_date'])->startOfDay();
                 $endDate = Carbon::parse($filters['end_date'])->endOfDay();
-                $preview = $this->service->preview($condominiumId, $selectedAccount, $startDate, $endDate);
+                $activeStatement = $this->service->activeStatementCovering(
+                    $selectedAccount->id,
+                    $startDate,
+                    $endDate
+                );
+                $preview = $this->service->preview(
+                    $condominiumId,
+                    $selectedAccount,
+                    $startDate,
+                    $endDate,
+                    $activeStatement !== null
+                );
+
+                if ($activeStatement && $activeStatement->closing_balance !== null) {
+                    $projected = ((float) ($selectedAccount->current_balance ?? 0)) + $preview['totals']['net'];
+                    $balanceDifference = round((float) $activeStatement->closing_balance - $projected, 2);
+                }
             } else {
                 $request->session()->flash('preview_errors', $validator->errors());
             }
@@ -135,9 +175,11 @@ class BankReconciliationController extends Controller
             'accountPeriodDefaults' => $accountPeriodDefaults,
             'pendingOnly' => $pendingOnly,
             'reconciliations' => $reconciliations,
+            'activeStatement' => $activeStatement,
+            'recentStatements' => $recentStatements,
+            'balanceDifference' => $balanceDifference,
         ]);
     }
-
     /**
      * @return array{start_date: string, end_date: string}
      */
@@ -187,6 +229,7 @@ class BankReconciliationController extends Controller
             'start_date' => [$pendingOnly ? 'nullable' : 'required', 'date'],
             'end_date' => [$pendingOnly ? 'nullable' : 'required', 'date', 'after_or_equal:start_date'],
             'pending_only' => ['sometimes', 'boolean'],
+            'acknowledge_balance_difference' => ['sometimes', 'boolean'],
         ], [
             'start_date.required' => 'Informe a data inicial do período.',
             'end_date.required' => 'Informe a data final do período.',
@@ -198,6 +241,8 @@ class BankReconciliationController extends Controller
         $account = BankAccount::where('condominium_id', $condominiumId)
             ->where('id', $data['account_id'])
             ->firstOrFail();
+
+        $acknowledge = $request->boolean('acknowledge_balance_difference');
 
         if ($pendingOnly) {
             $preview = $this->service->preview($condominiumId, $account, null, null);
@@ -211,8 +256,7 @@ class BankReconciliationController extends Controller
             }
 
             [$startDate, $endDate] = $this->service->resolvePeriodFromPreview($preview);
-            $this->service->reconcile($user, $account, $startDate, $endDate, $preview);
-
+            $this->service->reconcile($user, $account, $startDate, $endDate, null, $acknowledge);
             return redirect()
                 ->route('bank-reconciliation.index', ['account_id' => $account->id])
                 ->with('success', sprintf(
@@ -225,8 +269,7 @@ class BankReconciliationController extends Controller
         $startDate = Carbon::parse($data['start_date'])->startOfDay();
         $endDate = Carbon::parse($data['end_date'])->endOfDay();
 
-        $this->service->reconcile($user, $account, $startDate, $endDate);
-
+        $this->service->reconcile($user, $account, $startDate, $endDate, null, $acknowledge);
         return redirect()
             ->route('bank-reconciliation.index', [
                 'account_id' => $account->id,

@@ -6,6 +6,8 @@ use App\Models\BankAccount;
 use App\Models\BankAccountBalance;
 use App\Models\BankAccountReconciliation;
 use App\Models\BankAccountReconciliationItem;
+use App\Models\BankStatement;
+use App\Models\BankStatementLine;
 use App\Models\CondominiumAccount;
 use App\Models\Transaction;
 use App\Models\User;
@@ -22,24 +24,44 @@ class BankReconciliationService
     ) {
     }
 
-    public function preview(int $condominiumId, BankAccount $account, ?Carbon $startDate = null, ?Carbon $endDate = null): array
-    {
+    public function preview(
+        int $condominiumId,
+        BankAccount $account,
+        ?Carbon $startDate = null,
+        ?Carbon $endDate = null,
+        bool $onlyLinkedToStatement = false,
+    ): array {
+        $linkedPairs = $onlyLinkedToStatement
+            ? $this->linkedSourceLookup($account->id, $startDate, $endDate)
+            : null;
+
         $transactionsIncome = $this->pendingTransactionsQuery($condominiumId, 'income', $startDate, $endDate)
             ->get()
-            ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id));
+            ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id))
+            ->when($linkedPairs !== null, fn (Collection $items) => $items->filter(
+                fn (Transaction $transaction) => isset($linkedPairs['transaction:'.$transaction->id])
+            ));
 
         $transactionsExpense = $this->pendingTransactionsQuery($condominiumId, 'expense', $startDate, $endDate)
             ->get()
-            ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id));
+            ->filter(fn (Transaction $transaction) => $this->matchesBankAccount($transaction, $account->id))
+            ->when($linkedPairs !== null, fn (Collection $items) => $items->filter(
+                fn (Transaction $transaction) => isset($linkedPairs['transaction:'.$transaction->id])
+            ));
 
         $accountIncomes = $this->pendingCondominiumAccountsQuery($condominiumId, 'income', $startDate, $endDate)
             ->get()
-            ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id));
+            ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id))
+            ->when($linkedPairs !== null, fn (Collection $items) => $items->filter(
+                fn (CondominiumAccount $entry) => isset($linkedPairs['condominium_account:'.$entry->id])
+            ));
 
         $accountExpenses = $this->pendingCondominiumAccountsQuery($condominiumId, 'expense', $startDate, $endDate)
             ->get()
-            ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id));
-
+            ->filter(fn (CondominiumAccount $entry) => $this->matchesBankAccount($entry, $account->id))
+            ->when($linkedPairs !== null, fn (Collection $items) => $items->filter(
+                fn (CondominiumAccount $entry) => isset($linkedPairs['condominium_account:'.$entry->id])
+            ));
         $chargeIncomes = $accountIncomes->where('source_type', 'charge')->values();
         $manualIncomes = $accountIncomes->reject(fn (CondominiumAccount $entry) => $entry->source_type === 'charge')->values();
 
@@ -121,18 +143,44 @@ class BankReconciliationService
         ];
     }
 
-    public function reconcile(User $user, BankAccount $account, Carbon $startDate, Carbon $endDate, ?array $preview = null): BankAccountReconciliation
-    {
+    public function reconcile(
+        User $user,
+        BankAccount $account,
+        Carbon $startDate,
+        Carbon $endDate,
+        ?array $preview = null,
+        bool $acknowledgeBalanceDifference = false,
+    ): BankAccountReconciliation {
         $condominiumId = $user->tenantCondominiumId();
-        $preview ??= $this->preview($condominiumId, $account, $startDate, $endDate);
+        $activeStatement = $this->activeStatementCovering($account->id, $startDate, $endDate);
+        $onlyLinked = $activeStatement !== null;
+
+        $preview ??= $this->preview($condominiumId, $account, $startDate, $endDate, $onlyLinked);
 
         if ($preview['totals']['count_entries'] === 0) {
             throw ValidationException::withMessages([
-                'period' => 'Não há movimentações elegíveis para conciliação no período informado.',
+                'period' => $onlyLinked
+                    ? 'Não há lançamentos vinculados ao extrato para fechar neste período.'
+                    : 'Não há movimentações elegíveis para conciliação no período informado.',
             ]);
         }
 
-        return $this->database->transaction(function () use ($preview, $user, $account, $startDate, $endDate) {
+        $resultingBalance = ($account->current_balance ?? 0) + $preview['totals']['net'];
+
+        if ($activeStatement && $activeStatement->closing_balance !== null) {
+            $difference = round((float) $activeStatement->closing_balance - (float) $resultingBalance, 2);
+            if (abs($difference) >= 0.01 && ! $acknowledgeBalanceDifference) {
+                throw ValidationException::withMessages([
+                    'acknowledge_balance_difference' => sprintf(
+                        'O saldo do extrato (R$ %s) difere do saldo projetado (R$ %s). Confirme a ciência da diferença para continuar.',
+                        number_format((float) $activeStatement->closing_balance, 2, ',', '.'),
+                        number_format($resultingBalance, 2, ',', '.')
+                    ),
+                ]);
+            }
+        }
+
+        return $this->database->transaction(function () use ($preview, $user, $account, $startDate, $endDate, $activeStatement, $resultingBalance) {
             $previousBalance = $account->current_balance ?? 0;
             $previousBalanceUpdatedAt = $account->balance_updated_at;
 
@@ -145,11 +193,10 @@ class BankReconciliationService
                 'total_expense' => $preview['totals']['expense'],
                 'net_amount' => $preview['totals']['net'],
                 'previous_balance' => $previousBalance,
-                'resulting_balance' => $previousBalance + $preview['totals']['net'],
+                'resulting_balance' => $resultingBalance,
                 'previous_balance_updated_at' => $previousBalanceUpdatedAt,
                 'created_by' => $user->id,
             ]);
-
             $flattenItems = collect($preview['income_groups'])
                 ->merge($preview['expense_groups'])
                 ->flatMap(fn ($group) => $group['items']->map(function ($item) use ($group, $reconciliation) {
@@ -218,8 +265,50 @@ class BankReconciliationService
                 'balance_updated_at' => $endDate->toDateTimeString(),
             ])->save();
 
+            if ($activeStatement) {
+                $activeStatement->update([
+                    'status' => BankStatement::STATUS_RECONCILED,
+                ]);
+            }
+
             return $reconciliation->load('items');
         });
+    }
+
+    public function activeStatementCovering(int $bankAccountId, Carbon $startDate, Carbon $endDate): ?BankStatement
+    {
+        return BankStatement::query()
+            ->readyForAccount($bankAccountId)
+            ->whereNotNull('period_start')
+            ->whereNotNull('period_end')
+            ->where('period_start', '<=', $endDate->toDateString())
+            ->where('period_end', '>=', $startDate->toDateString())
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    protected function linkedSourceLookup(int $bankAccountId, ?Carbon $startDate, ?Carbon $endDate): array
+    {
+        $lines = BankStatementLine::query()
+            ->where('bank_account_id', $bankAccountId)
+            ->linked()
+            ->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('posted_at', [
+                    $startDate->toDateString(),
+                    $endDate->toDateString(),
+                ]);
+            })
+            ->get(['matched_source_type', 'matched_source_id']);
+
+        $lookup = [];
+        foreach ($lines as $line) {
+            $lookup[$line->matched_source_type.':'.$line->matched_source_id] = true;
+        }
+
+        return $lookup;
     }
 
     public function cancelLast(User $user, BankAccount $account): BankAccountReconciliation

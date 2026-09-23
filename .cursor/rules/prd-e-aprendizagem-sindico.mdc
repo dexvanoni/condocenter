@@ -1,0 +1,61 @@
+---
+description: Toda implementação deve atualizar o PRD e a Central de Aprendizagem do síndico
+alwaysApply: true
+---
+
+# PRD e tutoriais do síndico — documentação obrigatória
+
+Toda feature, ferramenta, fluxo ou alteração relevante de produto **não está concluída** até atualizar o PRD e, quando afetar o uso pelo síndico, a Central de Aprendizagem.
+
+## 1. PRD (obrigatório)
+
+Arquivo canônico: `DOCUMENTAÇÃO/PRD_SINDCON_2.md`.
+
+### Quando atualizar
+
+Sempre que a implementação:
+
+- criar ou alterar módulo, tela, rota, permissão ou papel;
+- mudar regra de negócio, checklist, status ou fluxo financeiro/operacional;
+- adicionar integração, job, cron ou capacidade visível ao usuário;
+- corrigir comportamento documentado no PRD (alinhamento com a realidade).
+
+### Como atualizar
+
+1. Incremente a **versão** do documento e a **data** no cabeçalho.
+2. Inclua/atualize requisitos (IDs tipo `FIN-xx`, `USR-xx`, etc.), regras (`RN-xx` / `*-RN-xx`), jornadas e modelo de dados quando couber.
+3. Atualize glossário, referências de código e o **rodapé de changelog** da versão.
+4. **Não** crie outro PRD paralelo; edite só `PRD_SINDCON_2.md`.
+
+## 2. Central de Aprendizagem do síndico (obrigatório se o síndico usa)
+
+Catálogo: `app/Support/Learning/LearningCatalog.php`  
+Telas: `/aprender` (`learning.*`)  
+Vídeos: `public/videos/learning/` (ver `DOCUMENTAÇÃO/CENTRAL_APRENDIZAGEM.md`)
+
+### Quando atualizar
+
+Sempre que a mudança for algo que o síndico (ou gestão: Conselho/Secretaria/Admin no condomínio) **precise saber operar**, especialmente:
+
+- ações financeiras (taxas, cobranças, caixa, conciliação, fechamento, prestação);
+- novas telas/menus ou botões críticos;
+- mudança de passo a passo, significado de status ou efeito colateral (ex.: o que altera saldo).
+
+### Como atualizar
+
+1. Inclua ou revise o tutorial no módulo certo em `LearningCatalog` (slug estável, passos objetivos, checklist).
+2. Marque `critical: true` e defina `video` (nome do MP4) em fluxos financeiros ou irreversíveis.
+3. Ajuste `route_hint` para o botão “Abrir a tela no SindCON”.
+4. Se criar vídeo novo, documente o nome do arquivo em `DOCUMENTAÇÃO/CENTRAL_APRENDIZAGEM.md`.
+
+## 3. Ordem sugerida ao fechar a task
+
+1. Código + testes  
+2. PRD (`PRD_SINDCON_2.md`)  
+3. Tutorial do síndico (`LearningCatalog` + doc de vídeos se houver)  
+4. `INSTALACAO_VPS.md` **somente** se houver impacto de produção (regra VPS)
+
+## O que não conta como “feito”
+
+- Feature mergeada sem entrada no PRD.
+- Fluxo novo do síndico sem tutorial (ou tutorial desatualizado que ensina o comportamento antigo).

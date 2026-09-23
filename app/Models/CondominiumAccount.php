@@ -26,6 +26,8 @@ class CondominiumAccount extends Model implements Auditable
         'amount',
         'transaction_date',
         'payment_method',
+        'category',
+        'subcategory',
         'installments_total',
         'installment_number',
         'document_path',

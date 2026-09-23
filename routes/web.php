@@ -13,6 +13,7 @@ use App\Http\Controllers\Finance\FinancialStatusController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\Finance\BankAccountController;
 use App\Http\Controllers\Finance\BankReconciliationController;
+use App\Http\Controllers\Finance\BankStatementController;
 use App\Http\Controllers\Finance\ChargeSettlementController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -64,6 +65,12 @@ Route::middleware(['auth'])->group(function () {
 // Rotas autenticadas
 Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::prefix('aprender')->name('learning.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Learning\LearningCenterController::class, 'index'])->name('index');
+        Route::get('/modulo/{module}', [\App\Http\Controllers\Learning\LearningCenterController::class, 'module'])->name('module');
+        Route::get('/{slug}', [\App\Http\Controllers\Learning\LearningCenterController::class, 'show'])->name('show');
+    });
     
     // Sistema de Pânico (para todos os usuários)
     Route::prefix('panic')->name('panic.')->group(function () {
@@ -170,6 +177,10 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                 Route::middleware(['can:view_bank_statements'])->group(function () {
                     Route::get('/financial/reconciliations', [BankReconciliationController::class, 'index'])
                         ->name('bank-reconciliation.index');
+                    Route::get('/financial/bank-statements/upload', [BankStatementController::class, 'create'])
+                        ->name('bank-statements.create');
+                    Route::get('/financial/bank-statements/{statement}', [BankStatementController::class, 'show'])
+                        ->name('bank-statements.show');
                 });
 
                 Route::middleware(['can:manage_bank_statements'])->group(function () {
@@ -177,8 +188,23 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
                         ->name('bank-reconciliation.store');
                     Route::post('/financial/reconciliations/cancel', [BankReconciliationController::class, 'cancel'])
                         ->name('bank-reconciliation.cancel');
+                    Route::post('/financial/bank-statements', [BankStatementController::class, 'store'])
+                        ->name('bank-statements.store');
+                    Route::post('/financial/bank-statements/map', [BankStatementController::class, 'map'])
+                        ->name('bank-statements.map');
+                    Route::post('/financial/bank-statements/{statement}/rematch', [BankStatementController::class, 'rematch'])
+                        ->name('bank-statements.rematch');
+                    Route::post('/financial/bank-statement-lines/{line}/accept', [BankStatementController::class, 'acceptSuggestion'])
+                        ->name('bank-statement-lines.accept');
+                    Route::post('/financial/bank-statement-lines/{line}/confirm', [BankStatementController::class, 'confirm'])
+                        ->name('bank-statement-lines.confirm');
+                    Route::post('/financial/bank-statement-lines/{line}/unlink', [BankStatementController::class, 'unlink'])
+                        ->name('bank-statement-lines.unlink');
+                    Route::post('/financial/bank-statement-lines/{line}/ignore', [BankStatementController::class, 'ignore'])
+                        ->name('bank-statement-lines.ignore');
+                    Route::post('/financial/bank-statement-lines/{line}/create-entry', [BankStatementController::class, 'createEntry'])
+                        ->name('bank-statement-lines.create-entry');
                 });
-
                 Route::get('/financial/status', FinancialStatusController::class)
                     ->middleware('can:view_financial_reports')
                     ->name('financial.status.index');

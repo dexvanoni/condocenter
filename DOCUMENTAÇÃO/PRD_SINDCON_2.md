@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.4 |
-| **Data** | 19/09/2026 |
+| **Versão do documento** | 2.6 |
+| **Data** | 22/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
@@ -52,7 +52,7 @@ O **SindCON** é uma plataforma SaaS multi-condomínio que centraliza gestão op
 | Stakeholder | Valor entregue |
 |-------------|----------------|
 | **Operadora da plataforma** | Receita recorrente por assinatura, gestão centralizada de múltiplos condomínios, configuração global de Asaas e WhatsApp |
-| **Síndico / administração** | Finanças (modo completo ou simplificado), usuários, reservas, portaria, assembleias, landing page, fechamento mensal, toggles de módulos, relatório completo de movimentações de encomendas com exportação |
+| **Síndico / administração** | Finanças (modo completo ou simplificado), **conciliação diária por CSV/OFX**, usuários, reservas, portaria, assembleias, landing page, fechamento mensal, toggles de módulos, relatório completo de movimentações de encomendas com exportação |
 | **Morador** | Autosserviço (pagamentos, reservas, marketplace, pets), transparência financeira, canal de emergência, auto-cadastro com aprovação |
 | **Porteiro** | Registro de acessos, encomendas (OCR + retirada por senha), liberações (presets + **visitante "Outro" via QR/senha**), verificação de pets |
 | **Conselho fiscal** | Visibilidade financeira, exportações, participação em assembleias |
@@ -62,7 +62,7 @@ O **SindCON** é uma plataforma SaaS multi-condomínio que centraliza gestão op
 
 - **Segmento:** condomínios residenciais (pequenos a grandes) e administradoras
 - **Modelo:** B2B2C — plataforma vende ao condomínio; moradores são usuários finais
-- **Diferenciais:** ecossistema integrado (financeiro + operacional + comunicação + pânico), WhatsApp nativo (Evolution API), **encomenda inteligente com OCR de etiqueta e senha de retirada**, **visitante nomeado com PDF/QR e senha reutilizável na portaria**, marketplace e caronas internas, livro de ocorrências sigiloso, fechamento mensal guiado, landing page com domínio próprio e templates visuais
+- **Diferenciais:** ecossistema integrado (financeiro + operacional + comunicação + pânico), WhatsApp nativo (Evolution API), **encomenda inteligente com OCR de etiqueta e senha de retirada**, **visitante nomeado com PDF/QR e senha reutilizável na portaria**, **conciliação bancária diária por CSV/OFX com matching híbrido**, marketplace e caronas internas, livro de ocorrências sigiloso, fechamento mensal guiado, landing page com domínio próprio e templates visuais
 
 ### 1.4 Componentes do repositório
 
@@ -319,7 +319,7 @@ Plataforma SindCON
 
 | Modo | Valor | Descrição |
 |------|-------|-----------|
-| **Completo** | `full` | Caixa, transações, conciliação, funcionários, fechamento mensal, prestação gerada |
+| **Completo** | `full` | Caixa, transações, conciliação CSV/OFX, funcionários, fechamento mensal, prestação gerada |
 | **Simplificado** | `simplified` | Upload de prestação de contas; rotas avançadas bloqueadas por `ensure.full.financial` |
 
 ### 6.5 Modos de recebimento (Asaas)
@@ -334,6 +334,7 @@ Plataforma SindCON
 Regras de negócio concentradas em `app/Services/` (~50 classes), incluindo:
 
 - **Financeiro:** `FeeService`, `ChargePaymentService`, `ChargeSettlementService`, `MonthlyClosingService`, `BankReconciliationService`, `AccountabilityReportService`, `FineService`, `DefaulterRestrictionService`, `DefaulterAccessOverrideService`
+- **Conciliação / extrato:** `BankStatementImportService`, `BankStatementMatcher`, `OfxStatementParser`, `CsvStatementParser` (`App\Services\BankStatement\*`)
 - **Integrações:** `AsaasService`, `PlatformAsaasService`, `EvolutionApiService`, `WhatsAppNotificationService`
 - **Operacional:** `AccessControlService` (liberações, credencial visitante "Outro", check-in QR/senha), `PackageService`, `RideBookingService`, `ServiceOrderService`, `OccurrenceBookService`
 - **Encomendas (OCR/matching):** `OcrServiceInterface`, `TesseractOcrService`, `LabelImagePreprocessor`, `PackageRecipientMatcher`, `PackageSenderDetector`, `TextNormalizer`
@@ -454,7 +455,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | FIN-03 | Cobrança por unidade (boleto, PIX, cartão via Asaas) | Must | `ChargePaymentService`, `GenerateAsaasPayment` job |
 | FIN-04 | Extrato e pagamento online ("Minhas Cobranças") | Must | `ResidentChargeController`, `my-charges` |
 | FIN-05 | Multas com PDF de notificação | Should | `FineController`, `FineNoticeService` |
-| FIN-06 | Conciliação bancária (CSV/OFX + matching) | Should | `BankReconciliationController` |
+| FIN-06 | Conciliação bancária por período (preview/confirm/cancel) | Must | `BankReconciliationController`, `BankReconciliationService` |
 | FIN-07 | Prestação de contas (PDF/Excel/impressão/ZIP) | Must | `AccountabilityReportController` |
 | FIN-08 | Painel de adimplência e inadimplência | Must | `FinancialStatusController` |
 | FIN-09 | Transparência total morador/conselho | Must | Permissões + policies |
@@ -477,6 +478,14 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | FIN-26 | Checkout Asaas segregado por perfil (URL base inquilino vs morador) | Must | `SidebarHelper::chargePaymentBaseUrl`, `ChargePaymentService` |
 | FIN-27 | Proprietário paga só cobranças de sua responsabilidade (`canUserPayCharge`) | Must | `UnitOccupancyService::isMoradorResponsibleCharge` |
 | FIN-28 | Validação CPF antes do gateway; mensagem Asaas legível | Should | `App\Support\Cpf`, `AsaasService::getLastErrorMessage` |
+| FIN-29 | Importação de extrato CSV/OFX (síncrona, até 5 MB) | Must | `BankStatementController`, `BankStatementImportService` |
+| FIN-30 | Matching híbrido extrato × lançamentos (auto + sugestão) | Must | `BankStatementMatcher` |
+| FIN-31 | Criar lançamento no caixa a partir de linha só do extrato | Must | `bank-statement-lines.create-entry` → `condominium_accounts` |
+| FIN-32 | Revisar vínculos (aceitar, trocar, desfazer, ignorar) | Must | Views `finance/reconciliations/statements/*` |
+| FIN-33 | Fechamento com extrato ativo: só itens vinculados; ciência se saldo divergir | Must | `BankReconciliationService::reconcile` |
+| FIN-34 | Passo 8 do fechamento mensal conta linhas de extrato sem vínculo | Should | `MonthlyClosingChecklistService::stepBankReconciliation` |
+| FIN-35 | Categoria obrigatória em despesa do caixa (taxonomia fixa) | Must | `ExpenseCategories`, `CondominiumAccountController::storeExpense`, modal pagamento |
+| FIN-36 | Dashboard: despesas por categoria, alertas MoM/média 3m e previsão anual | Must | `FinancialCategoryInsightsService`, `sindico-financial` |
 
 #### Passos do fechamento mensal (`MonthlyClosingSteps`)
 
@@ -487,8 +496,62 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 5. Reservas  
 6. Funcionários  
 7. Caixa manual  
-8. Conciliação bancária  
+8. Conciliação bancária (importação CSV/OFX + vínculos + fechamento de saldo)  
 9. Prestação de contas  
+
+#### 8.3.1 Conciliação bancária diária (CSV / OFX)
+
+Camada operacional do síndico **antes** do fechamento de saldo por período. Disponível apenas no modo financeiro **completo** (`ensure.full.financial`), com permissões `view_bank_statements` / `manage_bank_statements`.
+
+**Fluxo**
+
+```
+Upload CSV/OFX → parse → matcher → revisão (auto / sugestão / só banco / só sistema)
+       → opcional: criar lançamento no caixa → fechar período (atualiza saldo da conta)
+```
+
+| Etapa | Comportamento |
+|-------|---------------|
+| **Upload** | Conta bancária + arquivo `.csv` / `.txt` / `.ofx` / `.qfx`; processamento **na requisição** (sem fila); hash SHA-256 impede reimportação idêntica na mesma conta |
+| **OFX** | Parser próprio (OFX 1 SGML e OFX 2 XML): `DTPOSTED`, `TRNAMT`, `MEMO`/`NAME`, `FITID`, `TRNTYPE`, saldo `LEDGERBAL` quando presente |
+| **CSV** | Detecta `;` ou `,`, UTF-8 ou Windows-1252; valor com sinal **ou** colunas débito/crédito; cabeçalho desconhecido → tela de mapeamento manual |
+| **Automático** | Mesma direção, valor idêntico (centavos), mesma data e **um único** candidato elegível → `auto_matched` |
+| **Sugestão** | Valor igual com data em até **3 dias**, ou diferença de até **R$ 0,50** na mesma data; ambiguidade (2+ candidatos iguais no dia) também vira sugestão |
+| **Só no extrato** | Formulário cria receita/despesa em `condominium_accounts` (`source_type = bank_statement_line`) e vincula a linha (`created`); em despesa, **categoria** é obrigatória |
+| **Ignorar** | Linha sai da fila do dia (`ignored`); permanece em filtro colapsável |
+| **Sem extrato** | Fechamento atual continua fechando todos os pendentes da conta |
+| **Com extrato `ready` no período** | Fechamento trava **apenas** lançamentos já vinculados; itens só no sistema permanecem pendentes; se o OFX trouxer saldo final e houver diferença, exige checkbox de ciência |
+
+**Lançamentos elegíveis ao matching:** `Transaction` paga e `CondominiumAccount` ativa, ambas com `reconciliation_id` nulo e já roteadas para a conta (`BankAccountRoutingService`).
+
+**Status de linha (`bank_statement_lines.status`):** `unmatched` | `suggested` | `auto_matched` | `confirmed` | `created` | `ignored`.
+
+**Status de extrato (`bank_statements.status`):** `pending` | `processing` | `ready` | `reconciled` | `failed`.
+
+| # | Regra |
+|---|-------|
+| FIN-RN-01 | Upload **não** altera `bank_accounts.current_balance` — saldo só muda no fechamento de período |
+| FIN-RN-02 | Matching **não** grava `reconciliation_id`; só o fechamento consolida |
+| FIN-RN-03 | FITID único por conta (quando existir) — reimportação do mesmo OFX parcial é bloqueada |
+| FIN-RN-04 | Arquivo do extrato em disco privado (`storage`); células não são executadas |
+| FIN-RN-05 | Job legado `ProcessBankStatement` **não** é o caminho do síndico (fila `database` sem worker no dia a dia) |
+| FIN-RN-06 | Despesa manual e “criar no caixa” a partir do extrato exigem `category` da taxonomia `ExpenseCategories` |
+| FIN-RN-07 | Folha (`employee_payroll`) grava categoria `pessoal`; `employer_tax` grava `encargos` |
+| FIN-RN-08 | Insights do dashboard: variação MoM ≥15% = atenção, ≥30% = urgente; previsão = YTD + (média 3 meses × meses restantes) |
+
+**Rotas web (grupo financeiro completo):** `bank-statements.*`, `bank-statement-lines.*`, `bank-reconciliation.*`.
+
+#### 8.3.2 Categorias de despesa e inteligência no dashboard
+
+Taxonomia fixa em `App\Support\ExpenseCategories` (pessoal, encargos, energia, água, manutenção, tarifas, etc.).
+
+| Capacidade | Comportamento |
+|------------|---------------|
+| **Registrar pagamento** | Campo **Categoria** obrigatório; grava em `condominium_accounts.category` |
+| **Folha** | `EmployeeService` classifica `pessoal` ou `encargos` automaticamente |
+| **Gráfico anual** | Soma despesas ativas do caixa por categoria no ano corrente |
+| **Alertas** | MoM e vs média 3 meses; níveis critical / attention / watch / positive / stable |
+| **Previsão** | YTD da categoria + run-rate × meses restantes até dezembro |
 
 ### 8.4 Reservas
 
@@ -1277,6 +1340,12 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-41 | Contrato de locação vencido suspende inquilino e agregados (`access_suspended_reason = lease_expired`) até renovação na unidade |
 | RN-42 | Multa ao inquilino: notificação prioritária ao **proprietário** para acompanhamento |
 | RN-43 | Perfil ativo (`active_role`) define permissões efetivas quando usuário tem Morador + Proprietário |
+| RN-44 | Conciliação por extrato: matching automático só com valor e data idênticos e candidato único |
+| RN-45 | Conciliação por extrato: upload e matching **não** alteram saldo da conta; só o fechamento de período |
+| RN-46 | Com extrato `ready` cobrindo o período, o fechamento consolida apenas lançamentos já vinculados |
+| RN-47 | Diferença entre saldo do OFX e saldo projetado exige ciência explícita do síndico antes de confirmar |
+| RN-48 | Extrato CSV/OFX exige modo financeiro completo e permissão `manage_bank_statements` (upload/vínculos) |
+| RN-49 | Card “Despesas por categoria” e alertas usam `condominium_accounts` (caixa), não `transactions` legadas |
 
 ---
 
@@ -1429,7 +1498,7 @@ Jobs: `SendVisitorAccessCredentialNotification` (criação), `SendAccessNotifica
 
 #### Somente Web (sem API dedicada)
 
-Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliação (parcial), funcionários, prestação de contas upload, ordens de serviço, livro de ocorrências, regimento interno, landing admin, gestão plataforma, auto-cadastro, checkout web, reservas recorrentes, histórico usuário, configurações condomínio, **relatório de encomendas síndico** (`/packages/reports` — server-rendered).
+Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliação CSV-OFX (`BankStatementController`, `BankReconciliationController`), funcionários, prestação de contas upload, ordens de serviço, livro de ocorrências, regimento interno, landing admin, gestão plataforma, auto-cadastro, checkout web, reservas recorrentes, histórico usuário, configurações condomínio, **relatório de encomendas síndico** (`/packages/reports` — server-rendered).
 
 ### 13.3 App mobile (Expo/React Native)
 
@@ -1442,7 +1511,7 @@ Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliaçã
 | Módulo | Web | API | Mobile |
 |--------|-----|-----|--------|
 | Financeiro (cobranças) | ✅ | ✅ | ❌ |
-| Financeiro (taxas/multas/fechamento) | ✅ | ❌/Parcial | ❌ |
+| Financeiro (taxas/multas/fechamento/conciliação CSV-OFX) | ✅ | ❌/Parcial | ❌ |
 | Reservas | ✅ | ✅ | ❌ |
 | Marketplace | ✅ | ✅ | ❌ |
 | Caronas | ✅ | ✅ | ❌ |
@@ -1586,11 +1655,12 @@ Plataforma
     ├── CondominiumSubscription → logs, documents
     ├── CondominiumLandingPage → CondominiumLandingItem[]
     │
-    ├── Financeiro
+    │   ├── CondominiumAccount (caixa: category/subcategory)
     │   ├── Fee → Charge → Payment
     │   ├── Fine → FineRecipient
     │   ├── Transaction → Receipt
-    │   ├── BankAccount → Reconciliation
+    │   ├── BankAccount → BankAccountReconciliation → Items
+    │   ├── BankStatement → BankStatementLine (CSV/OFX, matching)
     │   ├── Employee → EmployeeFinancialEntry
     │   ├── MonthlyClosing → StepConfirmation
     │   └── AccountabilityReportUpload
@@ -1620,7 +1690,8 @@ Plataforma
 ### 17.1 Performance
 
 - Paginação server-side (DataTables)
-- Jobs assíncronos para conciliação, WhatsApp, Asaas
+- Jobs assíncronos para WhatsApp e Asaas
+- Importação de extrato bancário **síncrona** (CSV/OFX na requisição; sem dependência de worker)
 - Cache Redis opcional
 
 ### 17.2 Segurança
@@ -1758,14 +1829,33 @@ Plataforma
 5. Síndico aprova → acesso liberado
 6. WhatsApp opcional ao síndico
 
-### 18.8 Síndico executa fechamento mensal
+### 18.8 Síndico concilia extrato bancário (CSV/OFX)
+
+1. Financeiro → **Conciliação Bancária** (modo completo)
+2. Seleciona a conta bancária
+3. Clica **Importar extrato** e envia CSV ou OFX do internet banking
+4. Sistema parseia e aplica matching híbrido (automático / sugestão / só banco / só sistema)
+5. Síndico revisa: aceita sugestões, vincula manualmente, ignora tarifas ou **cria lançamento no caixa** a partir da linha
+6. Volta ao fechamento do período: com extrato ativo, só itens vinculados entram; confere diferença de saldo do OFX se houver
+7. Confirma conciliação → `reconciliation_id` gravado e saldo da conta atualizado
+
+### 18.9 Síndico analisa custos e previsões por categoria
+
+1. Garante que pagamentos no caixa (e criações a partir do extrato) tenham **categoria**
+2. Abre o **Dashboard do Síndico** (modo financeiro completo)
+3. Lê o gráfico **Despesas por categoria** (ano corrente, fonte: caixa)
+4. Revisa **Alertas e tendências** (energia, pessoal, encargos, etc. vs mês anterior / média 3m)
+5. Usa a **Previsão de custos** até dezembro para decidir cortes, renegociações ou reforço de caixa
+6. Se houver % sem categoria, volta ao caixa e classifica lançamentos novos
+
+### 18.10 Síndico executa fechamento mensal
 
 1. Financeiro → Fechamento mensal
-2. Percorre checklist (9 passos)
+2. Percorre checklist (9 passos; passo 8 considera linhas de extrato sem vínculo)
 3. Confirma cada etapa
 4. Encerra competência ou reabre se necessário
 
-### 18.9 Síndico regulariza assinatura SaaS
+### 18.11 Síndico regulariza assinatura SaaS
 
 1. Middleware bloqueia módulos
 2. Acessa `/minha-assinatura`
@@ -1773,7 +1863,7 @@ Plataforma
 4. Webhook plataforma confirma
 5. Acesso restaurado
 
-### 18.10 Morador registra ocorrência
+### 18.12 Morador registra ocorrência
 
 1. Livro de Ocorrências → nova
 2. Tipo, descrição, foto opcional
@@ -1781,7 +1871,7 @@ Plataforma
 4. Ciência e comentário
 5. Exposição pública opcional (sem autor)
 
-### 18.11 Morador libera visitante "Outro" (credencial digital)
+### 18.13 Morador libera visitante "Outro" (credencial digital)
 
 1. Acessa **Controle de Acesso** (`/access-control`)
 2. Seleciona preset **Outro**, informa nome do visitante
@@ -1792,7 +1882,7 @@ Plataforma
 7. Visitante pode entrar/sair quantas vezes quiser até `valid_until`/`expires_at`
 8. Morador pode baixar PDF novamente pelo histórico de liberações
 
-### 18.12 Porteiro faz check-in de visitante "Outro" (QR ou senha)
+### 18.14 Porteiro faz check-in de visitante "Outro" (QR ou senha)
 
 1. Acessa **Portaria** (`/access-control/porteiro`)
 2. Visitante apresenta QR (PDF no celular) ou informa senha de 4 dígitos
@@ -1803,7 +1893,7 @@ Plataforma
 7. Visitante pode repetir o fluxo em novas passagens até expirar a validade
 8. Liberações "Outro" também aparecem no grid com badge QR/Senha (visibilidade operacional)
 
-### 18.13 Morador inadimplente com menu restrito
+### 18.15 Morador inadimplente com menu restrito
 
 1. Condomínio tem `restrict_defaulters` ativo e morador possui cobranças vencidas na unidade
 2. Ao logar, vê card vermelho no dashboard com débitos e total em atraso
@@ -1811,7 +1901,7 @@ Plataforma
 4. Tentativa de acessar outra rota → redirect ao dashboard com mensagem de erro (web) ou 403 JSON (API)
 5. Morador regulariza débitos via PIX/boleto/cartão em Minhas Cobranças → restrição removida automaticamente
 
-### 18.14 Síndico concede liberação temporária
+### 18.16 Síndico concede liberação temporária
 
 1. Acessa ficha do morador inadimplente (`users/{id}`)
 2. Seção **Inadimplência — Liberação Temporária** exibe total em atraso
@@ -1820,21 +1910,21 @@ Plataforma
 5. Morador recupera acesso normal ao sistema durante o período
 6. Síndico pode cancelar ou renovar a liberação a qualquer momento
 
-### 18.15 Admin configura condomínio em uso gratuito
+### 18.17 Admin configura condomínio em uso gratuito
 
 1. Acessa Plataforma → Assinatura do condomínio
 2. Ativa toggle **Uso gratuito** e registra motivo em notas
 3. `saas_complimentary = true` → condomínio opera sem bloqueio SaaS
 4. Dashboard plataforma lista condomínios complimentary com link para gestão
 
-### 18.16 Síndico/admin reseta senha de usuário
+### 18.18 Síndico/admin reseta senha de usuário
 
 1. Na ficha do usuário, aciona reset de senha
 2. Sistema gera token Laravel Password e envia e-mail (`AdminPasswordResetLinkMail`)
 3. Usuário clica no link e define nova senha em `/password/reset`
 4. Nenhuma senha temporária fixa é exibida na interface do administrador
 
-### 18.17 Proprietário gerencia imóvel de aluguel
+### 18.19 Proprietário gerencia imóvel de aluguel
 
 1. Síndico cadastra unidade com regime **Aluguel**, proprietário (João), inquilino (Paulo) e validade do contrato
 2. João recebe papel **Proprietário** e acessa dashboard `proprietario` ao selecionar esse perfil
@@ -1844,7 +1934,7 @@ Plataforma
 6. Vota em **assembleias** selecionando a unidade de aluguel quando possuir mais de uma
 7. **Fale com o síndico** em thread separada da do inquilino (`syndic_participant_profile = proprietario`)
 
-### 18.18 Inquilino em unidade de aluguel
+### 18.20 Inquilino em unidade de aluguel
 
 1. Paulo (Morador) mora na unidade alugada; **não** vê Gestão, assembleias nem financeiro completo
 2. Reserva espaço com taxa → checkout em **Minhas pendências** (`/inquilino/cobrancas/.../checkout`)
@@ -1876,10 +1966,12 @@ Plataforma
 | `AuthenticationTest.php` | Login/logout |
 | `NotificationRedirectTest.php` | Deep links |
 | `VisitorAccessCredentialTest.php` | Visitante "Outro": criação, validade, check-in PIN/QR reutilizável, expiração, PDF, painel porteiro |
+| `BankStatementParserTest.php` | Parser OFX, CSV com `;`/débito-crédito, mapeamento |
+| `BankStatementMatcherTest.php` | Matching automático, ambíguo, sugestão fuzzy, fechamento só dos vinculados |
 
 ### 19.2 Lacunas de QA (documentar no roadmap)
 
-Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visitor_credential`), webhooks Asaas, fechamento mensal E2E, presets de liberação manual (ENTROU/NEGADO), caronas, landing page, auto-cadastro, assinatura SaaS, exportações PDF gerais, scan QR em dispositivo real, multitenancy admin.
+Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visitor_credential`), webhooks Asaas, fechamento mensal E2E, presets de liberação manual (ENTROU/NEGADO), caronas, landing page, auto-cadastro, assinatura SaaS, exportações PDF gerais, scan QR em dispositivo real, multitenancy admin, upload E2E de extrato bancário na UI.
 
 ---
 
@@ -1908,6 +2000,8 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 - NPS integrado
 - Paridade API ≥ 80% dos módulos web
 - Documentação OpenAPI/Swagger da API
+- Templates de CSV por banco (Itaú, Bradesco, Santander, etc.) na conciliação
+- Remover ou arquivar o job legado `ProcessBankStatement`
 
 ---
 
@@ -1921,7 +2015,10 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | **Perfil ativo** | Papel em uso na sessão (`active_role`) |
 | **Módulo habilitável** | Feature flag por condomínio (`enabled_modules`) |
 | **Modo financeiro simplificado** | Upload prestação, sem caixa completo |
-| **Modo financeiro completo** | Caixa, conciliação, fechamento mensal |
+| **Modo financeiro completo** | Caixa, conciliação CSV/OFX, fechamento mensal |
+| **Extrato bancário** | Arquivo CSV ou OFX importado para cruzar com o caixa |
+| **Matching híbrido** | Vínculo automático (valor+data únicos) + sugestões para confirmação do síndico |
+| **FITID** | Identificador único da movimentação no OFX (deduplicação por conta) |
 | **Inadimplente** | Unidade com cobranças vencidas não pagas |
 | **Asaas** | Gateway BR (boleto, PIX, cartão) |
 | **Evolution API** | Integração WhatsApp |
@@ -2014,6 +2111,12 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | Proprietário UI | `dashboard/proprietario.blade.php`, `dashboard/partials/proprietario-quick-actions.blade.php` |
 | Pendências inquilino | `TenantPayableController`, `resources/views/tenant-payables/` |
 | Sidebar aluguel | `app/Helpers/SidebarHelper.php` (`canAccessMyChargesIndex`, `canSeeGestaoMenu`, `chargePaymentBaseUrl`) |
+| Conciliação bancária | `app/Services/BankReconciliationService.php`, `BankReconciliationController` |
+| Extrato CSV/OFX | `app/Services/BankStatement/*`, `BankStatementController`, views `finance/reconciliations/statements/` |
+| Migration extrato | `database/migrations/2026_09_22_200000_extend_bank_statements_for_import.php` |
+| Categorias despesa | `app/Support/ExpenseCategories.php`, `FinancialCategoryInsightsService` |
+| Migration categorias | `database/migrations/2026_09_22_210000_add_category_to_condominium_accounts.php` |
+| Dashboard financeiro | `resources/views/dashboard/partials/sindico-financial.blade.php` |
 | VPS / deploy | Changelog em `DOCUMENTAÇÃO/INSTALACAO_VPS.md` (migrate + `RolesAndPermissionsSeeder` para papel Proprietário) |
 
 ### Ambiente demo
@@ -2029,4 +2132,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.4 — atualizado em 19/09/2026. Inclui **regimes de ocupação de unidades** (particular, aluguel, imóvel público), papel **Proprietário**, segregação financeira e de assembleias entre proprietário e inquilino, **Minhas pendências** (`/inquilino`), **Cobranças dos imóveis** para proprietário, contrato de locação com cron `leases:process-contracts`, Fale com o síndico segregado (`syndic_participant_profile`), OS com `visible_to_tenant`, e regras de menu (Gestão oculto ao inquilino). Deploy: `php artisan migrate --force` + `php artisan db:seed --class=RolesAndPermissionsSeeder` (papel Proprietário); ver changelog em `INSTALACAO_VPS.md`. Mantém conteúdo da v2.3 (inadimplentes, complimentary, visitante Outro, OCR encomendas, etc.). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*
+*Documento v2.6 — atualizado em 22/09/2026. Inclui **categorias de despesa no caixa** e **inteligência financeira no dashboard do síndico** (gráfico por categoria, alertas MoM/média 3 meses, previsão anual), requisitos FIN-35–FIN-36, regras FIN-RN-06–08 e RN-49, jornada 18.9. Deploy: `php artisan migrate --force` (migração `2026_09_22_210000_add_category_to_condominium_accounts`). Mantém conteúdo da v2.5 (conciliação CSV/OFX, FIN-29–FIN-34). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*

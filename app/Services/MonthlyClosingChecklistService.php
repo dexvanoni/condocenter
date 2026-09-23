@@ -537,28 +537,37 @@ class MonthlyClosingChecklistService
         $unreconciledIncome = (float) (clone $unreconciled)->income()->sum('amount');
         $unreconciledExpense = (float) (clone $unreconciled)->expense()->sum('amount');
 
-        $status = $unreconciledCount === 0 ? 'done' : 'warning';
+        $unmatchedStatementLines = \App\Models\BankStatementLine::query()
+            ->whereHas('statement', fn ($q) => $q->where('condominium_id', $condominiumId)
+                ->whereIn('status', ['ready', 'processing']))
+            ->whereIn('status', ['unmatched', 'suggested'])
+            ->whereBetween('posted_at', [$start->toDateString(), $end->toDateString()])
+            ->count();
+
+        $status = ($unreconciledCount === 0 && $unmatchedStatementLines === 0) ? 'done' : 'warning';
 
         return [
             'key' => MonthlyClosingSteps::BANK_RECONCILIATION,
             'number' => 8,
             'icon' => 'bi-bank',
             'title' => 'Conciliar extrato bancário',
-            'description' => 'Cruze os lançamentos do sistema com o extrato das contas bancárias do condomínio.',
+            'description' => 'Importe o CSV/OFX, vincule as linhas ao caixa e feche o saldo das contas.',
             'status' => $status,
             'status_label' => $this->statusLabel($status),
             'metrics' => [
                 ['label' => 'Lançamentos pendentes', 'value' => (string) $unreconciledCount, 'highlight' => $unreconciledCount > 0],
+                ['label' => 'Linhas de extrato sem vínculo', 'value' => (string) $unmatchedStatementLines, 'highlight' => $unmatchedStatementLines > 0],
                 ['label' => 'Entradas a conciliar', 'value' => $this->money($unreconciledIncome), 'highlight' => $unreconciledIncome > 0],
                 ['label' => 'Saídas a conciliar', 'value' => $this->money($unreconciledExpense), 'highlight' => $unreconciledExpense > 0],
             ],
             'guidance' => [
-                'Importe ou consulte o extrato bancário antes de iniciar a conciliação.',
-                'Itens não conciliados podem indicar lançamentos faltantes ou duplicados.',
-                'A conciliação garante que o saldo do sistema reflita o saldo real da conta.',
+                'Importe o extrato CSV ou OFX na tela de conciliação bancária.',
+                'Confirme as sugestões e lance no caixa o que existir só no banco.',
+                'Com extrato ativo, o fechamento trava apenas os lançamentos já vinculados.',
             ],
             'actions' => [
                 $this->action('Conciliação bancária', 'bank-reconciliation.index', $period, 'bi-bank2', 'view_bank_statements'),
+                $this->action('Importar extrato', 'bank-statements.create', [], 'bi-upload', 'manage_bank_statements'),
                 $this->action('Contas bancárias', 'financial.bank-accounts.index', [], 'bi-building-check', 'manage_transactions'),
                 $this->action('Ver caixa do mês', 'financial.accounts.index', $period, 'bi-journal-text', 'view_transactions'),
             ],

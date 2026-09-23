@@ -261,6 +261,10 @@ class EmployeeService
         $bankAccountId = $this->bankAccountRoutingService->resolveByKey($employee->condominium_id, 'expense');
         $typeLabel = EmployeeEntryTypes::label($entry->type);
 
+        $category = $entry->type === EmployeeEntryTypes::EMPLOYER_TAX
+            ? 'encargos'
+            : 'pessoal';
+
         return CondominiumAccount::create([
             'condominium_id' => $employee->condominium_id,
             'bank_account_id' => $bankAccountId,
@@ -272,6 +276,8 @@ class EmployeeService
             'amount' => $entry->amount,
             'transaction_date' => $entry->reference_date,
             'payment_method' => 'bank_transfer',
+            'category' => $category,
+            'subcategory' => $entry->type,
             'notes' => $entry->description,
             'created_by' => $user->id,
         ]);

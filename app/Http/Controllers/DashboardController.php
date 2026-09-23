@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Condominium;
 use App\Models\ServiceOrder;
 use App\Services\ActiveCondominiumService;
+use App\Services\FinancialCategoryInsightsService;
 use App\Services\MonthlyClosingChecklistService;
 use App\Services\OccurrenceBookService;
 use App\Services\LeaseContractService;
@@ -220,6 +221,7 @@ class DashboardController extends Controller
         }
 
         $financialMetrics = $this->buildSindicoFinancialMetrics($condominium, $isFinancialFull);
+        $totalDemandas += (int) ($financialMetrics['categoryAttentionCount'] ?? 0);
 
         $monthlyClosing = $isFinancialFull && $user->can('view_financial_reports')
             ? app(MonthlyClosingChecklistService::class)->summary($condominium->id)
@@ -267,6 +269,14 @@ class DashboardController extends Controller
             'taxaAdimplencia' => 100,
             'ultimasTransacoes' => collect(),
             'categoriasFinanceiras' => collect(),
+            'categoryInsights' => [
+                'insights' => [],
+                'forecast' => [],
+                'uncategorized_share' => 0,
+                'month_total' => 0,
+                'year_total' => 0,
+            ],
+            'categoryAttentionCount' => 0,
             'graficoAdimplencia' => ['adimplentes' => 0, 'inadimplentes' => 0],
             'graficoFinanceiro' => [],
             'saldoConsolidado' => 0,
@@ -347,18 +357,20 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $categoriasFinanceiras = Transaction::where('condominium_id', $condominium->id)
-            ->whereYear('transaction_date', now()->year)
-            ->selectRaw("
-                COALESCE(category, 'Não Informada') as category,
-                SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_receitas,
-                SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_despesas,
-                SUM(amount) as total_movimentado
-            ")
-            ->groupBy('category')
-            ->orderByDesc('total_movimentado')
-            ->limit(6)
-            ->get();
+        $categoryInsights = app(FinancialCategoryInsightsService::class)->build($condominium->id);
+        $categoryAttentionCount = collect($categoryInsights['insights'] ?? [])
+            ->whereIn('level', ['critical', 'attention'])
+            ->count();
+        if (($categoryInsights['uncategorized_share'] ?? 0) >= 10) {
+            $categoryAttentionCount++;
+        }
+
+        $categoriasFinanceiras = collect($categoryInsights['chart'])->map(fn (array $row) => (object) [
+            'category' => $row['label'],
+            'total_despesas' => $row['total_despesas'],
+            'total_receitas' => 0,
+            'total_movimentado' => $row['total_despesas'],
+        ]);
 
         $graficoAdimplencia = [
             'adimplentes' => max($totalUnidades - $inadimplentes, 0),
@@ -463,6 +475,8 @@ class DashboardController extends Controller
             'taxaAdimplencia' => $taxaAdimplencia,
             'ultimasTransacoes' => $ultimasTransacoes,
             'categoriasFinanceiras' => $categoriasFinanceiras,
+            'categoryInsights' => $categoryInsights,
+            'categoryAttentionCount' => $categoryAttentionCount,
             'graficoAdimplencia' => $graficoAdimplencia,
             'graficoFinanceiro' => $graficoFinanceiro,
             'saldoConsolidado' => $saldoConsolidado,

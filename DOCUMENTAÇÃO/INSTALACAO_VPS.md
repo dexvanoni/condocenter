@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 22/09/2026 (biblioteca de documentos do condomínio + busca textual)
+- **Última revisão:** 22/09/2026 (categorias de despesa + insights no dashboard do síndico)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -652,6 +652,12 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-22 — Categorias de despesa e insights no dashboard
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Migration `2026_09_22_210000_add_category_to_condominium_accounts` adiciona `category` / `subcategory` nullable em `condominium_accounts` (sem backfill; lançamentos antigos ficam “Não informada” até novas despesas).
+- Sem variável de `.env` nova. Sem worker/cron novo.
+- Síndico passa a informar categoria ao registrar pagamento; dashboard mostra alertas e previsão por categoria.
 
 ### 2026-09-22 — Biblioteca de documentos (módulo Documentos)
 

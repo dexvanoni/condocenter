@@ -1049,6 +1049,7 @@
             'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show') || request()->routeIs('condominiums.settings.whatsapp*') || request()->routeIs('condominiums.settings.receiving*') || request()->routeIs('financial.employees.*'),
             'plataforma' => request()->routeIs('condominiums.index') || request()->routeIs('condominiums.create') || request()->routeIs('condominiums.edit') || request()->routeIs('condominiums.settings.whatsapp*'),
             'configuracoes_globais' => request()->routeIs('platform.*'),
+            'learning' => request()->routeIs('learning.*'),
             'financeiro' => request()->routeIs('fees.*')
                 || request()->routeIs('fines.*')
                 || request()->routeIs('charges.*')
@@ -1059,6 +1060,8 @@
                 || request()->routeIs('revenue.*')
                 || request()->routeIs('expenses.*')
                 || request()->routeIs('bank-reconciliation.*')
+                || request()->routeIs('bank-statements.*')
+                || request()->routeIs('bank-statement-lines.*')
                 || request()->routeIs('financial-reports.*')
                 || request()->routeIs('accountability-reports.*')
                 || request()->routeIs('accountability-uploads.*')
@@ -1158,6 +1161,9 @@
                             <li><hr class="dropdown-divider"></li>
                         @endif
                         <li><a class="dropdown-item" href="{{ route('users.edit', auth()->user()) }}"><i class="bi bi-person"></i> Perfil</a></li>
+                        @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
+                        <li><a class="dropdown-item" href="{{ route('learning.index') }}"><i class="bi bi-mortarboard"></i> Central de Aprendizagem</a></li>
+                        @endif
                         {{-- <li><a class="dropdown-item" href="{{ route('settings') }}"><i class="bi bi-gear"></i> Configurações</a></li> --}}
                         <li><hr class="dropdown-divider"></li>
                         <li>
@@ -1236,6 +1242,14 @@
                     </a>
                 </li>
 
+                @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
+                <li class="nav-item">
+                    <a class="nav-link {{ $menuActive['learning'] ?? false ? 'active' : '' }}" href="{{ route('learning.index') }}">
+                        <i class="bi bi-mortarboard"></i> Aprenda
+                    </a>
+                </li>
+                @endif
+
                 @if($defaulterMenuLocked)
                 @if(\App\Helpers\SidebarHelper::canAccessRentalTenantPayables($user) && Route::has('tenant-payables.index'))
                 <li class="nav-item">
@@ -1300,7 +1314,7 @@
                             @if($user->isSindico() && Route::has('syndic-subscription.show'))
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('syndic-subscription.*') ? 'active' : '' }}" href="{{ route('syndic-subscription.show') }}">
-                                    <i class="bi bi-receipt-cutoff"></i> Assinatura SaaS
+                                    <i class="bi bi-receipt-cutoff"></i> Assinatura SindCON
                                 </a>
                             </li>
                             @endif
@@ -1987,6 +2001,9 @@
                                     <li><hr class="dropdown-divider"></li>
                                 @endif
                                 <li><a class="dropdown-item" href="{{ route('users.edit', auth()->user()) }}"><i class="bi bi-person-gear me-2"></i>Meu Perfil</a></li>
+                                @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
+                                <li><a class="dropdown-item" href="{{ route('learning.index') }}"><i class="bi bi-mortarboard me-2"></i>Central de Aprendizagem</a></li>
+                                @endif
                                 <li><a class="dropdown-item" href="{{ route('password.change') }}"><i class="bi bi-key me-2"></i>Alterar Senha</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
@@ -2066,6 +2083,14 @@
                             </a>
                         </li>
 
+                        @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
+                        <li class="nav-item">
+                            <a class="nav-link {{ $menuActive['learning'] ?? false ? 'active' : '' }}" href="{{ route('learning.index') }}">
+                                <i class="bi bi-mortarboard"></i> Aprenda
+                            </a>
+                        </li>
+                        @endif
+
                         @if($defaulterMenuLocked ?? false)
                         @if(\App\Helpers\SidebarHelper::canAccessRentalTenantPayables($user) && Route::has('tenant-payables.index'))
                         <li class="nav-item mt-2">
@@ -2130,7 +2155,7 @@
                                     @if($user->isSindico() && Route::has('syndic-subscription.show'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('syndic-subscription.*') ? 'active' : '' }}" href="{{ route('syndic-subscription.show') }}">
-                                            <i class="bi bi-receipt-cutoff"></i> Assinatura SaaS
+                                            <i class="bi bi-receipt-cutoff"></i> Assinatura SindCON
                                         </a>
                                     </li>
                                     @endif

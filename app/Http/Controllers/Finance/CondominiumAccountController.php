@@ -9,6 +9,7 @@ use App\Models\Charge;
 use App\Models\CondominiumAccount;
 use App\Services\BankAccountRoutingService;
 use App\Services\CondominiumAccountService;
+use App\Support\ExpenseCategories;
 use App\Support\FinancialEntryGrouper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -216,6 +217,7 @@ class CondominiumAccountController extends Controller
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0'],
             'transaction_date' => ['required', 'date'],
+            'category' => ['required', Rule::in(ExpenseCategories::keys())],
             'payment_method' => ['nullable', Rule::in(['cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'other'])],
             'installments_total' => ['nullable', 'integer', 'min:1', 'max:24'],
             'installment_number' => ['nullable', 'integer', 'min:1', 'max:24'],
@@ -240,6 +242,7 @@ class CondominiumAccountController extends Controller
             'description' => $validated['description'],
             'amount' => $validated['amount'],
             'transaction_date' => $validated['transaction_date'],
+            'category' => $validated['category'],
             'payment_method' => $validated['payment_method'] ?? null,
             'installments_total' => $validated['installments_total'] ?? null,
             'installment_number' => $validated['installment_number'] ?? null,

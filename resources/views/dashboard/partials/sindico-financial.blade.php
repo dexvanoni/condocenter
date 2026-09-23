@@ -93,20 +93,118 @@
         </div>
     </div>
     <div class="col-xl-7">
-        <div class="sd-panel h-100">
+        <div class="sd-panel h-100" id="sd-alertas-categorias">
             <div class="sd-panel__head">
                 <h3><i class="bi bi-tags"></i> Despesas por categoria ({{ now()->year }})</h3>
             </div>
             <div class="sd-panel__body">
                 @if($categoriasFinanceiras->isNotEmpty())
                     <canvas id="graficoCategorias" height="120"></canvas>
+                    @if(($categoryInsights['uncategorized_share'] ?? 0) > 0)
+                        <p class="small text-warning mb-0 mt-2">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            {{ number_format($categoryInsights['uncategorized_share'], 1) }}% das despesas do mês ainda sem categoria — categorize no caixa para melhorar as previsões.
+                        </p>
+                    @endif
                 @else
-                    <p class="text-muted text-center py-4 mb-0">Sem movimentações categorizadas neste ano.</p>
+                    <p class="text-muted text-center py-4 mb-0">
+                        Sem despesas categorizadas neste ano. Ao registrar um pagamento, escolha a categoria (energia, pessoal, impostos…).
+                    </p>
                 @endif
             </div>
         </div>
     </div>
 </div>
+
+@php
+    $insights = $categoryInsights['insights'] ?? [];
+    $forecast = $categoryInsights['forecast'] ?? [];
+    $levelClass = [
+        'critical' => 'danger',
+        'attention' => 'warning',
+        'watch' => 'info',
+        'positive' => 'success',
+        'stable' => 'secondary',
+    ];
+    $levelLabel = [
+        'critical' => 'Atenção urgente',
+        'attention' => 'Atenção',
+        'watch' => 'Monitorar',
+        'positive' => 'Positivo',
+        'stable' => 'Estável',
+    ];
+@endphp
+
+@if(!empty($insights) || !empty($forecast))
+<div class="row g-4 mb-4">
+    <div class="col-xl-7">
+        <div class="sd-panel h-100">
+            <div class="sd-panel__head">
+                <h3><i class="bi bi-lightbulb"></i> Alertas e tendências por categoria</h3>
+            </div>
+            <div class="sd-panel__body">
+                <p class="small text-muted mb-3">
+                    Comparativo do mês atual vs mês anterior e vs média dos últimos 3 meses — base para cortes e renegociações (energia, pessoal, impostos, taxas).
+                </p>
+                @forelse($insights as $item)
+                <div class="sd-list-item align-items-start">
+                    <div class="me-2">
+                        <i class="bi {{ $item['icon'] }} text-{{ $levelClass[$item['level']] ?? 'secondary' }}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                            <strong>{{ $item['label'] }}</strong>
+                            <span class="badge text-bg-{{ $levelClass[$item['level']] ?? 'secondary' }}">{{ $levelLabel[$item['level']] ?? $item['level'] }}</span>
+                            @if($item['variation'] != 0)
+                                <span class="small {{ $item['variation'] > 0 ? 'text-danger' : 'text-success' }}">
+                                    {{ $item['variation'] > 0 ? '+' : '' }}{{ number_format($item['variation'], 1) }}% vs mês ant.
+                                </span>
+                            @endif
+                        </div>
+                        <small class="text-muted d-block">{{ $item['message'] }}</small>
+                        <small class="text-muted">
+                            Mês: R$ {{ number_format($item['current'], 2, ',', '.') }}
+                            · Ant.: R$ {{ number_format($item['previous'], 2, ',', '.') }}
+                            · Média 3m: R$ {{ number_format($item['avg3'], 2, ',', '.') }}
+                            @if($item['share_month'] > 0)
+                                · {{ number_format($item['share_month'], 1) }}% das despesas do mês
+                            @endif
+                        </small>
+                    </div>
+                </div>
+                @empty
+                <p class="text-muted mb-0 text-center py-3">Cadastre despesas com categoria para ver alertas.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-5">
+        <div class="sd-panel h-100">
+            <div class="sd-panel__head">
+                <h3><i class="bi bi-graph-up-arrow"></i> Previsão de custos (ano)</h3>
+            </div>
+            <div class="sd-panel__body">
+                <p class="small text-muted mb-3">
+                    Projeção até dezembro com base na média recente (run-rate) + já gasto no ano.
+                </p>
+                @if(!empty($forecast))
+                    <canvas id="graficoPrevisaoCategorias" height="180"></canvas>
+                    <div class="mt-3">
+                        @foreach(array_slice($forecast, 0, 4) as $row)
+                        <div class="sd-list-item">
+                            <span>{{ $row['label'] }}</span>
+                            <strong>R$ {{ number_format($row['projected_year_end'], 2, ',', '.') }}</strong>
+                        </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-muted mb-0 text-center py-3">Sem histórico suficiente para projetar.</p>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 <div class="row g-4 mb-4">
     <div class="col-xl-8">
@@ -265,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const categoriasCanvas = document.getElementById('graficoCategorias');
     if (categoriasCanvas) {
         const categorias = @json($categoriasFinanceiras);
-        const palette = ['#3866d2', '#0a1b67', '#11998e', '#f59e0b', '#eb3349', '#8b5cf6'];
+        const palette = ['#3866d2', '#0a1b67', '#11998e', '#f59e0b', '#eb3349', '#8b5cf6', '#64748b', '#14b8a6'];
         new Chart(categoriasCanvas, {
             type: 'bar',
             data: {
@@ -282,6 +380,38 @@ document.addEventListener('DOMContentLoaded', function () {
                 indexAxis: 'y',
                 plugins: { legend: { display: false } },
                 scales: { x: { ticks: { callback: moneyTick } } },
+            },
+        });
+    }
+
+    const previsaoCanvas = document.getElementById('graficoPrevisaoCategorias');
+    if (previsaoCanvas) {
+        const previsao = @json($categoryInsights['forecast'] ?? []);
+        const palette = ['#3866d2', '#eb3349', '#11998e', '#f59e0b', '#8b5cf6', '#64748b'];
+        new Chart(previsaoCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: previsao.map(p => p.label),
+                datasets: [{
+                    data: previsao.map(p => p.projected_year_end),
+                    backgroundColor: previsao.map((_, i) => palette[i % palette.length]),
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                responsive: true,
+                cutout: '58%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const v = Number(ctx.raw || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                                return `${ctx.label}: R$ ${v}`;
+                            },
+                        },
+                    },
+                },
             },
         });
     }

@@ -62,7 +62,7 @@
                         <th class="text-center">Unidades</th>
                         <th class="text-center">Usuários</th>
                         <th>Financeiro</th>
-                        <th>Assinatura SaaS</th>
+                        <th>Assinatura SindCON</th>
                         <th>Status</th>
                         <th width="180">Ações</th>
                     </tr>
