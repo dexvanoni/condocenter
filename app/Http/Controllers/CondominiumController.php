@@ -67,6 +67,9 @@ class CondominiumController extends Controller
 
         $condominium = Condominium::create($data);
 
+        app(\App\Services\OrganizationProvisioningService::class)
+            ->ensureDirectOrganization($condominium);
+
         return redirect()
             ->route('condominiums.show', $condominium)
             ->with('success', "Condomínio \"{$condominium->name}\" cadastrado com sucesso.");

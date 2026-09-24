@@ -186,6 +186,14 @@ class UserController extends Controller
         $roles = $data['roles'] ?? [];
         unset($data['roles']);
 
+        foreach ($roles as $roleName) {
+            abort_unless(
+                app(\App\Policies\UserPolicy::class)->assignRole($this->authUser(), (string) $roleName),
+                403,
+                'Você não pode atribuir o perfil: '.$roleName
+            );
+        }
+
         $this->userRoleLinkageService->applyLinkageRulesForCreate($roles, $data);
 
         $user = User::create($data);
@@ -429,6 +437,13 @@ class UserController extends Controller
             unset($data['roles']);
 
             if ($roles !== null) {
+                foreach ($roles as $roleName) {
+                    abort_unless(
+                        app(\App\Policies\UserPolicy::class)->assignRole($this->authUser(), (string) $roleName),
+                        403,
+                        'Você não pode atribuir o perfil: '.$roleName
+                    );
+                }
                 $this->userRoleLinkageService->applyLinkageRules($user, $roles, $data);
             }
 

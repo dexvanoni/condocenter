@@ -37,10 +37,30 @@ class TenantContext
         return app(ActiveCondominiumService::class)->getActiveCondominium($user);
     }
 
+    public static function organizationId(?User $user = null): ?int
+    {
+        $user = $user ?? auth()->user();
+
+        if (!$user) {
+            return null;
+        }
+
+        return app(ActiveCondominiumService::class)->getActiveOrganizationId($user);
+    }
+
     public static function assertSame(int $condominiumId, ?User $user = null): void
     {
         if (self::id($user) !== $condominiumId) {
             abort(403, 'Recurso não pertence ao condomínio selecionado.');
+        }
+    }
+
+    public static function assertOrganization(int $organizationId, ?User $user = null): void
+    {
+        $user = $user ?? auth()->user();
+
+        if (!$user || !app(ActiveCondominiumService::class)->userCanAccessOrganization($user, $organizationId)) {
+            abort(404);
         }
     }
 

@@ -49,9 +49,7 @@ class CondominiumSubscriptionController extends Controller
             ->get(['id', 'name', 'email']);
 
         $plans = SubscriptionPlan::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
+            ->activeForAudience(SubscriptionPlan::AUDIENCE_CONDOMINIUM)
             ->get();
 
         $subscription = $condominium->subscription;
@@ -70,6 +68,14 @@ class CondominiumSubscriptionController extends Controller
             $billingFilters
         ));
 
+        $backUrl = route('condominiums.show', $condominium);
+        $backLabel = $condominium->name;
+        $fromOrganization = $request->integer('from_organization');
+        if ($fromOrganization > 0 && (int) $condominium->organization_id === $fromOrganization) {
+            $backUrl = route('platform.organizations.show', $fromOrganization);
+            $backLabel = 'Organização';
+        }
+
         return view('platform.subscriptions.edit', compact(
             'condominium',
             'subscription',
@@ -78,12 +84,20 @@ class CondominiumSubscriptionController extends Controller
             'billingReport',
             'billingFilters',
             'exportUrl',
+            'backUrl',
+            'backLabel',
         ));
     }
 
     public function store(StoreCondominiumSubscriptionRequest $request, Condominium $condominium)
     {
-        $this->subscriptions->upsert($condominium, $request->validated(), $request->user());
+        $data = $request->validated();
+        if (!empty($data['subscription_plan_id'])) {
+            $plan = SubscriptionPlan::query()->find($data['subscription_plan_id']);
+            abort_unless($plan && !$plan->isForManagementCompany(), 422, 'Selecione um plano do catálogo de síndico/condomínio.');
+        }
+
+        $this->subscriptions->upsert($condominium, $data, $request->user());
 
         return redirect()
             ->route('platform.subscriptions.edit', $condominium)

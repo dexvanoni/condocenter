@@ -29,5 +29,15 @@ class CondominiumFactory extends Factory
             'is_active' => true,
         ];
     }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (\App\Models\Condominium $condominium) {
+            if (!$condominium->organization_id) {
+                app(\App\Services\OrganizationProvisioningService::class)
+                    ->ensureDirectOrganization($condominium);
+            }
+        });
+    }
 }
 

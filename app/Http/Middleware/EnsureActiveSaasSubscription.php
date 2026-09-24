@@ -25,6 +25,9 @@ class EnsureActiveSaasSubscription
 
         if ($request->routeIs(
             'syndic-subscription.*',
+            'organization.dashboard',
+            'organization.condominiums.enter',
+            'privacy.*',
             'logout',
             'profile.*',
             'password.*',
@@ -37,11 +40,46 @@ class EnsureActiveSaasSubscription
         $condominium = $this->activeCondominiumService->getActiveCondominium($user) ?? $user->condominium;
 
         if (!$condominium) {
+            // Membro de administradora sem condomínio selecionado: valida assinatura da organização.
+            if ($user->isOrganizationMember()) {
+                $organizationId = $this->activeCondominiumService->getActiveOrganizationId($user);
+                if ($organizationId) {
+                    $organization = \App\Models\Organization::query()->find($organizationId);
+                    if ($organization && !app(\App\Services\OrganizationSubscriptionService::class)->organizationAccessAllowed($organization)) {
+                        if ($request->expectsJson()) {
+                            return response()->json(['error' => 'Assinatura da administradora inativa.'], 402);
+                        }
+
+                        return redirect()
+                            ->route('organization.dashboard')
+                            ->with('error', 'O acesso está suspenso. Regularize a assinatura da administradora.');
+                    }
+                }
+            }
+
             return $next($request);
         }
 
         if ($condominium->isSaasComplimentary()) {
             return $next($request);
+        }
+
+        // Condomínio sob administradora: valida assinatura da organização quando existir.
+        if ($condominium->organization_id) {
+            $organization = $condominium->organization;
+            if ($organization?->isManagementCompany()) {
+                if (!app(\App\Services\OrganizationSubscriptionService::class)->organizationAccessAllowed($organization)) {
+                    if ($request->expectsJson()) {
+                        return response()->json(['error' => 'Assinatura da administradora inativa.'], 402);
+                    }
+
+                    return redirect()
+                        ->route('organization.dashboard')
+                        ->with('error', 'O acesso está suspenso. Regularize a assinatura da administradora.');
+                }
+
+                return $next($request);
+            }
         }
 
         $subscription = $condominium->subscription;

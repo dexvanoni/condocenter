@@ -31,7 +31,7 @@ class ResolveActiveCondominium
                 'condominium' => $activeCondominium,
                 'accessible' => $this->activeCondominiumService->accessibleCondominiums($user),
                 'can_switch' => $this->activeCondominiumService->canSwitchCondominiums($user),
-                'show_selector' => $user->isAdmin()
+                'show_selector' => $this->activeCondominiumService->canUseCondominiumContext($user)
                     && $this->activeCondominiumService->accessibleCondominiums($user)->isNotEmpty(),
             ]);
         }

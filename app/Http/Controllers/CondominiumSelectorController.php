@@ -42,10 +42,10 @@ class CondominiumSelectorController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        if (!$user->isAdmin()) {
+        if (!$this->activeCondominiumService->canUseCondominiumContext($user)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Somente administradores podem alternar condomínios.',
+                'message' => 'Você não pode alternar condomínios neste perfil.',
             ], 403);
         }
 

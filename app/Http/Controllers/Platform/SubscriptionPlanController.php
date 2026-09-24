@@ -61,12 +61,18 @@ class SubscriptionPlanController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'audience' => ['nullable', Rule::in(['condominium', 'management_company'])],
             'billing_metric' => ['required', Rule::in(['unit', 'user', 'fixed'])],
             'unit_price' => ['nullable', 'numeric', 'min:0'],
             'user_price' => ['nullable', 'numeric', 'min:0'],
             'fixed_price' => ['nullable', 'numeric', 'min:0', 'required_if:billing_metric,fixed'],
             'billing_cycle' => ['required', Rule::in(['monthly', 'quarterly', 'semiannual', 'annual'])],
             'trial_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'max_condominiums' => ['nullable', 'integer', 'min:1'],
+            'max_units' => ['nullable', 'integer', 'min:1'],
+            'max_users' => ['nullable', 'integer', 'min:1'],
+            'modules' => ['nullable', 'array'],
+            'modules.*' => ['string'],
             'payment_method' => ['required', Rule::in(['boleto', 'credit_card', 'pix_recurring', 'bank_deposit'])],
             'is_active' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
@@ -77,6 +83,11 @@ class SubscriptionPlanController extends Controller
             'user_price' => $request->input('user_price', 0),
             'fixed_price' => $request->input('fixed_price', 0),
             'trial_days' => (int) $request->input('trial_days', 0),
+            'audience' => $request->input('audience', SubscriptionPlan::AUDIENCE_CONDOMINIUM),
+            'max_condominiums' => $request->input('max_condominiums'),
+            'max_units' => $request->input('max_units'),
+            'max_users' => $request->input('max_users'),
+            'modules' => $request->input('modules'),
         ];
     }
 }

@@ -1,0 +1,496 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Mail\ClientWelcomeMail;
+use App\Models\Condominium;
+use App\Models\Organization;
+use App\Models\SubscriptionPlan;
+use App\Models\Term;
+use App\Models\TermVersion;
+use App\Models\User;
+use App\Services\ActiveCondominiumService;
+use App\Services\CondominiumSubscriptionService;
+use App\Services\DirectClientOnboardingService;
+use App\Services\LgpdConsentService;
+use App\Services\OrganizationProvisioningService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class MultiTenantOrganizationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        Role::create(['name' => 'Administrador']);
+        Role::create(['name' => 'Síndico']);
+        Role::create(['name' => 'Morador']);
+    }
+
+    public function test_condominium_factory_creates_direct_organization(): void
+    {
+        $condominium = Condominium::factory()->create();
+
+        $this->assertNotNull($condominium->fresh()->organization_id);
+        $this->assertTrue($condominium->organization->isDirectCondominium());
+    }
+
+    public function test_sindico_cannot_access_other_condominium(): void
+    {
+        $condoA = Condominium::factory()->create();
+        $condoB = Condominium::factory()->create();
+
+        $sindico = User::factory()->create(['condominium_id' => $condoA->id]);
+        $sindico->assignRole('Síndico');
+
+        $service = app(ActiveCondominiumService::class);
+
+        $this->assertTrue($service->userCanAccessCondominium($sindico, (int) $condoA->id));
+        $this->assertFalse($service->userCanAccessCondominium($sindico, (int) $condoB->id));
+        $this->assertSame((int) $condoA->id, $service->getActiveCondominiumId($sindico));
+    }
+
+    public function test_management_company_member_cannot_access_other_organization_condo(): void
+    {
+        $orgA = Organization::factory()->managementCompany()->create();
+        $orgB = Organization::factory()->managementCompany()->create();
+
+        $condoA = Condominium::factory()->create(['organization_id' => $orgA->id]);
+        $condoB = Condominium::factory()->create(['organization_id' => $orgB->id]);
+
+        $owner = User::factory()->create(['condominium_id' => null]);
+        app(OrganizationProvisioningService::class)->attachUser($orgA, (int) $owner->id, Organization::ROLE_OWNER);
+
+        $service = app(ActiveCondominiumService::class);
+
+        $this->assertTrue($service->userCanAccessCondominium($owner, (int) $condoA->id));
+        $this->assertFalse($service->userCanAccessCondominium($owner, (int) $condoB->id));
+        $this->assertFalse($service->userCanAccessOrganization($owner, (int) $orgB->id));
+    }
+
+    public function test_admin_can_access_all_condominiums(): void
+    {
+        $condoA = Condominium::factory()->create();
+        $condoB = Condominium::factory()->create();
+
+        $admin = User::factory()->create(['condominium_id' => null]);
+        $admin->assignRole('Administrador');
+
+        $service = app(ActiveCondominiumService::class);
+        $this->assertTrue($service->userCanAccessCondominium($admin, (int) $condoA->id));
+        $this->assertTrue($service->userCanAccessCondominium($admin, (int) $condoB->id));
+    }
+
+    public function test_non_admin_cannot_assign_administrador_or_sindico(): void
+    {
+        $condo = Condominium::factory()->create();
+        $sindico = User::factory()->create(['condominium_id' => $condo->id]);
+        $sindico->assignRole('Síndico');
+
+        $policy = app(\App\Policies\UserPolicy::class);
+
+        $this->assertFalse($policy->assignRole($sindico, 'Administrador'));
+        $this->assertFalse($policy->assignRole($sindico, 'Síndico'));
+        $this->assertTrue($policy->assignRole($sindico, 'Morador'));
+    }
+
+    public function test_direct_onboarding_creates_org_condo_and_sindico(): void
+    {
+        Mail::fake();
+
+        $result = app(DirectClientOnboardingService::class)->onboardDirect([
+            'condominium' => [
+                'name' => 'Residencial Teste',
+                'city' => 'São Paulo',
+                'state' => 'SP',
+            ],
+            'user' => [
+                'name' => 'Síndico Teste',
+                'email' => 'sindico.teste@example.com',
+            ],
+        ]);
+
+        $this->assertTrue($result['organization']->isDirectCondominium());
+        $this->assertSame($result['organization']->id, $result['condominium']->organization_id);
+        $this->assertTrue($result['user']->hasRole('Síndico'));
+        $this->assertSame($result['condominium']->id, $result['user']->condominium_id);
+
+        Mail::assertSent(ClientWelcomeMail::class, function (ClientWelcomeMail $mail) {
+            $html = $mail->render();
+
+            return $mail->hasTo('sindico.teste@example.com')
+                && $mail->audience === ClientWelcomeMail::AUDIENCE_SINDICO
+                && str_contains($mail->subject ?? '', 'SindCON')
+                && str_contains($html, 'Residencial Teste')
+                && str_contains($html, 'Criar minha senha e entrar')
+                && ! str_contains($html, 'Reset Password');
+        });
+    }
+
+    public function test_management_onboarding_creates_org_and_owner(): void
+    {
+        Mail::fake();
+
+        $plan = SubscriptionPlan::query()->create([
+            'name' => 'Plano Admin',
+            'slug' => 'plano-admin',
+            'audience' => SubscriptionPlan::AUDIENCE_MANAGEMENT_COMPANY,
+            'billing_metric' => 'unit',
+            'unit_price' => 4.90,
+            'fixed_price' => 199,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'boleto',
+            'is_active' => true,
+        ]);
+
+        $result = app(DirectClientOnboardingService::class)->onboardManagement([
+            'organization' => [
+                'legal_name' => 'Administradora ABC LTDA',
+                'trade_name' => 'ABC Condos',
+                'document' => '12.345.678/0001-90',
+            ],
+            'user' => [
+                'name' => 'Owner ABC',
+                'email' => 'owner.abc@example.com',
+            ],
+            'subscription_plan_id' => $plan->id,
+        ]);
+
+        $this->assertTrue($result['organization']->isManagementCompany());
+        $this->assertSame(Organization::ROLE_OWNER, $result['user']->organizationRoleFor((int) $result['organization']->id));
+        $this->assertNotNull($result['subscription']);
+        $this->assertSame($plan->id, $result['subscription']->subscription_plan_id);
+
+        Mail::assertSent(ClientWelcomeMail::class, function (ClientWelcomeMail $mail) {
+            $html = $mail->render();
+
+            return $mail->hasTo('owner.abc@example.com')
+                && $mail->audience === ClientWelcomeMail::AUDIENCE_ADMINISTRADORA
+                && str_contains($html, 'ABC Condos');
+        });
+    }
+
+    public function test_admin_can_update_organization_profile(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('Administrador');
+
+        $organization = Organization::factory()->managementCompany()->create([
+            'legal_name' => 'Administradora Antiga LTDA',
+            'trade_name' => 'Antiga',
+            'status' => Organization::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('platform.organizations.edit', $organization))
+            ->assertOk()
+            ->assertSee('Editar organização')
+            ->assertSee('Administradora Antiga LTDA');
+
+        $this->actingAs($admin)
+            ->put(route('platform.organizations.update', $organization), [
+                'legal_name' => 'Administradora Nova LTDA',
+                'trade_name' => 'Nova',
+                'document' => '11.222.333/0001-44',
+                'email' => 'contato@nova.test',
+                'phone' => '11999990000',
+                'address' => 'Rua das Flores, 10',
+                'neighborhood' => 'Centro',
+                'city' => 'Campinas',
+                'state' => 'sp',
+                'zip_code' => '13010-000',
+                'notes' => 'Atualizado pelo admin',
+            ])
+            ->assertRedirect(route('platform.organizations.show', $organization));
+
+        $organization->refresh();
+        $this->assertSame('Administradora Nova LTDA', $organization->legal_name);
+        $this->assertSame('Nova', $organization->trade_name);
+        $this->assertSame('SP', $organization->state);
+        $this->assertSame(Organization::STATUS_ACTIVE, $organization->status);
+        $this->assertSame(Organization::TYPE_MANAGEMENT_COMPANY, $organization->type);
+    }
+
+    public function test_non_admin_cannot_edit_organization(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('Morador');
+        $organization = Organization::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('platform.organizations.edit', $organization))
+            ->assertForbidden();
+
+        $this->actingAs($user)
+            ->put(route('platform.organizations.update', $organization), [
+                'legal_name' => 'Tentativa',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_platform_organizations_index_requires_admin(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole('Morador');
+
+        $this->actingAs($user)
+            ->get(route('platform.organizations.index'))
+            ->assertForbidden();
+    }
+
+    public function test_direct_sindico_does_not_see_management_company_panel(): void
+    {
+        Mail::fake();
+
+        $result = app(DirectClientOnboardingService::class)->onboardDirect([
+            'condominium' => [
+                'name' => 'Residencial Menu',
+                'city' => 'São Paulo',
+                'state' => 'SP',
+            ],
+            'user' => [
+                'name' => 'Síndico Menu',
+                'email' => 'sindico.menu@example.com',
+            ],
+        ]);
+
+        $sindico = $result['user'];
+        $sindico->forceFill([
+            'email_verified_at' => now(),
+            'senha_temporaria' => false,
+        ])->save();
+
+        $this->assertTrue($sindico->isOrganizationMember());
+        $this->assertFalse($sindico->isManagementCompanyMember());
+
+        $this->actingAs($sindico)
+            ->get(route('privacy.index'))
+            ->assertOk()
+            ->assertDontSee('Painel da Administradora', false);
+
+        $this->actingAs($sindico)
+            ->get(route('organization.dashboard'))
+            ->assertForbidden();
+    }
+
+    public function test_management_company_member_sees_management_company_panel(): void
+    {
+        $org = Organization::factory()->managementCompany()->create();
+        $owner = User::factory()->create(['condominium_id' => null]);
+        app(OrganizationProvisioningService::class)->attachUser($org, (int) $owner->id, Organization::ROLE_OWNER);
+
+        $this->assertTrue($owner->isManagementCompanyMember());
+
+        $this->actingAs($owner)
+            ->get(route('organization.dashboard'))
+            ->assertOk()
+            ->assertSee('Painel da Administradora', false);
+    }
+
+    public function test_organization_dashboard_forbidden_for_other_org(): void
+    {
+        $orgA = Organization::factory()->managementCompany()->create();
+        $orgB = Organization::factory()->managementCompany()->create();
+
+        $owner = User::factory()->create();
+        app(OrganizationProvisioningService::class)->attachUser($orgA, (int) $owner->id, Organization::ROLE_OWNER);
+
+        $this->actingAs($owner)
+            ->get(route('organization.dashboard'))
+            ->assertOk();
+
+        $this->actingAs($owner)
+            ->post(route('organization.condominiums.enter'), [
+                'condominium_id' => Condominium::factory()->create(['organization_id' => $orgB->id])->id,
+            ])
+            ->assertStatus(403);
+    }
+
+    public function test_lgpd_term_versions_are_not_overwritten(): void
+    {
+        $service = app(LgpdConsentService::class);
+        $service->ensureDefaultTerms();
+
+        $term = Term::query()->where('type', Term::TYPE_TERMS_OF_USE)->firstOrFail();
+        $v1 = $service->publishVersion($term, '1.0', 'Termos v1', 'Conteúdo um');
+        $v2 = $service->publishVersion($term, '2.0', 'Termos v2', 'Conteúdo dois');
+
+        $this->assertFalse($v1->fresh()->is_active);
+        $this->assertTrue($v2->fresh()->is_active);
+        $this->assertSame(2, $term->versions()->count());
+        $this->assertSame('Conteúdo um', $v1->fresh()->content);
+    }
+
+    public function test_platform_webhook_updates_organization_subscription(): void
+    {
+        $org = Organization::factory()->managementCompany()->create();
+        $subscription = $org->subscription()->create([
+            'status' => 'past_due',
+            'asaas_customer_id' => 'cus_org_1',
+            'billing_metric' => 'fixed',
+            'fixed_price' => 100,
+            'recurring_amount' => 100,
+            'payment_method' => 'boleto',
+        ]);
+
+        $handled = app(CondominiumSubscriptionService::class)->handlePlatformWebhook([
+            'event' => 'PAYMENT_RECEIVED',
+            'payment' => [
+                'customer' => 'cus_org_1',
+                'id' => 'pay_1',
+            ],
+        ]);
+
+        $this->assertTrue($handled);
+        $this->assertSame('active', $subscription->fresh()->status);
+    }
+
+    public function test_catalog_plans_link_to_the_matching_organization_contract(): void
+    {
+        $admin = User::factory()->create(['condominium_id' => null]);
+        $admin->assignRole('Administrador');
+
+        $sindicoPlan = SubscriptionPlan::query()->create([
+            'name' => 'Plano Síndico Catálogo',
+            'slug' => 'plano-sindico-catalogo',
+            'audience' => SubscriptionPlan::AUDIENCE_CONDOMINIUM,
+            'billing_metric' => 'unit',
+            'unit_price' => 4.90,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'boleto',
+            'is_active' => true,
+        ]);
+        $adminPlan = SubscriptionPlan::query()->create([
+            'name' => 'Plano Administradora Catálogo',
+            'slug' => 'plano-administradora-catalogo',
+            'audience' => SubscriptionPlan::AUDIENCE_MANAGEMENT_COMPANY,
+            'billing_metric' => 'unit',
+            'unit_price' => 3.50,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'boleto',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('platform.plans.index'))
+            ->assertOk()
+            ->assertSee('Público do plano', false)
+            ->assertSee('Plano Síndico Catálogo', false)
+            ->assertSee('Administradora', false);
+
+        $management = Organization::factory()->managementCompany()->create();
+
+        $this->actingAs($admin)
+            ->get(route('platform.organizations.subscription.edit', $management))
+            ->assertOk()
+            ->assertSee('Plano Administradora Catálogo', false)
+            ->assertDontSee('Plano Síndico Catálogo', false);
+
+        $this->actingAs($admin)
+            ->post(route('platform.organizations.subscription.store', $management), [
+                'subscription_plan_id' => $adminPlan->id,
+                'billing_metric' => 'unit',
+                'unit_price' => 3.50,
+                'billing_cycle' => 'monthly',
+                'payment_method' => 'boleto',
+            ])
+            ->assertRedirect(route('platform.organizations.subscription.edit', $management));
+
+        $this->assertSame($adminPlan->id, $management->fresh()->subscription->subscription_plan_id);
+
+        Mail::fake();
+        $direct = app(DirectClientOnboardingService::class)->onboardDirect([
+            'condominium' => ['name' => 'Condo Contrato', 'city' => 'São Paulo', 'state' => 'SP'],
+            'user' => ['name' => 'Síndico Contrato', 'email' => 'sindico.contrato@example.com'],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('platform.organizations.show', $direct['organization']))
+            ->assertOk()
+            ->assertSee('Gerenciar contrato e cobranças', false);
+
+        $this->actingAs($admin)
+            ->get(route('platform.organizations.subscription.edit', $direct['organization']))
+            ->assertRedirect(route('platform.subscriptions.edit', [
+                'condominium' => $direct['condominium'],
+                'from_organization' => $direct['organization']->id,
+            ]));
+
+        $this->actingAs($admin)
+            ->get(route('platform.subscriptions.edit', [
+                'condominium' => $direct['condominium'],
+                'from_organization' => $direct['organization']->id,
+            ]))
+            ->assertOk()
+            ->assertSee('Plano Síndico Catálogo', false)
+            ->assertDontSee('Plano Administradora Catálogo', false)
+            ->assertSee('Organização', false);
+    }
+
+    public function test_direct_sindico_contract_applies_units_limit(): void
+    {
+        Mail::fake();
+
+        $plan = SubscriptionPlan::query()->create([
+            'name' => 'Plano 40 unidades',
+            'slug' => 'plano-40-unidades',
+            'audience' => SubscriptionPlan::AUDIENCE_CONDOMINIUM,
+            'billing_metric' => 'unit',
+            'unit_price' => 2,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'boleto',
+            'max_units' => 40,
+            'is_active' => true,
+        ]);
+
+        $result = app(DirectClientOnboardingService::class)->onboardDirect([
+            'condominium' => [
+                'name' => 'Condo Limite',
+                'city' => 'São Paulo',
+                'state' => 'SP',
+            ],
+            'user' => [
+                'name' => 'Síndico Limite',
+                'email' => 'sindico.limite@example.com',
+            ],
+            'subscription_plan_id' => $plan->id,
+        ]);
+
+        $this->assertSame(40, $result['condominium']->fresh()->units_limit);
+
+        $admin = User::factory()->create(['condominium_id' => null]);
+        $admin->assignRole('Administrador');
+
+        $this->actingAs($admin)
+            ->get(route('platform.subscriptions.edit', $result['condominium']))
+            ->assertOk()
+            ->assertSee('Limite de unidades', false)
+            ->assertSee('value="40"', false);
+
+        $this->actingAs($admin)
+            ->post(route('platform.subscriptions.store', $result['condominium']), [
+                'subscription_plan_id' => $plan->id,
+                'billing_metric' => 'unit',
+                'unit_price' => 2,
+                'billing_cycle' => 'monthly',
+                'payment_method' => 'boleto',
+                'units_limit' => 25,
+            ])
+            ->assertRedirect(route('platform.subscriptions.edit', $result['condominium']));
+
+        $this->assertSame(25, $result['condominium']->fresh()->units_limit);
+    }
+
+    public function test_mass_assignment_cannot_set_organization_id_via_user_update_payload_fields(): void
+    {
+        $user = User::factory()->create();
+        $this->assertFalse(in_array('organization_id', $user->getFillable(), true));
+        $this->assertFalse(in_array('is_super_admin', $user->getFillable(), true));
+    }
+}

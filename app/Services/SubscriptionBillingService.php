@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Condominium;
 use App\Models\CondominiumSubscription;
+use App\Models\OrganizationSubscription;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -14,9 +15,9 @@ class SubscriptionBillingService
         private PlatformSettingsService $platformSettings,
     ) {}
 
-    public function getBillingReport(CondominiumSubscription $subscription, array $filters = []): array
+    public function getBillingReport(CondominiumSubscription|OrganizationSubscription $subscription, array $filters = []): array
     {
-        if ($subscription->payment_method === CondominiumSubscription::PAYMENT_BANK_DEPOSIT) {
+        if (!$subscription->usesAsaas()) {
             return [
                 'charges' => [],
                 'summary' => $this->emptySummary(),
@@ -119,11 +120,13 @@ class SubscriptionBillingService
         ];
     }
 
-    public function exportCsv(CondominiumSubscription $subscription, array $filters, string $filenamePrefix): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function exportCsv(CondominiumSubscription|OrganizationSubscription $subscription, array $filters, string $filenamePrefix): \Symfony\Component\HttpFoundation\StreamedResponse
     {
         $report = $this->getBillingReport($subscription, $filters);
-        $condominiumName = $subscription->condominium?->name ?? 'condominio';
-        $slug = preg_replace('/[^a-z0-9]+/i', '-', strtolower($condominiumName));
+        $contractName = $subscription instanceof OrganizationSubscription
+            ? ($subscription->organization?->displayName() ?? 'organizacao')
+            : ($subscription->condominium?->name ?? 'condominio');
+        $slug = preg_replace('/[^a-z0-9]+/i', '-', strtolower($contractName));
         $filename = trim($filenamePrefix . '-' . $slug . '-' . now()->format('Y-m-d'), '-') . '.csv';
 
         $headers = [
@@ -131,11 +134,12 @@ class SubscriptionBillingService
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function () use ($report, $subscription) {
+        $callback = function () use ($report, $subscription, $contractName) {
             $output = fopen('php://output', 'w');
             fwrite($output, "\xEF\xBB\xBF");
 
-            fputcsv($output, ['Condomínio', $subscription->condominium?->name ?? '']);
+            $contractLabel = $subscription instanceof OrganizationSubscription ? 'Organização' : 'Condomínio';
+            fputcsv($output, [$contractLabel, $contractName]);
             fputcsv($output, ['Contrato', $subscription->statusLabel()]);
             fputcsv($output, ['Valor recorrente', number_format((float) $subscription->recurring_amount, 2, ',', '.')]);
             fputcsv($output, []);
@@ -170,7 +174,7 @@ class SubscriptionBillingService
         return response()->stream($callback, 200, $headers);
     }
 
-    protected function fetchRawPayments(CondominiumSubscription $subscription): array
+    protected function fetchRawPayments(CondominiumSubscription|OrganizationSubscription $subscription): array
     {
         if ($subscription->asaas_customer_id) {
             return $this->asaas->fetchAllCustomerPayments($subscription->asaas_customer_id);

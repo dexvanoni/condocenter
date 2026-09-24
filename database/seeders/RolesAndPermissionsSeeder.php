@@ -18,6 +18,14 @@ class RolesAndPermissionsSeeder extends Seeder
             // Condomínios
             'manage_condominiums',
             'view_condominiums',
+
+            // SaaS / Organizações
+            'manage_organizations',
+            'view_organizations',
+            'manage_saas_plans',
+            'manage_saas_subscriptions',
+            'view_saas_audit',
+            'manage_terms',
             
             // Usuários
             'manage_users',

@@ -9,6 +9,14 @@
     <div class="col-12">
         <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="Descrição">{{ old('description', $plan?->description) }}</textarea>
     </div>
+    <div class="col-12">
+        <label class="form-label small text-muted mb-0">Público do plano</label>
+        <select name="audience" class="form-select form-select-sm" required>
+            <option value="condominium" @selected(old('audience', $plan?->audience ?? 'condominium') === 'condominium')>Síndico / Condomínio (Modelo A)</option>
+            <option value="management_company" @selected(old('audience', $plan?->audience) === 'management_company')>Administradora (Modelo B)</option>
+        </select>
+        <div class="form-text">Define em qual ficha o plano pode ser vinculado.</div>
+    </div>
     <div class="col-6">
         <label class="form-label small text-muted mb-0">Modelo de cobrança</label>
         <select name="billing_metric" class="form-select form-select-sm plan-billing-metric" required>
@@ -40,6 +48,12 @@
         <input type="number" step="0.01" name="fixed_price" class="form-control form-control-sm"
                value="{{ old('fixed_price', $plan?->fixed_price ?? 0) }}">
         <div class="form-text">Valor total cobrado a cada ciclo.</div>
+    </div>
+    <div class="col-4">
+        <label class="form-label small text-muted mb-0">Limite de unidades</label>
+        <input type="number" min="1" max="50000" name="max_units" class="form-control form-control-sm" placeholder="Sem limite"
+               value="{{ old('max_units', $plan?->max_units) }}">
+        <div class="form-text">No síndico, trava quantas unidades o condomínio pode cadastrar.</div>
     </div>
     <div class="col-4">
         <label class="form-label small text-muted mb-0">Dias trial</label>

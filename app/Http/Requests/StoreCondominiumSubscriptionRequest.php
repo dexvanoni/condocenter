@@ -43,6 +43,7 @@ class StoreCondominiumSubscriptionRequest extends FormRequest
             'financial_contact_name' => ['nullable', 'string', 'max:255'],
             'financial_contact_email' => ['nullable', 'email', 'max:255'],
             'financial_contact_phone' => ['nullable', 'string', 'max:30'],
+            'units_limit' => ['nullable', 'integer', 'min:1', 'max:50000'],
             'contract_starts_at' => ['nullable', 'date'],
             'contract_ends_at' => ['nullable', 'date', 'after_or_equal:contract_starts_at'],
             'admin_notes' => ['nullable', 'string', 'max:5000'],

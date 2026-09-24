@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 22/09/2026 (categorias de despesa + insights no dashboard do síndico)
+- **Última revisão:** 23/09/2026 (organizações multi-tenant + LGPD)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -768,6 +768,12 @@ Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação,
 - Instalação nova: o `migrate` do Passo 5 (Parte 1) cria `spaces.show_reserver_on_calendar` (padrão `false`).
 - Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Sem variável de `.env` nova.
 - O síndico ativa por espaço em **Espaços → criar/editar → Calendário Público**. Quando ligado, moradores veem nome e unidade em datas indisponíveis.
+
+### 2026-09-23 — Organizações multi-tenant, administradoras e LGPD
+
+- Instalação nova: o `migrate` do Passo 5 (Parte 1) cria `organizations`, `organization_user`, `organization_subscriptions`, colunas de plano (`audience`, limites, módulos), FK `condominiums.organization_id` (com backfill), tabelas LGPD e `security_logs`.
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force` + `npm run build` se houver front). Sem variável de `.env` nova.
+- Depois do migrate, condomínios existentes passam a ter organização direta (`type=condominium`). Operador usa `/platform/organizations` e onboarding de clientes; administradoras usam `/organizacao`.
 
 ### 2026-09-12 — Leads da landing de vendas (Supabase)
 

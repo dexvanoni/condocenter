@@ -1198,8 +1198,28 @@
                                 </a>
                             </li>
                             <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.organizations.*') ? 'active' : '' }}" href="{{ route('platform.organizations.index') }}">
+                                    <i class="bi bi-building"></i> Organizações
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.clients.*') ? 'active' : '' }}" href="{{ route('platform.clients.create-direct') }}">
+                                    <i class="bi bi-person-plus"></i> Novo cliente direto
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.clients.create-management') || request()->routeIs('platform.clients.store-management') ? 'active' : '' }}" href="{{ route('platform.clients.create-management') }}">
+                                    <i class="bi bi-briefcase"></i> Nova administradora
+                                </a>
+                            </li>
+                            <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('platform.plans.*') ? 'active' : '' }}" href="{{ route('platform.plans.index') }}">
                                     <i class="bi bi-tags"></i> Planos de assinatura
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('platform.terms.*') ? 'active' : '' }}" href="{{ route('platform.terms.index') }}">
+                                    <i class="bi bi-shield-check"></i> Termos e LGPD
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -1239,6 +1259,20 @@
                         @else
                             Dashboard
                         @endif
+                    </a>
+                </li>
+
+                @if($user->isManagementCompanyMember() || ($user->isAdmin() && request()->routeIs('organization.*')))
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('organization.*') ? 'active' : '' }}" href="{{ route('organization.dashboard') }}">
+                        <i class="bi bi-briefcase"></i> Painel da Administradora
+                    </a>
+                </li>
+                @endif
+
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('privacy.*') ? 'active' : '' }}" href="{{ route('privacy.index') }}">
+                        <i class="bi bi-shield-lock"></i> Minha Privacidade
                     </a>
                 </li>
 
@@ -1983,7 +2017,7 @@
                                         @if($user->hasMultipleRoles())
                                             {{ $activeRoleName }}
                                         @else
-                                            {{ $user->roles->first()->name }}
+                                            {{ $user->roles->first()?->name ?? 'Usuário' }}
                                         @endif
                                     </small>
                                 </div>
@@ -2038,8 +2072,28 @@
                                         </a>
                                     </li>
                                     <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.organizations.*') ? 'active' : '' }}" href="{{ route('platform.organizations.index') }}">
+                                            <i class="bi bi-building"></i> Organizações
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.clients.*') ? 'active' : '' }}" href="{{ route('platform.clients.create-direct') }}">
+                                            <i class="bi bi-person-plus"></i> Novo cliente direto
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.clients.create-management') || request()->routeIs('platform.clients.store-management') ? 'active' : '' }}" href="{{ route('platform.clients.create-management') }}">
+                                            <i class="bi bi-briefcase"></i> Nova administradora
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('platform.plans.*') ? 'active' : '' }}" href="{{ route('platform.plans.index') }}">
                                             <i class="bi bi-tags"></i> Planos de assinatura
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('platform.terms.*') ? 'active' : '' }}" href="{{ route('platform.terms.index') }}">
+                                            <i class="bi bi-shield-check"></i> Termos e LGPD
                                         </a>
                                     </li>
                                     <li class="nav-item">
@@ -2080,6 +2134,20 @@
                                 @else
                                     Dashboard
                                 @endif
+                            </a>
+                        </li>
+
+                        @if($user->isManagementCompanyMember() || ($user->isAdmin() && request()->routeIs('organization.*')))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('organization.*') ? 'active' : '' }}" href="{{ route('organization.dashboard') }}">
+                                <i class="bi bi-briefcase"></i> Painel da Administradora
+                            </a>
+                        </li>
+                        @endif
+
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('privacy.*') ? 'active' : '' }}" href="{{ route('privacy.index') }}">
+                                <i class="bi bi-shield-lock"></i> Minha Privacidade
                             </a>
                         </li>
 

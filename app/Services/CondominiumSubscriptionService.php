@@ -7,6 +7,8 @@ use App\Models\Condominium;
 use App\Models\CondominiumSubscription;
 use App\Models\CondominiumSubscriptionDocument;
 use App\Models\CondominiumSubscriptionLog;
+use App\Models\Organization;
+use App\Models\OrganizationSubscription;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use Carbon\Carbon;
@@ -31,6 +33,7 @@ class CondominiumSubscriptionService
                 'status' => CondominiumSubscription::STATUS_DRAFT,
             ]);
 
+            $plan = null;
             if (!empty($data['subscription_plan_id'])) {
                 $plan = SubscriptionPlan::query()->find($data['subscription_plan_id']);
                 if ($plan) {
@@ -60,11 +63,41 @@ class CondominiumSubscriptionService
 
             $this->refreshCalculatedAmounts($subscription, $condominium);
             $subscription->save();
+            $this->applyUnitsLimit($condominium, $data, $plan ?? null);
 
             $this->log($subscription, $admin, 'updated', 'Contrato atualizado pelo administrador.');
 
             return $subscription->fresh(['financialResponsible', 'documents', 'logs', 'plan']);
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function applyUnitsLimit(Condominium $condominium, array $data, ?SubscriptionPlan $plan = null): void
+    {
+        $hasExplicitLimit = array_key_exists('units_limit', $data);
+        $limit = $hasExplicitLimit ? $data['units_limit'] : null;
+
+        if (!$hasExplicitLimit && $plan?->max_units) {
+            $limit = $plan->max_units;
+            $hasExplicitLimit = true;
+        }
+
+        if (!$hasExplicitLimit) {
+            return;
+        }
+
+        $limit = $limit !== null && $limit !== '' ? (int) $limit : null;
+        $inUse = $condominium->units()->count();
+
+        if ($limit !== null && $limit < $inUse) {
+            throw ValidationException::withMessages([
+                'units_limit' => "O limite não pode ser menor que o número de unidades já cadastradas ({$inUse}).",
+            ]);
+        }
+
+        $condominium->update(['units_limit' => $limit]);
     }
 
     public function billingPortalData(CondominiumSubscription $subscription): array
@@ -419,23 +452,44 @@ class CondominiumSubscriptionService
         $subscriptionPayload = $payload['subscription'] ?? null;
 
         if ($subscriptionPayload) {
+            $asaasId = $subscriptionPayload['id'] ?? null;
+
             $subscription = CondominiumSubscription::query()
-                ->where('asaas_subscription_id', $subscriptionPayload['id'] ?? null)
+                ->where('asaas_subscription_id', $asaasId)
                 ->first();
 
-            if (!$subscription) {
+            if ($subscription) {
+                $status = strtoupper($subscriptionPayload['status'] ?? '');
+                $updates = match ($status) {
+                    'ACTIVE' => ['status' => CondominiumSubscription::STATUS_ACTIVE],
+                    'EXPIRED' => ['status' => CondominiumSubscription::STATUS_EXPIRED],
+                    default => [],
+                };
+
+                if ($updates !== []) {
+                    $subscription->update($updates);
+                }
+
+                return true;
+            }
+
+            $orgSubscription = OrganizationSubscription::query()
+                ->where('asaas_subscription_id', $asaasId)
+                ->first();
+
+            if (!$orgSubscription) {
                 return false;
             }
 
             $status = strtoupper($subscriptionPayload['status'] ?? '');
             $updates = match ($status) {
-                'ACTIVE' => ['status' => CondominiumSubscription::STATUS_ACTIVE],
-                'EXPIRED' => ['status' => CondominiumSubscription::STATUS_EXPIRED],
+                'ACTIVE' => ['status' => OrganizationSubscription::STATUS_ACTIVE],
+                'EXPIRED' => ['status' => OrganizationSubscription::STATUS_EXPIRED],
                 default => [],
             };
 
             if ($updates !== []) {
-                $subscription->update($updates);
+                $orgSubscription->update($updates);
             }
 
             return true;
@@ -445,33 +499,60 @@ class CondominiumSubscriptionService
             return false;
         }
 
+        $customerId = $payment['customer'] ?? null;
+
         $subscription = CondominiumSubscription::query()
-            ->where('asaas_customer_id', $payment['customer'] ?? null)
+            ->where('asaas_customer_id', $customerId)
             ->first();
 
-        if (!$subscription) {
+        if ($subscription) {
+            switch ($event) {
+                case 'PAYMENT_CREATED':
+                    SendSubscriptionBillingNotification::dispatchSync($subscription, $event, $payment);
+                    break;
+                case 'PAYMENT_CONFIRMED':
+                case 'PAYMENT_RECEIVED':
+                    $subscription->update([
+                        'status' => CondominiumSubscription::STATUS_ACTIVE,
+                        'past_due_at' => null,
+                    ]);
+                    $subscription->condominium?->update(['is_active' => true]);
+                    SendSubscriptionBillingNotification::dispatchSync($subscription, $event, $payment);
+                    break;
+                case 'PAYMENT_OVERDUE':
+                    $subscription->update([
+                        'status' => CondominiumSubscription::STATUS_PAST_DUE,
+                        'past_due_at' => $subscription->past_due_at ?? now(),
+                    ]);
+                    SendSubscriptionBillingNotification::dispatchSync($subscription, $event, $payment);
+                    break;
+            }
+
+            return true;
+        }
+
+        $orgSubscription = OrganizationSubscription::query()
+            ->where('asaas_customer_id', $customerId)
+            ->first();
+
+        if (!$orgSubscription) {
             return false;
         }
 
         switch ($event) {
-            case 'PAYMENT_CREATED':
-                SendSubscriptionBillingNotification::dispatchSync($subscription, $event, $payment);
-                break;
             case 'PAYMENT_CONFIRMED':
             case 'PAYMENT_RECEIVED':
-                $subscription->update([
-                    'status' => CondominiumSubscription::STATUS_ACTIVE,
+                $orgSubscription->update([
+                    'status' => OrganizationSubscription::STATUS_ACTIVE,
                     'past_due_at' => null,
                 ]);
-                $subscription->condominium?->update(['is_active' => true]);
-                SendSubscriptionBillingNotification::dispatchSync($subscription, $event, $payment);
+                $orgSubscription->organization?->update(['status' => Organization::STATUS_ACTIVE]);
                 break;
             case 'PAYMENT_OVERDUE':
-                $subscription->update([
-                    'status' => CondominiumSubscription::STATUS_PAST_DUE,
-                    'past_due_at' => $subscription->past_due_at ?? now(),
+                $orgSubscription->update([
+                    'status' => OrganizationSubscription::STATUS_PAST_DUE,
+                    'past_due_at' => $orgSubscription->past_due_at ?? now(),
                 ]);
-                SendSubscriptionBillingNotification::dispatchSync($subscription, $event, $payment);
                 break;
         }
 

@@ -16,8 +16,8 @@
 <div class="container-fluid px-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
         <div>
-            <a href="{{ route('condominiums.show', $condominium) }}" class="text-decoration-none">
-                <i class="bi bi-arrow-left"></i> {{ $condominium->name }}
+            <a href="{{ $backUrl ?? route('condominiums.show', $condominium) }}" class="text-decoration-none">
+                <i class="bi bi-arrow-left"></i> {{ $backLabel ?? $condominium->name }}
             </a>
             <h1 class="mt-2 mb-1"><i class="bi bi-receipt-cutoff"></i> Contrato & Assinatura SaaS</h1>
             <p class="text-muted mb-0">Configure precificação, trial, responsável financeiro e integração Asaas.</p>
@@ -95,6 +95,7 @@
                                                 data-cycle="{{ $planOption->billing_cycle }}"
                                                 data-trial="{{ $planOption->trial_days }}"
                                                 data-payment="{{ $planOption->payment_method }}"
+                                                data-max-units="{{ $planOption->max_units }}"
                                                 @selected(old('subscription_plan_id', $sub?->subscription_plan_id) == $planOption->id)>
                                             {{ $planOption->name }} — {{ $planOption->billingMetricLabel() }} — {{ $planOption->priceSummary() }}
                                         </option>
@@ -152,6 +153,17 @@
                                         <option value="{{ $val }}" @selected(old('payment_method', $sub?->payment_method ?? 'boleto') === $val)>{{ $label }}</option>
                                     @endforeach
                                 </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Limite de unidades</label>
+                                <input type="number" min="1" max="50000" name="units_limit" id="contractUnitsLimit" class="form-control"
+                                       value="{{ old('units_limit', $condominium->units_limit) }}"
+                                       placeholder="Sem limite">
+                                <div class="form-text">
+                                    Máximo que o síndico pode cadastrar.
+                                    Hoje: <strong>{{ $condominium->unitsQuotaSummary() }}</strong>.
+                                    Vazio = sem limite. Ao escolher um plano, usa o limite do catálogo.
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Início do contrato</label>
@@ -363,6 +375,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('contractBillingCycle').value = option.dataset.cycle || 'monthly';
         form.querySelector('[name="trial_days"]').value = option.dataset.trial || 0;
         form.querySelector('[name="payment_method"]').value = option.dataset.payment || 'boleto';
+        const unitsLimit = form.querySelector('[name="units_limit"]');
+        if (unitsLimit && option.dataset.maxUnits) {
+            unitsLimit.value = option.dataset.maxUnits;
+        }
         syncContractFields();
     }
 

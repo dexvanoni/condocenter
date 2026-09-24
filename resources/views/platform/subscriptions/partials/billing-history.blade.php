@@ -8,6 +8,15 @@
     $syndicPortal = $syndicPortal ?? false;
     $adminBillingControls = $adminBillingControls ?? false;
     $billingCondominium = $condominium ?? null;
+    $chargeStoreUrl = $chargeStoreUrl ?? (($adminBillingControls && $billingCondominium)
+        ? route('platform.subscriptions.charges.store', $billingCondominium)
+        : null);
+    $chargeCancelUrl = $chargeCancelUrl ?? (($adminBillingControls && $billingCondominium)
+        ? route('platform.subscriptions.charges.cancel', $billingCondominium)
+        : null);
+    $chargeRefundUrl = $chargeRefundUrl ?? (($adminBillingControls && $billingCondominium)
+        ? route('platform.subscriptions.charges.refund', $billingCondominium)
+        : null);
 @endphp
 
 <div class="card shadow-sm mb-4" @if($showAnchor) id="cobrancas-saas" @endif>
@@ -94,7 +103,7 @@
         </form>
 
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            @if($adminBillingControls && $billingCondominium && ($subscription ?? null))
+            @if($adminBillingControls && $chargeStoreUrl && ($subscription ?? null))
                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#saasManualChargeForm">
                     <i class="bi bi-plus-circle"></i> Nova cobrança avulsa
                 </button>
@@ -106,10 +115,10 @@
             </a>
         </div>
 
-        @if($adminBillingControls && $billingCondominium && ($subscription ?? null))
+        @if($adminBillingControls && $chargeStoreUrl && ($subscription ?? null))
         <div class="collapse mb-3" id="saasManualChargeForm">
             <div class="card card-body bg-light border-0">
-                <form method="POST" action="{{ route('platform.subscriptions.charges.store', $billingCondominium) }}" class="row g-2 align-items-end">
+                <form method="POST" action="{{ $chargeStoreUrl }}" class="row g-2 align-items-end">
                     @csrf
                     <div class="col-md-2">
                         <label class="form-label small">Valor (R$)</label>
@@ -189,9 +198,9 @@
                                     @elseif(!$syndicPortal)
                                         <span class="text-muted small">—</span>
                                     @endif
-                                    @if($adminBillingControls && $billingCondominium && !empty($charge['id']))
+                                    @if($adminBillingControls && $chargeCancelUrl && !empty($charge['id']))
                                         @if(in_array($charge['status_group'], ['pending', 'overdue'], true))
-                                            <form method="POST" action="{{ route('platform.subscriptions.charges.cancel', $billingCondominium) }}"
+                                            <form method="POST" action="{{ $chargeCancelUrl }}"
                                                   onsubmit="return confirm('Cancelar esta cobrança no Asaas?');" class="d-inline">
                                                 @csrf
                                                 <input type="hidden" name="payment_id" value="{{ $charge['id'] }}">
@@ -200,7 +209,7 @@
                                                 </button>
                                             </form>
                                         @elseif($charge['status_group'] === 'paid')
-                                            <form method="POST" action="{{ route('platform.subscriptions.charges.refund', $billingCondominium) }}"
+                                            <form method="POST" action="{{ $chargeRefundUrl }}"
                                                   onsubmit="return confirm('Estornar esta cobrança no Asaas?');" class="d-inline">
                                                 @csrf
                                                 <input type="hidden" name="payment_id" value="{{ $charge['id'] }}">

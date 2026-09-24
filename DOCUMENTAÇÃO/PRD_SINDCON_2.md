@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.6 |
-| **Data** | 22/09/2026 |
+| **Versão do documento** | 2.12 |
+| **Data** | 23/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
@@ -278,28 +278,46 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 ### 6.1 Hierarquia de dados
 
 ```
-Plataforma SindCON
- ├── SubscriptionPlan, PlatformSetting, PlatformAnnouncement
- └── Condomínio (tenant)
+Plataforma SindCON (operador = role Spatie Administrador)
+ ├── SubscriptionPlan (audience: condominium | management_company)
+ ├── Organization (type: condominium | management_company)
+ │    ├── organization_user (role: owner|admin|manager|operator)
+ │    ├── OrganizationSubscription (Modelo B — administradora)
+ │    └── Condomínio[] (FK organization_id)
+ └── Condomínio (tenant operacional)
       ├── enabled_modules (JSON, 11 slugs)
       ├── financial_mode (full | simplified)
       ├── payment_receiving_mode (manual | platform)
       ├── restrict_defaulters (bool)
       ├── saas_complimentary (bool), saas_complimentary_notes
-      ├── Assinatura SaaS (CondominiumSubscription)
+      ├── Assinatura SaaS (CondominiumSubscription) — Modelo A
       ├── Unidades → Morador responsável + Agregados
       ├── Usuários (condominium_id, unit_id, roles Spatie)
       ├── CondominiumLandingPage (1:1) → CondominiumLandingItem[]
       └── Dados operacionais isolados por condominium_id
 ```
 
+**Modelo A (síndico/condomínio direto):** Organization tipo `condominium` 1:1 com o condomínio; cobrança SaaS em `condominium_subscriptions`. O síndico opera no dashboard do condomínio. O menu **Painel da Administradora** não aparece.
+
+**Modelo B (administradora profissional):** Organization tipo `management_company` com N condomínios; cobrança SaaS em `organization_subscriptions` (limites de condomínios/unidades/usuários); painel `/organizacao`. O item de menu só é exibido para membro dessa organização (`User::isManagementCompanyMember()`). O administrador da plataforma vê o item apenas quando já está nas rotas `organization.*`.
+
 ### 6.2 Isolamento de tenant
 
 - Todo dado operacional possui `condominium_id` (ou deriva dele)
 - Middleware `require.condominium` exige condomínio ativo (`ActiveCondominiumService`)
-- Middleware `ensure.saas.subscription` bloqueia módulos se assinatura inativa (`config/saas.php`)
-- Síndicos multi-condomínio: pivot `condominium_user` + rota `condominium.switch`
-- Admin plataforma alterna contexto via `active_condominium_id` na sessão
+- Middleware `ensure.saas.subscription` bloqueia módulos se assinatura inativa (`config/saas.php`); para condomínios sob administradora valida `OrganizationSubscription`
+- Administrador da plataforma alterna qualquer condomínio via `active_condominium_id`
+- Membro de administradora só acessa condomínios com `organization_id` da sua organização (backend valida; ID de URL não confia)
+- Síndico/morador permanece preso a `users.condominium_id` (sem switch multi-condo nesta versão)
+
+### 6.2.1 LGPD
+
+- Termos versionados (`terms`, `term_versions` imutáveis após publicação)
+- Aceites (`term_acceptances` com IP, user agent, hash)
+- Consentimentos de privacidade e imagem (`privacy_consents`, `media_consents`) — opcionais desmarcados por padrão
+- Área do usuário: `/minha-privacidade`
+- Solicitações export/correção/exclusão (`privacy_requests`) sem exclusão automática de dados contratuais
+- `security_logs` para eventos administrativos/consentimento/billing
 
 ### 6.3 Camadas de autorização (ordem típica)
 
@@ -339,7 +357,7 @@ Regras de negócio concentradas em `app/Services/` (~50 classes), incluindo:
 - **Operacional:** `AccessControlService` (liberações, credencial visitante "Outro", check-in QR/senha), `PackageService`, `RideBookingService`, `ServiceOrderService`, `OccurrenceBookService`
 - **Encomendas (OCR/matching):** `OcrServiceInterface`, `TesseractOcrService`, `LabelImagePreprocessor`, `PackageRecipientMatcher`, `PackageSenderDetector`, `TextNormalizer`
 - **Assembleias:** namespace `App\Services\Assembly\*`
-- **Plataforma:** `CondominiumSubscriptionService`, `CondominiumLandingService`, `ActiveCondominiumService`, `PlatformSubscriptionStatsService`
+- **Plataforma:** `CondominiumSubscriptionService`, `OrganizationSubscriptionService`, `OrganizationProvisioningService`, `DirectClientOnboardingService`, `LgpdConsentService`, `CondominiumLandingService`, `ActiveCondominiumService`, `PlatformSubscriptionStatsService`, `TenantContext`
 - **Autenticação/perfil:** `ProfileHomeRoute` (home por papel)
 
 Controllers permanecem finos; validação em Form Requests; autorização em Policies. API sensível usa `GuardsTenantResource` para validar `condominium_id` do recurso.
@@ -405,6 +423,8 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-10 | Condomínio em uso gratuito (`saas_complimentary`) | Should | `CondominiumSubscriptionController`, `platform/subscriptions/edit` |
 | PLT-11 | Dashboard SaaS com métricas e lista de uso gratuito | Should | `platform/dashboard`, `PlatformSubscriptionStatsService` |
 | PLT-12 | Home do Administrador em `/platform` | Must | `ProfileHomeRoute`, `ProfileSelectorController` |
+| PLT-13 | Edição dos dados cadastrais da organização (razão social, documento, contato, endereço, observações) | Must | `OrganizationController@edit/update`, `platform/organizations/edit` |
+| PLT-14 | E-mail de boas-vindas em português (layout SindCON) ao cadastrar cliente direto ou administradora, com link para criar a senha | Must | `ClientWelcomeMail`, `DirectClientOnboardingService` |
 
 ### 8.2 Gestão de unidades e usuários
 
@@ -1574,6 +1594,20 @@ Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliaçã
 | Dashboard | Lista de condomínios em uso gratuito em `platform/dashboard` |
 | Casos de uso | Parcerias, pilotos, períodos promocionais |
 
+### 14.6 Organizações e administradoras (SaaS B2B2C)
+
+| Item | Detalhe |
+|------|---------|
+| Rotas plataforma | `/platform/organizations/*` (lista, ficha, edição cadastral), `/platform/clients/*` |
+| Edição cadastral | Admin da plataforma em `platform/organizations/{id}/edit` (PLT-13). Tipo e status não mudam nesse formulário; status segue na ficha |
+| Painel administradora | `/organizacao` — menu só para membro de `management_company`; cliente direto (tipo `condominium`) não vê o item e recebe 403 na rota |
+| Assinatura org | `organization_subscriptions` + webhook Asaas plataforma (mesmo endpoint) |
+| Contrato na ficha | Modelo B: `/platform/organizations/{id}/subscription` vincula plano do catálogo (público Administradora), ativa, sincroniza Asaas e lista cobranças. Modelo A: a ficha abre o contrato do condomínio (`/platform/condominiums/{id}/subscription`) com os planos de público Síndico/Condomínio |
+| Limite de unidades (A) | `subscription_plans.max_units` no catálogo; no cadastro direto e no contrato do síndico grava `condominiums.units_limit`, que bloqueia novas unidades acima da cota |
+| Planos | `subscription_plans.audience` = `condominium` ou `management_company`, escolhido no formulário de Planos de assinatura. Cada ficha só lista o público correspondente |
+| Onboarding | `DirectClientOnboardingService` envia `ClientWelcomeMail` (boas-vindas SindCON + link para criar senha; nunca senha em claro no flash) |
+| LGPD | `/minha-privacidade`, termos versionados em `/platform/terms` |
+
 ---
 
 ## 15. Operação em produção
@@ -2132,4 +2166,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.6 — atualizado em 22/09/2026. Inclui **categorias de despesa no caixa** e **inteligência financeira no dashboard do síndico** (gráfico por categoria, alertas MoM/média 3 meses, previsão anual), requisitos FIN-35–FIN-36, regras FIN-RN-06–08 e RN-49, jornada 18.9. Deploy: `php artisan migrate --force` (migração `2026_09_22_210000_add_category_to_condominium_accounts`). Mantém conteúdo da v2.5 (conciliação CSV/OFX, FIN-29–FIN-34). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*
+*Documento v2.12 — atualizado em 23/09/2026. O Modelo A passa a gravar o limite de unidades do plano no cadastro e no contrato do síndico (`condominiums.units_limit`). Mantém a v2.11 (vínculo de planos na ficha), a v2.10 (menu do painel da administradora) e a v2.7 (organizações multi-tenant). Deploy da v2.7: `php artisan migrate --force` (migrations `2026_09_23_100000`–`100006`). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*

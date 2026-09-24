@@ -32,6 +32,7 @@
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div>
                                     <strong>{{ $plan->name }}</strong>
+                                    <span class="badge bg-light text-dark border ms-1">{{ $plan->audienceLabel() }}</span>
                                     @unless($plan->is_active)<span class="badge bg-secondary ms-1">Inativo</span>@endunless
                                     <div class="small text-muted">{{ $plan->description }}</div>
                                     <div class="small mt-1"><span class="badge bg-light text-dark border">{{ $plan->billingMetricLabel() }}</span> {{ $plan->priceSummary() }}</div>

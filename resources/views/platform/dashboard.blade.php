@@ -23,6 +23,18 @@
     <div class="row g-3 mb-4">
         <div class="col-md-2 col-6">
             <div class="card shadow-sm h-100"><div class="card-body">
+                <small class="text-muted">Organizações</small>
+                <h3 class="mb-0">{{ $metrics['total_organizations'] ?? 0 }}</h3>
+            </div></div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <small class="text-muted">Administradoras</small>
+                <h3 class="mb-0">{{ $metrics['management_companies'] ?? 0 }}</h3>
+            </div></div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
                 <small class="text-muted">Condomínios</small>
                 <h3 class="mb-0">{{ $metrics['total_condominiums'] }}</h3>
             </div></div>
@@ -63,6 +75,25 @@
                 <h3 class="mb-0 text-danger">{{ $metrics['past_due'] }}</h3>
             </div></div>
         </div>
+        <div class="col-md-2 col-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <small class="text-muted">Unidades</small>
+                <h3 class="mb-0">{{ $metrics['total_units'] ?? 0 }}</h3>
+            </div></div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <small class="text-muted">Usuários</small>
+                <h3 class="mb-0">{{ $metrics['total_users'] ?? 0 }}</h3>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="{{ route('platform.organizations.index') }}" class="btn btn-outline-primary btn-sm">Organizações</a>
+        <a href="{{ route('platform.clients.create-direct') }}" class="btn btn-outline-primary btn-sm">Novo cliente direto</a>
+        <a href="{{ route('platform.clients.create-management') }}" class="btn btn-outline-primary btn-sm">Nova administradora</a>
+        <a href="{{ route('platform.terms.index') }}" class="btn btn-outline-secondary btn-sm">Termos LGPD</a>
     </div>
 
     <div class="row g-3 mb-4">

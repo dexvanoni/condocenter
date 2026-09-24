@@ -16,6 +16,7 @@ class Condominium extends Model implements Auditable
     protected $table = 'condominiums';
 
     protected $fillable = [
+        'organization_id',
         'name',
         'cnpj',
         'address',
@@ -109,6 +110,11 @@ class Condominium extends Model implements Auditable
     }
 
     // Relacionamentos
+    public function organization()
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
     public function units()
     {
         return $this->hasMany(Unit::class);

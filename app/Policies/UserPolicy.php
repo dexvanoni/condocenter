@@ -123,8 +123,12 @@ class UserPolicy
      */
     public function assignRole(User $user, string $roleName): bool
     {
+        if ($roleName === 'Administrador') {
+            return $user->hasRole('Administrador');
+        }
+
         // Apenas administrador pode atribuir Síndico e Conselho Fiscal
-        if (in_array($roleName, ['Síndico', 'Conselho Fiscal'])) {
+        if (in_array($roleName, ['Síndico', 'Conselho Fiscal'], true)) {
             return $user->hasRole('Administrador');
         }
 

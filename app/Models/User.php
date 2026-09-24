@@ -91,6 +91,68 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
             ->withTimestamps();
     }
 
+    public function organizations()
+    {
+        return $this->belongsToMany(Organization::class, 'organization_user')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function organizationMemberships()
+    {
+        return $this->belongsToMany(Organization::class, 'organization_user')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    public function belongsToOrganization(int $organizationId): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->organizations()
+            ->where('organizations.id', $organizationId)
+            ->exists();
+    }
+
+    public function organizationRoleFor(int $organizationId): ?string
+    {
+        $membership = $this->organizations()
+            ->where('organizations.id', $organizationId)
+            ->first();
+
+        return $membership?->pivot?->role;
+    }
+
+    public function isOrganizationMember(): bool
+    {
+        if ($this->isAdmin()) {
+            return false;
+        }
+
+        return $this->organizations()->exists();
+    }
+
+    public function isManagementCompanyMember(): bool
+    {
+        return $this->organizations()
+            ->where('organizations.type', Organization::TYPE_MANAGEMENT_COMPANY)
+            ->exists();
+    }
+
+    public function managedOrganizations()
+    {
+        return $this->organizations()
+            ->where('organizations.type', Organization::TYPE_MANAGEMENT_COMPANY)
+            ->whereIn('organization_user.role', [
+                Organization::ROLE_OWNER,
+                Organization::ROLE_ADMIN,
+                Organization::ROLE_MANAGER,
+                Organization::ROLE_OPERATOR,
+            ]);
+    }
+
     public function getActiveCondominiumId(): ?int
     {
         return app(\App\Services\ActiveCondominiumService::class)->getActiveCondominiumId($this);

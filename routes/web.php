@@ -84,6 +84,18 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
     Route::get('/condominium/current', [\App\Http\Controllers\CondominiumSelectorController::class, 'current'])->name('condominium.current');
     Route::post('/condominium/switch', [\App\Http\Controllers\CondominiumSelectorController::class, 'switch'])->name('condominium.switch');
 
+    Route::get('/organizacao', \App\Http\Controllers\Organization\OrganizationDashboardController::class)
+        ->name('organization.dashboard');
+    Route::post('/organizacao/condominios/entrar', [\App\Http\Controllers\Organization\OrganizationCondominiumSwitchController::class, 'store'])
+        ->name('organization.condominiums.enter');
+
+    Route::prefix('minha-privacidade')->name('privacy.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PrivacyCenterController::class, 'index'])->name('index');
+        Route::post('/aceitar', [\App\Http\Controllers\PrivacyCenterController::class, 'accept'])->name('accept');
+        Route::post('/imagem/revogar', [\App\Http\Controllers\PrivacyCenterController::class, 'revokeMedia'])->name('media.revoke');
+        Route::post('/solicitacoes', [\App\Http\Controllers\PrivacyCenterController::class, 'storeRequest'])->name('requests.store');
+    });
+
     Route::middleware(['require.condominium'])->group(function () {
         Route::prefix('proprietario')->name('owner.')->group(function () {
             Route::get('/unidades/{unit}/relatorio-inquilino.pdf', [OwnerUnitDashboardController::class, 'exportTenantReportPdf'])
@@ -666,6 +678,55 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             ->name('settings.whatsapp.test');
         Route::post('/settings/whatsapp/groups', [\App\Http\Controllers\Platform\PlatformSettingsController::class, 'listWhatsappGroups'])
             ->name('settings.whatsapp.groups');
+
+        Route::get('/organizations', [\App\Http\Controllers\Platform\OrganizationController::class, 'index'])
+            ->name('organizations.index');
+        Route::get('/organizations/create', [\App\Http\Controllers\Platform\OrganizationController::class, 'create'])
+            ->name('organizations.create');
+        Route::post('/organizations', [\App\Http\Controllers\Platform\OrganizationController::class, 'store'])
+            ->name('organizations.store');
+        Route::get('/organizations/{organization}', [\App\Http\Controllers\Platform\OrganizationController::class, 'show'])
+            ->name('organizations.show');
+        Route::get('/organizations/{organization}/edit', [\App\Http\Controllers\Platform\OrganizationController::class, 'edit'])
+            ->name('organizations.edit');
+        Route::put('/organizations/{organization}', [\App\Http\Controllers\Platform\OrganizationController::class, 'update'])
+            ->name('organizations.update');
+        Route::patch('/organizations/{organization}/status', [\App\Http\Controllers\Platform\OrganizationController::class, 'updateStatus'])
+            ->name('organizations.update-status');
+        Route::get('/organizations/{organization}/subscription', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'edit'])
+            ->name('organizations.subscription.edit');
+        Route::post('/organizations/{organization}/subscription', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'store'])
+            ->name('organizations.subscription.store');
+        Route::post('/organizations/{organization}/subscription/activate', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'activate'])
+            ->name('organizations.subscription.activate');
+        Route::post('/organizations/{organization}/subscription/suspend', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'suspend'])
+            ->name('organizations.subscription.suspend');
+        Route::post('/organizations/{organization}/subscription/cancel', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'cancel'])
+            ->name('organizations.subscription.cancel');
+        Route::post('/organizations/{organization}/subscription/sync-asaas', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'syncAsaas'])
+            ->name('organizations.subscription.sync-asaas');
+        Route::get('/organizations/{organization}/subscription/charges/export', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'exportCharges'])
+            ->name('organizations.subscription.charges.export');
+        Route::post('/organizations/{organization}/subscription/charges', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'storeCharge'])
+            ->name('organizations.subscription.charges.store');
+        Route::post('/organizations/{organization}/subscription/charges/cancel', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'cancelCharge'])
+            ->name('organizations.subscription.charges.cancel');
+        Route::post('/organizations/{organization}/subscription/charges/refund', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'refundCharge'])
+            ->name('organizations.subscription.charges.refund');
+
+        Route::get('/clients/direct/create', [\App\Http\Controllers\Platform\ClientOnboardingController::class, 'createDirect'])
+            ->name('clients.create-direct');
+        Route::post('/clients/direct', [\App\Http\Controllers\Platform\ClientOnboardingController::class, 'storeDirect'])
+            ->name('clients.store-direct');
+        Route::get('/clients/management/create', [\App\Http\Controllers\Platform\ClientOnboardingController::class, 'createManagement'])
+            ->name('clients.create-management');
+        Route::post('/clients/management', [\App\Http\Controllers\Platform\ClientOnboardingController::class, 'storeManagement'])
+            ->name('clients.store-management');
+
+        Route::get('/terms', [\App\Http\Controllers\Platform\PlatformTermsController::class, 'index'])
+            ->name('terms.index');
+        Route::post('/terms/{term}/versions', [\App\Http\Controllers\Platform\PlatformTermsController::class, 'storeVersion'])
+            ->name('terms.versions.store');
 
         Route::get('/condominiums/{condominium}/subscription/charges/export', [\App\Http\Controllers\Platform\CondominiumSubscriptionController::class, 'exportCharges'])
             ->name('subscriptions.charges.export');
