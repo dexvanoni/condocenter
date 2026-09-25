@@ -21,10 +21,8 @@
 @can('create_units')
     @if(!empty($unitsLimitReached) && $unitsLimitReached)
         @include('units.partials.units-limit-alert', ['condominium' => $condominium ?? null])
-    @elseif(isset($condominium) && $condominium->hasUnitsQuota())
-        <p class="text-muted small mb-3">
-            Unidades cadastradas: <strong>{{ $condominium->unitsQuotaSummary() }}</strong>
-        </p>
+    @elseif(isset($condominium))
+        @include('units.partials.units-quota-info', ['condominium' => $condominium])
     @endif
 @endcan
 

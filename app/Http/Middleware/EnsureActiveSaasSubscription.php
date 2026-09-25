@@ -3,17 +3,21 @@
 namespace App\Http\Middleware;
 
 use App\Services\ActiveCondominiumService;
+use App\Services\SaasCondominiumAccessService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureActiveSaasSubscription
 {
-    public function __construct(private ActiveCondominiumService $activeCondominiumService) {}
+    public function __construct(
+        private ActiveCondominiumService $activeCondominiumService,
+        private SaasCondominiumAccessService $condominiumAccess,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (!config('saas.enforce_subscription', true)) {
+        if (!$this->condominiumAccess->enforcementEnabled()) {
             return $next($request);
         }
 
@@ -25,6 +29,7 @@ class EnsureActiveSaasSubscription
 
         if ($request->routeIs(
             'syndic-subscription.*',
+            'saas.access-blocked',
             'organization.dashboard',
             'organization.condominiums.enter',
             'privacy.*',
@@ -40,7 +45,6 @@ class EnsureActiveSaasSubscription
         $condominium = $this->activeCondominiumService->getActiveCondominium($user) ?? $user->condominium;
 
         if (!$condominium) {
-            // Membro de administradora sem condomínio selecionado: valida assinatura da organização.
             if ($user->isOrganizationMember()) {
                 $organizationId = $this->activeCondominiumService->getActiveOrganizationId($user);
                 if ($organizationId) {
@@ -60,48 +64,16 @@ class EnsureActiveSaasSubscription
             return $next($request);
         }
 
-        if ($condominium->isSaasComplimentary()) {
-            return $next($request);
-        }
-
-        // Condomínio sob administradora: valida assinatura da organização quando existir.
-        if ($condominium->organization_id) {
-            $organization = $condominium->organization;
-            if ($organization?->isManagementCompany()) {
-                if (!app(\App\Services\OrganizationSubscriptionService::class)->organizationAccessAllowed($organization)) {
-                    if ($request->expectsJson()) {
-                        return response()->json(['error' => 'Assinatura da administradora inativa.'], 402);
-                    }
-
-                    return redirect()
-                        ->route('organization.dashboard')
-                        ->with('error', 'O acesso está suspenso. Regularize a assinatura da administradora.');
-                }
-
-                return $next($request);
-            }
-        }
-
-        $subscriptions = $condominium->subscriptions()->get();
-        $subscription = $subscriptions->first();
-
-        if ($subscriptions->isEmpty()) {
-            return $next($request);
-        }
-
-        if ($subscriptions->contains(fn ($item) => $item->isAccessAllowed())) {
+        if ($this->condominiumAccess->condominiumAllowsResidents($condominium)) {
             return $next($request);
         }
 
         if ($request->expectsJson()) {
             return response()->json([
-                'error' => 'Assinatura do condomínio inativa. Entre em contato com a administração ou regularize o pagamento.',
-                'subscription_status' => $subscription->status,
+                'error' => 'O contrato do condomínio não está ativo. Entre em contato com a Administração do SindCON.',
             ], 402);
         }
 
-        return redirect()
-            ->route('syndic-subscription.show')
-            ->with('error', 'O acesso ao sistema está suspenso. Regularize a assinatura do condomínio para continuar.');
+        return redirect()->route('saas.access-blocked');
     }
 }

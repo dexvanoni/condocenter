@@ -26,7 +26,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['condominium_id', 'is_active', 'sort_order']);
+            $table->index(['condominium_id', 'is_active', 'sort_order'], 'condo_library_active_sort_idx');
             $table->unique(['condominium_id', 'internal_regulation_id'], 'condo_library_regulation_unique');
         });
     }

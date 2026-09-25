@@ -23,7 +23,7 @@ class CondominiumUnitsLimitTest extends TestCase
 
     public function test_sindico_cannot_create_unit_when_limit_reached(): void
     {
-        $condominium = Condominium::factory()->create(['units_limit' => 1]);
+        $condominium = $this->condominiumWithSaasAccess(['units_limit' => 1]);
         Unit::factory()->create(['condominium_id' => $condominium->id, 'number' => '101']);
 
         $sindico = $this->makeSindicoWithCreateUnits($condominium);
@@ -37,7 +37,7 @@ class CondominiumUnitsLimitTest extends TestCase
 
     public function test_sindico_sees_limit_message_on_create_form(): void
     {
-        $condominium = Condominium::factory()->create(['units_limit' => 1]);
+        $condominium = $this->condominiumWithSaasAccess(['units_limit' => 1]);
         Unit::factory()->create(['condominium_id' => $condominium->id]);
 
         $sindico = $this->makeSindicoWithCreateUnits($condominium);
@@ -45,7 +45,26 @@ class CondominiumUnitsLimitTest extends TestCase
         $this->actingAs($sindico)
             ->get(route('units.create'))
             ->assertOk()
-            ->assertSee('Limite de unidades atingido', false);
+            ->assertSee('Limite de unidades atingido', false)
+            ->assertSee('Ainda pode criar', false)
+            ->assertSee('0', false);
+    }
+
+    public function test_sindico_sees_quota_breakdown_on_create_form(): void
+    {
+        $condominium = $this->condominiumWithSaasAccess(['units_limit' => 300]);
+        Unit::factory()->count(2)->create(['condominium_id' => $condominium->id]);
+
+        $sindico = $this->makeSindicoWithCreateUnits($condominium);
+
+        $this->actingAs($sindico)
+            ->get(route('units.create'))
+            ->assertOk()
+            ->assertSee('Limite do contrato', false)
+            ->assertSee('300', false)
+            ->assertSee('Já cadastradas', false)
+            ->assertSee('Ainda pode criar', false)
+            ->assertSee('298', false);
     }
 
     public function test_admin_can_set_units_limit_on_create(): void
@@ -93,8 +112,12 @@ class CondominiumUnitsLimitTest extends TestCase
 
     public function test_sindico_cannot_change_units_limit_via_update(): void
     {
-        $condominium = Condominium::factory()->create(['units_limit' => 5]);
-        $sindico = User::factory()->create(['condominium_id' => $condominium->id]);
+        $condominium = $this->condominiumWithSaasAccess(['units_limit' => 5]);
+        $sindico = User::factory()->create([
+            'condominium_id' => $condominium->id,
+            'email_verified_at' => now(),
+            'senha_temporaria' => false,
+        ]);
         $sindico->assignRole(Role::firstOrCreate(['name' => 'Síndico', 'guard_name' => 'web']));
 
         $this->actingAs($sindico)
@@ -117,10 +140,24 @@ class CondominiumUnitsLimitTest extends TestCase
         $role = Role::firstOrCreate(['name' => 'Síndico', 'guard_name' => 'web']);
         $role->givePermissionTo($permission);
 
-        $sindico = User::factory()->create(['condominium_id' => $condominium->id]);
+        $sindico = User::factory()->create([
+            'condominium_id' => $condominium->id,
+            'email_verified_at' => now(),
+            'senha_temporaria' => false,
+        ]);
         $sindico->assignRole($role);
 
         return $sindico;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function condominiumWithSaasAccess(array $attributes = []): Condominium
+    {
+        return Condominium::factory()->create(array_merge([
+            'saas_complimentary' => true,
+        ], $attributes));
     }
 
     private function makePlatformAdmin(): User

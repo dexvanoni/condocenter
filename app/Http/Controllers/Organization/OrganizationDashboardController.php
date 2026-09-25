@@ -9,6 +9,7 @@ use App\Models\Organization;
 use App\Models\Package;
 use App\Models\Reservation;
 use App\Services\ActiveCondominiumService;
+use App\Services\OrganizationCondominiumInsightsService;
 use App\Services\OrganizationQuotaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -19,6 +20,7 @@ class OrganizationDashboardController extends Controller
     public function __construct(
         private ActiveCondominiumService $activeCondominium,
         private OrganizationQuotaService $quota,
+        private OrganizationCondominiumInsightsService $insights,
     ) {}
 
     public function __invoke(Request $request): View
@@ -48,7 +50,7 @@ class OrganizationDashboardController extends Controller
 
         $condominiums = $organization->condominiums()
             ->withCount(['units', 'users'])
-            ->with(['syndics:id,name,email'])
+            ->with(['syndics:id,name,email,phone,telefone_celular,telefone_residencial,telefone_comercial,is_active'])
             ->orderBy('name')
             ->get();
 
@@ -65,8 +67,9 @@ class OrganizationDashboardController extends Controller
         ];
 
         $quota = $this->quota->snapshot($organization, $condominiums);
+        $insights = $this->insights->forCondominiums($condominiums);
 
-        return view('organization.dashboard', compact('organization', 'condominiums', 'metrics', 'quota'));
+        return view('organization.dashboard', compact('organization', 'condominiums', 'metrics', 'quota', 'insights'));
     }
 
     /** @var array<string, bool> */
@@ -74,14 +77,16 @@ class OrganizationDashboardController extends Controller
 
     protected function ensureOperationalRole($user, Organization $organization): void
     {
-        if ($user->isAdmin() || $user->hasRole('Síndico')) {
+        if ($user->hasAssignedRole('Administrador') || $user->hasAssignedRole('Síndico')) {
             return;
         }
 
         $role = $user->organizationRoleFor((int) $organization->id);
 
         if (in_array($role, [Organization::ROLE_OWNER, Organization::ROLE_ADMIN, Organization::ROLE_MANAGER], true)) {
-            $user->assignRole('Síndico');
+            if (!$user->hasAssignedRole('Síndico')) {
+                $user->assignRole('Síndico');
+            }
         }
     }
 

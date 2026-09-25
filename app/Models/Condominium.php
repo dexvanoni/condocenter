@@ -310,4 +310,13 @@ class Condominium extends Model implements Auditable
 
         return "{$used} / {$this->units_limit}";
     }
+
+    public function unitsRemainingQuota(): ?int
+    {
+        if (!$this->hasUnitsQuota()) {
+            return null;
+        }
+
+        return max(0, (int) $this->units_limit - $this->unitsInUseCount());
+    }
 }

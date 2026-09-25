@@ -63,7 +63,10 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // Rotas autenticadas
-Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->group(function () {
+Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensure.condominium.saas.access'])->group(function () {
+    Route::get('/acesso-suspenso', [\App\Http\Controllers\SaasAccessBlockedController::class, 'show'])
+        ->name('saas.access-blocked');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::prefix('aprender')->name('learning.')->group(function () {

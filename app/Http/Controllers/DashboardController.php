@@ -20,6 +20,7 @@ use App\Services\FinancialCategoryInsightsService;
 use App\Services\MonthlyClosingChecklistService;
 use App\Services\OccurrenceBookService;
 use App\Services\LeaseContractService;
+use App\Services\SaasCondominiumAccessService;
 use App\Services\SyndicConversationStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -50,6 +51,10 @@ class DashboardController extends Controller
 
         if ($activeCondominiumService->isProfessionalSyndic($user) && !$condominium) {
             return redirect()->route('syndic.condominiums.index');
+        }
+
+        if (app(SaasCondominiumAccessService::class)->userBlockedByCondominiumContract($user)) {
+            return redirect()->route('saas.access-blocked');
         }
 
         // Verificar se usuário tem condomínio

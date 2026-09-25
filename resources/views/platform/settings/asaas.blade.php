@@ -80,11 +80,11 @@
                         <li>Separado do webhook de cobranças internas do condomínio</li>
                     </ul>
 
-                    <div id="asaasTestResults" class="d-none">
+                    <div id="asaasTestResults">
                         <hr>
                         <h6 class="mb-2">Resultado do teste</h6>
-                        <div id="asaasTestAsaas" class="alert mb-2 py-2 small"></div>
-                        <div id="asaasTestWebhook" class="alert mb-0 py-2 small"></div>
+                        <div id="asaasTestAsaas" class="js-persistent-alert alert alert-light mb-2 py-2 small">Clique em “Testar Asaas e Webhook” para ver a conexão e o webhook.</div>
+                        <div id="asaasTestWebhook" class="js-persistent-alert alert alert-light mb-0 py-2 small">O webhook é verificado junto com a API.</div>
                     </div>
                 </div>
             </div>
@@ -113,7 +113,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const btn = document.getElementById('btnTestAsaasIntegration');
-    const panel = document.getElementById('asaasTestResults');
     const asaasBox = document.getElementById('asaasTestAsaas');
     const webhookBox = document.getElementById('asaasTestWebhook');
 
@@ -123,10 +122,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Testando…';
-        panel.classList.remove('d-none');
-        asaasBox.className = 'alert alert-secondary mb-2 py-2 small';
+        asaasBox.className = 'js-persistent-alert alert alert-secondary mb-2 py-2 small';
         asaasBox.textContent = 'Testando conexão com a API Asaas…';
-        webhookBox.className = 'alert alert-secondary mb-0 py-2 small';
+        webhookBox.className = 'js-persistent-alert alert alert-secondary mb-0 py-2 small';
         webhookBox.textContent = 'Aguardando…';
 
         try {
@@ -143,9 +141,9 @@ document.addEventListener('DOMContentLoaded', function () {
             renderResult(asaasBox, data.asaas, 'API Asaas');
             renderResult(webhookBox, data.webhook, 'Webhook');
         } catch (error) {
-            asaasBox.className = 'alert alert-danger mb-2 py-2 small';
+            asaasBox.className = 'js-persistent-alert alert alert-danger mb-2 py-2 small';
             asaasBox.textContent = 'Falha ao executar o teste: ' + error.message;
-            webhookBox.className = 'alert alert-danger mb-0 py-2 small';
+            webhookBox.className = 'js-persistent-alert alert alert-danger mb-0 py-2 small';
             webhookBox.textContent = '—';
         } finally {
             btn.disabled = false;
@@ -155,12 +153,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderResult(el, result, label) {
         if (!result) {
-            el.className = 'alert alert-warning mb-2 py-2 small';
+            el.className = 'js-persistent-alert alert alert-warning mb-2 py-2 small';
             el.textContent = label + ': sem resposta.';
             return;
         }
 
-        el.className = 'alert ' + (
+        el.className = 'js-persistent-alert alert ' + (
             result.warning ? 'alert-warning' :
             (result.ok ? 'alert-success' : 'alert-danger')
         ) + ' mb-2 py-2 small';

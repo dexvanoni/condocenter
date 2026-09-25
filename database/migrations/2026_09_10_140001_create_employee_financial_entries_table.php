@@ -30,9 +30,9 @@ return new class extends Migration
             $table->text('cancellation_reason')->nullable();
             $table->timestamps();
 
-            $table->index(['condominium_id', 'competence_month']);
-            $table->index(['employee_id', 'reference_date']);
-            $table->index(['condominium_id', 'type', 'status']);
+            $table->index(['condominium_id', 'competence_month'], 'emp_fin_condo_competence_idx');
+            $table->index(['employee_id', 'reference_date'], 'emp_fin_employee_ref_idx');
+            $table->index(['condominium_id', 'type', 'status'], 'emp_fin_condo_type_status_idx');
         });
     }
 

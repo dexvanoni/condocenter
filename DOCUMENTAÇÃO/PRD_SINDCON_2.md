@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.23 |
-| **Data** | 24/09/2026 |
+| **Versão do documento** | 2.28 |
+| **Data** | 25/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
@@ -306,6 +306,7 @@ Plataforma SindCON (operador = role Spatie Administrador)
 - Todo dado operacional possui `condominium_id` (ou deriva dele)
 - Middleware `require.condominium` exige condomínio ativo (`ActiveCondominiumService`)
 - Middleware `ensure.saas.subscription` bloqueia módulos se assinatura inativa (`config/saas.php`); para condomínios sob administradora valida `OrganizationSubscription`
+- Sem contrato de condomínio válido (ativo/trial/inadimplente em carência), login e navegação redirecionam para `/acesso-suspenso` (`ensure.condominium.saas.access`); contato em `SAAS_DEVELOPER_CONTACT` ou e-mail padrão da plataforma
 - Administrador da plataforma alterna qualquer condomínio via `active_condominium_id`
 - Membro de administradora só acessa condomínios com `organization_id` da sua organização (backend valida; ID de URL não confia)
 - Síndico/morador permanece preso a `users.condominium_id` (sem switch multi-condo nesta versão)
@@ -412,7 +413,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | ID | Requisito | Prioridade | Implementação |
 |----|-----------|------------|---------------|
 | PLT-01 | CRUD de condomínios (ativar/desativar, código de registro) | Must | `CondominiumController`, `condominiums/*` |
-| PLT-02 | Gestão de planos de assinatura | Must | `SubscriptionPlanController` |
+| PLT-02 | Gestão de planos de assinatura (lista resumida, criação em modal e edição em painel lateral) | Must | `SubscriptionPlanController`, `platform/plans/index` |
 | PLT-03 | Gestão de assinaturas por condomínio (ativar, suspender, cancelar, sync Asaas) | Must | `CondominiumSubscriptionController` |
 | PLT-04 | Sincronização de cobranças SaaS com Asaas | Must | `PlatformAsaasService`, webhooks |
 | PLT-05 | Configuração global Asaas e WhatsApp (Evolution API) | Must | `PlatformSettingsController` |
@@ -428,12 +429,13 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-15 | CRUD do usuário da administradora sem condomínio (criar, editar, ativar, desativar, redefinir senha, excluir) na ficha da organização | Must | `OrganizationMemberController`, `platform/organizations/members` |
 | PLT-16 | Ambiente da administradora: proprietário entra no painel sem condomínio, cria condomínios dentro de `max_condominiums`/`max_units` e opera unidades e usuários com o papel Síndico | Must | `OrganizationDashboardController`, `OrganizationCondominiumController`, `OrganizationQuotaService` |
 | PLT-17 | A administradora acompanha o contrato SaaS, valores, cobranças e faturas Asaas | Must | `OrganizationContractController`, `/organizacao/contrato` |
+| PLT-18 | Painel da administradora com um card por condomínio: usuários vinculados, multas aplicadas (quantidade e valor) e saúde financeira (adimplência) | Must | `OrganizationCondominiumInsightsService`, `organization/dashboard` |
 
 ### 8.2 Gestão de unidades e usuários
 
 | ID | Requisito | Prioridade | Implementação |
 |----|-----------|------------|---------------|
-| USR-01 | CRUD de unidades com morador responsável | Must | `UnitController` |
+| USR-01 | CRUD de unidades com morador responsável; na listagem e em **Nova unidade**, exibir limite do contrato (`units_limit`), quantidade cadastrada e saldo disponível | Must | `UnitController`, `units/partials/units-quota-info` |
 | USR-02 | CRUD de usuários com múltiplos papéis Spatie | Must | `UserController` |
 | USR-03 | Auto-cadastro com código + aprovação do síndico | Must | `SelfRegistrationController` |
 | USR-04 | Ativar/desativar usuários | Must | `UserController` |
@@ -1182,11 +1184,12 @@ A encomenda está disponível para retirada na portaria.
 
 | ID | Requisito | Prioridade | Implementação |
 |----|-----------|------------|---------------|
-| SUB-01 | Visualizar status da assinatura do condomínio | Must | `SyndicSubscriptionController` |
+| SUB-01 | Visualizar status da assinatura do condomínio; com uso gratuito, exibir destaque em **Minha Assinatura** (sem formulários de pagamento/cobrança da plataforma) | Must | `SyndicSubscriptionController`, `syndic-subscription/show` |
 | SUB-02 | Pagar via PIX/boleto/cartão | Must | `SyndicSubscriptionPaymentService` |
 | SUB-03 | Alterar forma de pagamento | Should | Views `syndic-subscription/` |
 | SUB-04 | Período de trial conforme plano | Must | `CondominiumSubscriptionService` |
 | SUB-05 | Bloqueio de módulos se inadimplente com plataforma | Must | `ensure.saas.subscription` |
+| SUB-06 | Sem contrato ativo (inexistente, rascunho, cancelado ou expirado), nenhum usuário do condomínio acessa o sistema; exibe `/acesso-suspenso` com orientação para contatar a Administração do SindCON | Must | `SaasCondominiumAccessService`, `EnsureCondominiumSaasAccess` |
 | SUB-06 | Uso gratuito (`saas_complimentary`) bypassa bloqueio SaaS | Must | `Condominium::isSaasComplimentary()`, `EnsureActiveSaasSubscription` |
 | SUB-07 | Configuração de uso gratuito com notas (admin plataforma) | Should | `platform/subscriptions/edit` |
 
@@ -1351,7 +1354,7 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-29 | Controle de acesso: matching de credencial restrito ao `condominium_id` do porteiro |
 | RN-30 | Cobrança `pending` com vencimento passado exibe status **Em atraso** na UI (`Charge::isOverdue`) |
 | RN-31 | Síndico pode conceder liberação temporária a inadimplente por até **30 dias** |
-| RN-32 | `saas_complimentary = true` isenta condomínio do bloqueio `ensure.saas.subscription` |
+| RN-32 | `saas_complimentary = true` isenta condomínio do bloqueio `ensure.saas.subscription` e de `/acesso-suspenso`, mesmo sem contrato ou com contrato rascunho/cancelado/expirado |
 | RN-33 | Reset de senha por admin/síndico envia **link por e-mail** — nunca senha fixa na interface |
 | RN-34 | Perfil **Administrador** redireciona para `platform.dashboard`, não para dashboard operacional |
 | RN-35 | Recursos da API devem validar `condominium_id` do tenant ativo (`GuardsTenantResource`) |
@@ -1594,6 +1597,7 @@ Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliaçã
 | Colunas | `condominiums.saas_complimentary` (bool), `saas_complimentary_notes` (text) |
 | Configuração | Plataforma → Assinatura do condomínio (`platform/subscriptions/edit`) |
 | Efeito | `EnsureActiveSaasSubscription` e `CondominiumSubscription::isAccessAllowed()` liberam acesso sem assinatura paga |
+| Portal do síndico | `/minha-assinatura` mostra alerta “Uso gratuito da plataforma”, badge **Gratuito** e oculta pagamento/cobranças SaaS |
 | Dashboard | Lista de condomínios em uso gratuito em `platform/dashboard` |
 | Casos de uso | Parcerias, pilotos, períodos promocionais |
 
@@ -1603,7 +1607,8 @@ Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliaçã
 |------|---------|
 | Rotas plataforma | `/platform/organizations/*` (lista, ficha, edição cadastral), `/platform/clients/*` |
 | Edição cadastral | Admin da plataforma em `platform/organizations/{id}/edit` (PLT-13). Tipo e status não mudam nesse formulário; status segue na ficha |
-| Painel administradora | `/organizacao` — home de quem não tem condomínio ativo. Menu só para membro de `management_company`. Cria condomínios (`/organizacao/condominios/novo`) respeitando `max_condominiums` e `max_units` do contrato. Ao entrar no condomínio, opera unidades e usuários com o papel Síndico |
+| Painel administradora | `/organizacao` — home de quem não tem condomínio ativo. Menu só para membro de `management_company`. Cria condomínios (`/organizacao/condominios/novo`) respeitando `max_condominiums` e `max_units` do contrato. Lista um card por condomínio com usuários (`users.condominium_id`), multas `issued` (quantidade e valor) e saúde financeira. Ao entrar no condomínio, opera unidades e usuários com o papel Síndico |
+| Saúde financeira no painel | Adimplência = unidades sem cobrança efetivamente em atraso (`status` overdue, ou pending com vencimento passado) / total de unidades. ≥ 90% Saudável, ≥ 70% Atenção, abaixo Crítica. Sem unidades: Sem unidades |
 | Assinatura org | `organization_subscriptions` + webhook Asaas plataforma (mesmo endpoint) |
 | Contrato na ficha | Modelo B: `/platform/organizations/{id}/subscription` vincula plano do catálogo (público Administradora), ativa, sincroniza Asaas e lista cobranças. Modelo A: a ficha abre o contrato do condomínio (`/platform/condominiums/{id}/subscription`) com os planos de público Síndico/Condomínio |
 | Limite de unidades (A) | `subscription_plans.max_units` no catálogo; no cadastro direto e no contrato do síndico grava `condominiums.units_limit`, que bloqueia novas unidades acima da cota |
@@ -2059,6 +2064,7 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | **Matching híbrido** | Vínculo automático (valor+data únicos) + sugestões para confirmação do síndico |
 | **FITID** | Identificador único da movimentação no OFX (deduplicação por conta) |
 | **Inadimplente** | Unidade com cobranças vencidas não pagas |
+| **Saúde financeira (administradora)** | Adimplência do condomínio no painel `/organizacao`: unidades sem cobrança efetivamente em atraso sobre o total. ≥ 90% Saudável, ≥ 70% Atenção, abaixo Crítica |
 | **Asaas** | Gateway BR (boleto, PIX, cartão) |
 | **Evolution API** | Integração WhatsApp |
 | **Template landing** | `classic` ou `connect` |
@@ -2156,6 +2162,7 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | Categorias despesa | `app/Support/ExpenseCategories.php`, `FinancialCategoryInsightsService` |
 | Migration categorias | `database/migrations/2026_09_22_210000_add_category_to_condominium_accounts.php` |
 | Dashboard financeiro | `resources/views/dashboard/partials/sindico-financial.blade.php` |
+| Painel da administradora | `OrganizationDashboardController`, `OrganizationCondominiumInsightsService`, `organization/partials/condominium-insight-cards.blade.php` |
 | VPS / deploy | Changelog em `DOCUMENTAÇÃO/INSTALACAO_VPS.md` (migrate + `RolesAndPermissionsSeeder` para papel Proprietário) |
 
 ### Ambiente demo
@@ -2171,4 +2178,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.23 — atualizado em 24/09/2026. Um morador pode ser síndico profissional de outros condomínios, sem perder a unidade em que mora. Mantém a v2.22.*
+*Documento v2.28 — atualizado em 25/09/2026. Cota de unidades visível ao síndico em Nova unidade. Mantém a v2.27.*

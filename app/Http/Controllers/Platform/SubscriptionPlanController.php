@@ -10,13 +10,25 @@ use Illuminate\Validation\Rule;
 
 class SubscriptionPlanController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
         $plans = SubscriptionPlan::query()->orderBy('sort_order')->orderBy('name')->get();
 
-        return view('platform.plans.index', compact('plans'));
+        $editingPlan = null;
+        if ($request->filled('edit')) {
+            $editingPlan = SubscriptionPlan::query()->find($request->integer('edit'));
+        }
+
+        $stats = [
+            'total' => $plans->count(),
+            'active' => $plans->where('is_active', true)->count(),
+            'condominium' => $plans->where('audience', SubscriptionPlan::AUDIENCE_CONDOMINIUM)->count(),
+            'management' => $plans->where('audience', SubscriptionPlan::AUDIENCE_MANAGEMENT_COMPANY)->count(),
+        ];
+
+        return view('platform.plans.index', compact('plans', 'editingPlan', 'stats'));
     }
 
     public function store(Request $request)

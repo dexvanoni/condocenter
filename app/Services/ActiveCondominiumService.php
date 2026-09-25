@@ -52,7 +52,7 @@ class ActiveCondominiumService
 
         if ($user->isAdmin()) {
             $this->accessibleCondominiumsCache = Condominium::query()
-                ->select(['id', 'name', 'organization_id', 'city', 'state', 'is_active'])
+                ->select(['id', 'name', 'organization_id', 'city', 'state', 'is_active', 'saas_complimentary'])
                 ->orderBy('name')
                 ->get();
         } elseif ($this->isManagementCompanyMember($user)) {
@@ -61,13 +61,13 @@ class ActiveCondominiumService
             $this->accessibleCondominiumsCache = $organizationIds->isEmpty()
                 ? collect()
                 : Condominium::query()
-                    ->select(['id', 'name', 'organization_id', 'city', 'state', 'is_active'])
+                    ->select(['id', 'name', 'organization_id', 'city', 'state', 'is_active', 'saas_complimentary'])
                     ->whereIn('organization_id', $organizationIds->all())
                     ->orderBy('name')
                     ->get();
         } elseif ($this->isProfessionalSyndic($user)) {
             $this->accessibleCondominiumsCache = $user->managedCondominiums()
-                ->select(['condominiums.id', 'condominiums.name', 'condominiums.organization_id', 'condominiums.city', 'condominiums.state', 'condominiums.is_active'])
+                ->select(['condominiums.id', 'condominiums.name', 'condominiums.organization_id', 'condominiums.city', 'condominiums.state', 'condominiums.is_active', 'condominiums.saas_complimentary'])
                 ->orderBy('condominiums.name')
                 ->get();
         } else {

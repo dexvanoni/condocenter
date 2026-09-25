@@ -1,0 +1,44 @@
+---
+description: Proíbe testes com migração destrutiva e qualquer alteração ou exclusão de dados sem autorização explícita
+alwaysApply: true
+---
+
+# Banco de dados — sem destruição
+
+Nunca apague, altere ou recrie dados ou estrutura do banco sem autorização explícita do responsável nesta conversa. Isso vale para dev, test e prod.
+
+## Testes
+
+Não crie nem execute testes que usem migração destrutiva.
+
+Proibido em teste e na execução dele:
+
+- `RefreshDatabase`, `DatabaseMigrations`, `migrate:fresh`, `migrate:refresh`, `db:wipe`, `schema:dump` seguido de recriação
+- PHPUnit ou `artisan test` sem o `phpunit.xml` do projeto (isso aponta o `.env` e pode atingir o MySQL de desenvolvimento)
+
+Permitido: `php artisan test` (ou PHPUnit com `phpunit.xml`), que usa SQLite em memória (`DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`).
+
+```php
+// Proibido
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class ExemploTest extends TestCase
+{
+    use RefreshDatabase;
+}
+```
+
+```bash
+# Proibido — ignora phpunit.xml e usa o banco do .env
+php vendor/phpunit/phpunit/phpunit tests/Feature/ExemploTest.php --no-configuration
+```
+
+## Dados e schema
+
+Antes de `migrate`, `db:seed`, `DELETE`, `UPDATE`, `TRUNCATE` ou comando Artisan que grave no banco:
+
+1. Descreva o impacto (tabelas, ambientes, se há perda de dados).
+2. Espere autorização explícita nesta conversa.
+3. Prefira migração reversível. Não use `migrate:fresh` nem `migrate:refresh`.
+
+Leitura (`SELECT`, `db:show`, contagens) não exige autorização.

@@ -33,6 +33,7 @@ class SyndicSubscriptionController extends Controller
             'exportUrl' => route('syndic-subscription.charges.export', $billingFilters),
             'asaasSummary' => $asaasSummary,
             'pixFlash' => session('pix_checkout'),
+            'isSaasComplimentary' => $condominium->isSaasComplimentary(),
         ]);
     }
 

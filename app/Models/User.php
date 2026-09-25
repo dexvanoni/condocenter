@@ -432,6 +432,33 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
         return null;
     }
 
+    public function whatsappChatUrl(?string $prefilledMessage = null): ?string
+    {
+        $raw = $this->whatsappPhone();
+
+        if ($raw === null) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $raw);
+
+        if ($digits === '') {
+            return null;
+        }
+
+        if (!str_starts_with($digits, '55')) {
+            $digits = '55'.$digits;
+        }
+
+        $url = 'https://wa.me/'.$digits;
+
+        if ($prefilledMessage !== null && $prefilledMessage !== '') {
+            $url .= '?text='.rawurlencode($prefilledMessage);
+        }
+
+        return $url;
+    }
+
     public function canReceiveWhatsApp(): bool
     {
         return $this->is_active && !$this->trashed();
@@ -500,7 +527,7 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
 
     public function canUseManagementCompanyProfile(): bool
     {
-        if ($this->isAdmin() || !$this->isManagementCompanyMember()) {
+        if ($this->hasAssignedRole('Administrador') || !$this->isManagementCompanyMember()) {
             return false;
         }
 

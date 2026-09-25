@@ -39,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'rental.lease.active' => \App\Http\Middleware\EnsureActiveRentalLease::class,
             'ensure.full.financial' => \App\Http\Middleware\EnsureFullFinancialMode::class,
             'ensure.saas.subscription' => \App\Http\Middleware\EnsureActiveSaasSubscription::class,
+            'ensure.condominium.saas.access' => \App\Http\Middleware\EnsureCondominiumSaasAccess::class,
             'resolve.condominium' => \App\Http\Middleware\ResolveActiveCondominium::class,
             'require.condominium' => \App\Http\Middleware\RequireActiveCondominium::class,
         ]);

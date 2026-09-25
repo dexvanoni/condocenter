@@ -48,6 +48,11 @@ Route::post('login', function (\Illuminate\Http\Request $request) {
         }
 
         $request->session()->regenerate();
+
+        if (app(\App\Services\SaasCondominiumAccessService::class)->userBlockedByCondominiumContract($user)) {
+            return redirect()->route('saas.access-blocked');
+        }
+
         return redirect()->intended('dashboard');
     }
 

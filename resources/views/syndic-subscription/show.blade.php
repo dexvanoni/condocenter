@@ -19,6 +19,24 @@
         <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
     @endif
 
+    @if($isSaasComplimentary ?? false)
+        <div class="alert alert-success border-success js-persistent-alert mb-4">
+            <div class="d-flex gap-3">
+                <i class="bi bi-gift fs-3 flex-shrink-0"></i>
+                <div>
+                    <h5 class="alert-heading mb-2">Uso gratuito da plataforma</h5>
+                    <p class="mb-1">
+                        O condomínio <strong>{{ $condominium->name }}</strong> tem acesso ao SindCON <strong>sem cobrança de assinatura</strong>.
+                        Você e todos os moradores podem usar o sistema normalmente; não é necessário contrato ativo nem pagamento da plataforma.
+                    </p>
+                    @if($condominium->saas_complimentary_notes)
+                        <p class="small text-muted mb-0"><i class="bi bi-info-circle me-1"></i>{{ $condominium->saas_complimentary_notes }}</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
     @unless($subscription->isAccessAllowed())
         <div class="alert alert-warning">
             <i class="bi bi-exclamation-triangle me-1"></i>
@@ -32,12 +50,26 @@
 
     <div class="row g-4 mb-4">
         <div class="col-lg-5">
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-light"><h5 class="mb-0">Seu contrato</h5></div>
+            <div class="card shadow-sm h-100 border-{{ ($isSaasComplimentary ?? false) ? 'success' : '' }}">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Seu contrato</h5>
+                    @if($isSaasComplimentary ?? false)
+                        <span class="badge bg-success">Plataforma gratuita</span>
+                    @endif
+                </div>
                 <div class="card-body">
                     <dl class="row mb-0">
-                        <dt class="col-sm-5">Status</dt>
-                        <dd class="col-sm-7"><span class="badge bg-secondary">{{ $subscription->statusLabel() }}</span></dd>
+                        @if($isSaasComplimentary ?? false)
+                        <dt class="col-sm-5">Acesso SindCON</dt>
+                        <dd class="col-sm-7"><span class="badge bg-success">Gratuito</span></dd>
+                        @endif
+                        <dt class="col-sm-5">Status{{ ($isSaasComplimentary ?? false) ? ' do registro' : '' }}</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge bg-secondary">{{ $subscription->statusLabel() }}</span>
+                            @if($isSaasComplimentary ?? false)
+                                <span class="d-block small text-muted mt-1">Registro administrativo; não bloqueia o uso do sistema.</span>
+                            @endif
+                        </dd>
                         <dt class="col-sm-5">Valor</dt>
                         <dd class="col-sm-7">R$ {{ number_format($subscription->recurring_amount, 2, ',', '.') }} / {{ $subscription->billingCycleLabel() }}</dd>
                         <dt class="col-sm-5">Modelo</dt>
@@ -74,7 +106,17 @@
         </div>
 
         <div class="col-lg-7">
-            @if($subscription->usesAsaas())
+            @if($isSaasComplimentary ?? false)
+            <div class="card shadow-sm h-100 border-success">
+                <div class="card-header bg-light"><h5 class="mb-0"><i class="bi bi-check-circle text-success"></i> Assinatura da plataforma</h5></div>
+                <div class="card-body">
+                    <p class="mb-0 text-muted">
+                        Não há cobrança da assinatura SindCON para este condomínio. Formas de pagamento e cobranças recorrentes da plataforma não se aplicam.
+                        Em caso de dúvidas, contate a administração do SindCON.
+                    </p>
+                </div>
+            </div>
+            @elseif($subscription->usesAsaas())
             <div class="card shadow-sm h-100">
                 <div class="card-header bg-light"><h5 class="mb-0"><i class="bi bi-wallet2"></i> Forma de pagamento</h5></div>
                 <div class="card-body">
@@ -170,6 +212,7 @@
         </div>
     </div>
 
+    @unless($isSaasComplimentary ?? false)
     @include('platform.subscriptions.partials.billing-history', [
         'billingReport' => $billingReport,
         'billingFilters' => $billingFilters,
@@ -179,6 +222,7 @@
         'syndicPortal' => true,
         'subscription' => $subscription,
     ])
+    @endunless
 </div>
 
 {{-- Modal PIX --}}

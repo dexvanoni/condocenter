@@ -2861,7 +2861,7 @@
 
         // Auto-hide alerts after 5 seconds (exceto alertas de pânico e carteira de créditos)
         setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert:not(.alert-danger):not(.panic-alert):not(.credits-wallet-card)');
+            const alerts = document.querySelectorAll('.alert:not(.alert-danger):not(.panic-alert):not(.credits-wallet-card):not(.js-persistent-alert)');
             alerts.forEach(alert => {
                 // Não fechar alertas dentro dos modais de pânico
                 if (alert.closest('#panicModal, #panicConfirmationModal, #globalPanicNotificationModal')) {

@@ -16,7 +16,8 @@ class OrganizationQuotaService
      *     max_units: ?int,
      *     condominiums_used: int,
      *     units_used: int,
-     *     units_reserved: int
+     *     units_reserved: int,
+     *     units_remaining_allocation: ?int
      * }
      */
     public function snapshot(Organization $organization, ?Collection $condominiums = null): array
@@ -65,11 +66,7 @@ class OrganizationQuotaService
     {
         $snapshot = $this->snapshot($organization);
 
-        if ($snapshot['max_units'] === null) {
-            return null;
-        }
-
-        return max(0, $snapshot['max_units'] - $snapshot['units_used']);
+        return $snapshot['units_remaining_allocation'];
     }
 
     public function acceptsCondominiumUnitLimit(Organization $organization, int $unitsLimit): bool
@@ -106,22 +103,29 @@ class OrganizationQuotaService
      *     max_units: ?int,
      *     condominiums_used: int,
      *     units_used: int,
-     *     units_reserved: int
+     *     units_reserved: int,
+     *     units_remaining_allocation: ?int
      * }
      */
     protected function buildSnapshot(?OrganizationSubscription $subscription, Collection $condominiums): array
     {
+        $maxUnits = $subscription?->max_units !== null
+            ? (int) $subscription->max_units
+            : null;
+        $unitsReserved = (int) $condominiums->sum(fn ($condo) => (int) ($condo->units_limit ?? $condo->units_count));
+
         return [
             'subscription' => $subscription,
             'max_condominiums' => $subscription?->max_condominiums !== null
                 ? (int) $subscription->max_condominiums
                 : null,
-            'max_units' => $subscription?->max_units !== null
-                ? (int) $subscription->max_units
-                : null,
+            'max_units' => $maxUnits,
             'condominiums_used' => $condominiums->count(),
             'units_used' => (int) $condominiums->sum('units_count'),
-            'units_reserved' => (int) $condominiums->sum(fn ($condo) => (int) ($condo->units_limit ?? $condo->units_count)),
+            'units_reserved' => $unitsReserved,
+            'units_remaining_allocation' => $maxUnits !== null
+                ? max(0, $maxUnits - $unitsReserved)
+                : null,
         ];
     }
 }

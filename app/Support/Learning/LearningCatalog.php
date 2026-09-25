@@ -179,12 +179,50 @@ final class LearningCatalog
                     ],
                     [
                         'title' => 'Assinatura SaaS',
-                        'body' => 'Se a assinatura do condomínio estiver inativa, o sistema bloqueia módulos até a regularização em Minha Assinatura (exceto uso gratuito configurado pela plataforma).',
+                        'body' => 'Se a assinatura do condomínio estiver inativa, o sistema bloqueia módulos até a regularização em **Minha Assinatura**. Se a plataforma liberou **uso gratuito** para o condomínio, essa tela mostra o aviso verde e você não precisa pagar a assinatura SindCON.',
                     ],
                 ],
                 'checklist' => [
                     'Conferiu quais módulos estão ativos',
                     'Identificou se o financeiro está completo ou simplificado',
+                ],
+            ],
+            [
+                'slug' => 'painel-da-administradora',
+                'module' => 'getting-started',
+                'title' => 'Painel da administradora',
+                'summary' => 'Como ler usuários, multas e saúde financeira de cada condomínio da carteira.',
+                'audience' => 'sindico',
+                'level' => 'iniciante',
+                'minutes' => 3,
+                'critical' => false,
+                'tags' => ['administradora', 'carteira', 'multas', 'adimplência'],
+                'route_hint' => 'organization.dashboard',
+                'video' => null,
+                'video_url' => null,
+                'objectives' => [
+                    'Abrir o painel da administradora',
+                    'Ler usuários, multas aplicadas e saúde financeira de cada condomínio',
+                    'Entrar no condomínio que precisa de atenção',
+                ],
+                'steps' => [
+                    [
+                        'title' => 'Onde fica',
+                        'body' => 'Com o perfil **Administradora** ativo, abra **Painel da Administradora**. Cada condomínio da sua organização aparece em um card.',
+                    ],
+                    [
+                        'title' => 'O que cada indicador significa',
+                        'body' => '**Usuários** conta quem está vinculado ao condomínio. **Multas** mostra a quantidade e o valor das multas aplicadas (as canceladas não entram). **Saúde financeira** é a adimplência: unidades sem cobrança em atraso sobre o total. A partir de 90% o card fica **Saudável**; entre 70% e 90%, **Atenção**; abaixo de 70%, **Crítica**.',
+                    ],
+                    [
+                        'title' => 'Quando agir',
+                        'body' => 'Use **Entrar** no card em atenção ou crítico para tratar as cobranças em atraso e as multas dentro da operação daquele condomínio. Condomínio sem unidades aparece como **Sem unidades** até o cadastro existir.',
+                    ],
+                ],
+                'checklist' => [
+                    'Localizou o card de cada condomínio',
+                    'Identificou se há multa aplicada e qual a faixa de saúde financeira',
+                    'Entrou no condomínio que precisa de acompanhamento',
                 ],
             ],
         ];
@@ -586,7 +624,7 @@ final class LearningCatalog
                 'steps' => [
                     [
                         'title' => 'Unidades',
-                        'body' => '**Gestão → Unidades**: cadastre bloco, número, tipo e situação. Mantenha unidades inativas fora da cobrança automática.',
+                        'body' => '**Gestão → Unidades**: ao criar uma unidade, o topo da tela mostra o **limite do contrato**, quantas já foram cadastradas e quantas **ainda pode criar**. Cadastre bloco, número, tipo e situação. Mantenha unidades inativas fora da cobrança automática.',
                     ],
                     [
                         'title' => 'Usuários',

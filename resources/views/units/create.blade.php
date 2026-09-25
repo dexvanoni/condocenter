@@ -217,6 +217,8 @@
     </div>
 </div>
 
+@include('units.partials.units-quota-info', ['condominium' => $activeCondominium ?? null])
+
 <!-- Mensagens de Erro Global -->
 @if ($errors->any())
 <div class="alert alert-danger alert-dismissible fade show" role="alert">

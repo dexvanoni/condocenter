@@ -109,9 +109,15 @@ class OrganizationCondominiumController extends Controller
             'syndic_phone' => ['nullable', 'string', 'max:30'],
         ]);
 
-        $this->createSyndic($condominium, $data['syndic_name'], $data['syndic_email'], $data['syndic_phone'] ?? null);
+        $syndic = $this->createSyndic($condominium, $data['syndic_name'], $data['syndic_email'], $data['syndic_phone'] ?? null);
 
-        return back()->with('success', 'Síndico vinculado. O acesso foi enviado por e-mail.');
+        $message = $syndic->wasRecentlyCreated
+            ? 'Síndico vinculado. O acesso foi enviado por e-mail.'
+            : "Síndico {$syndic->name} vinculado a \"{$condominium->name}\".";
+
+        return redirect()
+            ->route('organization.dashboard')
+            ->with('success', $message);
     }
 
     protected function createSyndic(Condominium $condominium, string $name, string $email, ?string $phone): User
@@ -125,7 +131,7 @@ class OrganizationCondominiumController extends Controller
                 ]);
             }
 
-            if (!$syndic->hasRole('Síndico')) {
+            if (!$syndic->hasAssignedRole('Síndico')) {
                 $syndic->assignRole('Síndico');
             }
 

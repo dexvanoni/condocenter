@@ -33,6 +33,12 @@ trait HasActiveProfileRole
 
     public function shouldUseActiveRoleOnly(): bool
     {
+        $authId = auth()->id();
+
+        if ($authId === null || (int) $authId !== (int) $this->getKey()) {
+            return false;
+        }
+
         return $this->hasMultipleRoles() && (bool) session('active_role');
     }
 
@@ -44,7 +50,15 @@ trait HasActiveProfileRole
 
         $activeRole = $this->getActiveRoleName();
 
-        if (!$activeRole || !$this->spatieHasRole($activeRole, $guard)) {
+        if (!$activeRole) {
+            return false;
+        }
+
+        if ($activeRole === \App\Models\User::PROFILE_ADMINISTRADORA) {
+            return false;
+        }
+
+        if (!$this->spatieHasRole($activeRole, $guard)) {
             return false;
         }
 

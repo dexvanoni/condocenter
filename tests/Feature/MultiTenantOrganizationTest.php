@@ -431,6 +431,37 @@ class MultiTenantOrganizationTest extends TestCase
         $this->assertTrue($owner->hasRole('Síndico'));
     }
 
+    public function test_linking_existing_multi_role_user_as_syndic_does_not_recurse_on_administradora_session(): void
+    {
+        $organization = Organization::factory()->managementCompany()->create();
+        $owner = User::factory()->create(['condominium_id' => null, 'senha_temporaria' => false]);
+        $owner->assignRole('Síndico');
+        app(OrganizationProvisioningService::class)->attachUser($organization, (int) $owner->id, Organization::ROLE_OWNER);
+
+        $home = Condominium::factory()->create();
+        $existing = User::factory()->create([
+            'condominium_id' => $home->id,
+            'email' => 'joaosilva@gmail.com',
+            'senha_temporaria' => false,
+        ]);
+        $existing->assignRole('Administrador');
+        $existing->assignRole('Síndico');
+        $existing->assignRole('Morador');
+
+        $target = Condominium::factory()->create(['organization_id' => $organization->id]);
+
+        $this->actingAs($owner)
+            ->withSession(['active_role' => User::PROFILE_ADMINISTRADORA])
+            ->post(route('organization.condominiums.syndic', $target), [
+                'syndic_name' => $existing->name,
+                'syndic_email' => $existing->email,
+            ])
+            ->assertRedirect(route('organization.dashboard'));
+
+        $this->assertTrue($existing->managedCondominiums()->whereKey($target->id)->exists());
+        $this->assertTrue($existing->hasAssignedRole('Síndico'));
+    }
+
     public function test_management_owner_can_switch_back_to_administradora_profile(): void
     {
         $organization = Organization::factory()->managementCompany()->create();
