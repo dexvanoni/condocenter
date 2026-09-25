@@ -1,8 +1,16 @@
 @php
     use App\Services\BankAccountRoutingService;
-    $modalBankAccounts = app(BankAccountRoutingService::class)->accountsForCondominium(auth()->user()->tenantCondominiumId());
-    $defaultIncomeAccount = app(BankAccountRoutingService::class)->resolveByKey(auth()->user()->tenantCondominiumId(), 'manual_income');
-    $defaultExpenseAccount = app(BankAccountRoutingService::class)->resolveByKey(auth()->user()->tenantCondominiumId(), 'expense');
+    $routing = app(BankAccountRoutingService::class);
+    $modalCondominiumId = $activeCondominiumContext['id'] ?? auth()->user()?->tenantCondominiumId();
+    if ($modalCondominiumId) {
+        $modalBankAccounts = $routing->accountsForCondominium((int) $modalCondominiumId);
+        $defaultIncomeAccount = $routing->resolveByKey((int) $modalCondominiumId, 'manual_income');
+        $defaultExpenseAccount = $routing->resolveByKey((int) $modalCondominiumId, 'expense');
+    } else {
+        $modalBankAccounts = collect();
+        $defaultIncomeAccount = null;
+        $defaultExpenseAccount = null;
+    }
 @endphp
 <!-- Modal Recebimento Avulso -->
 <div class="modal fade" id="modalRecebimento" tabindex="-1" aria-labelledby="modalRecebimentoLabel" aria-hidden="true">

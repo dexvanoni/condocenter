@@ -59,13 +59,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle"></i> {{ session('success') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    @endif
-
     <div class="row g-4">
         @forelse($pets as $pet)
         <div class="col-md-4 col-lg-3">

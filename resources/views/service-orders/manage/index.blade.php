@@ -69,10 +69,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success credits-wallet-card">{{ session('success') }}</div>
-    @endif
-
     <div class="card">
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">

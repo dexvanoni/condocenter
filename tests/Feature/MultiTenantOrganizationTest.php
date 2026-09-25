@@ -383,6 +383,11 @@ class MultiTenantOrganizationTest extends TestCase
             ->get(route('dashboard'))
             ->assertRedirect(route('syndic.condominiums.index'));
 
+        User::query()->whereKey($syndic->id)->update(['condominium_id' => $condominium->id]);
+        $this->actingAs($syndic->fresh())
+            ->get(route('dashboard'))
+            ->assertRedirect(route('syndic.condominiums.index'));
+
         $this->actingAs($syndic)
             ->get(route('syndic.condominiums.index'))
             ->assertOk()

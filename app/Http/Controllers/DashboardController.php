@@ -32,7 +32,10 @@ class DashboardController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $activeCondominiumService = app(ActiveCondominiumService::class);
-        $condominium = $activeCondominiumService->getActiveCondominium($user) ?? $user->condominium;
+        $condominium = $activeCondominiumService->getActiveCondominium($user);
+        if (!$condominium && !$activeCondominiumService->canUseCondominiumContext($user)) {
+            $condominium = $user->condominium;
+        }
         $activeRole = session('active_role');
 
         $activeRoleName = $activeRole ?: $user->getActiveRoleName();

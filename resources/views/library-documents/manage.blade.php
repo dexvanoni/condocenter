@@ -18,10 +18,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
     <div class="row g-4">
         <div class="col-lg-5">
             <div class="card shadow-sm">

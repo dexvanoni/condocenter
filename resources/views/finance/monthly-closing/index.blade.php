@@ -108,15 +108,6 @@
 
 @section('content')
 <div class="container-fluid px-4">
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-    @endif
-    @if($errors->any())
-        <div class="alert alert-danger alert-dismissible fade show">
-            {{ $errors->first() }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
     <div class="mc-hero">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
             <div>

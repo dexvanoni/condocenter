@@ -20,10 +20,6 @@
     </div>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-@endif
-
 <div class="row g-3 mb-4">
     <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><small class="text-muted">Salário base</small><h5 class="mb-0">R$ {{ number_format($employee->base_salary, 2, ',', '.') }}</h5></div></div></div>
     <div class="col-md-3"><div class="card shadow-sm h-100"><div class="card-body"><small class="text-muted">CPF</small><h5 class="mb-0">{{ $employee->cpf ?: '—' }}</h5></div></div></div>

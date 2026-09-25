@@ -3,13 +3,6 @@
 @section('title', 'Prestação de Contas')
 
 @section('content')
-@if(session('error'))
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle me-2"></i>{{ session('error') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-@endif
-
 <div class="row mb-3">
     <div class="col-12">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">

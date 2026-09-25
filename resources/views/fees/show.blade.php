@@ -78,13 +78,6 @@
 @endif
 @endcan
 
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show">
-        {{ session('success') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-@endif
-
 {{-- Cabeçalho --}}
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
     <div>

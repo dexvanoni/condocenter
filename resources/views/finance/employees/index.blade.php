@@ -21,10 +21,6 @@
     @endif
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-@endif
-
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card shadow-sm border-0 border-start border-4 border-primary h-100">

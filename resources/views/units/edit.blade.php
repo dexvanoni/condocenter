@@ -206,19 +206,6 @@
 </div>
 
 <!-- Mensagens de Erro Global -->
-@if ($errors->any())
-<div class="alert alert-danger alert-dismissible fade show" role="alert">
-    <h5 class="alert-heading"><i class="bi bi-exclamation-triangle-fill"></i> Atenção!</h5>
-    <p class="mb-2">Há erros no formulário que precisam ser corrigidos:</p>
-    <ul class="mb-0">
-        @foreach ($errors->all() as $error)
-            <li>{{ $error }}</li>
-        @endforeach
-    </ul>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-@endif
-
 <!-- Progress Steps -->
 <div class="step-wizard">
     <div class="row">

@@ -25,13 +25,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show credits-wallet-card" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     <div class="ob-section mb-4">
         <div class="ob-tip">
             <i class="bi bi-info-circle"></i>

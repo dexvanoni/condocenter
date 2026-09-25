@@ -41,13 +41,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show credits-wallet-card" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
-
     <div class="row g-3">
         @forelse($orders as $order)
             <div class="col-md-6 col-xl-4">
