@@ -9,6 +9,7 @@ use App\Models\Organization;
 use App\Models\Package;
 use App\Models\Reservation;
 use App\Services\ActiveCondominiumService;
+use App\Services\OrganizationQuotaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
@@ -17,6 +18,7 @@ class OrganizationDashboardController extends Controller
 {
     public function __construct(
         private ActiveCondominiumService $activeCondominium,
+        private OrganizationQuotaService $quota,
     ) {}
 
     public function __invoke(Request $request): View
@@ -42,9 +44,11 @@ class OrganizationDashboardController extends Controller
         );
 
         $this->activeCondominium->setActiveOrganization($user, (int) $organization->id);
+        $this->ensureOperationalRole($user, $organization);
 
         $condominiums = $organization->condominiums()
             ->withCount(['units', 'users'])
+            ->with(['syndics:id,name,email'])
             ->orderBy('name')
             ->get();
 
@@ -60,7 +64,25 @@ class OrganizationDashboardController extends Controller
             'assemblies' => $this->safeCountByCondominium(Assembly::class, 'assemblies', $condoIds),
         ];
 
-        return view('organization.dashboard', compact('organization', 'condominiums', 'metrics'));
+        $quota = $this->quota->snapshot($organization, $condominiums);
+
+        return view('organization.dashboard', compact('organization', 'condominiums', 'metrics', 'quota'));
+    }
+
+    /** @var array<string, bool> */
+    private static array $schemaTableExists = [];
+
+    protected function ensureOperationalRole($user, Organization $organization): void
+    {
+        if ($user->isAdmin() || $user->hasRole('Síndico')) {
+            return;
+        }
+
+        $role = $user->organizationRoleFor((int) $organization->id);
+
+        if (in_array($role, [Organization::ROLE_OWNER, Organization::ROLE_ADMIN, Organization::ROLE_MANAGER], true)) {
+            $user->assignRole('Síndico');
+        }
     }
 
     /**
@@ -69,7 +91,7 @@ class OrganizationDashboardController extends Controller
      */
     protected function safeCountByCondominium(string $model, string $table, $condoIds): int
     {
-        if (!Schema::hasTable($table) || collect($condoIds)->isEmpty()) {
+        if (!$this->tableExists($table) || collect($condoIds)->isEmpty()) {
             return 0;
         }
 
@@ -87,7 +109,7 @@ class OrganizationDashboardController extends Controller
      */
     protected function safeReservationCount($condoIds): int
     {
-        if (!Schema::hasTable('reservations') || !Schema::hasTable('spaces') || collect($condoIds)->isEmpty()) {
+        if (!$this->tableExists('reservations') || !$this->tableExists('spaces') || collect($condoIds)->isEmpty()) {
             return 0;
         }
 
@@ -98,5 +120,14 @@ class OrganizationDashboardController extends Controller
         } catch (\Throwable) {
             return 0;
         }
+    }
+
+    protected function tableExists(string $table): bool
+    {
+        if (!array_key_exists($table, self::$schemaTableExists)) {
+            self::$schemaTableExists[$table] = Schema::hasTable($table);
+        }
+
+        return self::$schemaTableExists[$table];
     }
 }

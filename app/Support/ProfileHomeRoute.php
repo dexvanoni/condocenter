@@ -8,6 +8,7 @@ class ProfileHomeRoute
     {
         return match ($roleName) {
             'Administrador' => 'platform.dashboard',
+            \App\Models\User::PROFILE_ADMINISTRADORA => 'organization.dashboard',
             default => 'dashboard',
         };
     }

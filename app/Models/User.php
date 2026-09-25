@@ -491,9 +491,55 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
         return $this->data_nascimento->age;
     }
 
+    public const PROFILE_ADMINISTRADORA = 'Administradora';
+
     public function hasMultipleRoles(): bool
     {
         return $this->roles()->count() > 1;
+    }
+
+    public function canUseManagementCompanyProfile(): bool
+    {
+        if ($this->isAdmin() || !$this->isManagementCompanyMember()) {
+            return false;
+        }
+
+        return $this->organizations()
+            ->where('organizations.type', Organization::TYPE_MANAGEMENT_COMPANY)
+            ->whereIn('organization_user.role', [
+                Organization::ROLE_OWNER,
+                Organization::ROLE_ADMIN,
+                Organization::ROLE_MANAGER,
+            ])
+            ->exists();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function selectableProfileNames(): array
+    {
+        $names = $this->roles->pluck('name')->all();
+
+        if ($this->canUseManagementCompanyProfile() && !in_array(self::PROFILE_ADMINISTRADORA, $names, true)) {
+            array_unshift($names, self::PROFILE_ADMINISTRADORA);
+        }
+
+        return array_values($names);
+    }
+
+    public function hasProfileSwitcher(): bool
+    {
+        return count($this->selectableProfileNames()) > 1;
+    }
+
+    public function acceptsProfile(string $roleName): bool
+    {
+        if ($roleName === self::PROFILE_ADMINISTRADORA) {
+            return $this->canUseManagementCompanyProfile();
+        }
+
+        return $this->hasAssignedRole($roleName);
     }
 
     public function needsPasswordChange(): bool
@@ -503,8 +549,14 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
 
     public function logActivity(string $action, string $module, string $description, array $metadata = []): void
     {
+        $condominiumId = $this->tenantCondominiumId() ?? $this->condominium_id;
+
+        if (!$condominiumId) {
+            return;
+        }
+
         $this->activityLogs()->create([
-            'condominium_id' => $this->tenantCondominiumId() ?? $this->condominium_id,
+            'condominium_id' => $condominiumId,
             'action' => $action,
             'module' => $module,
             'description' => $description,

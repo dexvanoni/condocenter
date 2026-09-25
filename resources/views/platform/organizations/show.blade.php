@@ -199,7 +199,12 @@
         </div>
         <div class="col-lg-5">
             <div class="card shadow-sm">
-                <div class="card-header bg-light"><h5 class="mb-0">Membros</h5></div>
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Usuários</h5>
+                    @if($organization->isManagementCompany())
+                        <a href="{{ route('platform.organizations.members.create', $organization) }}" class="btn btn-sm btn-primary">Novo usuário</a>
+                    @endif
+                </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0 align-middle">
@@ -207,6 +212,8 @@
                                 <tr>
                                     <th>Usuário</th>
                                     <th>Papel</th>
+                                    <th>Acesso</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -221,10 +228,40 @@
                                             {{ \App\Models\Organization::organizationRoleLabel($member->pivot->role) }}
                                         </span>
                                     </td>
+                                    <td>
+                                        <span class="badge bg-{{ $member->is_active ? 'success' : 'secondary' }}">
+                                            {{ $member->is_active ? 'Ativo' : 'Inativo' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        @if($organization->isManagementCompany())
+                                            <a href="{{ route('platform.organizations.members.edit', [$organization, $member]) }}" class="btn btn-sm btn-outline-primary">Editar</a>
+                                            @if($member->is_active)
+                                                <form method="POST" action="{{ route('platform.organizations.members.deactivate', [$organization, $member]) }}" class="d-inline">
+                                                    @csrf
+                                                    <button class="btn btn-sm btn-outline-warning">Desativar</button>
+                                                </form>
+                                            @else
+                                                <form method="POST" action="{{ route('platform.organizations.members.activate', [$organization, $member]) }}" class="d-inline">
+                                                    @csrf
+                                                    <button class="btn btn-sm btn-outline-success">Ativar</button>
+                                                </form>
+                                            @endif
+                                            <form method="POST" action="{{ route('platform.organizations.members.reset-password', [$organization, $member]) }}" class="d-inline">
+                                                @csrf
+                                                <button class="btn btn-sm btn-outline-secondary">Senha</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('platform.organizations.members.destroy', [$organization, $member]) }}" class="d-inline" onsubmit="return confirm('Remover este usuário da administradora?')">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="btn btn-sm btn-outline-danger">Excluir</button>
+                                            </form>
+                                        @endif
+                                    </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="2" class="text-center text-muted py-4">Nenhum membro vinculado.</td>
+                                    <td colspan="4" class="text-center text-muted py-4">Nenhum usuário vinculado.</td>
                                 </tr>
                                 @endforelse
                             </tbody>

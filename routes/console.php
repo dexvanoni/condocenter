@@ -41,6 +41,10 @@ Schedule::command('leases:process-contracts')
     ->dailyAt('06:00')
     ->description('Suspende inquilinos com contrato vencido e avisa proprietários');
 
+Schedule::command('subscriptions:auto-renew')
+    ->dailyAt('06:15')
+    ->description('Renova contratos SaaS vencidos com autorrenovação e avisa o cliente');
+
 Schedule::command('announcements:close-expired')
     ->everyFifteenMinutes()
     ->description('Encerra avisos do condomínio após a data de expiração');

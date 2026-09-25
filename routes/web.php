@@ -86,8 +86,24 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
 
     Route::get('/organizacao', \App\Http\Controllers\Organization\OrganizationDashboardController::class)
         ->name('organization.dashboard');
+    Route::get('/sindico/condominios', [\App\Http\Controllers\Syndic\SyndicCondominiumPanelController::class, 'index'])
+        ->name('syndic.condominiums.index');
+    Route::post('/sindico/condominios/entrar', [\App\Http\Controllers\Syndic\SyndicCondominiumPanelController::class, 'enter'])
+        ->name('syndic.condominiums.enter');
     Route::post('/organizacao/condominios/entrar', [\App\Http\Controllers\Organization\OrganizationCondominiumSwitchController::class, 'store'])
         ->name('organization.condominiums.enter');
+    Route::get('/organizacao/condominios/novo', [\App\Http\Controllers\Organization\OrganizationCondominiumController::class, 'create'])
+        ->name('organization.condominiums.create');
+    Route::post('/organizacao/condominios', [\App\Http\Controllers\Organization\OrganizationCondominiumController::class, 'store'])
+        ->name('organization.condominiums.store');
+    Route::post('/organizacao/condominios/{condominium}/sindico', [\App\Http\Controllers\Organization\OrganizationCondominiumController::class, 'assignSyndic'])
+        ->name('organization.condominiums.syndic');
+    Route::get('/organizacao/contrato', [\App\Http\Controllers\Organization\OrganizationContractController::class, 'show'])
+        ->name('organization.contract.show');
+    Route::get('/organizacao/contrato/cobrancas/export', [\App\Http\Controllers\Organization\OrganizationContractController::class, 'exportCharges'])
+        ->name('organization.contract.charges.export');
+    Route::get('/organizacao/contrato/cobrancas/{paymentId}/pix', [\App\Http\Controllers\Organization\OrganizationContractController::class, 'pixCheckout'])
+        ->name('organization.contract.charges.pix');
 
     Route::prefix('minha-privacidade')->name('privacy.')->group(function () {
         Route::get('/', [\App\Http\Controllers\PrivacyCenterController::class, 'index'])->name('index');
@@ -693,6 +709,22 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile'])->grou
             ->name('organizations.update');
         Route::patch('/organizations/{organization}/status', [\App\Http\Controllers\Platform\OrganizationController::class, 'updateStatus'])
             ->name('organizations.update-status');
+        Route::get('/organizations/{organization}/usuarios/novo', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'create'])
+            ->name('organizations.members.create');
+        Route::post('/organizations/{organization}/usuarios', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'store'])
+            ->name('organizations.members.store');
+        Route::get('/organizations/{organization}/usuarios/{user}/editar', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'edit'])
+            ->name('organizations.members.edit');
+        Route::put('/organizations/{organization}/usuarios/{user}', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'update'])
+            ->name('organizations.members.update');
+        Route::post('/organizations/{organization}/usuarios/{user}/ativar', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'activate'])
+            ->name('organizations.members.activate');
+        Route::post('/organizations/{organization}/usuarios/{user}/desativar', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'deactivate'])
+            ->name('organizations.members.deactivate');
+        Route::post('/organizations/{organization}/usuarios/{user}/redefinir-senha', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'resetPassword'])
+            ->name('organizations.members.reset-password');
+        Route::delete('/organizations/{organization}/usuarios/{user}', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'destroy'])
+            ->name('organizations.members.destroy');
         Route::get('/organizations/{organization}/subscription', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'edit'])
             ->name('organizations.subscription.edit');
         Route::post('/organizations/{organization}/subscription', [\App\Http\Controllers\Platform\OrganizationSubscriptionController::class, 'store'])

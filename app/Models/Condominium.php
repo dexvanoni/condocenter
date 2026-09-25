@@ -131,9 +131,14 @@ class Condominium extends Model implements Auditable
             ->withTimestamps();
     }
 
+    public function subscriptions()
+    {
+        return $this->hasMany(CondominiumSubscription::class)->latest('id');
+    }
+
     public function subscription()
     {
-        return $this->hasOne(CondominiumSubscription::class);
+        return $this->hasOne(CondominiumSubscription::class)->latestOfMany();
     }
 
     public function landingPage()
@@ -152,7 +157,15 @@ class Condominium extends Model implements Auditable
             return true;
         }
 
-        return (bool) $this->subscription?->isAccessAllowed();
+        $subscriptions = $this->relationLoaded('subscriptions')
+            ? $this->subscriptions
+            : $this->subscriptions()->get();
+
+        if ($subscriptions->isEmpty()) {
+            return false;
+        }
+
+        return $subscriptions->contains(fn (CondominiumSubscription $subscription) => $subscription->isAccessAllowed());
     }
 
     public function transactions()

@@ -73,6 +73,32 @@
     </div>
     @endif
 
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Contratos</h5>
+            <a href="{{ route('platform.subscriptions.edit', ['condominium' => $condominium, 'novo' => 1, 'from_organization' => request('from_organization')]) }}" class="btn btn-sm btn-primary">Novo contrato</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light"><tr><th>Plano</th><th>Status</th><th>Valor</th><th></th></tr></thead>
+                <tbody>
+                    @forelse($contracts ?? [] as $contract)
+                    <tr @class(['table-primary' => $sub && $sub->id === $contract->id])>
+                        <td>{{ $contract->plan?->name ?? 'Personalizado' }}</td>
+                        <td>{{ $contract->statusLabel() }}</td>
+                        <td>R$ {{ number_format((float) $contract->recurring_amount, 2, ',', '.') }}</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" href="{{ route('platform.subscriptions.edit', ['condominium' => $condominium, 'contract' => $contract->id, 'from_organization' => request('from_organization')]) }}">Gerenciar</a>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="4" class="text-muted p-3">Nenhum contrato ainda.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="row g-4">
         <div class="col-xl-8">
             <div class="card shadow-sm mb-4">
@@ -80,6 +106,9 @@
                 <div class="card-body">
                     <form method="POST" action="{{ route('platform.subscriptions.store', $condominium) }}" id="contractForm">
                         @csrf
+                        @if($sub)
+                            <input type="hidden" name="subscription_id" value="{{ $sub->id }}">
+                        @endif
                         <div class="row g-3">
                             @if($plans->isNotEmpty())
                             <div class="col-12">
@@ -175,6 +204,14 @@
                                 <input type="date" name="contract_ends_at" class="form-control"
                                        value="{{ old('contract_ends_at', $sub?->contract_ends_at?->format('Y-m-d')) }}">
                             </div>
+                            <div class="col-12">
+                                <input type="hidden" name="auto_renew" value="0">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="auto_renew" value="1" id="condoAutoRenew" @checked(old('auto_renew', $sub?->auto_renew))>
+                                    <label class="form-check-label" for="condoAutoRenew">Renovar automaticamente pelo mesmo período quando a validade passar</label>
+                                </div>
+                                <div class="form-text">O cliente recebe um e-mail na renovação. As cobranças da recorrência continuam no mesmo ciclo.</div>
+                            </div>
                             <div class="col-md-4">
                                 <label class="form-label">Síndico responsável financeiro</label>
                                 <select name="financial_responsible_user_id" class="form-select">
@@ -222,18 +259,22 @@
             @include('platform.subscriptions.partials.billing-history', [
                 'billingReport' => $billingReport,
                 'billingFilters' => $billingFilters,
-                'formAction' => route('platform.subscriptions.edit', $condominium),
+                'formAction' => route('platform.subscriptions.edit', ['condominium' => $condominium, 'contract' => $sub->id]),
                 'exportUrl' => $exportUrl,
                 'subscription' => $sub,
                 'adminBillingControls' => true,
                 'condominium' => $condominium,
+                'chargeStoreUrl' => route('platform.subscriptions.charges.store', ['condominium' => $condominium, 'subscription_id' => $sub->id]),
+                'chargeCancelUrl' => route('platform.subscriptions.charges.cancel', ['condominium' => $condominium, 'subscription_id' => $sub->id]),
+                'chargeRefundUrl' => route('platform.subscriptions.charges.refund', ['condominium' => $condominium, 'subscription_id' => $sub->id]),
             ])
 
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light"><h5 class="mb-0">Documentos do contratante</h5></div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('platform.subscriptions.documents.store', $condominium) }}" enctype="multipart/form-data" class="row g-2 mb-3">
+                    <form method="POST" action="{{ route('platform.subscriptions.documents.store', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}" enctype="multipart/form-data" class="row g-2 mb-3">
                         @csrf
+                        <input type="hidden" name="subscription_id" value="{{ $sub->id }}">
                         <div class="col-md-5"><input type="text" name="title" class="form-control" placeholder="Título (opcional)"></div>
                         <div class="col-md-5"><input type="file" name="document" class="form-control" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>
                         <div class="col-md-2"><button class="btn btn-outline-primary w-100">Enviar</button></div>
@@ -265,25 +306,25 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light"><h5 class="mb-0">Ações</h5></div>
                 <div class="card-body d-grid gap-2">
-                    <form method="POST" action="{{ route('platform.subscriptions.activate', $condominium) }}">
+                    <form method="POST" action="{{ route('platform.subscriptions.activate', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}">
                         @csrf
                         <button class="btn btn-success w-100" @disabled(in_array($sub->status, ['active', 'trial']))>
                             <i class="bi bi-play-fill"></i> Ativar assinatura
                         </button>
                     </form>
                     @if($sub->usesAsaas())
-                    <form method="POST" action="{{ route('platform.subscriptions.sync-asaas', $condominium) }}">
+                    <form method="POST" action="{{ route('platform.subscriptions.sync-asaas', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}">
                         @csrf
                         <button class="btn btn-outline-primary w-100"><i class="bi bi-arrow-repeat"></i> Sincronizar Asaas</button>
                     </form>
                     @endif
-                    <form method="POST" action="{{ route('platform.subscriptions.suspend', $condominium) }}">
+                    <form method="POST" action="{{ route('platform.subscriptions.suspend', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}">
                         @csrf
                         <button class="btn btn-outline-warning w-100" @disabled($sub->status === 'suspended')>
                             <i class="bi bi-pause-fill"></i> Suspender
                         </button>
                     </form>
-                    <form method="POST" action="{{ route('platform.subscriptions.extend', $condominium) }}" class="border rounded p-3">
+                    <form method="POST" action="{{ route('platform.subscriptions.extend', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}" class="border rounded p-3">
                         @csrf
                         <label class="form-label small">Prorrogar até</label>
                         <input type="date" name="extended_until" class="form-control form-control-sm mb-2" required min="{{ now()->toDateString() }}">
@@ -291,12 +332,12 @@
                         <button class="btn btn-sm btn-outline-info w-100">Prorrogar contrato</button>
                     </form>
                     @if(in_array($sub->status, ['suspended', 'cancelled', 'expired', 'past_due'], true))
-                    <form method="POST" action="{{ route('platform.subscriptions.reactivate', $condominium) }}">
+                    <form method="POST" action="{{ route('platform.subscriptions.reactivate', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}">
                         @csrf
                         <button class="btn btn-success w-100"><i class="bi bi-play-circle"></i> Reativar assinatura</button>
                     </form>
                     @endif
-                    <form method="POST" action="{{ route('platform.subscriptions.reset-contract', $condominium) }}"
+                    <form method="POST" action="{{ route('platform.subscriptions.reset-contract', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}"
                           class="border rounded p-3"
                           onsubmit="return confirm('Reinicia o contrato em rascunho e cancela a assinatura no Asaas. Confirma?');">
                         @csrf
@@ -304,7 +345,7 @@
                         <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Motivo (opcional)">
                         <button class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-file-earmark-plus"></i> Novo ciclo (rascunho)</button>
                     </form>
-                    <form method="POST" action="{{ route('platform.subscriptions.cancel', $condominium) }}" onsubmit="return confirm('Cancelar assinatura e encerrar cobranças recorrentes no Asaas?')">
+                    <form method="POST" action="{{ route('platform.subscriptions.cancel', ['condominium' => $condominium, 'subscription_id' => $sub->id]) }}" onsubmit="return confirm('Cancelar assinatura e encerrar cobranças recorrentes no Asaas?')">
                         @csrf
                         <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Motivo do cancelamento (opcional)">
                         <button class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Cancelar assinatura</button>

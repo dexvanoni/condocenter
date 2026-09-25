@@ -10,6 +10,7 @@ class PlatformAsaasService
     protected ?string $apiKey = null;
     protected string $apiUrl;
     protected bool $isSandbox = true;
+    protected ?string $lastErrorMessage = null;
 
     public function __construct(private PlatformSettingsService $settings)
     {
@@ -24,6 +25,11 @@ class PlatformAsaasService
     public function isConfigured(): bool
     {
         return filled($this->apiKey);
+    }
+
+    public function getLastErrorMessage(): ?string
+    {
+        return $this->lastErrorMessage;
     }
 
     public function createOrUpdateCustomer(array $data): ?array
@@ -197,15 +203,19 @@ class PlatformAsaasService
             $response = Http::withHeaders($this->headers())->put("{$this->apiUrl}{$path}", $data);
 
             if ($response->successful()) {
+                $this->lastErrorMessage = null;
+
                 return $response->json();
             }
 
+            $this->rememberError($response);
             Log::error('Platform Asaas PUT error', [
                 'path' => $path,
                 'status' => $response->status(),
                 'body' => $response->json(),
             ]);
         } catch (\Throwable $e) {
+            $this->lastErrorMessage = 'Falha de comunicação com o Asaas: '.$e->getMessage();
             Log::error('Platform Asaas PUT exception: ' . $e->getMessage());
         }
 
@@ -224,15 +234,19 @@ class PlatformAsaasService
             $response = Http::withHeaders($this->headers())->post("{$this->apiUrl}{$path}", $data);
 
             if ($response->successful()) {
+                $this->lastErrorMessage = null;
+
                 return $response->json();
             }
 
+            $this->rememberError($response);
             Log::error('Platform Asaas POST error', [
                 'path' => $path,
                 'status' => $response->status(),
                 'body' => $response->json(),
             ]);
         } catch (\Throwable $e) {
+            $this->lastErrorMessage = 'Falha de comunicação com o Asaas: '.$e->getMessage();
             Log::error('Platform Asaas POST exception: ' . $e->getMessage());
         }
 
@@ -254,6 +268,29 @@ class PlatformAsaasService
 
             return null;
         }
+    }
+
+    protected function rememberError($response): void
+    {
+        $errors = $response?->json('errors');
+        $descriptions = [];
+
+        if (is_array($errors)) {
+            foreach ($errors as $error) {
+                if (!empty($error['description'])) {
+                    $descriptions[] = (string) $error['description'];
+                }
+            }
+        }
+
+        if ($descriptions !== []) {
+            $this->lastErrorMessage = implode(' ', $descriptions);
+
+            return;
+        }
+
+        $status = $response?->status();
+        $this->lastErrorMessage = 'Asaas respondeu HTTP '.($status ?? '?').' sem detalhe do campo.';
     }
 
     protected function headers(): array

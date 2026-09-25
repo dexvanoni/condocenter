@@ -18,8 +18,14 @@ trait HasActiveProfileRole
 
     public function getActiveRoleName(): ?string
     {
+        $sessionRole = session('active_role') ?: ($this->current_role ?? null);
+
+        if ($sessionRole === \App\Models\User::PROFILE_ADMINISTRADORA && method_exists($this, 'canUseManagementCompanyProfile') && $this->canUseManagementCompanyProfile()) {
+            return $sessionRole;
+        }
+
         if ($this->hasMultipleRoles()) {
-            return session('active_role') ?? $this->current_role ?? null;
+            return $sessionRole;
         }
 
         return $this->roles->first()?->name;

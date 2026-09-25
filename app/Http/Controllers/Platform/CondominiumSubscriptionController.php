@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ExtendCondominiumSubscriptionRequest;
 use App\Http\Requests\StoreCondominiumSubscriptionRequest;
 use App\Models\Condominium;
+use App\Models\CondominiumSubscription;
 use App\Models\CondominiumSubscriptionDocument;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
@@ -22,6 +23,18 @@ class CondominiumSubscriptionController extends Controller
         private CondominiumSubscriptionService $subscriptions,
         private SubscriptionBillingService $billing,
     ) {}
+
+    private function contract(Condominium $condominium): CondominiumSubscription
+    {
+        $id = (int) request('subscription_id', request('contract'));
+        $subscription = $id
+            ? $condominium->subscriptions()->whereKey($id)->first()
+            : $condominium->subscriptions()->first();
+
+        abort_unless($subscription, 404, 'Contrato não encontrado neste condomínio.');
+
+        return $subscription;
+    }
 
     private function adminUser(): User
     {
@@ -52,7 +65,15 @@ class CondominiumSubscriptionController extends Controller
             ->activeForAudience(SubscriptionPlan::AUDIENCE_CONDOMINIUM)
             ->get();
 
-        $subscription = $condominium->subscription;
+        $contracts = $condominium->subscriptions()->with('plan')->get();
+        $creating = $request->boolean('novo');
+        $subscription = null;
+        if (!$creating) {
+            $selectedId = $request->integer('contract');
+            $subscription = $selectedId
+                ? $contracts->firstWhere('id', $selectedId)
+                : $contracts->first();
+        }
         if ($subscription) {
             $this->subscriptions->refreshCalculatedAmounts($subscription, $condominium);
             $subscription->save();
@@ -79,6 +100,7 @@ class CondominiumSubscriptionController extends Controller
         return view('platform.subscriptions.edit', compact(
             'condominium',
             'subscription',
+            'contracts',
             'syndics',
             'plans',
             'billingReport',
@@ -92,22 +114,23 @@ class CondominiumSubscriptionController extends Controller
     public function store(StoreCondominiumSubscriptionRequest $request, Condominium $condominium)
     {
         $data = $request->validated();
+        $data['auto_renew'] = $request->boolean('auto_renew');
         if (!empty($data['subscription_plan_id'])) {
             $plan = SubscriptionPlan::query()->find($data['subscription_plan_id']);
             abort_unless($plan && !$plan->isForManagementCompany(), 422, 'Selecione um plano do catálogo de síndico/condomínio.');
         }
 
-        $this->subscriptions->upsert($condominium, $data, $request->user());
+        $saved = $this->subscriptions->upsert($condominium, $data, $request->user());
 
         return redirect()
-            ->route('platform.subscriptions.edit', $condominium)
+            ->route('platform.subscriptions.edit', ['condominium' => $condominium, 'contract' => $saved->id])
             ->with('success', 'Contrato de assinatura salvo.');
     }
 
     public function activate(Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
 
         abort_if(! $subscription, 404, 'Configure o contrato antes de ativar.');
 
@@ -123,7 +146,7 @@ class CondominiumSubscriptionController extends Controller
     public function suspend(Request $request, Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $this->subscriptions->suspend($subscription, $admin, $request->input('notes'));
@@ -134,7 +157,7 @@ class CondominiumSubscriptionController extends Controller
     public function cancel(Request $request, Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $this->subscriptions->cancel($subscription, $admin, $request->input('notes'));
@@ -145,7 +168,7 @@ class CondominiumSubscriptionController extends Controller
     public function reactivate(Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         try {
@@ -160,7 +183,7 @@ class CondominiumSubscriptionController extends Controller
     public function resetContract(Request $request, Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $this->subscriptions->resetForNewContract($subscription, $admin, $request->input('notes'));
@@ -171,7 +194,7 @@ class CondominiumSubscriptionController extends Controller
     public function cancelCharge(Request $request, Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $validated = $request->validate([
@@ -190,7 +213,7 @@ class CondominiumSubscriptionController extends Controller
     public function refundCharge(Request $request, Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $validated = $request->validate([
@@ -209,7 +232,7 @@ class CondominiumSubscriptionController extends Controller
     public function storeCharge(Request $request, Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $validated = $request->validate([
@@ -235,7 +258,7 @@ class CondominiumSubscriptionController extends Controller
 
     public function extend(ExtendCondominiumSubscriptionRequest $request, Condominium $condominium)
     {
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $this->subscriptions->extend(
@@ -251,7 +274,7 @@ class CondominiumSubscriptionController extends Controller
     public function syncAsaas(Condominium $condominium)
     {
         $admin = $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         try {
@@ -266,7 +289,7 @@ class CondominiumSubscriptionController extends Controller
     public function uploadDocument(Request $request, Condominium $condominium)
     {
         $this->adminUser();
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404);
 
         $request->validate([
@@ -306,7 +329,7 @@ class CondominiumSubscriptionController extends Controller
     {
         $this->adminUser();
 
-        $subscription = $condominium->subscription;
+        $subscription = $this->contract($condominium);
         abort_if(! $subscription, 404, 'Nenhum contrato configurado.');
 
         $filters = $this->billing->filtersFromRequest($request);

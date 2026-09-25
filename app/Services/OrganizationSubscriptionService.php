@@ -26,7 +26,14 @@ class OrganizationSubscriptionService
     public function upsert(Organization $organization, array $data, ?User $admin = null): OrganizationSubscription
     {
         return DB::transaction(function () use ($organization, $data, $admin) {
-            $subscription = $organization->subscription ?? new OrganizationSubscription([
+            $subscription = null;
+            if (!empty($data['subscription_id'])) {
+                $subscription = $organization->subscriptions()
+                    ->whereKey($data['subscription_id'])
+                    ->first();
+            }
+
+            $subscription ??= new OrganizationSubscription([
                 'organization_id' => $organization->id,
                 'created_by' => $admin?->id,
                 'status' => OrganizationSubscription::STATUS_DRAFT,
@@ -60,6 +67,9 @@ class OrganizationSubscriptionService
                 'financial_contact_phone' => $data['financial_contact_phone'] ?? $subscription->financial_contact_phone ?? $organization->phone,
                 'contract_starts_at' => $data['contract_starts_at'] ?? $subscription->contract_starts_at,
                 'contract_ends_at' => $data['contract_ends_at'] ?? $subscription->contract_ends_at,
+                'auto_renew' => array_key_exists('auto_renew', $data)
+                    ? (bool) $data['auto_renew']
+                    : (bool) $subscription->auto_renew,
                 'max_condominiums' => $data['max_condominiums'] ?? $subscription->max_condominiums,
                 'max_units' => $data['max_units'] ?? $subscription->max_units,
                 'max_users' => $data['max_users'] ?? $subscription->max_users,
@@ -94,7 +104,13 @@ class OrganizationSubscriptionService
             return false;
         }
 
-        return $this->isAccessAllowed($organization->subscription);
+        $subscriptions = $organization->subscriptions()->get();
+
+        if ($subscriptions->isEmpty()) {
+            return true;
+        }
+
+        return $subscriptions->contains(fn (OrganizationSubscription $subscription) => $this->isAccessAllowed($subscription));
     }
 
     public function activate(OrganizationSubscription $subscription, ?User $admin = null): OrganizationSubscription
@@ -202,20 +218,20 @@ class OrganizationSubscriptionService
             return;
         }
 
-        $customerData = array_filter([
-            'name' => $subscription->financial_contact_name ?: $organization->displayName(),
-            'email' => $subscription->financial_contact_email ?: $organization->email,
-            'phone' => $subscription->financial_contact_phone ?: $organization->phone,
-            'cpfCnpj' => preg_replace('/\D/', '', (string) ($subscription->financial_cnpj ?: $organization->document ?: '')),
-            'externalReference' => 'organization:'.$organization->id,
-            'company' => $organization->displayName(),
-        ]);
+        $customerData = $this->asaasCustomerPayload($subscription, $organization);
+        $missing = $this->missingAsaasCustomerFields($customerData);
+
+        if ($missing !== []) {
+            throw ValidationException::withMessages([
+                'asaas' => 'Não foi possível criar o cliente no Asaas. Falta: '.implode('; ', $missing).'.',
+            ]);
+        }
 
         $customer = $this->asaas->createOrUpdateCustomer($customerData);
 
         if (!$customer) {
             throw ValidationException::withMessages([
-                'asaas' => 'Não foi possível criar o cliente da organização no Asaas.',
+                'asaas' => $this->asaasFailureMessage('Não foi possível criar o cliente da organização no Asaas.'),
             ]);
         }
 
@@ -246,7 +262,7 @@ class OrganizationSubscriptionService
 
         if (!$asaasSubscription) {
             throw ValidationException::withMessages([
-                'asaas' => 'Não foi possível criar a assinatura da organização no Asaas.',
+                'asaas' => $this->asaasFailureMessage('Não foi possível criar a assinatura da organização no Asaas.'),
             ]);
         }
 
@@ -382,6 +398,53 @@ class OrganizationSubscriptionService
         }
 
         return $payment;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function asaasCustomerPayload(OrganizationSubscription $subscription, Organization $organization): array
+    {
+        return array_filter([
+            'name' => $subscription->financial_contact_name ?: $organization->displayName(),
+            'email' => $subscription->financial_contact_email ?: $organization->email,
+            'phone' => preg_replace('/\D/', '', (string) ($subscription->financial_contact_phone ?: $organization->phone ?: '')),
+            'cpfCnpj' => preg_replace('/\D/', '', (string) ($subscription->financial_cnpj ?: $organization->document ?: '')),
+            'externalReference' => 'organization:'.$organization->id,
+            'company' => $organization->displayName(),
+        ], fn ($value) => filled($value));
+    }
+
+    /**
+     * @param  array<string, string>  $customerData
+     * @return list<string>
+     */
+    protected function missingAsaasCustomerFields(array $customerData): array
+    {
+        $missing = [];
+
+        if (!filled($customerData['name'] ?? null)) {
+            $missing[] = 'nome da organização ou do contato financeiro';
+        }
+
+        if (!filled($customerData['email'] ?? null)) {
+            $missing[] = 'e-mail financeiro ou e-mail da organização';
+        }
+
+        $document = (string) ($customerData['cpfCnpj'] ?? '');
+        if (!in_array(strlen($document), [11, 14], true)) {
+            $missing[] = 'CNPJ de faturamento ou documento da organização com 11 (CPF) ou 14 (CNPJ) dígitos'
+                .($document !== '' ? ' (informado com '.strlen($document).' dígitos)' : '');
+        }
+
+        return $missing;
+    }
+
+    protected function asaasFailureMessage(string $fallback): string
+    {
+        $detail = $this->asaas->getLastErrorMessage();
+
+        return $detail ? $fallback.' '.$detail : $fallback;
     }
 
     protected function mapBillingType(string $paymentMethod): string

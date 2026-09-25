@@ -152,6 +152,7 @@ class DirectClientOnboardingService
             ]);
 
             $this->provisioning->attachUser($organization, (int) $user->id, Organization::ROLE_OWNER);
+            $user->assignRole('Síndico');
 
             $subscription = null;
             $planId = $payload['subscription_plan_id'] ?? null;

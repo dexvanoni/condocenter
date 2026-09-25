@@ -82,13 +82,14 @@ class EnsureActiveSaasSubscription
             }
         }
 
-        $subscription = $condominium->subscription;
+        $subscriptions = $condominium->subscriptions()->get();
+        $subscription = $subscriptions->first();
 
-        if (!$subscription) {
+        if ($subscriptions->isEmpty()) {
             return $next($request);
         }
 
-        if ($subscription->isAccessAllowed()) {
+        if ($subscriptions->contains(fn ($item) => $item->isAccessAllowed())) {
             return $next($request);
         }
 

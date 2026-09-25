@@ -61,17 +61,9 @@ class ProfileSelectorController extends Controller
     {
         $user = $this->authUser();
 
-        // Valida se o usuário tem esse perfil atribuído
-        if (!$user->hasAssignedRole($roleName)) {
+        if (!$user->acceptsProfile($roleName)) {
             return redirect()->route('profile.select')
                 ->with('error', 'Perfil inválido.');
-        }
-
-        session(['active_role' => $roleName]);
-        $user->refreshActiveProfileCache();
-
-        if ($roleName === 'Administrador') {
-            app(ActiveCondominiumService::class)->clearActiveCondominium();
         }
 
         ProfileSelection::create([
@@ -87,6 +79,13 @@ class ProfileSelectorController extends Controller
             "Selecionou o perfil: {$roleName}",
             ['role' => $roleName]
         );
+
+        session(['active_role' => $roleName]);
+        $user->refreshActiveProfileCache();
+
+        if (in_array($roleName, ['Administrador', \App\Models\User::PROFILE_ADMINISTRADORA], true)) {
+            app(ActiveCondominiumService::class)->clearActiveCondominium();
+        }
 
         return redirect()
             ->route(ProfileHomeRoute::routeNameForRole($roleName))
@@ -105,19 +104,11 @@ class ProfileSelectorController extends Controller
         $user = $this->authUser();
         $roleName = $request->role;
 
-        // Valida se o usuário tem esse perfil atribuído
-        if (!$user->hasAssignedRole($roleName)) {
+        if (!$user->acceptsProfile($roleName)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Perfil inválido.',
             ], 403);
-        }
-
-        session(['active_role' => $roleName]);
-        $user->refreshActiveProfileCache();
-
-        if ($roleName === 'Administrador') {
-            app(ActiveCondominiumService::class)->clearActiveCondominium();
         }
 
         ProfileSelection::create([
@@ -133,6 +124,13 @@ class ProfileSelectorController extends Controller
             "Trocou para o perfil: {$roleName}",
             ['role' => $roleName]
         );
+
+        session(['active_role' => $roleName]);
+        $user->refreshActiveProfileCache();
+
+        if (in_array($roleName, ['Administrador', \App\Models\User::PROFILE_ADMINISTRADORA], true)) {
+            app(ActiveCondominiumService::class)->clearActiveCondominium();
+        }
 
         return response()->json([
             'success' => true,

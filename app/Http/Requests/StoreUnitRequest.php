@@ -35,6 +35,15 @@ class StoreUnitRequest extends FormRequest
                     'Limite de unidades do condomínio atingido. Entre em contato com o desenvolvedor para ampliar a cota.'
                 );
             }
+
+            $organization = $condominium?->organization;
+            if ($organization?->isManagementCompany()
+                && !app(\App\Services\OrganizationQuotaService::class)->canCreateUnit($organization)) {
+                $validator->errors()->add(
+                    'number',
+                    'Limite de unidades do contrato da administradora atingido.'
+                );
+            }
         });
     }
 

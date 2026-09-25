@@ -27,12 +27,40 @@
         @endif
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show">{{ session('success') }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-    @endif
-    @if($errors->any())
-        <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>
-    @endif
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Contratos</h5>
+            <a href="{{ route('platform.organizations.subscription.edit', ['organization' => $organization, 'novo' => 1]) }}" class="btn btn-sm btn-primary">Novo contrato</a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Plano</th>
+                            <th>Status</th>
+                            <th>Valor</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($contracts as $contract)
+                        <tr @class(['table-primary' => $sub && $sub->id === $contract->id])>
+                            <td>{{ $contract->plan?->name ?? 'Personalizado' }}</td>
+                            <td>{{ $contract->statusLabel() }}</td>
+                            <td>R$ {{ number_format((float) $contract->recurring_amount, 2, ',', '.') }}</td>
+                            <td class="text-end">
+                                <a href="{{ route('platform.organizations.subscription.edit', ['organization' => $organization, 'contract' => $contract->id]) }}" class="btn btn-sm btn-outline-primary">Gerenciar</a>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="4" class="text-muted p-3 mb-0">Nenhum contrato ainda.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     @if($sub)
     <div class="row g-3 mb-4">
@@ -59,6 +87,9 @@
                     @endif
                     <form method="POST" action="{{ route('platform.organizations.subscription.store', $organization) }}" id="orgContractForm" class="{{ $plans->isEmpty() ? 'mt-3' : '' }}">
                         @csrf
+                        @if($sub)
+                            <input type="hidden" name="subscription_id" value="{{ $sub->id }}">
+                        @endif
                         <div class="row g-3">
                             <div class="col-12">
                                 <label class="form-label">Plano do catálogo</label>
@@ -131,6 +162,14 @@
                                 <label class="form-label">Fim do contrato</label>
                                 <input type="date" name="contract_ends_at" class="form-control" value="{{ old('contract_ends_at', $sub?->contract_ends_at?->format('Y-m-d')) }}">
                             </div>
+                            <div class="col-12">
+                                <input type="hidden" name="auto_renew" value="0">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="auto_renew" value="1" id="orgAutoRenew" @checked(old('auto_renew', $sub?->auto_renew))>
+                                    <label class="form-check-label" for="orgAutoRenew">Renovar automaticamente pelo mesmo período quando a validade passar</label>
+                                </div>
+                                <div class="form-text">O cliente recebe um e-mail na renovação. As cobranças da recorrência continuam no mesmo ciclo.</div>
+                            </div>
                             <div class="col-md-4">
                                 <label class="form-label">CNPJ faturamento</label>
                                 <input type="text" name="financial_cnpj" class="form-control" value="{{ old('financial_cnpj', $sub?->financial_cnpj ?? $organization->document) }}">
@@ -179,9 +218,9 @@
                     'exportUrl' => $exportUrl,
                     'subscription' => $sub,
                     'adminBillingControls' => true,
-                    'chargeStoreUrl' => route('platform.organizations.subscription.charges.store', $organization),
-                    'chargeCancelUrl' => route('platform.organizations.subscription.charges.cancel', $organization),
-                    'chargeRefundUrl' => route('platform.organizations.subscription.charges.refund', $organization),
+                    'chargeStoreUrl' => route('platform.organizations.subscription.charges.store', ['organization' => $organization, 'subscription_id' => $sub->id]),
+                    'chargeCancelUrl' => route('platform.organizations.subscription.charges.cancel', ['organization' => $organization, 'subscription_id' => $sub->id]),
+                    'chargeRefundUrl' => route('platform.organizations.subscription.charges.refund', ['organization' => $organization, 'subscription_id' => $sub->id]),
                 ])
             @endif
         </div>
@@ -193,6 +232,7 @@
                 <div class="card-body d-grid gap-2">
                     <form method="POST" action="{{ route('platform.organizations.subscription.activate', $organization) }}">
                         @csrf
+                        <input type="hidden" name="subscription_id" value="{{ $sub->id }}">
                         <button class="btn btn-success w-100" @disabled(in_array($sub->status, ['active', 'trial']))>
                             <i class="bi bi-play-fill"></i> Ativar assinatura
                         </button>
@@ -200,15 +240,18 @@
                     @if($sub->usesAsaas())
                     <form method="POST" action="{{ route('platform.organizations.subscription.sync-asaas', $organization) }}">
                         @csrf
+                        <input type="hidden" name="subscription_id" value="{{ $sub->id }}">
                         <button class="btn btn-outline-primary w-100"><i class="bi bi-arrow-repeat"></i> Sincronizar Asaas</button>
                     </form>
                     @endif
                     <form method="POST" action="{{ route('platform.organizations.subscription.suspend', $organization) }}">
                         @csrf
+                        <input type="hidden" name="subscription_id" value="{{ $sub->id }}">
                         <button class="btn btn-outline-warning w-100" @disabled($sub->status === 'suspended')>Suspender</button>
                     </form>
                     <form method="POST" action="{{ route('platform.organizations.subscription.cancel', $organization) }}" onsubmit="return confirm('Cancelar assinatura e encerrar a recorrência no Asaas?')">
                         @csrf
+                        <input type="hidden" name="subscription_id" value="{{ $sub->id }}">
                         <input type="text" name="notes" class="form-control form-control-sm mb-2" placeholder="Motivo (opcional)">
                         <button class="btn btn-outline-danger w-100">Cancelar assinatura</button>
                     </form>

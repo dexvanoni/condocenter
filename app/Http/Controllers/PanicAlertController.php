@@ -44,6 +44,12 @@ class PanicAlertController extends Controller
             }
 
             $user = Auth::user();
+
+            if (!$user->unit_id || !$user->condominium_id) {
+                return response()->json([
+                    'error' => 'O alerta de pânico só pode ser enviado por quem está vinculado a um condomínio e a uma unidade.',
+                ], 403);
+            }
             
             Log::info('Usuário autenticado', ['user_id' => $user->id, 'condominium_id' => $user->tenantCondominiumId()]);
         

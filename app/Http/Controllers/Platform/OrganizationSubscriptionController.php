@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
+use App\Models\OrganizationSubscription;
 use App\Models\SubscriptionPlan;
 use App\Models\User;
 use App\Services\OrganizationSubscriptionService;
@@ -36,12 +37,19 @@ class OrganizationSubscriptionController extends Controller
 
         abort_unless($organization->isManagementCompany(), 404);
 
-        $organization->load('subscription.plan');
+        $contracts = $organization->subscriptions()->with('plan')->get();
         $plans = SubscriptionPlan::query()
             ->activeForAudience(SubscriptionPlan::AUDIENCE_MANAGEMENT_COMPANY)
             ->get();
 
-        $subscription = $organization->subscription;
+        $creating = $request->boolean('novo');
+        $subscription = null;
+        if (!$creating) {
+            $selectedId = $request->integer('contract');
+            $subscription = $selectedId
+                ? $contracts->firstWhere('id', $selectedId)
+                : $contracts->first();
+        }
         if ($subscription) {
             $this->subscriptions->refreshCalculatedAmounts($subscription, $organization);
             $subscription->save();
@@ -63,6 +71,7 @@ class OrganizationSubscriptionController extends Controller
             'organization',
             'plans',
             'subscription',
+            'contracts',
             'billingReport',
             'billingFilters',
             'exportUrl',
@@ -75,6 +84,7 @@ class OrganizationSubscriptionController extends Controller
         abort_unless($organization->isManagementCompany(), 404);
 
         $data = $request->validate([
+            'subscription_id' => ['nullable', 'integer'],
             'subscription_plan_id' => ['nullable', 'exists:subscription_plans,id'],
             'billing_metric' => ['nullable', 'in:unit,user,fixed'],
             'fixed_price' => ['nullable', 'numeric', 'min:0'],
@@ -85,6 +95,7 @@ class OrganizationSubscriptionController extends Controller
             'payment_method' => ['nullable', 'in:boleto,credit_card,pix_recurring,bank_deposit'],
             'contract_starts_at' => ['nullable', 'date'],
             'contract_ends_at' => ['nullable', 'date'],
+            'auto_renew' => ['nullable', 'boolean'],
             'financial_cnpj' => ['nullable', 'string', 'max:18'],
             'financial_contact_name' => ['nullable', 'string', 'max:255'],
             'financial_contact_email' => ['nullable', 'email', 'max:255'],
@@ -95,23 +106,24 @@ class OrganizationSubscriptionController extends Controller
             'admin_notes' => ['nullable', 'string', 'max:5000'],
         ]);
 
+        $data['auto_renew'] = $request->boolean('auto_renew');
+
         if (!empty($data['subscription_plan_id'])) {
             $plan = SubscriptionPlan::query()->find($data['subscription_plan_id']);
             abort_unless($plan?->isForManagementCompany(), 422, 'Selecione um plano do catálogo de administradoras.');
         }
 
-        $this->subscriptions->upsert($organization, $data, $request->user());
+        $saved = $this->subscriptions->upsert($organization, $data, $request->user());
 
         return redirect()
-            ->route('platform.organizations.subscription.edit', $organization)
+            ->route('platform.organizations.subscription.edit', ['organization' => $organization, 'contract' => $saved->id])
             ->with('success', 'Contrato da administradora salvo.');
     }
 
     public function activate(Organization $organization): RedirectResponse
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404);
+        $subscription = $this->contract($organization);
 
         try {
             $this->subscriptions->activate($subscription, auth()->user());
@@ -125,8 +137,7 @@ class OrganizationSubscriptionController extends Controller
     public function suspend(Organization $organization): RedirectResponse
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404);
+        $subscription = $this->contract($organization);
 
         $this->subscriptions->suspend($subscription, auth()->user());
 
@@ -136,8 +147,7 @@ class OrganizationSubscriptionController extends Controller
     public function cancel(Request $request, Organization $organization): RedirectResponse
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404);
+        $subscription = $this->contract($organization);
 
         $this->subscriptions->cancel($subscription, auth()->user(), $request->input('notes'));
 
@@ -147,8 +157,7 @@ class OrganizationSubscriptionController extends Controller
     public function syncAsaas(Organization $organization): RedirectResponse
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404);
+        $subscription = $this->contract($organization);
 
         try {
             $this->subscriptions->syncAsaasSubscription($subscription, auth()->user());
@@ -162,8 +171,7 @@ class OrganizationSubscriptionController extends Controller
     public function storeCharge(Request $request, Organization $organization): RedirectResponse
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404);
+        $subscription = $this->contract($organization);
 
         $validated = $request->validate([
             'value' => ['required', 'numeric', 'min:0.01', 'max:999999.99'],
@@ -189,8 +197,7 @@ class OrganizationSubscriptionController extends Controller
     public function cancelCharge(Request $request, Organization $organization): RedirectResponse
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404);
+        $subscription = $this->contract($organization);
 
         $validated = $request->validate([
             'payment_id' => ['required', 'string', 'max:64'],
@@ -208,8 +215,7 @@ class OrganizationSubscriptionController extends Controller
     public function refundCharge(Request $request, Organization $organization): RedirectResponse
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404);
+        $subscription = $this->contract($organization);
 
         $validated = $request->validate([
             'payment_id' => ['required', 'string', 'max:64'],
@@ -227,14 +233,25 @@ class OrganizationSubscriptionController extends Controller
     public function exportCharges(Request $request, Organization $organization)
     {
         $this->adminUser();
-        $subscription = $organization->subscription;
-        abort_unless($subscription, 404, 'Nenhum contrato configurado.');
+        $subscription = $this->contract($organization);
 
         return $this->billing->exportCsv(
             $subscription,
             $this->billing->filtersFromRequest($request),
             'cobrancas-organizacao'
         );
+    }
+
+    private function contract(Organization $organization): OrganizationSubscription
+    {
+        $id = (int) request('subscription_id', request('contract'));
+        $subscription = $id
+            ? $organization->subscriptions()->whereKey($id)->first()
+            : $organization->subscriptions()->first();
+
+        abort_unless($subscription, 404, 'Contrato não encontrado nesta organização.');
+
+        return $subscription;
     }
 
     private function adminUser(): User

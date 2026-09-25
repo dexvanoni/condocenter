@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 23/09/2026 (organizações multi-tenant + LGPD)
+- **Última revisão:** 24/09/2026 (autorrenovação de contratos SaaS)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -449,6 +449,7 @@ O Laravel dispara sozinho, no fuso `America/Fortaleza`:
 | Quando | O que faz |
 |--------|-----------|
 | Todo dia 05:00 | Gera a próxima cobrança das taxas automáticas (`fees:generate-upcoming`) |
+| Todo dia 06:15 | Renova contratos SaaS vencidos com autorrenovação e avisa o cliente (`subscriptions:auto-renew`) |
 | Todo dia 06:30 | Liquida desconto em folha no vencimento (`charges:settle-payroll`) |
 | Todo dia 07:00 | Marca cobrança vencida como atraso, exceto folha (`charges:mark-overdue`) |
 | Todo dia 08:00 | Lembretes de vencimento (`charges:send-reminders`) |
@@ -677,6 +678,11 @@ Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação,
 
 - Atualização: Parte 2 (`git pull` + `npm run build` se houver assets). Sem migration.
 - Administrador: **Plataforma → Cobranças SaaS** (`/platform/billing`) — visão consolidada; por condomínio em **Gerenciar contrato** — cancelar/estornar cobrança Asaas, cobrança avulsa, cancelar/reativar assinatura, **Novo ciclo (rascunho)** para novo contrato.
+
+### 2026-09-24 — Autorrenovação de contratos SaaS
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Migration `2026_09_24_181000_add_auto_renew_to_subscriptions` adiciona `auto_renew` em `organization_subscriptions` e `condominium_subscriptions`.
+- Cron diário 06:15: `php artisan subscriptions:auto-renew` (já no scheduler do Passo 8). Não recria a assinatura no Asaas; só prorroga a vigência e envia e-mail.
 
 ### 2026-09-21 — Limite de unidades por condomínio (SaaS)
 

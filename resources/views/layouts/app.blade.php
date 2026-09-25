@@ -1029,6 +1029,19 @@
     @php
         use App\Helpers\SidebarHelper;
         $user = Auth::user();
+        $canSendPanic = (bool) ($user->unit_id && $user->condominium_id);
+        $activeCondominiumContext = $activeCondominiumContext ?? [
+            'id' => null,
+            'condominium' => null,
+            'accessible' => collect(),
+            'can_switch' => false,
+            'show_selector' => false,
+            'is_professional_syndic' => false,
+            'has_active_condominium' => false,
+            'show_condominium_menus' => true,
+        ];
+        $showCondominiumMenus = (bool) ($activeCondominiumContext['show_condominium_menus'] ?? true);
+        $isProfessionalSyndicNav = (bool) ($activeCondominiumContext['is_professional_syndic'] ?? false);
         $defaulterMenuLocked = SidebarHelper::isDefaulterMenuLocked($user);
         $modOn = fn (string $key) => SidebarHelper::moduleEnabled($user, $key);
         $activeRoleName = $user->getActiveRoleName() ?? session('active_role') ?? optional($user->roles->first())->name;
@@ -1038,13 +1051,6 @@
             || (Route::has('access-control.index') && ($user->can('create_access_authorizations') || $user->can('manage_access_lists') || $user->can('manage_service_providers')))
             || (Route::has('access-control.reports') && $user->can('view_access_movements'))
         );
-        $activeCondominiumContext = $activeCondominiumContext ?? [
-            'id' => null,
-            'condominium' => null,
-            'accessible' => collect(),
-            'can_switch' => false,
-            'show_selector' => false,
-        ];
             $menuActive = [
             'gestao' => request()->routeIs('units.*') || request()->routeIs('users.*') || request()->routeIs('condominiums.show') || request()->routeIs('condominiums.settings.whatsapp*') || request()->routeIs('condominiums.settings.receiving*') || request()->routeIs('financial.employees.*'),
             'plataforma' => request()->routeIs('condominiums.index') || request()->routeIs('condominiums.create') || request()->routeIs('condominiums.edit') || request()->routeIs('condominiums.settings.whatsapp*'),
@@ -1135,26 +1141,20 @@
                         @endif
                         <div class="d-flex flex-column">
                             <strong class="text-white" style="font-size: 0.8rem; line-height: 1.2;">{{ Str::limit($user->name, 15) }}</strong>
-                            @if($user->hasMultipleRoles())
-                                <small class="text-white-50" style="font-size: 0.65rem; line-height: 1.1;">
-                                    {{ $activeRoleName }}
-                                </small>
-                            @else
-                                <small class="text-white-50" style="font-size: 0.65rem; line-height: 1.1;">
-                                    {{ $activeRoleName }}
-                                </small>
-                            @endif
+                            <small class="text-white-50" style="font-size: 0.65rem; line-height: 1.1;">
+                                {{ $activeRoleName }}
+                            </small>
                         </div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser">
-                        @if($user->hasMultipleRoles())
+                        @if($user->hasProfileSwitcher())
                             <li><h6 class="dropdown-header">Trocar Perfil</h6></li>
-                            @foreach($user->roles as $role)
+                            @foreach($user->selectableProfileNames() as $profileName)
                                 <li>
-                                    <a class="dropdown-item {{ session('active_role') == $role->name ? 'active' : '' }}" 
-                                       href="#" 
-                                       data-profile-role="{{ $role->name }}">
-                                        <i class="bi bi-shield-check"></i> {{ $role->name }}
+                                    <a class="dropdown-item {{ session('active_role') == $profileName ? 'active' : '' }}"
+                                       href="#"
+                                       data-profile-role="{{ $profileName }}">
+                                        <i class="bi bi-shield-check"></i> {{ $profileName }}
                                     </a>
                                 </li>
                             @endforeach
@@ -1251,6 +1251,7 @@
             <hr class="bg-white opacity-25">
 
             <ul class="nav flex-column" id="sidebarMenu">
+                @if($showCondominiumMenus)
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                         <i class="bi bi-speedometer2"></i>
@@ -1261,11 +1262,19 @@
                         @endif
                     </a>
                 </li>
+                @endif
 
                 @if($user->isManagementCompanyMember() || ($user->isAdmin() && request()->routeIs('organization.*')))
                 <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('organization.*') ? 'active' : '' }}" href="{{ route('organization.dashboard') }}">
+                    <a class="nav-link {{ request()->routeIs('organization.*') && !request()->routeIs('organization.contract.*') ? 'active' : '' }}" href="{{ route('organization.dashboard') }}">
                         <i class="bi bi-briefcase"></i> Painel da Administradora
+                    </a>
+                </li>
+                @endif
+                @if($user->canUseManagementCompanyProfile())
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('organization.contract.*') ? 'active' : '' }}" href="{{ route('organization.contract.show') }}">
+                        <i class="bi bi-receipt-cutoff"></i> Contrato SindCON
                     </a>
                 </li>
                 @endif
@@ -1275,7 +1284,15 @@
                         <i class="bi bi-shield-lock"></i> Minha Privacidade
                     </a>
                 </li>
+                @if($isProfessionalSyndicNav)
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('syndic.condominiums.*') ? 'active' : '' }}" href="{{ route('syndic.condominiums.index') }}">
+                        <i class="bi bi-buildings"></i> Meus condomínios
+                    </a>
+                </li>
+                @endif
 
+                @if($showCondominiumMenus)
                 @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
                 <li class="nav-item">
                     <a class="nav-link {{ $menuActive['learning'] ?? false ? 'active' : '' }}" href="{{ route('learning.index') }}">
@@ -1898,13 +1915,14 @@
                 </li>
                 @endif
 
-                @if(!$defaulterMenuLocked)
+                @if(!$defaulterMenuLocked && $canSendPanic)
                 <!-- ==================== ALERTA DE PÂNICO ==================== -->
                 <li class="nav-item mt-4">
                     <button class="btn btn-panic w-100" onclick="openPanicModal()">
                         <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
                     </button>
                     </li>
+                @endif
                 @endif
                 </ul>
 
@@ -1926,14 +1944,15 @@
                     </span>
 
                     <div class="d-flex align-items-center ms-auto">
-                        @unless($defaulterMenuLocked)
+                        @if(!$defaulterMenuLocked && $canSendPanic && $showCondominiumMenus)
                         <!-- Botão de Pânico -->
                         <button class="btn btn-danger btn-sm me-3" id="panicButton" onclick="openPanicModal()" title="Alerta de Pânico">
                             <i class="bi bi-exclamation-triangle-fill"></i> PÂNICO
                         </button>
-                        @endunless
+                        @endif
                         
                         <!-- Quick Actions -->
+                        @if($showCondominiumMenus)
                         <div class="btn-group me-3">
                             @if(Route::has('marketplace.create') && SidebarHelper::canCreateMarketplace($user) && !$defaulterMenuLocked)
                             <a href="{{ route('marketplace.create') }}" class="btn btn-sm btn-outline-success" title="Novo Anúncio">
@@ -1946,6 +1965,7 @@
                             </a>
                             @endif
                         </div>
+                        @endif
 
                         <!-- Notifications Bell -->
                         <div class="dropdown me-3">
@@ -2014,21 +2034,17 @@
                                 <div class="d-flex flex-column">
                                     <span class="fw-bold" style="font-size: 0.9rem;">{{ $user->name }}</span>
                                     <small class="text-white-50" style="font-size: 0.75rem;">
-                                        @if($user->hasMultipleRoles())
-                                            {{ $activeRoleName }}
-                                        @else
-                                            {{ $user->roles->first()?->name ?? 'Usuário' }}
-                                        @endif
+                                        {{ $activeRoleName }}
                                     </small>
                                 </div>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-dark">
-                                @if($user->hasMultipleRoles())
+                                @if($user->hasProfileSwitcher())
                                     <li><h6 class="dropdown-header">Trocar Perfil</h6></li>
-                                    @foreach($user->roles as $role)
+                                    @foreach($user->selectableProfileNames() as $profileName)
                                         <li>
-                                            <a class="dropdown-item {{ session('active_role') == $role->name ? 'active' : '' }}" href="#" data-profile-role="{{ $role->name }}">
-                                                <i class="bi bi-person-circle me-2"></i>{{ $role->name }}
+                                            <a class="dropdown-item {{ session('active_role') == $profileName ? 'active' : '' }}" href="#" data-profile-role="{{ $profileName }}">
+                                                <i class="bi bi-person-circle me-2"></i>{{ $profileName }}
                                             </a>
                                         </li>
                                     @endforeach
@@ -2126,6 +2142,7 @@
 
                     <!-- Mobile Navigation Menu -->
                     <ul class="nav flex-column" id="mobileSidebarMenu">
+                        @if($showCondominiumMenus)
                         <li class="nav-item">
                             <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">
                                 <i class="bi bi-speedometer2"></i>
@@ -2136,11 +2153,19 @@
                                 @endif
                             </a>
                         </li>
+                        @endif
 
                         @if($user->isManagementCompanyMember() || ($user->isAdmin() && request()->routeIs('organization.*')))
                         <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('organization.*') ? 'active' : '' }}" href="{{ route('organization.dashboard') }}">
+                            <a class="nav-link {{ request()->routeIs('organization.*') && !request()->routeIs('organization.contract.*') ? 'active' : '' }}" href="{{ route('organization.dashboard') }}">
                                 <i class="bi bi-briefcase"></i> Painel da Administradora
+                            </a>
+                        </li>
+                        @endif
+                        @if($user->canUseManagementCompanyProfile())
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('organization.contract.*') ? 'active' : '' }}" href="{{ route('organization.contract.show') }}">
+                                <i class="bi bi-receipt-cutoff"></i> Contrato SindCON
                             </a>
                         </li>
                         @endif
@@ -2150,7 +2175,15 @@
                                 <i class="bi bi-shield-lock"></i> Minha Privacidade
                             </a>
                         </li>
+                        @if($isProfessionalSyndicNav)
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('syndic.condominiums.*') ? 'active' : '' }}" href="{{ route('syndic.condominiums.index') }}">
+                                <i class="bi bi-buildings"></i> Meus condomínios
+                            </a>
+                        </li>
+                        @endif
 
+                        @if($showCondominiumMenus)
                         @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
                         <li class="nav-item">
                             <a class="nav-link {{ $menuActive['learning'] ?? false ? 'active' : '' }}" href="{{ route('learning.index') }}">
@@ -2773,12 +2806,13 @@
                         </li>
                         @endif
 
-                        @if(!($defaulterMenuLocked ?? false))
+                        @if(!($defaulterMenuLocked ?? false) && $canSendPanic)
                         <li class="nav-item mt-4">
                             <button class="btn btn-panic w-100" onclick="openPanicModal()">
                                 <i class="bi bi-exclamation-triangle-fill"></i> ALERTA DE PÂNICO
                             </button>
                         </li>
+                        @endif
                         @endif
                     </ul>
                 </div>
@@ -2802,9 +2836,7 @@
 
                 @if($errors->any())
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        <strong>Ops!</strong> Há alguns problemas com os dados enviados.
-                        <ul class="mb-0 mt-2">
+                        <ul class="mb-0">
                             @foreach($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
@@ -3921,6 +3953,7 @@
 
     <!-- Modais do Sistema de Pânico -->
     
+    @if($canSendPanic ?? false)
     <!-- Modal para Enviar Alerta de Pânico -->
     <div class="modal fade" id="panicModal" tabindex="-1" aria-labelledby="panicModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered panic-modal-custom modal-fullscreen-sm-down">
@@ -4175,6 +4208,8 @@
             </div>
         </div>
     </div>
+
+    @endif
 
     <!-- CSS para Modo de Pânico e Slide Button -->
     <style>

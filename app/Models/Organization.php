@@ -61,9 +61,14 @@ class Organization extends Model
             ->withTimestamps();
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(OrganizationSubscription::class)->latest('id');
+    }
+
     public function subscription(): HasOne
     {
-        return $this->hasOne(OrganizationSubscription::class);
+        return $this->hasOne(OrganizationSubscription::class)->latestOfMany();
     }
 
     public function isManagementCompany(): bool

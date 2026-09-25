@@ -16,6 +16,7 @@ class StoreCondominiumSubscriptionRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'subscription_id' => ['nullable', 'integer'],
             'subscription_plan_id' => ['nullable', 'exists:subscription_plans,id'],
             'financial_responsible_user_id' => ['nullable', 'exists:users,id'],
             'billing_metric' => ['required', Rule::in([
@@ -46,6 +47,7 @@ class StoreCondominiumSubscriptionRequest extends FormRequest
             'units_limit' => ['nullable', 'integer', 'min:1', 'max:50000'],
             'contract_starts_at' => ['nullable', 'date'],
             'contract_ends_at' => ['nullable', 'date', 'after_or_equal:contract_starts_at'],
+            'auto_renew' => ['nullable', 'boolean'],
             'admin_notes' => ['nullable', 'string', 'max:5000'],
         ];
     }

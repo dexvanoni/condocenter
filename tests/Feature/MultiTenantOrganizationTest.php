@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Mail\ClientWelcomeMail;
+use App\Mail\ContractRenewedMail;
+use App\Services\SubscriptionAutoRenewService;
 use App\Models\Condominium;
 use App\Models\Organization;
+use App\Models\OrganizationSubscription;
 use App\Models\SubscriptionPlan;
 use App\Models\Term;
 use App\Models\TermVersion;
@@ -14,7 +17,11 @@ use App\Services\CondominiumSubscriptionService;
 use App\Services\DirectClientOnboardingService;
 use App\Services\LgpdConsentService;
 use App\Services\OrganizationProvisioningService;
+use App\Services\OrganizationSubscriptionService;
+use App\Models\PlatformSetting;
+use App\Services\PlatformSettingsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -290,7 +297,177 @@ class MultiTenantOrganizationTest extends TestCase
         $this->actingAs($owner)
             ->get(route('organization.dashboard'))
             ->assertOk()
-            ->assertSee('Painel da Administradora', false);
+            ->assertSee('Painel da Administradora', false)
+            ->assertDontSee('ALERTA DE PÂNICO', false)
+            ->assertDontSee('> PÂNICO', false);
+
+        $this->actingAs($owner)
+            ->postJson(route('panic.send'), ['alert_type' => 'fire'])
+            ->assertForbidden();
+    }
+
+    public function test_management_owner_opens_admin_panel_and_respects_contract_limits(): void
+    {
+        $organization = Organization::factory()->managementCompany()->create();
+        $owner = User::factory()->create(['condominium_id' => null, 'senha_temporaria' => false]);
+        app(OrganizationProvisioningService::class)->attachUser($organization, (int) $owner->id, Organization::ROLE_OWNER);
+
+        OrganizationSubscription::query()->create([
+            'organization_id' => $organization->id,
+            'billing_metric' => 'unit',
+            'status' => OrganizationSubscription::STATUS_ACTIVE,
+            'max_condominiums' => 1,
+            'max_units' => 3,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('organization.dashboard'));
+
+        $this->actingAs($owner)
+            ->get(route('organization.dashboard'))
+            ->assertOk()
+            ->assertSee('Contrato SindCON', false);
+
+        OrganizationSubscription::query()->create([
+            'organization_id' => $organization->id,
+            'billing_metric' => 'unit',
+            'status' => OrganizationSubscription::STATUS_ACTIVE,
+            'recurring_amount' => 199.90,
+            'max_condominiums' => 1,
+            'max_units' => 3,
+        ]);
+
+        $this->actingAs($owner)
+            ->get(route('organization.contract.show'))
+            ->assertOk()
+            ->assertSee('199,90', false)
+            ->assertSee('Cobranças da assinatura', false);
+
+        $payload = [
+            'name' => 'Residencial da Administradora',
+            'address' => 'Rua Um, 10',
+            'city' => 'Campinas',
+            'state' => 'SP',
+            'zip_code' => '13000-000',
+            'financial_mode' => 'full',
+            'units_limit' => 3,
+            'syndic_name' => 'Síndico do Residencial',
+            'syndic_email' => 'sindico.residencial@example.com',
+        ];
+
+        $this->actingAs($owner)
+            ->post(route('organization.condominiums.store'), $payload)
+            ->assertRedirect(route('organization.dashboard'));
+
+        $condominium = Condominium::query()->where('organization_id', $organization->id)->first();
+        $this->assertNotNull($condominium);
+        $this->assertSame(3, (int) $condominium->units_limit);
+        $this->assertSame(Organization::TYPE_MANAGEMENT_COMPANY, $condominium->organization->type);
+        $syndic = User::query()->where('email', 'sindico.residencial@example.com')->first();
+        $this->assertNotNull($syndic);
+        $this->assertSame($condominium->id, $syndic->managedCondominiums()->first()->id);
+        $this->assertNull($syndic->condominium_id);
+        $this->assertTrue($syndic->hasRole('Síndico'));
+        $this->assertNull($owner->condominium_id);
+        $this->assertNotSame($owner->id, $syndic->id);
+
+        $second = Condominium::factory()->create([
+            'organization_id' => $organization->id,
+            'name' => 'Condominio Profissional Dois',
+        ]);
+        $second->syndics()->syncWithoutDetaching([$syndic->id]);
+        $syndic->forceFill(['senha_temporaria' => false, 'email_verified_at' => now()])->save();
+
+        $this->actingAs($syndic)
+            ->get(route('dashboard'))
+            ->assertRedirect(route('syndic.condominiums.index'));
+
+        $this->actingAs($syndic)
+            ->get(route('syndic.condominiums.index'))
+            ->assertOk()
+            ->assertSee('Residencial da Administradora', false)
+            ->assertSee('Condominio Profissional Dois', false);
+
+        $this->actingAs($syndic)
+            ->post(route('syndic.condominiums.enter'), ['condominium_id' => $second->id])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertSame($second->id, app(\App\Services\ActiveCondominiumService::class)->getActiveCondominiumId($syndic));
+
+        $home = Condominium::factory()->create();
+        $resident = User::factory()->create([
+            'condominium_id' => $home->id,
+            'unit_id' => \App\Models\Unit::factory()->create(['condominium_id' => $home->id])->id,
+            'email' => 'morador.sindico@example.com',
+            'senha_temporaria' => false,
+        ]);
+        $resident->assignRole('Morador');
+        $withoutSyndic = Condominium::factory()->create(['organization_id' => $organization->id]);
+
+        $this->actingAs($owner)
+            ->post(route('organization.condominiums.syndic', $withoutSyndic), [
+                'syndic_name' => $resident->name,
+                'syndic_email' => $resident->email,
+            ])
+            ->assertRedirect();
+
+        $resident->refresh();
+        $this->assertSame($home->id, $resident->condominium_id);
+        $this->assertTrue($resident->managedCondominiums()->whereKey($withoutSyndic->id)->exists());
+        $this->assertTrue($resident->hasRole('Síndico'));
+
+        $this->actingAs($owner)
+            ->from(route('organization.condominiums.create'))
+            ->post(route('organization.condominiums.store'), [
+                ...$payload,
+                'name' => 'Segundo condomínio',
+                'syndic_email' => 'sindico.segundo@example.com',
+            ])
+            ->assertRedirect(route('organization.condominiums.create'))
+            ->assertSessionHas('error');
+
+        $owner->refresh();
+        $this->assertTrue($owner->hasRole('Síndico'));
+    }
+
+    public function test_management_owner_can_switch_back_to_administradora_profile(): void
+    {
+        $organization = Organization::factory()->managementCompany()->create();
+        $owner = User::factory()->create(['condominium_id' => null, 'senha_temporaria' => false]);
+        $owner->assignRole('Síndico');
+        app(OrganizationProvisioningService::class)->attachUser($organization, (int) $owner->id, Organization::ROLE_OWNER);
+        $condominium = Condominium::factory()->create(['organization_id' => $organization->id]);
+
+        $this->actingAs($owner)
+            ->withSession(['active_role' => 'Síndico', 'active_condominium_id' => $condominium->id])
+            ->get(route('organization.dashboard'))
+            ->assertOk()
+            ->assertSee('Administradora', false)
+            ->assertSee('Trocar Perfil', false);
+
+        $this->actingAs($owner)
+            ->withSession([
+                'active_role' => 'Síndico',
+                'active_condominium_id' => $condominium->id,
+            ])
+            ->postJson(route('profile.switch'), ['role' => User::PROFILE_ADMINISTRADORA])
+            ->assertOk()
+            ->assertJsonPath('role', User::PROFILE_ADMINISTRADORA);
+
+        $this->actingAs($owner)
+            ->withSession(['active_role' => User::PROFILE_ADMINISTRADORA])
+            ->get(route('organization.dashboard'))
+            ->assertOk();
+
+        $this->assertSame(User::PROFILE_ADMINISTRADORA, $owner->getActiveRoleName());
+        $this->assertNull(app(\App\Services\ActiveCondominiumService::class)->getActiveCondominiumId($owner));
+
+        $this->actingAs($owner)
+            ->withSession(['active_role' => User::PROFILE_ADMINISTRADORA])
+            ->postJson(route('profile.switch'), ['role' => 'Síndico'])
+            ->assertOk()
+            ->assertJsonPath('role', 'Síndico');
     }
 
     public function test_organization_dashboard_forbidden_for_other_org(): void
@@ -485,6 +662,176 @@ class MultiTenantOrganizationTest extends TestCase
             ->assertRedirect(route('platform.subscriptions.edit', $result['condominium']));
 
         $this->assertSame(25, $result['condominium']->fresh()->units_limit);
+    }
+
+    public function test_activate_organization_subscription_explains_asaas_customer_error(): void
+    {
+        PlatformSetting::setValue(PlatformSettingsService::KEY_ASAAS_API_KEY, 'test-asaas-key', encrypt: true);
+        PlatformSetting::setValue(PlatformSettingsService::KEY_ASAAS_SANDBOX, '1');
+
+        $admin = User::factory()->create(['condominium_id' => null]);
+        $admin->assignRole('Administrador');
+
+        $organization = Organization::factory()->managementCompany()->create([
+            'document' => null,
+            'email' => null,
+        ]);
+        $organization->subscription()->create([
+            'status' => 'draft',
+            'billing_metric' => 'fixed',
+            'fixed_price' => 100,
+            'recurring_amount' => 100,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'boleto',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('platform.organizations.subscription.activate', $organization))
+            ->assertRedirect()
+            ->assertSessionHasErrors('asaas');
+
+        $this->assertStringContainsString(
+            'CNPJ de faturamento',
+            session('errors')->first('asaas')
+        );
+
+        $organization->update([
+            'document' => '12.345.678/0001-90',
+            'email' => 'financeiro@abc.test',
+        ]);
+
+        Http::fake([
+            'https://sandbox.asaas.com/api/v3/customers' => Http::response([
+                'errors' => [
+                    ['code' => 'invalid_object', 'description' => 'O CPF/CNPJ informado é inválido.'],
+                ],
+            ], 400),
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('platform.organizations.subscription.edit', $organization))
+            ->post(route('platform.organizations.subscription.activate', $organization))
+            ->assertRedirect()
+            ->assertSessionHasErrors('asaas');
+
+        $this->assertStringContainsString(
+            'O CPF/CNPJ informado é inválido.',
+            session('errors')->first('asaas')
+        );
+    }
+
+    public function test_management_company_can_keep_two_contracts(): void
+    {
+        $admin = User::factory()->create(['condominium_id' => null]);
+        $admin->assignRole('Administrador');
+        $organization = Organization::factory()->managementCompany()->create();
+
+        $first = app(OrganizationSubscriptionService::class)->upsert($organization, [
+            'billing_metric' => 'unit',
+            'unit_price' => 1,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'bank_deposit',
+        ], $admin);
+
+        $second = app(OrganizationSubscriptionService::class)->upsert($organization, [
+            'billing_metric' => 'unit',
+            'unit_price' => 2,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'bank_deposit',
+        ], $admin);
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertCount(2, $organization->subscriptions()->get());
+
+        $this->actingAs($admin)
+            ->get(route('platform.organizations.subscription.edit', $organization))
+            ->assertOk()
+            ->assertSee('Novo contrato', false)
+            ->assertSee('Gerenciar', false);
+    }
+
+    public function test_auto_renew_extends_the_same_period_and_emails_the_client(): void
+    {
+        Mail::fake();
+
+        $organization = Organization::factory()->managementCompany()->create([
+            'email' => 'financeiro@admin.test',
+        ]);
+        $subscription = $organization->subscription()->create([
+            'status' => 'active',
+            'auto_renew' => true,
+            'billing_metric' => 'fixed',
+            'fixed_price' => 100,
+            'recurring_amount' => 100,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'boleto',
+            'contract_starts_at' => '2026-01-01',
+            'contract_ends_at' => '2026-01-31',
+            'asaas_subscription_id' => 'sub_keep',
+            'financial_contact_email' => 'financeiro@admin.test',
+        ]);
+
+        $open = $organization->subscription()->create([
+            'status' => 'active',
+            'auto_renew' => true,
+            'billing_metric' => 'fixed',
+            'fixed_price' => 50,
+            'recurring_amount' => 50,
+            'billing_cycle' => 'monthly',
+            'payment_method' => 'boleto',
+            'contract_starts_at' => now()->toDateString(),
+            'contract_ends_at' => now()->addMonth()->toDateString(),
+        ]);
+
+        $count = app(SubscriptionAutoRenewService::class)->renewDue();
+
+        $subscription->refresh();
+        $this->assertSame(1, $count);
+        $this->assertSame('2026-02-01', $subscription->contract_starts_at->toDateString());
+        $this->assertSame('2026-03-03', $subscription->contract_ends_at->toDateString());
+        $this->assertSame('sub_keep', $subscription->asaas_subscription_id);
+        $this->assertTrue($open->fresh()->contract_ends_at->isFuture());
+
+        Mail::assertSent(ContractRenewedMail::class, function (ContractRenewedMail $mail) {
+            return $mail->hasTo('financeiro@admin.test')
+                && str_contains($mail->render(), '01/02/2026');
+        });
+    }
+
+    public function test_admin_can_edit_management_company_user_without_condominium(): void
+    {
+        Mail::fake();
+
+        $admin = User::factory()->create(['condominium_id' => null]);
+        $admin->assignRole('Administrador');
+        $organization = Organization::factory()->managementCompany()->create();
+        $member = User::factory()->create([
+            'condominium_id' => null,
+            'name' => 'Dono Antigo',
+            'is_active' => true,
+        ]);
+        app(OrganizationProvisioningService::class)->attachUser($organization, (int) $member->id, Organization::ROLE_OWNER);
+
+        $this->actingAs($admin)
+            ->get(route('platform.organizations.show', $organization))
+            ->assertOk()
+            ->assertSee('Editar', false)
+            ->assertSee('Novo usuário', false);
+
+        $this->actingAs($admin)
+            ->put(route('platform.organizations.members.update', [$organization, $member]), [
+                'name' => 'Dono Novo',
+                'email' => $member->email,
+                'role' => Organization::ROLE_ADMIN,
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('platform.organizations.show', $organization));
+
+        $member->refresh();
+        $this->assertSame('Dono Novo', $member->name);
+        $this->assertNull($member->condominium_id);
+        $this->assertTrue($member->is_active);
+        $this->assertSame(Organization::ROLE_ADMIN, $member->organizationRoleFor((int) $organization->id));
     }
 
     public function test_mass_assignment_cannot_set_organization_id_via_user_update_payload_fields(): void

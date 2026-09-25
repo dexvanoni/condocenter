@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.12 |
-| **Data** | 23/09/2026 |
+| **Versão do documento** | 2.23 |
+| **Data** | 24/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
@@ -425,6 +425,9 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-12 | Home do Administrador em `/platform` | Must | `ProfileHomeRoute`, `ProfileSelectorController` |
 | PLT-13 | Edição dos dados cadastrais da organização (razão social, documento, contato, endereço, observações) | Must | `OrganizationController@edit/update`, `platform/organizations/edit` |
 | PLT-14 | E-mail de boas-vindas em português (layout SindCON) ao cadastrar cliente direto ou administradora, com link para criar a senha | Must | `ClientWelcomeMail`, `DirectClientOnboardingService` |
+| PLT-15 | CRUD do usuário da administradora sem condomínio (criar, editar, ativar, desativar, redefinir senha, excluir) na ficha da organização | Must | `OrganizationMemberController`, `platform/organizations/members` |
+| PLT-16 | Ambiente da administradora: proprietário entra no painel sem condomínio, cria condomínios dentro de `max_condominiums`/`max_units` e opera unidades e usuários com o papel Síndico | Must | `OrganizationDashboardController`, `OrganizationCondominiumController`, `OrganizationQuotaService` |
+| PLT-17 | A administradora acompanha o contrato SaaS, valores, cobranças e faturas Asaas | Must | `OrganizationContractController`, `/organizacao/contrato` |
 
 ### 8.2 Gestão de unidades e usuários
 
@@ -1600,11 +1603,12 @@ Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliaçã
 |------|---------|
 | Rotas plataforma | `/platform/organizations/*` (lista, ficha, edição cadastral), `/platform/clients/*` |
 | Edição cadastral | Admin da plataforma em `platform/organizations/{id}/edit` (PLT-13). Tipo e status não mudam nesse formulário; status segue na ficha |
-| Painel administradora | `/organizacao` — menu só para membro de `management_company`; cliente direto (tipo `condominium`) não vê o item e recebe 403 na rota |
+| Painel administradora | `/organizacao` — home de quem não tem condomínio ativo. Menu só para membro de `management_company`. Cria condomínios (`/organizacao/condominios/novo`) respeitando `max_condominiums` e `max_units` do contrato. Ao entrar no condomínio, opera unidades e usuários com o papel Síndico |
 | Assinatura org | `organization_subscriptions` + webhook Asaas plataforma (mesmo endpoint) |
 | Contrato na ficha | Modelo B: `/platform/organizations/{id}/subscription` vincula plano do catálogo (público Administradora), ativa, sincroniza Asaas e lista cobranças. Modelo A: a ficha abre o contrato do condomínio (`/platform/condominiums/{id}/subscription`) com os planos de público Síndico/Condomínio |
 | Limite de unidades (A) | `subscription_plans.max_units` no catálogo; no cadastro direto e no contrato do síndico grava `condominiums.units_limit`, que bloqueia novas unidades acima da cota |
 | Planos | `subscription_plans.audience` = `condominium` ou `management_company`, escolhido no formulário de Planos de assinatura. Cada ficha só lista o público correspondente |
+| Usuários da administradora | Sem `condominium_id`. CRUD na ficha (`/platform/organizations/{id}/usuarios`): criar (ativo + e-mail de senha), editar, ativar, desativar, redefinir senha e excluir. O módulo Usuários do condomínio não os lista |
 | Onboarding | `DirectClientOnboardingService` envia `ClientWelcomeMail` (boas-vindas SindCON + link para criar senha; nunca senha em claro no flash) |
 | LGPD | `/minha-privacidade`, termos versionados em `/platform/terms` |
 
@@ -1632,6 +1636,7 @@ Referência canônica: `DOCUMENTAÇÃO/INSTALACAO_VPS.md`
 | Horário | Comando | Função |
 |---------|---------|--------|
 | Diário 05:00 | `fees:generate-upcoming` | Gera cobranças de taxas |
+| Diário 06:15 | `subscriptions:auto-renew` | Renova contratos SaaS com autorrenovação e envia e-mail |
 | Diário 06:30 | `charges:settle-payroll` | Liquida cobranças folha |
 | Diário 07:00 | `charges:mark-overdue` | Marca vencidas |
 | Diário 08:00 | `charges:send-reminders` | Lembretes pré-vencimento |
@@ -2166,4 +2171,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.12 — atualizado em 23/09/2026. O Modelo A passa a gravar o limite de unidades do plano no cadastro e no contrato do síndico (`condominiums.units_limit`). Mantém a v2.11 (vínculo de planos na ficha), a v2.10 (menu do painel da administradora) e a v2.7 (organizações multi-tenant). Deploy da v2.7: `php artisan migrate --force` (migrations `2026_09_23_100000`–`100006`). Para alterações de escopo, revisar com stakeholders e incrementar a versão deste PRD.*
+*Documento v2.23 — atualizado em 24/09/2026. Um morador pode ser síndico profissional de outros condomínios, sem perder a unidade em que mora. Mantém a v2.22.*

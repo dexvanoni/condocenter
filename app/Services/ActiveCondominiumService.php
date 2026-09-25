@@ -13,13 +13,24 @@ class ActiveCondominiumService
     public const SESSION_KEY = 'active_condominium_id';
     public const ORGANIZATION_SESSION_KEY = 'active_organization_id';
 
-    /**
-     * Quem pode alternar condomínio via sessão: Administrador da plataforma
-     * ou membro de administradora profissional.
-     */
+    private ?int $cacheUserId = null;
+
+    /** @var Collection<int, Condominium>|null */
+    private ?Collection $accessibleCondominiumsCache = null;
+
+    private ?bool $professionalSyndicCache = null;
+
+    /** @var Collection<int, int>|null */
+    private ?Collection $accessibleOrganizationIdsCache = null;
+
+    /** @var list<int>|null */
+    private ?array $managedCondominiumIdsCache = null;
+
     public function canUseCondominiumContext(User $user): bool
     {
-        return $user->isAdmin() || $this->isManagementCompanyMember($user);
+        return $user->isAdmin()
+            || $this->isManagementCompanyMember($user)
+            || $this->isProfessionalSyndic($user);
     }
 
     public function canSwitchCondominiums(User $user): bool
@@ -33,24 +44,37 @@ class ActiveCondominiumService
 
     public function accessibleCondominiums(User $user): Collection
     {
-        if ($user->isAdmin()) {
-            return Condominium::query()->orderBy('name')->get();
+        if ($this->cacheUserId === $user->id && $this->accessibleCondominiumsCache !== null) {
+            return $this->accessibleCondominiumsCache;
         }
 
-        if ($this->isManagementCompanyMember($user)) {
-            $organizationIds = $this->accessibleOrganizationIds($user);
+        $this->resetCacheFor($user);
 
-            if ($organizationIds->isEmpty()) {
-                return collect();
-            }
-
-            return Condominium::query()
-                ->whereIn('organization_id', $organizationIds->all())
+        if ($user->isAdmin()) {
+            $this->accessibleCondominiumsCache = Condominium::query()
+                ->select(['id', 'name', 'organization_id', 'city', 'state', 'is_active'])
                 ->orderBy('name')
                 ->get();
+        } elseif ($this->isManagementCompanyMember($user)) {
+            $organizationIds = $this->accessibleOrganizationIds($user);
+
+            $this->accessibleCondominiumsCache = $organizationIds->isEmpty()
+                ? collect()
+                : Condominium::query()
+                    ->select(['id', 'name', 'organization_id', 'city', 'state', 'is_active'])
+                    ->whereIn('organization_id', $organizationIds->all())
+                    ->orderBy('name')
+                    ->get();
+        } elseif ($this->isProfessionalSyndic($user)) {
+            $this->accessibleCondominiumsCache = $user->managedCondominiums()
+                ->select(['condominiums.id', 'condominiums.name', 'condominiums.organization_id', 'condominiums.city', 'condominiums.state', 'condominiums.is_active'])
+                ->orderBy('condominiums.name')
+                ->get();
+        } else {
+            $this->accessibleCondominiumsCache = collect();
         }
 
-        return collect();
+        return $this->accessibleCondominiumsCache;
     }
 
     public function accessibleCondominiumIds(User $user): Collection
@@ -60,13 +84,19 @@ class ActiveCondominiumService
 
     public function accessibleOrganizationIds(User $user): Collection
     {
-        if ($user->isAdmin()) {
-            return Organization::query()->pluck('id');
+        if ($this->cacheUserId === $user->id && $this->accessibleOrganizationIdsCache !== null) {
+            return $this->accessibleOrganizationIdsCache;
         }
 
-        return $user->organizations()
-            ->where('organizations.type', Organization::TYPE_MANAGEMENT_COMPANY)
-            ->pluck('organizations.id');
+        $this->resetCacheFor($user);
+
+        $this->accessibleOrganizationIdsCache = $user->isAdmin()
+            ? Organization::query()->pluck('id')
+            : $user->organizations()
+                ->where('organizations.type', Organization::TYPE_MANAGEMENT_COMPANY)
+                ->pluck('organizations.id');
+
+        return $this->accessibleOrganizationIdsCache;
     }
 
     public function getActiveOrganizationId(User $user): ?int
@@ -116,6 +146,14 @@ class ActiveCondominiumService
 
     public function getActiveCondominiumId(User $user): ?int
     {
+        if (session('active_role') === 'Morador' && $user->condominium_id) {
+            return (int) $user->condominium_id;
+        }
+
+        if (session('active_role') === User::PROFILE_ADMINISTRADORA && session(self::SESSION_KEY) === null) {
+            return null;
+        }
+
         if (!$this->canUseCondominiumContext($user)) {
             return $user->condominium_id ? (int) $user->condominium_id : null;
         }
@@ -147,7 +185,15 @@ class ActiveCondominiumService
 
         $id = $this->getActiveCondominiumId($user);
 
-        return $id ? Condominium::find($id) : null;
+        if (!$id) {
+            return null;
+        }
+
+        $cached = $this->accessibleCondominiums($user)->firstWhere('id', $id);
+
+        return $cached instanceof Condominium
+            ? $cached
+            : Condominium::query()->find($id);
     }
 
     public function hasActiveCondominium(User $user): bool
@@ -158,7 +204,7 @@ class ActiveCondominiumService
     public function setActiveCondominium(User $user, int $condominiumId): void
     {
         if (!$this->canUseCondominiumContext($user)) {
-            throw new InvalidArgumentException('Somente administradores e membros de administradora podem alternar condomínios.');
+            throw new InvalidArgumentException('Somente administradores, administradoras e síndicos profissionais podem alternar condomínios.');
         }
 
         if (!$this->accessibleCondominiumIds($user)->contains($condominiumId)) {
@@ -168,7 +214,7 @@ class ActiveCondominiumService
         session([self::SESSION_KEY => $condominiumId]);
 
         $condominium = Condominium::query()->find($condominiumId);
-        if ($condominium?->organization_id) {
+        if ($condominium?->organization_id && $this->userCanAccessOrganization($user, (int) $condominium->organization_id)) {
             $this->setActiveOrganization($user, (int) $condominium->organization_id);
         }
     }
@@ -180,11 +226,7 @@ class ActiveCondominiumService
 
     public function userCanAccessCondominium(User $user, int $condominiumId): bool
     {
-        if ($user->isAdmin()) {
-            return $this->accessibleCondominiumIds($user)->contains($condominiumId);
-        }
-
-        if ($this->isManagementCompanyMember($user)) {
+        if ($user->isAdmin() || $this->isManagementCompanyMember($user) || $this->isProfessionalSyndic($user)) {
             return $this->accessibleCondominiumIds($user)->contains($condominiumId);
         }
 
@@ -200,6 +242,61 @@ class ActiveCondominiumService
         return $this->accessibleOrganizationIds($user)->contains($organizationId);
     }
 
+    public function isProfessionalSyndic(User $user): bool
+    {
+        if ($this->cacheUserId === $user->id && $this->professionalSyndicCache !== null) {
+            return $this->professionalSyndicCache;
+        }
+
+        $this->resetCacheFor($user);
+
+        if (!$user->hasAssignedRole('Síndico') || $user->isAdmin() || $user->isManagementCompanyMember()) {
+            $this->professionalSyndicCache = false;
+
+            return false;
+        }
+
+        $managedIds = $this->managedCondominiumIds($user);
+        $managedCount = count($managedIds);
+
+        if ($managedCount > 1) {
+            $this->professionalSyndicCache = true;
+
+            return true;
+        }
+
+        if ($managedCount !== 1) {
+            $this->professionalSyndicCache = false;
+
+            return false;
+        }
+
+        $managedId = $managedIds[0];
+        $this->professionalSyndicCache = !$user->unit_id || (int) $user->condominium_id !== $managedId;
+
+        return $this->professionalSyndicCache;
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function managedCondominiumIds(User $user): array
+    {
+        if ($this->cacheUserId === $user->id && $this->managedCondominiumIdsCache !== null) {
+            return $this->managedCondominiumIdsCache;
+        }
+
+        $this->resetCacheFor($user);
+
+        $this->managedCondominiumIdsCache = $user->managedCondominiums()
+            ->pluck('condominiums.id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        return $this->managedCondominiumIdsCache;
+    }
+
     protected function isManagementCompanyMember(User $user): bool
     {
         return $user->isManagementCompanyMember();
@@ -212,5 +309,16 @@ class ActiveCondominiumService
         session([self::SESSION_KEY => $id]);
 
         return $id;
+    }
+
+    protected function resetCacheFor(User $user): void
+    {
+        if ($this->cacheUserId !== $user->id) {
+            $this->cacheUserId = $user->id;
+            $this->accessibleCondominiumsCache = null;
+            $this->professionalSyndicCache = null;
+            $this->accessibleOrganizationIdsCache = null;
+            $this->managedCondominiumIdsCache = null;
+        }
     }
 }

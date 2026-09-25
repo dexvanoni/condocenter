@@ -27,7 +27,14 @@ class CondominiumSubscriptionService
     public function upsert(Condominium $condominium, array $data, User $admin): CondominiumSubscription
     {
         return DB::transaction(function () use ($condominium, $data, $admin) {
-            $subscription = $condominium->subscription ?? new CondominiumSubscription([
+            $subscription = null;
+            if (!empty($data['subscription_id'])) {
+                $subscription = $condominium->subscriptions()
+                    ->whereKey($data['subscription_id'])
+                    ->first();
+            }
+
+            $subscription ??= new CondominiumSubscription([
                 'condominium_id' => $condominium->id,
                 'created_by' => $admin->id,
                 'status' => CondominiumSubscription::STATUS_DRAFT,
@@ -58,6 +65,7 @@ class CondominiumSubscriptionService
                 'financial_contact_phone' => $data['financial_contact_phone'] ?? null,
                 'contract_starts_at' => $data['contract_starts_at'] ?? null,
                 'contract_ends_at' => $data['contract_ends_at'] ?? null,
+                'auto_renew' => (bool) ($data['auto_renew'] ?? false),
                 'admin_notes' => $data['admin_notes'] ?? null,
             ]);
 

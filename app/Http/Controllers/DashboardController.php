@@ -44,6 +44,14 @@ class DashboardController extends Controller
             return redirect()->route('platform.dashboard');
         }
 
+        if ($user->isManagementCompanyMember() && !$condominium) {
+            return redirect()->route('organization.dashboard');
+        }
+
+        if ($activeCondominiumService->isProfessionalSyndic($user) && !$condominium) {
+            return redirect()->route('syndic.condominiums.index');
+        }
+
         // Verificar se usuário tem condomínio
         if (!$condominium) {
             return view('dashboard.no-condominium');

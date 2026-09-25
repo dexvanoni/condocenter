@@ -21,7 +21,11 @@ class CheckActiveProfile
             return $next($request);
         }
 
-        if (!$user->hasMultipleRoles()) {
+        if (session('active_role') === \App\Models\User::PROFILE_ADMINISTRADORA && !$user->canUseManagementCompanyProfile()) {
+            session()->forget('active_role');
+        }
+
+        if (!$user->hasMultipleRoles() && session('active_role') !== \App\Models\User::PROFILE_ADMINISTRADORA) {
             $singleRole = $user->roles->first()?->name;
 
             if ($singleRole && session('active_role') !== $singleRole) {
@@ -56,7 +60,7 @@ class CheckActiveProfile
         if (session('active_role')) {
             $roleName = session('active_role');
             
-            if (!$user->hasAssignedRole($roleName)) {
+            if (!$user->acceptsProfile($roleName)) {
                 session()->forget('active_role');
                 $user->refreshActiveProfileCache();
                 

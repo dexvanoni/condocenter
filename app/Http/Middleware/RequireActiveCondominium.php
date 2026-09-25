@@ -29,6 +29,18 @@ class RequireActiveCondominium
             return $next($request);
         }
 
+        if ($user->isManagementCompanyMember()) {
+            return redirect()
+                ->route('organization.dashboard')
+                ->with('info', 'Selecione ou cadastre um condomínio para continuar.');
+        }
+
+        if ($this->activeCondominiumService->isProfessionalSyndic($user)) {
+            return redirect()
+                ->route('syndic.condominiums.index')
+                ->with('info', 'Selecione o condomínio para continuar.');
+        }
+
         if ($request->expectsJson()) {
             return response()->json([
                 'error' => 'Selecione um condomínio para continuar.',
