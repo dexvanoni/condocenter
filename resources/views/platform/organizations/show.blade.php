@@ -115,6 +115,52 @@
                             <strong>{{ $directCondo->units_limit ? $directCondo->unitsQuotaSummary() : 'sem limite' }}</strong>
                         </p>
                     @endif
+                    <hr class="my-3">
+                    <h6 class="mb-2"><i class="bi bi-robot"></i> Consultor Financeiro (LLM)</h6>
+                    <p class="small text-muted mb-2">
+                        @if($organization->isManagementCompany())
+                            Limite mensal <strong>compartilhado</strong> por todos os condomínios desta administradora.
+                        @else
+                            Limite mensal para o condomínio desta organização.
+                        @endif
+                        Conta apenas consultas novas (cache não consome cota).
+                    </p>
+                    <p class="small mb-2">
+                        Uso em {{ $llmQuota['period_label'] }}:
+                        <strong>
+                            {{ $llmQuota['used'] }}
+                            @if($llmQuota['limit'] === null)
+                                / não configurado
+                            @else
+                                / {{ $llmQuota['limit'] }}
+                            @endif
+                        </strong>
+                        @if($llmQuota['remaining'] !== null)
+                            <span class="text-muted">(restam {{ $llmQuota['remaining'] }})</span>
+                        @endif
+                    </p>
+                    <form method="POST" action="{{ route('platform.organizations.update-llm-limit', $organization) }}" class="row g-2 align-items-end">
+                        @csrf
+                        @method('PATCH')
+                        <div class="col-auto flex-grow-1">
+                            <label class="form-label small mb-1" for="llm_monthly_limit">Limite mensal</label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100000"
+                                step="1"
+                                class="form-control form-control-sm"
+                                id="llm_monthly_limit"
+                                name="llm_monthly_limit"
+                                value="{{ old('llm_monthly_limit', $organization->llm_monthly_limit) }}"
+                                placeholder="Ex.: 50"
+                            >
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Salvar limite</button>
+                        </div>
+                    </form>
+                    <p class="form-text small mb-3">Deixe em branco e salve para remover a configuração (bloqueia novas consultas até definir um número).</p>
                     @if($organization->isManagementCompany())
                         <a href="{{ route('platform.organizations.subscription.edit', $organization) }}" class="btn btn-sm btn-primary">
                             Gerenciar contrato e cobranças

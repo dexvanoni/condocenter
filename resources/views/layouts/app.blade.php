@@ -1063,6 +1063,7 @@
                 || request()->routeIs('financial.status.*')
                 || request()->routeIs('monthly-closing.*')
                 || request()->routeIs('financial.accounts.*')
+                || request()->routeIs('financial.ai-advisor.*')
                 || request()->routeIs('revenue.*')
                 || request()->routeIs('expenses.*')
                 || request()->routeIs('bank-reconciliation.*')
@@ -1400,6 +1401,13 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}" title="Registrar recebimentos e pagamentos do condomínio">
                                     <i class="bi bi-safe"></i> Caixa do Condomínio
+                                </a>
+                            </li>
+                            @endif
+                            @if(!$isFinancialSimplified && Route::has('financial.ai-advisor.index') && $user->isSindico() && session('active_role') === 'Síndico')
+                            <li class="nav-item">
+                                <a class="nav-link {{ request()->routeIs('financial.ai-advisor.*') ? 'active' : '' }}" href="{{ route('financial.ai-advisor.index') }}" title="Análise financeira com indicadores reais do condomínio">
+                                    <i class="bi bi-robot"></i> Consultor Financeiro
                                 </a>
                             </li>
                             @endif
@@ -2287,11 +2295,18 @@
                             <div class="collapse {{ $menuActive['financeiro'] ? 'show' : '' }}" id="mobileMenuFinanceiro" data-bs-parent="#mobileSidebarMenu">
                                 <ul class="nav flex-column inner-nav">
                                     @if(!$mobileFinancialSimplified && Route::has('financial.accounts.index') && ($mobileFinanceAdmin || $user->can('view_transactions') || $user->can('view_own_financial') || $mobileFinanceResident))
-                                    <li class="nav-item">
+                                        <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('financial.accounts.*') ? 'active' : '' }}" href="{{ route('financial.accounts.index') }}" title="Registrar recebimentos e pagamentos do condomínio">
                                             <i class="bi bi-safe"></i> Caixa do Condomínio
                                         </a>
-                                    </li>
+                                        </li>
+                                    @endif
+                                    @if(!$mobileFinancialSimplified && Route::has('financial.ai-advisor.index') && $user->isSindico() && session('active_role') === 'Síndico')
+                                        <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('financial.ai-advisor.*') ? 'active' : '' }}" href="{{ route('financial.ai-advisor.index') }}" title="Análise financeira com indicadores reais do condomínio">
+                                            <i class="bi bi-robot"></i> Consultor Financeiro
+                                        </a>
+                                        </li>
                                     @endif
                                     @if($mobileFinanceAdmin)
                                         @if(Route::has('fees.index') && $user->can('view_charges'))

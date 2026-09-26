@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
+use App\Services\Finance\FinanceAiQuotaService;
 use App\Services\OrganizationProvisioningService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class OrganizationController extends Controller
         return view('platform.organizations.index', compact('organizations'));
     }
 
-    public function show(Organization $organization): View
+    public function show(Organization $organization, FinanceAiQuotaService $quotaService): View
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
@@ -47,7 +48,9 @@ class OrganizationController extends Controller
             'subscription.plan',
         ]);
 
-        return view('platform.organizations.show', compact('organization'));
+        $llmQuota = $quotaService->quotaForOrganization($organization);
+
+        return view('platform.organizations.show', compact('organization', 'llmQuota'));
     }
 
     public function create(): RedirectResponse
@@ -101,6 +104,21 @@ class OrganizationController extends Controller
         $organization->update(['status' => $data['status']]);
 
         return back()->with('success', 'Status da organização atualizado.');
+    }
+
+    public function updateLlmLimit(Request $request, Organization $organization): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $data = $request->validate([
+            'llm_monthly_limit' => ['nullable', 'integer', 'min:0', 'max:100000'],
+        ]);
+
+        $organization->update([
+            'llm_monthly_limit' => $data['llm_monthly_limit'] ?? null,
+        ]);
+
+        return back()->with('success', 'Limite mensal do Consultor Financeiro atualizado.');
     }
 
     /**

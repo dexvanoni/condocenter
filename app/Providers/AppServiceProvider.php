@@ -115,6 +115,12 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('self-registration', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip());
         });
+
+        RateLimiter::for('finance-ai-advisor', function (Request $request) {
+            $limit = (int) config('finance_ai.rate_limit', 10);
+
+            return Limit::perHour(max(1, $limit))->by($request->user()?->id ?? $request->ip());
+        });
     }
 
     protected function shouldForceHttpsUrls(): bool

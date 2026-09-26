@@ -6,11 +6,11 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.31 |
+| **Versão do documento** | 2.34 |
 | **Data** | 26/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
-| **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
+| **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria), OpenAI + Google Gemini (Consultor Financeiro) |
 
 ---
 
@@ -514,6 +514,9 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | FIN-34 | Passo 8 do fechamento mensal conta linhas de extrato sem vínculo | Should | `MonthlyClosingChecklistService::stepBankReconciliation` |
 | FIN-35 | Categoria obrigatória em despesa do caixa (taxonomia fixa) | Must | `ExpenseCategories`, `CondominiumAccountController::storeExpense`, modal pagamento |
 | FIN-36 | Dashboard: despesas por categoria, alertas MoM/média 3m e previsão anual | Must | `FinancialCategoryInsightsService`, `sindico-financial` |
+| FIN-37 | Consultor Financeiro IA (perguntas pré-definidas; modo completo; exclusivo síndico) | Must | `FinanceAiAdvisorService`, `FinancialAnalysisService`, `/financial/consultor` |
+| FIN-38 | Limite mensal de consultas LLM por organização (compartilhado na administradora) | Must | `organizations.llm_monthly_limit`, `FinanceAiQuotaService`, tela Organização |
+| FIN-39 | Provider LLM por condomínio (OpenAI ou Gemini; chaves globais no .env) | Must | `condominiums.ai_provider`/`ai_model`, `AiProviderManager`, `CondominiumAiSettingsController` |
 
 #### Passos do fechamento mensal (`MonthlyClosingSteps`)
 
@@ -2181,4 +2184,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.31 — atualizado em 26/09/2026. Lista **Meus condomínios** considera pivot + condomínio “casa” do síndico; vínculo na pivot ao cadastrar Síndico no condomínio. Mantém a v2.30.*
+*Documento v2.34 — atualizado em 26/09/2026. **FIN-39** provider/modelo LLM por condomínio (OpenAI + Gemini). Mantém a v2.33 (FIN-38).*

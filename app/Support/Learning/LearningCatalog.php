@@ -393,6 +393,49 @@ final class LearningCatalog
                 ],
             ],
             [
+                'slug' => 'consultor-financeiro-sindcon',
+                'module' => 'financial',
+                'title' => 'Consultor Financeiro SindCON',
+                'summary' => 'Usar as perguntas pré-definidas para obter recomendações com base nos indicadores reais do condomínio (modo completo).',
+                'audience' => 'sindico',
+                'level' => 'intermediario',
+                'minutes' => 5,
+                'critical' => true,
+                'tags' => ['consultor', 'ia', 'indicadores', 'economia'],
+                'route_hint' => 'financial.ai-advisor.index',
+                'video' => null,
+                'video_url' => null,
+                'objectives' => [
+                    'Abrir o Consultor apenas no modo financeiro completo',
+                    'Escolher uma pergunta pré-definida (sem chat livre)',
+                    'Interpretar resumo, pontos de atenção e recomendações',
+                    'Lembrar que a IA não inventa números — usa só o que o SindCON calculou',
+                ],
+                'steps' => [
+                    [
+                        'title' => 'Onde abrir',
+                        'body' => 'Em **Financeiro → Consultor Financeiro** (também há um atalho no **Caixa do Condomínio**). Disponível somente no **modo completo**.',
+                    ],
+                    [
+                        'title' => 'Escolher a pergunta',
+                        'body' => 'Clique em uma das 9 perguntas (ex.: onde gastamos mais, energia, inadimplência, saúde financeira). Não há campo de texto livre nesta versão.',
+                    ],
+                    [
+                        'title' => 'Ler a análise',
+                        'body' => 'Aguarde o carregamento. O resultado traz **resumo**, **pontos de atenção** e **recomendações** com ação, motivo, impacto e prioridade. Use como apoio à decisão — não como parecer jurídico ou contábil.',
+                    ],
+                    [
+                        'title' => 'Se falhar',
+                        'body' => 'Se a análise não puder ser gerada, seus dados financeiros continuam normais no Caixa e nos relatórios. Tente de novo mais tarde.',
+                    ],
+                ],
+                'checklist' => [
+                    'Confirmou que o condomínio está em modo financeiro completo',
+                    'Abriu o Consultor e selecionou uma pergunta',
+                    'Leu recomendações sem tratar como garantia de economia',
+                ],
+            ],
+            [
                 'slug' => 'dashboard-custos-por-categoria',
                 'module' => 'financial',
                 'title' => 'Dashboard: custos, alertas e previsões por categoria',

@@ -42,6 +42,8 @@
     </div>
 </div>
 
+@include('finance.partials.ai-advisor-promo')
+
 <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
         <div class="card shadow-sm h-100 border-0 border-start border-4 border-secondary">

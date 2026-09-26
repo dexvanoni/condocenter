@@ -42,6 +42,8 @@ class Condominium extends Model implements Auditable
         'enabled_modules',
         'units_limit',
         'label_ocr_engine',
+        'ai_provider',
+        'ai_model',
         'occurrence_book_public_enabled',
         'registration_code',
         'whatsapp_enabled',

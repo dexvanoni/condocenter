@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 26/09/2026 (backfill vínculos síndico × condomínio)
+- **Última revisão:** 26/09/2026 (LLM OpenAI + Gemini por condomínio)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -653,6 +653,26 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-26 — Provider LLM por condomínio (OpenAI + Gemini)
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Migration `2026_09_26_200000_add_ai_provider_fields_to_condominiums_and_consultations` adiciona `condominiums.ai_provider` / `ai_model` e `ai_financial_consultations.provider`. Condomínios existentes ficam em `openai` (compatível com o comportamento anterior).
+- Antes do `config:cache`, acrescente no `.env` (opcional para Gemini): `GEMINI_API_KEY`, `GEMINI_MODEL` (padrão `gemini-3.8-flash`), `GEMINI_TIMEOUT`. OpenAI permanece com `OPENAI_*`.
+- Admin escolhe provider/modelo em **Condomínios → [condo] → Consultor Financeiro — Inteligência Artificial**. Sem cron/worker novo. Sem dependência Composer nova.
+
+### 2026-09-26 — Limite mensal LLM por organização
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Migration `2026_09_26_190000_add_llm_monthly_limit_to_organizations_table` adiciona `organizations.llm_monthly_limit` (nullable).
+- Sem variável de `.env` nova. O admin da plataforma define o limite em **Organizações → [org] → Contrato → Consultor Financeiro (LLM)**.
+- Administradora: a cota mensalmente é compartilhada entre todos os condomínios da org. Cliente direto: cota do condomínio da organização.
+- Conta apenas status `success` (cache hit não consome).
+
+### 2026-09-26 — Consultor Financeiro SindCON (IA)
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Migration `2026_09_26_180000_create_ai_financial_consultations_table` cria a tabela `ai_financial_consultations` (log de uso/tokens; sem snapshot financeiro completo).
+- Antes do `config:cache`, acrescente no `.env` (veja `.env.example`): `OPENAI_API_KEY`, `OPENAI_MODEL` (padrão `gpt-5.6-luna`), `OPENAI_TIMEOUT`, `FINANCE_AI_RATE_LIMIT`, `FINANCE_AI_CACHE_TTL`. Sem a API key, a tela funciona mas a análise retorna mensagem amigável.
+- Sem cron/worker novo. Sem dependência Composer nova (usa `Http` facade).
+- Recurso só no **modo financeiro completo**: `/financial/consultor`.
 
 ### 2026-09-26 — Meus condomínios (síndico multi-origem)
 

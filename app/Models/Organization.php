@@ -40,12 +40,14 @@ class Organization extends Model
         'status',
         'trial_ends_at',
         'notes',
+        'llm_monthly_limit',
     ];
 
     protected function casts(): array
     {
         return [
             'trial_ends_at' => 'datetime',
+            'llm_monthly_limit' => 'integer',
         ];
     }
 

@@ -259,6 +259,115 @@
         @endcan
 
         @if($isAdmin)
+        @php
+            $aiProviderLabels = \App\Support\FinanceAiProvider::labels();
+            $selectedAiProvider = \App\Support\FinanceAiProvider::normalize($condominium->ai_provider);
+            $openaiModels = \App\Support\FinanceAiProvider::modelsFor('openai');
+            $geminiModels = \App\Support\FinanceAiProvider::modelsFor('gemini');
+            $selectedAiModel = $condominium->ai_model
+                ?: \App\Support\FinanceAiProvider::defaultModel($selectedAiProvider);
+            $openaiConfigured = \App\Support\FinanceAiProvider::isApiKeyConfigured('openai');
+            $geminiConfigured = \App\Support\FinanceAiProvider::isApiKeyConfigured('gemini');
+        @endphp
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="bi bi-stars"></i> Consultor Financeiro — Inteligência Artificial</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Escolha o provedor e o modelo usados pelo Consultor Financeiro deste condomínio.
+                    As chaves de API são globais da plataforma (<code>.env</code>); o síndico não escolhe o provedor.
+                </p>
+                <form method="POST" action="{{ route('condominiums.settings.ai.update', $condominium) }}" id="finance-ai-settings-form">
+                    @csrf
+                    @method('PUT')
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="ai_provider" class="form-label">Provedor</label>
+                            <select name="ai_provider" id="ai_provider" class="form-select" required>
+                                @foreach($aiProviderLabels as $providerKey => $providerLabel)
+                                    <option value="{{ $providerKey }}" @selected(old('ai_provider', $selectedAiProvider) === $providerKey)>
+                                        {{ $providerLabel }}
+                                        @if($providerKey === 'openai' && ! $openaiConfigured) (API key ausente) @endif
+                                        @if($providerKey === 'gemini' && ! $geminiConfigured) (API key ausente) @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('ai_provider')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ai_model" class="form-label">Modelo</label>
+                            <select name="ai_model" id="ai_model" class="form-select" required
+                                    data-openai-models='@json($openaiModels)'
+                                    data-gemini-models='@json($geminiModels)'
+                                    data-selected="{{ old('ai_model', $selectedAiModel) }}">
+                            </select>
+                            @error('ai_model')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                    <div class="mt-3 small text-muted">
+                        <span class="me-3">
+                            OpenAI:
+                            @if($openaiConfigured)
+                                <span class="badge bg-success">configurada</span>
+                            @else
+                                <span class="badge bg-secondary">OPENAI_API_KEY ausente</span>
+                            @endif
+                        </span>
+                        <span>
+                            Gemini:
+                            @if($geminiConfigured)
+                                <span class="badge bg-success">configurada</span>
+                            @else
+                                <span class="badge bg-secondary">GEMINI_API_KEY ausente</span>
+                            @endif
+                        </span>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">
+                        <i class="bi bi-check2"></i> Salvar provedor de IA
+                    </button>
+                </form>
+            </div>
+        </div>
+        <script>
+            (function () {
+                const providerEl = document.getElementById('ai_provider');
+                const modelEl = document.getElementById('ai_model');
+                if (!providerEl || !modelEl) return;
+
+                const modelsByProvider = {
+                    openai: JSON.parse(modelEl.dataset.openaiModels || '[]'),
+                    gemini: JSON.parse(modelEl.dataset.geminiModels || '[]'),
+                };
+                const preferred = modelEl.dataset.selected || '';
+
+                function refreshModels() {
+                    const provider = providerEl.value;
+                    const models = modelsByProvider[provider] || [];
+                    modelEl.innerHTML = '';
+                    models.forEach((model) => {
+                        const opt = document.createElement('option');
+                        opt.value = model;
+                        opt.textContent = model;
+                        if (model === preferred) opt.selected = true;
+                        modelEl.appendChild(opt);
+                    });
+                    if (!modelEl.value && models.length) {
+                        modelEl.value = models[0];
+                    }
+                }
+
+                providerEl.addEventListener('change', refreshModels);
+                refreshModels();
+            })();
+        </script>
+        @endif
+
+        @if($isAdmin)
         <div class="card shadow-sm mb-4 border-primary">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-receipt-cutoff"></i> Assinatura SaaS</h5>

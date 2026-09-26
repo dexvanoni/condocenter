@@ -15,6 +15,7 @@ use App\Http\Controllers\Finance\BankAccountController;
 use App\Http\Controllers\Finance\BankReconciliationController;
 use App\Http\Controllers\Finance\BankStatementController;
 use App\Http\Controllers\Finance\ChargeSettlementController;
+use App\Http\Controllers\Finance\FinanceAiAdvisorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -242,6 +243,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
                 Route::get('/financial/status', FinancialStatusController::class)
                     ->middleware('can:view_financial_reports')
                     ->name('financial.status.index');
+
+                Route::get('/financial/consultor', [FinanceAiAdvisorController::class, 'index'])
+                    ->name('financial.ai-advisor.index');
+                Route::post('/financial/consultor/analisar', [FinanceAiAdvisorController::class, 'analyze'])
+                    ->middleware('throttle:finance-ai-advisor')
+                    ->name('financial.ai-advisor.analyze');
 
                 Route::get('/financial/monthly-closing', [\App\Http\Controllers\Finance\MonthlyClosingController::class, 'index'])
                     ->middleware('can:view_financial_reports')
@@ -651,6 +658,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
         ->name('condominiums.settings.modules.update');
     Route::put('/condominiums/{condominium}/settings/ocr', [\App\Http\Controllers\CondominiumOcrSettingsController::class, 'update'])
         ->name('condominiums.settings.ocr.update');
+    Route::put('/condominiums/{condominium}/settings/ai', [\App\Http\Controllers\CondominiumAiSettingsController::class, 'update'])
+        ->name('condominiums.settings.ai.update');
     Route::post('/condominiums/{condominium}/settings/receiving/test', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'test'])
         ->name('condominiums.settings.receiving.test');
     Route::post('/condominiums/{condominium}/settings/receiving/complete', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'completeSetup'])
@@ -715,6 +724,8 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
             ->name('organizations.update');
         Route::patch('/organizations/{organization}/status', [\App\Http\Controllers\Platform\OrganizationController::class, 'updateStatus'])
             ->name('organizations.update-status');
+        Route::patch('/organizations/{organization}/llm-limit', [\App\Http\Controllers\Platform\OrganizationController::class, 'updateLlmLimit'])
+            ->name('organizations.update-llm-limit');
         Route::get('/organizations/{organization}/usuarios/novo', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'create'])
             ->name('organizations.members.create');
         Route::post('/organizations/{organization}/usuarios', [\App\Http\Controllers\Platform\OrganizationMemberController::class, 'store'])
