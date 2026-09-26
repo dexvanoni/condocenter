@@ -15,7 +15,7 @@
                         Cadastre uma selfie para facilitar o reconhecimento na portaria e nos acessos do condomínio.
                     </p>
                 </div>
-                <a href="{{ route('users.edit', $currentUser) }}#profile-photo" class="btn btn-warning align-self-center">
+                <a href="{{ route('profile.edit') }}#profile-photo" class="btn btn-warning align-self-center">
                     <i class="bi bi-camera me-1"></i> Cadastrar foto
                 </a>
             </div>

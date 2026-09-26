@@ -24,6 +24,8 @@ class EnsureCondominiumSaasAccess
             'logout',
             'profile.switch',
             'profile.selector',
+            'profile.edit',
+            'profile.update',
         )) {
             return $next($request);
         }

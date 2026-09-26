@@ -663,31 +663,16 @@
                             </div>
                         </div>
 
-                        <!-- Alterar Senha -->
+                        @can('resetPassword', $user)
                         <div class="col-12 mt-4">
-                            <div class="password-section">
-                                <h6 class="fw-bold mb-3">
-                                    <i class="bi bi-key-fill"></i> Alterar Senha (Opcional)
-                                </h6>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Nova Senha</label>
-                                        <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" 
-                                               placeholder="Deixe em branco para manter a atual">
-                                        @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Confirmar Nova Senha</label>
-                                        <input type="password" name="password_confirmation" class="form-control" 
-                                               placeholder="Confirme a nova senha">
-                                    </div>
-                                </div>
-                                <small class="text-muted d-block mt-2">
-                                    <i class="bi bi-info-circle"></i> 
-                                    Mínimo de 8 caracteres. Deixe em branco para não alterar.
-                                </small>
+                            <div class="alert alert-light border">
+                                <h6 class="fw-bold mb-2"><i class="bi bi-envelope"></i> Senha de acesso</h6>
+                                <p class="small text-muted mb-0">
+                                    Por segurança, ninguém visualiza ou define senha manualmente. Envie um link de redefinição para o e-mail do usuário.
+                                </p>
                             </div>
                         </div>
+                        @endcan
                     </div>
                 </div>
             </div>
@@ -700,7 +685,7 @@
                 <a href="{{ route('users.show', $user) }}" class="btn btn-outline-secondary btn-lg">
                     <i class="bi bi-x-circle"></i> Cancelar
                 </a>
-                @can('manage_users')
+                @can('resetPassword', $user)
                 <button type="button" class="btn btn-warning btn-lg" onclick="resetPassword()">
                     <i class="bi bi-envelope"></i> Enviar link de redefinição
                 </button>

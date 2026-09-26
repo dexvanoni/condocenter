@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.28 |
-| **Data** | 25/09/2026 |
+| **Versão do documento** | 2.31 |
+| **Data** | 26/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria) |
@@ -140,7 +140,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 #### P2 — Síndico
 - **Quem:** gestor eleito ou profissional do condomínio
 - **Necessidades:** finanças, usuários, reservas, comunicação, moderação, relatórios, landing page, fechamento mensal
-- **Pode atuar em múltiplos condomínios** via pivot `condominium_user` + seletor `condominium.switch`
+- **Pode atuar em múltiplos condomínios** via pivot `condominium_user` (administradora e cadastro no condomínio) + `users.condominium_id` quando o síndico também está vinculado como morador/cadastro “casa” + seletor `condominium.switch` / tela **Meus condomínios**
 - **Dashboard:** `dashboard/sindico.blade.php`
 
 #### P3 — Morador (responsável pela unidade)
@@ -199,8 +199,11 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - Usuário pode possuir **múltiplos papéis** (ex.: Síndico + Morador)
 - Permissões avaliadas pelo **perfil ativo** em sessão (`HasActiveProfileRole`, `active_role`)
 - Troca via `ProfileSelectorController` → `/profile/select`, `/profile/switch`
-- Middleware `CheckActiveProfile`: auto-define `active_role` quando há um único papel; valida se o papel em sessão ainda pertence ao usuário; permite pânico e troca de senha antes da seleção
-- Redirecionamento pós-seleção via `ProfileHomeRoute` (Administrador → `platform.dashboard`; demais → `dashboard`)
+- Middleware `CheckActiveProfile`: usa `hasProfileSwitcher()` (inclui perfil virtual **Administradora**); valida `active_role`; permite pânico e fluxos de senha antes da seleção
+- **Ordem na tela de seleção:** Administrador → Administradora → Síndico → demais (`User::PROFILE_SELECTION_ORDER`)
+- Redirecionamento pós-seleção via `ProfileHomeRoute` (Administrador → `platform.dashboard`; Administradora → `organization.dashboard`; demais → `dashboard`)
+- **Escopo de gestão de usuários** (`UserScopeService` / `UserPolicy`): Administrador (plataforma) no escopo global/condomínio ativo; **Administradora** só usuários dos condomínios da sua organização; **Síndico** só no(s) condomínio(s) em que atua; **todos** editam dados pessoais próprios em `/meu-perfil` (`profile.edit` / `profile.update`, view `users.profile-edit`), sem exigir condomínio ativo; binding de rota `user` ignora escopo de tenant para o próprio usuário autenticado
+- **Senhas:** nenhum perfil define ou visualiza senha de terceiros; gestores enviam **link por e-mail** (`resetPassword`); usuário usa “Esqueci minha senha” ou link recebido (`AdminPasswordResetLinkMail`)
 - Sidebar e dashboard renderizados conforme perfil ativo + módulos habilitados
 
 ---
@@ -223,7 +226,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - Auto-cadastro com código do condomínio + aprovação do síndico (com rate limit)
 - Permissões granulares para agregados (`AgregadoPermission`)
 - Onboarding: e-mail verificado, troca de senha obrigatória (`CheckPasswordChange`, `PasswordChangeController`), seleção de perfil
-- Reset de senha pelo síndico/admin: **link por e-mail** (`AdminPasswordResetLinkMail`) — sem senha temporária fixa na tela
+- Reset de senha pelo administrador da plataforma, administradora (no escopo) ou síndico (no condomínio): **somente link por e-mail** — formulário de “nova senha” removido da edição de usuários
 
 #### Financeiro
 - Modo **completo** (caixa, contas bancárias, conciliação, funcionários, DRE) e **simplificado** (upload de prestação)
@@ -2178,4 +2181,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.28 — atualizado em 25/09/2026. Cota de unidades visível ao síndico em Nova unidade. Mantém a v2.27.*
+*Documento v2.31 — atualizado em 26/09/2026. Lista **Meus condomínios** considera pivot + condomínio “casa” do síndico; vínculo na pivot ao cadastrar Síndico no condomínio. Mantém a v2.30.*

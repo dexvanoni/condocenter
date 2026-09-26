@@ -82,13 +82,13 @@
                     <p class="text-muted mb-0">Gerencie suas informações pessoais e documentos</p>
                 </div>
                 <div>
-                    <a href="{{ route('password.change') }}" class="btn btn-outline-warning">
-                        <i class="bi bi-key me-2"></i>Alterar Senha
+                    <a href="{{ route('password.request') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-envelope me-2"></i>Redefinir senha por e-mail
                     </a>
                 </div>
             </div>
 
-            <form action="{{ route('users.update', $user) }}" method="POST" enctype="multipart/form-data" id="profileForm">
+            <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" id="profileForm">
                 @csrf
                 @method('PUT')
                 
@@ -259,7 +259,7 @@
                                         <label class="form-label fw-bold text-muted">
                                             <i class="bi bi-building"></i> Condomínio
                                         </label>
-                                        <input type="text" class="form-control bg-light" value="{{ $user->condominium->name }}" readonly>
+                                        <input type="text" class="form-control bg-light" value="{{ $user->condominium?->name ?? 'Não vinculado (síndico profissional ou administradora)' }}" readonly>
                                     </div>
 
                                     <div class="col-12">

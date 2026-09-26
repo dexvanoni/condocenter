@@ -66,10 +66,15 @@ class ActiveCondominiumService
                     ->orderBy('name')
                     ->get();
         } elseif ($this->isProfessionalSyndic($user)) {
-            $this->accessibleCondominiumsCache = $user->managedCondominiums()
-                ->select(['condominiums.id', 'condominiums.name', 'condominiums.organization_id', 'condominiums.city', 'condominiums.state', 'condominiums.is_active', 'condominiums.saas_complimentary'])
-                ->orderBy('condominiums.name')
-                ->get();
+            $managedIds = app(SyndicCondominiumLinkageService::class)->managedCondominiumIds($user);
+
+            $this->accessibleCondominiumsCache = $managedIds === []
+                ? collect()
+                : Condominium::query()
+                    ->select(['id', 'name', 'organization_id', 'city', 'state', 'is_active', 'saas_complimentary'])
+                    ->whereIn('id', $managedIds)
+                    ->orderBy('name')
+                    ->get();
         } else {
             $this->accessibleCondominiumsCache = collect();
         }
@@ -288,11 +293,8 @@ class ActiveCondominiumService
 
         $this->resetCacheFor($user);
 
-        $this->managedCondominiumIdsCache = $user->managedCondominiums()
-            ->pluck('condominiums.id')
-            ->map(fn ($id) => (int) $id)
-            ->values()
-            ->all();
+        $this->managedCondominiumIdsCache = app(SyndicCondominiumLinkageService::class)
+            ->managedCondominiumIds($user);
 
         return $this->managedCondominiumIdsCache;
     }

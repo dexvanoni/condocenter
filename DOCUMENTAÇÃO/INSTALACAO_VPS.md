@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 24/09/2026 (autorrenovação de contratos SaaS)
+- **Última revisão:** 26/09/2026 (backfill vínculos síndico × condomínio)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -653,6 +653,11 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-26 — Meus condomínios (síndico multi-origem)
+
+- Atualização: Parte 2 (`git pull` + `php artisan migrate --force`). Migration `2026_09_26_170000_backfill_condominium_user_for_syndics` preenche a pivot `condominium_user` para síndicos que tinham só `users.condominium_id` (condomínio particular), sem apagar dados existentes (`insertOrIgnore`).
+- Sem variável de `.env` nova. Sem cron/worker novo.
 
 ### 2026-09-22 — Categorias de despesa e insights no dashboard
 

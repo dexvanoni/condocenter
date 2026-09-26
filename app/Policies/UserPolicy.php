@@ -3,170 +3,91 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Services\ActiveCondominiumService;
+use App\Services\UserScopeService;
 
 class UserPolicy
 {
-    protected function belongsToActiveCondominium(User $user, User $model): bool
-    {
-        $service = app(ActiveCondominiumService::class);
+    public function __construct(
+        private UserScopeService $scope,
+    ) {}
 
-        if ($user->isAdmin()) {
-            $activeId = $service->getActiveCondominiumId($user);
-
-            return $activeId !== null && (int) $model->condominium_id === (int) $activeId;
-        }
-
-        return (int) $user->condominium_id === (int) $model->condominium_id;
-    }
-
-    /**
-     * Determine whether the user can view any models.
-     */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_users');
+        return $user->can('view_users') || $this->scope->isActingAsManagementCompany($user);
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, User $model): bool
     {
-        if ($user->id === $model->id) {
+        return $this->scope->canManageUser($user, $model);
+    }
+
+    public function create(User $user): bool
+    {
+        if ($this->scope->isActingAsManagementCompany($user)) {
             return true;
         }
 
-        if (!$user->can('view_users')) {
-            return false;
-        }
-
-        return $this->belongsToActiveCondominium($user, $model);
-    }
-
-    /**
-     * Determine whether the user can create models.
-     */
-    public function create(User $user): bool
-    {
         return $user->can('manage_users');
     }
 
-    /**
-     * Determine whether the user can reset another user's password.
-     */
     public function resetPassword(User $user, User $model): bool
     {
-        if ($user->id === $model->id) {
-            return false;
-        }
-
-        if (!$user->can('manage_users')) {
-            return false;
-        }
-
-        return $this->belongsToActiveCondominium($user, $model);
+        return $this->scope->canSendPasswordResetLink($user, $model);
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, User $model): bool
     {
-        if ($user->id === $model->id) {
-            return true;
-        }
-
-        if (!$user->can('manage_users')) {
-            return false;
-        }
-
-        return $this->belongsToActiveCondominium($user, $model);
+        return $this->scope->canManageUser($user, $model);
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, User $model): bool
     {
         if ($user->id === $model->id) {
             return false;
         }
 
-        if (!$user->can('manage_users')) {
+        if (!$user->can('manage_users') && !$this->scope->isActingAsManagementCompany($user)) {
             return false;
         }
 
-        return $this->belongsToActiveCondominium($user, $model);
+        return $this->scope->canManageUser($user, $model);
     }
 
-    /**
-     * Determine whether the user can manage sindico users.
-     */
     public function manageSindico(User $user): bool
     {
-        // Apenas administrador pode gerenciar síndicos
-        return $user->hasRole('Administrador');
+        return $this->scope->isActingAsPlatformAdmin($user)
+            || $this->scope->isActingAsManagementCompany($user);
     }
 
-    /**
-     * Determine whether the user can manage conselho fiscal users.
-     */
     public function manageConselhoFiscal(User $user): bool
     {
-        // Apenas administrador pode gerenciar conselho fiscal
-        return $user->hasRole('Administrador');
+        return $this->scope->isActingAsPlatformAdmin($user)
+            || $this->scope->isActingAsManagementCompany($user)
+            || $this->scope->isActingAsSyndic($user);
     }
 
-    /**
-     * Determine whether the user can assign a role to another user.
-     */
     public function assignRole(User $user, string $roleName): bool
     {
-        if ($roleName === 'Administrador') {
-            return $user->hasRole('Administrador');
-        }
-
-        // Apenas administrador pode atribuir Síndico e Conselho Fiscal
-        if (in_array($roleName, ['Síndico', 'Conselho Fiscal'], true)) {
-            return $user->hasRole('Administrador');
-        }
-
-        // Síndico e Admin podem atribuir outros roles
-        return $user->hasRole(['Administrador', 'Síndico']);
+        return $this->scope->canAssignRole($user, $roleName);
     }
 
-    /**
-     * Determine whether the user can view the user's history.
-     */
     public function viewHistory(User $user, User $model): bool
     {
-        // Usuário pode ver seu próprio histórico ou ter permissão
         return $user->id === $model->id || $user->can('view_user_history');
     }
 
-    /**
-     * Determine whether the user can export the user's history.
-     */
     public function exportHistory(User $user, User $model): bool
     {
         return $user->can('export_user_history');
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
     public function restore(User $user, User $model): bool
     {
-        return $user->can('manage_users');
+        return $user->can('manage_users') && $this->scope->canManageUser($user, $model);
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
     public function forceDelete(User $user, User $model): bool
     {
-        return $user->can('manage_users');
+        return $this->scope->isActingAsPlatformAdmin($user);
     }
 }
-

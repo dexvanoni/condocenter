@@ -25,7 +25,7 @@ class CheckActiveProfile
             session()->forget('active_role');
         }
 
-        if (!$user->hasMultipleRoles() && session('active_role') !== \App\Models\User::PROFILE_ADMINISTRADORA) {
+        if (!$user->hasProfileSwitcher() && session('active_role') !== \App\Models\User::PROFILE_ADMINISTRADORA) {
             $singleRole = $user->roles->first()?->name;
 
             if ($singleRole && session('active_role') !== $singleRole) {
@@ -34,7 +34,7 @@ class CheckActiveProfile
         }
 
         // Se usuário tem múltiplos perfis e não selecionou ainda
-        if ($user->hasMultipleRoles() && !session('active_role')) {
+        if ($user->hasProfileSwitcher() && !session('active_role')) {
             // Permite acesso apenas às rotas de seleção de perfil e logout
             $allowedRoutes = [
                 'profile.select',
@@ -48,6 +48,8 @@ class CheckActiveProfile
                 'panic.active',      // Permitir acesso à tela de alerta ativo
                 'panic.resolve',     // Permitir resolução de alertas
                 'panic.confirm',    // Permitir confirmação de ciência
+                'profile.edit',
+                'profile.update',
             ];
 
             if (!in_array($request->route()->getName(), $allowedRoutes)) {

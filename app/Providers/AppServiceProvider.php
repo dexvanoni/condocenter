@@ -143,6 +143,12 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Route::bind('user', function (string $value) use ($scopeByTenant) {
+            $authId = auth()->id();
+
+            if ($authId !== null && (int) $value === (int) $authId) {
+                return UserModel::query()->findOrFail($value);
+            }
+
             return $scopeByTenant(UserModel::query()->whereKey($value))->firstOrFail();
         });
 

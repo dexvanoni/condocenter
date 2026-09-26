@@ -13,6 +13,7 @@ use App\Services\ActiveCondominiumService;
 use App\Services\DefaulterAccessOverrideService;
 use App\Services\DefaulterRestrictionService;
 use App\Services\FileUploadService;
+use App\Services\SyndicCondominiumLinkageService;
 use App\Services\UserRoleLinkageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -34,6 +35,7 @@ class UserController extends Controller
         private UserRoleLinkageService $userRoleLinkageService,
         private DefaulterRestrictionService $defaulterRestrictionService,
         private DefaulterAccessOverrideService $defaulterAccessOverrideService,
+        private SyndicCondominiumLinkageService $syndicCondominiumLinkage,
     ) {
         $this->fileUploadService = $fileUploadService;
     }
@@ -203,6 +205,10 @@ class UserController extends Controller
             $user->syncRoles($roles);
         }
 
+        if (in_array('Síndico', $roles, true)) {
+            $this->syndicCondominiumLinkage->attach($user, (int) $data['condominium_id']);
+        }
+
         // Processa permissões de agregado se aplicável
         if (in_array('Agregado', $roles) && $request->has('agregado_permissions')) {
             $this->processAgregadoPermissions($user, $request->input('agregado_permissions', []));
@@ -252,29 +258,40 @@ class UserController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
+    public function editMyProfile()
+    {
+        return $this->edit($this->authUser());
+    }
+
+    public function updateMyProfile(Request $request)
+    {
+        return $this->update($request, $this->authUser());
+    }
+
     public function edit(User $user)
     {
         $this->authorize('update', $user);
         
-        // Verificar se o usuário está editando a si mesmo
         $isEditingSelf = Auth::user()->id === $user->id;
-        
-        // Verificar se o usuário tem permissão para gerenciar usuários (Admin/Síndico)
-        $userRoles = Auth::user()->roles->pluck('name')->toArray();
-        $canManageUsers = in_array('Administrador', $userRoles) || in_array('Síndico', $userRoles);
-        
-        if ($isEditingSelf && !$canManageUsers) {
-            // Usuário comum editando a si mesmo - usar view simplificada
+
+        if ($isEditingSelf) {
             return view('users.profile-edit', compact('user'));
-        } else {
-            // Admin/Síndico editando qualquer usuário - usar view completa
+        }
+
+        // Admin/Síndico editando outro usuário — view completa
             $condominiumId = $this->activeCondominiumId();
             $condominiums = Condominium::where('id', $condominiumId)->get();
             $units = Unit::active()
                 ->byCondominium($condominiumId)
                 ->orderBy('number')
                 ->get();
-            $roles = Role::all();
+            $scope = app(\App\Services\UserScopeService::class);
+            $roles = Role::query()
+                ->where('guard_name', 'web')
+                ->orderBy('name')
+                ->get()
+                ->filter(fn (Role $role) => $scope->canAssignRole($this->authUser(), $role->name))
+                ->values();
             
             // Moradores para vincular agregados
             $moradores = User::active()
@@ -288,7 +305,6 @@ class UserController extends Controller
             $agregadoPermissions = AgregadoPermission::getAvailablePermissions();
 
             return view('users.edit', compact('user', 'condominiums', 'units', 'roles', 'moradores', 'agregadoPermissions'));
-        }
     }
 
     /**
@@ -298,14 +314,9 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
         
-        // Verificar se o usuário está editando a si mesmo
         $isEditingSelf = Auth::user()->id === $user->id;
-        
-        // Verificar se o usuário tem permissão para gerenciar usuários (Admin/Síndico)
-        $userRoles = Auth::user()->roles->pluck('name')->toArray();
-        $canManageUsers = in_array('Administrador', $userRoles) || in_array('Síndico', $userRoles);
-        
-        if ($isEditingSelf && !$canManageUsers) {
+
+        if ($isEditingSelf) {
             // Usuário comum editando a si mesmo - usar request simplificado
             $validatedData = $request->validate([
                 'name' => ['required', 'string', 'max:255'],
@@ -348,7 +359,7 @@ class UserController extends Controller
                 ['user_id' => $user->id]
             );
             
-            return redirect()->route('users.edit', $user)
+            return redirect()->route('profile.edit')
                 ->with('success', 'Perfil atualizado com sucesso!');
                 
         } else {
@@ -379,19 +390,12 @@ class UserController extends Controller
                 'agregado_permissions' => ['array', 'nullable'],
                 'possui_dividas' => ['boolean'],
                 'is_active' => ['boolean'],
-                'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             ]);
             
             // Validações adicionais
             if ($request->has('roles')) {
                 $requestedRoles = $request->input('roles', []);
-                
-                // Validar que apenas admin pode editar Síndico ou Conselho Fiscal
-                $restrictedRoles = ['Síndico', 'Conselho Fiscal'];
-                if (array_intersect($restrictedRoles, $requestedRoles) && !$this->authUser()->hasRole('Administrador')) {
-                    return redirect()->back()->withErrors(['roles' => 'Apenas administradores podem atribuir os perfis de Síndico ou Conselho Fiscal.'])->withInput();
-                }
-                
+
                 if (in_array('Morador', $requestedRoles, true) && in_array('Agregado', $requestedRoles, true)) {
                     return redirect()->back()->withErrors(['roles' => 'Morador e Agregado não podem ser selecionados ao mesmo tempo.'])->withInput();
                 }
@@ -422,13 +426,7 @@ class UserController extends Controller
                 );
             }
 
-            // Atualiza senha se fornecida
-            if ($request->filled('password')) {
-                $data['password'] = Hash::make($request->password);
-                $data['senha_temporaria'] = false;
-            } else {
-                unset($data['password']);
-            }
+            unset($data['password'], $data['password_confirmation']);
 
             $data['condominium_id'] = $this->activeCondominiumId();
 
@@ -449,9 +447,17 @@ class UserController extends Controller
 
             $user->update($data);
 
+            if ($user->hasAssignedRole('Síndico') && $user->condominium_id) {
+                $this->syndicCondominiumLinkage->syncHomeCondominiumPivot($user);
+            }
+
             // Atualiza roles se fornecidas
             if ($roles !== null) {
                 $user->syncRoles($roles);
+
+                if (in_array('Síndico', $roles, true)) {
+                    $this->syndicCondominiumLinkage->attach($user, (int) $data['condominium_id']);
+                }
                 
                 // Processa permissões de agregado se aplicável
                 if (in_array('Agregado', $roles) && $request->has('agregado_permissions')) {

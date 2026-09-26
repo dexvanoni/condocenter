@@ -21,6 +21,10 @@ class RequireActiveCondominium
             abort(403);
         }
 
+        if ($request->routeIs('profile.edit', 'profile.update')) {
+            return $next($request);
+        }
+
         if (!$this->activeCondominiumService->canUseCondominiumContext($user)) {
             return $next($request);
         }

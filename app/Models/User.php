@@ -520,6 +520,19 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
 
     public const PROFILE_ADMINISTRADORA = 'Administradora';
 
+    /** Ordem de exibição na seleção de perfil (menor = primeiro). */
+    public const PROFILE_SELECTION_ORDER = [
+        'Administrador' => 10,
+        'Administradora' => 20,
+        'Síndico' => 30,
+        'Conselho Fiscal' => 40,
+        'Secretaria' => 50,
+        'Porteiro' => 60,
+        'Morador' => 70,
+        'Proprietário' => 80,
+        'Agregado' => 90,
+    ];
+
     public function hasMultipleRoles(): bool
     {
         return $this->roles()->count() > 1;
@@ -549,10 +562,32 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
         $names = $this->roles->pluck('name')->all();
 
         if ($this->canUseManagementCompanyProfile() && !in_array(self::PROFILE_ADMINISTRADORA, $names, true)) {
-            array_unshift($names, self::PROFILE_ADMINISTRADORA);
+            $names[] = self::PROFILE_ADMINISTRADORA;
         }
 
-        return array_values($names);
+        return $this->sortProfileNames($names);
+    }
+
+    /**
+     * @param  list<string>  $names
+     * @return list<string>
+     */
+    public function sortProfileNames(array $names): array
+    {
+        $unique = array_values(array_unique($names));
+
+        usort($unique, function (string $a, string $b): int {
+            $pa = self::PROFILE_SELECTION_ORDER[$a] ?? 999;
+            $pb = self::PROFILE_SELECTION_ORDER[$b] ?? 999;
+
+            if ($pa === $pb) {
+                return strcmp($a, $b);
+            }
+
+            return $pa <=> $pb;
+        });
+
+        return $unique;
     }
 
     public function hasProfileSwitcher(): bool

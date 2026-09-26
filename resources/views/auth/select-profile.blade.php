@@ -8,6 +8,12 @@
             'bg' => 'rgba(79, 70, 229, 0.12)',
             'description' => 'Configurações globais, planos e gestão da plataforma.',
         ],
+        'Administradora' => [
+            'icon' => 'bi-briefcase',
+            'color' => '#1a5c45',
+            'bg' => 'rgba(26, 92, 69, 0.12)',
+            'description' => 'Carteira de condomínios da sua administradora.',
+        ],
         'Síndico' => [
             'icon' => 'bi-building-gear',
             'color' => '#0a1b67',
@@ -272,14 +278,14 @@
                 @csrf
 
                 <div class="profile-role-grid">
-                    @foreach($roles as $role)
+                    @foreach($profileNames as $profileName)
                         @php
-                            $meta = $roleMeta[$role->name] ?? $defaultMeta;
+                            $meta = $roleMeta[$profileName] ?? $defaultMeta;
                         @endphp
                         <button
                             type="submit"
                             name="role"
-                            value="{{ $role->name }}"
+                            value="{{ $profileName }}"
                             class="profile-role-btn"
                             title="{{ $meta['description'] }}"
                         >
@@ -290,7 +296,7 @@
                                 <i class="bi {{ $meta['icon'] }}"></i>
                             </span>
                             <span class="profile-role-content">
-                                <strong>{{ $role->name }}</strong>
+                                <strong>{{ $profileName }}</strong>
                                 <span class="profile-role-desc">{{ $meta['description'] }}</span>
                             </span>
                         </button>

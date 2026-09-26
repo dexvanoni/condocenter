@@ -29,17 +29,16 @@ class ProfileSelectorController extends Controller
         $user = $this->authUser();
 
         // Se usuário tem apenas um perfil, redireciona direto
-        if (!$user->hasMultipleRoles()) {
-            $role = $user->roles->first();
-            
-            if ($role) {
-                return $this->setProfile($role->name);
+        if (!$user->hasProfileSwitcher()) {
+            $names = $user->selectableProfileNames();
+            if (count($names) === 1) {
+                return $this->setProfile($names[0]);
             }
         }
 
-        $roles = $user->roles;
+        $profileNames = $user->selectableProfileNames();
 
-        return view('auth.select-profile', compact('roles'));
+        return view('auth.select-profile', compact('profileNames'));
     }
 
     /**

@@ -1160,7 +1160,7 @@
                             @endforeach
                             <li><hr class="dropdown-divider"></li>
                         @endif
-                        <li><a class="dropdown-item" href="{{ route('users.edit', auth()->user()) }}"><i class="bi bi-person"></i> Perfil</a></li>
+                        <li><a class="dropdown-item" href="{{ route('profile.edit') }}"><i class="bi bi-person"></i> Perfil</a></li>
                         @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
                         <li><a class="dropdown-item" href="{{ route('learning.index') }}"><i class="bi bi-mortarboard"></i> Central de Aprendizagem</a></li>
                         @endif
@@ -2050,7 +2050,7 @@
                                     @endforeach
                                     <li><hr class="dropdown-divider"></li>
                                 @endif
-                                <li><a class="dropdown-item" href="{{ route('users.edit', auth()->user()) }}"><i class="bi bi-person-gear me-2"></i>Meu Perfil</a></li>
+                                <li><a class="dropdown-item" href="{{ route('profile.edit') }}"><i class="bi bi-person-gear me-2"></i>Meu Perfil</a></li>
                                 @if(app(\App\Services\Learning\LearningCatalogService::class)->userCanOpenCenter($user))
                                 <li><a class="dropdown-item" href="{{ route('learning.index') }}"><i class="bi bi-mortarboard me-2"></i>Central de Aprendizagem</a></li>
                                 @endif

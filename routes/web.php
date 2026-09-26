@@ -115,6 +115,9 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
         Route::post('/solicitacoes', [\App\Http\Controllers\PrivacyCenterController::class, 'storeRequest'])->name('requests.store');
     });
 
+    Route::get('/meu-perfil', [\App\Http\Controllers\UserController::class, 'editMyProfile'])->name('profile.edit');
+    Route::put('/meu-perfil', [\App\Http\Controllers\UserController::class, 'updateMyProfile'])->name('profile.update');
+
     Route::middleware(['require.condominium'])->group(function () {
         Route::prefix('proprietario')->name('owner.')->group(function () {
             Route::get('/unidades/{unit}/relatorio-inquilino.pdf', [OwnerUnitDashboardController::class, 'exportTenantReportPdf'])
