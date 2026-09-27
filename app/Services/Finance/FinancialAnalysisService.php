@@ -97,6 +97,187 @@ class FinancialAnalysisService
         return $snapshot;
     }
 
+    /**
+     * Indicadores agregados para a tela inicial do Consultor (sem PII).
+     *
+     * @return array<string, mixed>
+     */
+    public function buildAdvisorDashboard(int $condominiumId, ?Carbon $reference = null): array
+    {
+        $reference ??= now();
+        $health = $this->buildSnapshot($condominiumId, 'financial_health', $reference);
+
+        $meta = $health['condominio'] ?? [];
+        $resultado = $health['resultado'] ?? [];
+        $receitas = $health['receitas'] ?? [];
+        $despesas = $health['despesas'] ?? [];
+        $inad = $health['inadimplencia'] ?? [];
+        $insights = collect($health['insights_categoria']['top_insights'] ?? []);
+
+        $categories = collect($despesas['categorias'] ?? []);
+        $topExpense = $categories->first();
+
+        $energyRow = $categories->firstWhere('categoria_key', 'energia');
+        $attentionInsight = $insights
+            ->sortByDesc(fn (array $row) => abs((float) ($row['variacao_percentual'] ?? 0)))
+            ->first();
+
+        $contractKeys = config('finance_ai.questions.contracts_review.focus_categories', []);
+        $contractTotal = $categories
+            ->filter(fn (array $row) => in_array($row['categoria_key'], $contractKeys, true))
+            ->sum('total');
+
+        $revenueTotal = (float) ($receitas['total'] ?? 0);
+        $otherRevenue = (float) ($receitas['outras'] ?? 0);
+        $otherShare = $revenueTotal > 0 ? round(($otherRevenue / $revenueTotal) * 100, 1) : 0.0;
+
+        $evolutionSnap = $this->buildSnapshot($condominiumId, 'expense_evolution', $reference);
+        $topEvolution = ($evolutionSnap['despesas']['evolucao_categorias'] ?? [])[0] ?? null;
+
+        $periodLabel = (string) ($meta['periodo_analise'] ?? 'últimos 6 meses');
+
+        return [
+            'period_label' => $periodLabel,
+            'period_start' => $meta['periodo_inicio'] ?? null,
+            'period_end' => $meta['periodo_fim'] ?? null,
+            'units' => (int) ($meta['unidades'] ?? 0),
+            'kpis' => [
+                [
+                    'key' => 'receitas',
+                    'label' => 'Receitas',
+                    'hint' => "Total no período ({$periodLabel})",
+                    'value' => (float) ($resultado['receitas'] ?? 0),
+                    'trend' => isset($receitas['evolucao_percentual']) ? (float) $receitas['evolucao_percentual'] : null,
+                    'positive_is_good' => true,
+                ],
+                [
+                    'key' => 'despesas',
+                    'label' => 'Despesas',
+                    'hint' => "Total no período ({$periodLabel})",
+                    'value' => (float) ($resultado['despesas'] ?? 0),
+                    'trend' => isset($despesas['evolucao_percentual']) ? (float) $despesas['evolucao_percentual'] : null,
+                    'positive_is_good' => false,
+                ],
+                [
+                    'key' => 'saldo',
+                    'label' => 'Saldo do período',
+                    'hint' => 'Receitas − despesas no mesmo intervalo',
+                    'value' => (float) ($resultado['saldo'] ?? 0),
+                    'trend' => isset($resultado['margem_percentual']) ? (float) $resultado['margem_percentual'] : null,
+                    'trend_suffix' => 'margem',
+                    'positive_is_good' => true,
+                ],
+                [
+                    'key' => 'inadimplencia',
+                    'label' => 'Inadimplência em aberto',
+                    'hint' => 'Cobranças pendentes ou vencidas hoje',
+                    'value' => (float) ($inad['valor'] ?? 0),
+                    'extra' => sprintf(
+                        '%s%% das unidades · %d unidade(s)',
+                        number_format((float) ($inad['percentual'] ?? 0), 1, ',', '.'),
+                        (int) ($inad['unidades_inadimplentes'] ?? 0)
+                    ),
+                    'trend' => isset($inad['evolucao_percentual']) ? (float) $inad['evolucao_percentual'] : null,
+                    'positive_is_good' => false,
+                ],
+            ],
+            'question_previews' => [
+                'where_spending' => $this->previewRow(
+                    'Maior categoria',
+                    $topExpense
+                        ? sprintf(
+                            '%s · %s%% do total',
+                            (string) $topExpense['categoria'],
+                            number_format((float) $topExpense['percentual_total'], 1, ',', '.')
+                        )
+                        : 'Sem despesas no período',
+                    $topExpense ? $this->formatCurrency((float) $topExpense['total']) : null
+                ),
+                'reduce_energy' => $this->previewRow(
+                    'Energia (6 meses)',
+                    $energyRow
+                        ? $this->formatCurrency((float) $energyRow['total']).' · '.number_format((float) $energyRow['percentual_total'], 1, ',', '.').'% das despesas'
+                        : 'Nenhum lançamento na categoria energia',
+                    null
+                ),
+                'expense_attention' => $this->previewRow(
+                    'Maior variação',
+                    $attentionInsight
+                        ? sprintf(
+                            '%s · %s%% vs mês anterior',
+                            (string) $attentionInsight['categoria'],
+                            number_format((float) $attentionInsight['variacao_percentual'], 1, ',', '.')
+                        )
+                        : 'Sem variações relevantes nos insights',
+                    $attentionInsight ? $this->formatCurrency((float) $attentionInsight['atual']) : null
+                ),
+                'increase_revenue' => $this->previewRow(
+                    'Receitas além da taxa',
+                    sprintf('%s das receitas no período', number_format($otherShare, 1, ',', '.').'%'),
+                    $this->formatCurrency($otherRevenue)
+                ),
+                'contracts_review' => $this->previewRow(
+                    'Contratos recorrentes',
+                    $contractTotal > 0
+                        ? 'Soma de administração, seguros, manutenção e afins'
+                        : 'Sem despesas nas categorias de contrato no período',
+                    $contractTotal > 0 ? $this->formatCurrency((float) $contractTotal) : null
+                ),
+                'default_analysis' => $this->previewRow(
+                    'Em aberto agora',
+                    sprintf(
+                        '%s%% das unidades inadimplentes',
+                        number_format((float) ($inad['percentual'] ?? 0), 1, ',', '.')
+                    ),
+                    $this->formatCurrency((float) ($inad['valor'] ?? 0))
+                ),
+                'expense_evolution' => $this->previewRow(
+                    'Maior alta (6 meses)',
+                    $topEvolution
+                        ? sprintf(
+                            '%s · %s%s%% no semestre',
+                            (string) $topEvolution['categoria'],
+                            ((float) $topEvolution['percentual_crescimento'] >= 0) ? '+' : '',
+                            number_format((float) $topEvolution['percentual_crescimento'], 1, ',', '.')
+                        )
+                        : 'Sem crescimento relevante entre metades do período',
+                    $topEvolution ? $this->formatCurrency((float) $topEvolution['diferenca_absoluta']) : null
+                ),
+                'financial_health' => $this->previewRow(
+                    'Margem do período',
+                    sprintf(
+                        'Saldo %s · margem %s%%',
+                        $this->formatCurrency((float) ($resultado['saldo'] ?? 0)),
+                        number_format((float) ($resultado['margem_percentual'] ?? 0), 1, ',', '.')
+                    ),
+                    null
+                ),
+                'ninety_day_savings' => $this->previewRow(
+                    'Base para economia',
+                    sprintf('Despesas de %s no período analisado', $periodLabel),
+                    $this->formatCurrency((float) ($despesas['total'] ?? 0))
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * @return array{label: string, detail: string, amount: string|null}
+     */
+    protected function previewRow(string $label, string $detail, ?string $amount): array
+    {
+        return [
+            'label' => $label,
+            'detail' => $detail,
+            'amount' => $amount,
+        ];
+    }
+
+    protected function formatCurrency(float $value): string
+    {
+        return 'R$ '.number_format($value, 2, ',', '.');
+    }
+
     public function indicatorsHash(array $snapshot): string
     {
         $payload = $snapshot;

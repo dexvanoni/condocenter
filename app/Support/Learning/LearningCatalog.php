@@ -661,6 +661,7 @@ final class LearningCatalog
                 'video_url' => null,
                 'objectives' => [
                     'Cadastrar unidade',
+                    'Importar várias unidades por planilha',
                     'Vincular morador responsável',
                     'Entender particular vs aluguel',
                 ],
@@ -668,6 +669,10 @@ final class LearningCatalog
                     [
                         'title' => 'Unidades',
                         'body' => '**Gestão → Unidades**: ao criar uma unidade, o topo da tela mostra o **limite do contrato**, quantas já foram cadastradas e quantas **ainda pode criar**. Cadastre bloco, número, tipo e situação. Mantenha unidades inativas fora da cobrança automática.',
+                    ],
+                    [
+                        'title' => 'Importação em lote',
+                        'body' => 'Em **Unidades**, use **Importar** (ou **Importar planilha** na tela de nova unidade). Baixe o **modelo Excel ou CSV**, preencha a aba Unidades sem alterar os cabeçalhos e envie o arquivo. O sistema valida duplicatas e limites antes de cadastrar. Regime **aluguel** continua só pelo cadastro manual.',
                     ],
                     [
                         'title' => 'Usuários',

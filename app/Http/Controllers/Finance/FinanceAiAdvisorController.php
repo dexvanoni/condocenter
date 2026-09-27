@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\AnalyzeFinanceAiRequest;
 use App\Services\Finance\FinanceAiAdvisorService;
 use App\Services\Finance\FinanceAiQuotaService;
+use App\Services\Finance\FinancialAnalysisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,6 +20,7 @@ class FinanceAiAdvisorController extends Controller
     public function __construct(
         private FinanceAiAdvisorService $advisor,
         private FinanceAiQuotaService $quota,
+        private FinancialAnalysisService $analysis,
     ) {}
 
     public function index(Request $request): View
@@ -32,6 +34,7 @@ class FinanceAiAdvisorController extends Controller
 
         return view('finance.ai-advisor.index', [
             'questions' => config('finance_ai.questions', []),
+            'dashboard' => $this->analysis->buildAdvisorDashboard($condominiumId),
             'analyzeUrl' => route('financial.ai-advisor.analyze'),
             'quota' => [
                 'limit' => $quota['limit'],

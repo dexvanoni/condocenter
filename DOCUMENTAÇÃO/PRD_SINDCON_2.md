@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.34 |
-| **Data** | 26/09/2026 |
+| **Versão do documento** | 2.35 |
+| **Data** | 27/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria), OpenAI + Google Gemini (Consultor Financeiro) |
@@ -456,6 +456,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-16 | Contrato de locação obrigatório com inquilino; avisos e suspensão ao vencer | Must | `LeaseContractService`, cron `leases:process-contracts` |
 | USR-17 | Visualização aluguel: contato síndico → proprietário/inquilino | Should | `units/partials/rental-occupants`, `SyndicConversationService::findConversationForResidentOnUnit` |
 | USR-18 | Papel **Proprietário** (Spatie) sincronizado com `owner_user_id` | Must | `RolesAndPermissionsSeeder`, `UnitOccupancyService::syncOwnerRole` |
+| USR-19 | Importação em lote de unidades via planilha modelo (.xlsx/.csv): download do template, validação de colunas obrigatórias, duplicatas e cota; cadastro transacional | Must | `UnitImportService`, `UnitController@importForm`, `units/import`, rotas `units.import.*` |
 
 #### 8.2.1 Regimes de ocupação e perfil Proprietário (detalhamento)
 
@@ -2184,4 +2185,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.34 — atualizado em 26/09/2026. **FIN-39** provider/modelo LLM por condomínio (OpenAI + Gemini). Mantém a v2.33 (FIN-38).*
+*Documento v2.35 — atualizado em 27/09/2026. **USR-19** importação em lote de unidades (planilha modelo .xlsx/.csv). Mantém a v2.34 (FIN-39).*

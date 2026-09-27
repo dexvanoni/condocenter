@@ -610,6 +610,11 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
     Route::get('/notifications/{notification}', [\App\Http\Controllers\NotificationController::class, 'show'])->name('notifications.show');
 
     // Unidades
+    Route::get('/units/import', [\App\Http\Controllers\UnitController::class, 'importForm'])->name('units.import.form');
+    Route::get('/units/import/template/{format}', [\App\Http\Controllers\UnitController::class, 'importTemplate'])
+        ->where('format', 'xlsx|csv')
+        ->name('units.import.template');
+    Route::post('/units/import', [\App\Http\Controllers\UnitController::class, 'importStore'])->name('units.import.store');
     Route::get('/units/search/users', [\App\Http\Controllers\UnitController::class, 'searchUsers'])->name('units.search-users');
     Route::get('/units/search/owners', [\App\Http\Controllers\UnitController::class, 'searchOwners'])->name('units.search-owners');
     Route::get('/units/export/{format}', [\App\Http\Controllers\UnitController::class, 'export'])->name('units.export');

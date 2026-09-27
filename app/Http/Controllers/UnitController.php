@@ -7,15 +7,22 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Services\ActiveCondominiumService;
 use App\Services\ReportGeneratorService;
-use App\Http\Requests\StoreUnitRequest;
+use App\Exports\UnitsImportTemplateExport;
+use App\Exports\UnitsImportDataSheetExport;
+use App\Http\Requests\ImportUnitsRequest;
 use App\Http\Requests\UpdateUnitRequest;
 use App\Services\LeaseContractService;
+use App\Services\UnitImportService;
 use App\Services\UnitOccupancyService;
 use App\Support\UnitModels;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\View\View;
+use Maatwebsite\Excel\Excel as ExcelFormat;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UnitController extends Controller
 {
@@ -25,6 +32,7 @@ class UnitController extends Controller
         private ActiveCondominiumService $activeCondominiumService,
         private UnitOccupancyService $unitOccupancyService,
         private LeaseContractService $leaseContractService,
+        private UnitImportService $unitImportService,
     ) {}
 
     private function activeCondominiumId(): int
@@ -154,6 +162,73 @@ class UnitController extends Controller
             'unitsLimitReached',
             'developerContact',
         ));
+    }
+
+    public function importForm(): View
+    {
+        $this->authorize('create', Unit::class);
+
+        $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
+        $activeCondominium?->loadCount('units');
+        $unitsLimitReached = $activeCondominium?->isAtUnitsLimit() ?? false;
+        $developerContact = config('saas.developer_contact');
+
+        return view('units.import', compact(
+            'activeCondominium',
+            'unitsLimitReached',
+            'developerContact',
+        ));
+    }
+
+    public function importTemplate(string $format)
+    {
+        $this->authorize('create', Unit::class);
+
+        if (! in_array($format, ['xlsx', 'csv'], true)) {
+            abort(404);
+        }
+
+        if ($format === 'csv') {
+            return Excel::download(
+                new UnitsImportDataSheetExport,
+                'modelo-importacao-unidades.csv',
+                ExcelFormat::CSV
+            );
+        }
+
+        return Excel::download(
+            new UnitsImportTemplateExport,
+            'modelo-importacao-unidades.xlsx'
+        );
+    }
+
+    public function importStore(ImportUnitsRequest $request): RedirectResponse
+    {
+        $this->authorize('create', Unit::class);
+
+        $activeCondominium = $this->activeCondominiumService->getActiveCondominium($this->authUser());
+        if ($activeCondominium?->isAtUnitsLimit()) {
+            return redirect()
+                ->route('units.import.form')
+                ->with('error', 'Limite de unidades atingido. Não é possível importar novas unidades.');
+        }
+
+        $result = $this->unitImportService->import(
+            $request->file('file'),
+            $this->activeCondominiumId(),
+            $this->authUser()
+        );
+
+        if (! $result['ok']) {
+            return redirect()
+                ->route('units.import.form')
+                ->with('import_errors', $result['errors'])
+                ->with('error', $result['message']);
+        }
+
+        return redirect()
+            ->route('units.index')
+            ->with('success', $result['message']);
     }
 
     /**

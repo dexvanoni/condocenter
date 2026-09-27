@@ -158,4 +158,42 @@ class FinancialAnalysisServiceTest extends TestCase
         $keys = collect($snapshot['despesas']['categorias'])->pluck('categoria_key')->all();
         $this->assertSame(['energia'], $keys);
     }
+
+    public function test_builds_advisor_dashboard_with_kpis_and_previews(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-15'));
+
+        $condo = Condominium::factory()->create(['financial_mode' => 'full']);
+        Unit::factory()->create(['condominium_id' => $condo->id]);
+
+        CondominiumAccount::create([
+            'condominium_id' => $condo->id,
+            'type' => 'expense',
+            'status' => CondominiumAccount::STATUS_ACTIVE,
+            'category' => 'pessoal',
+            'description' => 'Folha',
+            'amount' => 5000,
+            'transaction_date' => '2026-09-01',
+            'created_by' => null,
+        ]);
+
+        CondominiumAccount::create([
+            'condominium_id' => $condo->id,
+            'type' => 'income',
+            'status' => CondominiumAccount::STATUS_ACTIVE,
+            'source_type' => 'charge',
+            'description' => 'Taxa',
+            'amount' => 8000,
+            'transaction_date' => '2026-09-02',
+            'created_by' => null,
+        ]);
+
+        $dashboard = app(FinancialAnalysisService::class)->buildAdvisorDashboard($condo->id);
+
+        $this->assertSame('últimos 6 meses', $dashboard['period_label']);
+        $this->assertCount(4, $dashboard['kpis']);
+        $this->assertArrayHasKey('where_spending', $dashboard['question_previews']);
+        $this->assertArrayHasKey('financial_health', $dashboard['question_previews']);
+        $this->assertStringContainsString('R$', $dashboard['question_previews']['where_spending']['amount'] ?? 'R$');
+    }
 }

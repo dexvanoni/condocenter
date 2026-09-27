@@ -11,9 +11,14 @@
                 <i class="bi bi-plus-circle"></i> Nova Unidade
             </span>
         @else
-            <a href="{{ route('units.create') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> Nova Unidade
-            </a>
+            <div class="btn-group">
+                <a href="{{ route('units.create') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Nova Unidade
+                </a>
+                <a href="{{ route('units.import.form') }}" class="btn btn-outline-primary" title="Importar planilha">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Importar
+                </a>
+            </div>
         @endif
     @endcan
 </div>

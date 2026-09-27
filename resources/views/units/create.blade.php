@@ -211,9 +211,16 @@
             </h1>
             <p class="text-muted mb-0">Preencha as informações da unidade habitacional</p>
         </div>
-        <a href="{{ route('units.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Voltar
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            @if(empty($unitsLimitReached) || !$unitsLimitReached)
+                <a href="{{ route('units.import.form') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Importar planilha
+                </a>
+            @endif
+            <a href="{{ route('units.index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+        </div>
     </div>
 </div>
 
