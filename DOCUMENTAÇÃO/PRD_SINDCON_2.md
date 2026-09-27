@@ -6,7 +6,7 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.35 |
+| **Versão do documento** | 2.36 |
 | **Data** | 27/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
@@ -515,7 +515,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | FIN-34 | Passo 8 do fechamento mensal conta linhas de extrato sem vínculo | Should | `MonthlyClosingChecklistService::stepBankReconciliation` |
 | FIN-35 | Categoria obrigatória em despesa do caixa (taxonomia fixa) | Must | `ExpenseCategories`, `CondominiumAccountController::storeExpense`, modal pagamento |
 | FIN-36 | Dashboard: despesas por categoria, alertas MoM/média 3m e previsão anual | Must | `FinancialCategoryInsightsService`, `sindico-financial` |
-| FIN-37 | Consultor Financeiro IA (perguntas pré-definidas; modo completo; exclusivo síndico) | Must | `FinanceAiAdvisorService`, `FinancialAnalysisService`, `/financial/consultor` |
+| FIN-37 | Consultor Financeiro IA (perguntas pré-definidas; overlay de pensamento enquanto a LLM responde; modo completo; exclusivo síndico) | Must | `FinanceAiAdvisorService`, `FinancialAnalysisService`, `/financial/consultor` |
 | FIN-38 | Limite mensal de consultas LLM por organização (compartilhado na administradora) | Must | `organizations.llm_monthly_limit`, `FinanceAiQuotaService`, tela Organização |
 | FIN-39 | Provider LLM por condomínio (OpenAI ou Gemini; chaves globais no .env) | Must | `condominiums.ai_provider`/`ai_model`, `AiProviderManager`, `CondominiumAiSettingsController` |
 
@@ -570,6 +570,7 @@ Upload CSV/OFX → parse → matcher → revisão (auto / sugestão / só banco 
 | FIN-RN-06 | Despesa manual e “criar no caixa” a partir do extrato exigem `category` da taxonomia `ExpenseCategories` |
 | FIN-RN-07 | Folha (`employee_payroll`) grava categoria `pessoal`; `employer_tax` grava `encargos` |
 | FIN-RN-08 | Insights do dashboard: variação MoM ≥15% = atenção, ≥30% = urgente; previsão = YTD + (média 3 meses × meses restantes) |
+| FIN-RN-09 | Consultor Financeiro: ao escolher uma pergunta, exibe modal de pensamento/progresso no centro da tela até a LLM responder; em seguida o modal fecha e a análise é renderizada |
 
 **Rotas web (grupo financeiro completo):** `bank-statements.*`, `bank-statement-lines.*`, `bank-reconciliation.*`.
 
@@ -2185,4 +2186,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.35 — atualizado em 27/09/2026. **USR-19** importação em lote de unidades (planilha modelo .xlsx/.csv). Mantém a v2.34 (FIN-39).*
+*Documento v2.36 — atualizado em 27/09/2026. **FIN-37 / FIN-RN-09** overlay de pensamento do Consultor Financeiro. Mantém a v2.35 (USR-19).*

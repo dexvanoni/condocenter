@@ -166,72 +166,17 @@ class PanicAlertController extends Controller
             ], 401);
         }
         
-        Log::info('Verificando alertas ativos', [
-            'user_id' => $user->id,
-            'condominium_id' => $user->tenantCondominiumId(),
-            'user_name' => $user->name
-        ]);
-        
-        // Verificar todos os alertas com status 'active' primeiro (para debug)
-        $allActiveAlerts = PanicAlert::where('status', 'active')->get();
-        Log::info('Total de alertas ativos no sistema', [
-            'count' => $allActiveAlerts->count(),
-            'alerts' => $allActiveAlerts->map(function($alert) {
-                return [
-                    'id' => $alert->id,
-                    'condominium_id' => $alert->condominium_id,
-                    'status' => $alert->status
-                ];
-            })->toArray()
-        ]);
-        
-        // Buscar alertas ativos do condomínio do usuário
         $activeAlerts = PanicAlert::where('status', 'active')
             ->where('condominium_id', $user->tenantCondominiumId())
             ->with(['user', 'condominium'])
             ->orderBy('created_at', 'desc')
             ->get();
-        
-        // Debug: Verificar se o alerta id=4 está sendo encontrado
-        $alert4 = PanicAlert::find(4);
-        if ($alert4) {
-            Log::info('Alerta ID=4 encontrado', [
-                'id' => $alert4->id,
-                'status' => $alert4->status,
-                'condominium_id' => $alert4->condominium_id,
-                'user_condominium_id' => $user->tenantCondominiumId(),
-                'matches' => $alert4->condominium_id == $user->tenantCondominiumId() && $alert4->status == 'active'
-            ]);
-        } else {
-            Log::warning('Alerta ID=4 não encontrado no banco de dados');
-        }
-        
-        Log::info('Alertas ativos encontrados para o condomínio', [
-            'condominium_id' => $user->tenantCondominiumId(),
-            'count' => $activeAlerts->count(),
-            'alerts' => $activeAlerts->map(function($alert) {
-                return [
-                    'id' => $alert->id,
-                    'title' => $alert->title,
-                    'status' => $alert->status,
-                    'condominium_id' => $alert->condominium_id
-                ];
-            })->toArray()
-        ]);
 
-        $response = [
-            'has_active_alerts' => $activeAlerts->count() > 0,
+        return response()->json([
+            'has_active_alerts' => $activeAlerts->isNotEmpty(),
             'alerts' => $activeAlerts,
             'alert_count' => $activeAlerts->count(),
-            'debug' => [
-                'user_condominium_id' => $user->tenantCondominiumId(),
-                'total_active_in_system' => $allActiveAlerts->count()
-            ]
-        ];
-        
-        Log::info('Resposta da verificação de alertas', $response);
-
-        return response()->json($response);
+        ]);
     }
 
     /**

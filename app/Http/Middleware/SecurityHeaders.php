@@ -26,21 +26,39 @@ class SecurityHeaders
 
     protected function contentSecurityPolicy(): string
     {
+        $connectSrc = [
+            "'self'",
+            'https://cdn.jsdelivr.net',
+            'https://cdn.datatables.net',
+        ];
+
+        if (app()->environment('local')) {
+            $connectSrc[] = 'ws:';
+            $connectSrc[] = 'wss:';
+            $connectSrc[] = 'http://localhost:*';
+            $connectSrc[] = 'http://127.0.0.1:*';
+
+            $appUrl = config('app.url');
+            if (is_string($appUrl) && $appUrl !== '') {
+                $scheme = parse_url($appUrl, PHP_URL_SCHEME);
+                $host = parse_url($appUrl, PHP_URL_HOST);
+                if (is_string($scheme) && is_string($host) && $host !== '' && ! in_array($host, ['localhost', '127.0.0.1'], true)) {
+                    $connectSrc[] = $scheme.'://'.$host;
+                }
+            }
+        }
+
         $directives = [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://code.jquery.com",
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.bunny.net",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net",
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.bunny.net https://cdn.datatables.net",
             "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.bunny.net",
             "img-src 'self' data: blob: https:",
-            "connect-src 'self'",
+            'connect-src '.implode(' ', $connectSrc),
             "frame-ancestors 'self'",
             "base-uri 'self'",
             "form-action 'self'",
         ];
-
-        if (app()->environment('local')) {
-            $directives[5] = "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:*";
-        }
 
         return implode('; ', $directives);
     }

@@ -421,8 +421,8 @@ final class LearningCatalog
                         'body' => 'Clique em uma das 9 perguntas (ex.: onde gastamos mais, energia, inadimplência, saúde financeira). Não há campo de texto livre nesta versão.',
                     ],
                     [
-                        'title' => 'Ler a análise',
-                        'body' => 'Aguarde o carregamento. O resultado traz **resumo**, **pontos de atenção** e **recomendações** com ação, motivo, impacto e prioridade. Use como apoio à decisão — não como parecer jurídico ou contábil.',
+                        'title' => 'Aguardar a análise',
+                        'body' => 'Ao clicar, um **modal no centro da tela** mostra que a inteligência artificial está pensando, com o progresso da análise. Quando a resposta chega, o modal fecha sozinho e o resultado aparece na página (resumo, pontos de atenção e recomendações). Use como apoio à decisão — não como parecer jurídico ou contábil.',
                     ],
                     [
                         'title' => 'Se falhar',

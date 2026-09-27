@@ -171,7 +171,9 @@ class FinanceAiAdvisorTest extends TestCase
         $this->actingAs($this->syndic)
             ->get(route('financial.ai-advisor.index'))
             ->assertOk()
-            ->assertSee('Consultor Financeiro SindCON', false);
+            ->assertSee('Consultor Financeiro SindCON', false)
+            ->assertSee('A inteligência artificial está pensando', false)
+            ->assertSee('id="financeAiThinking"', false);
 
         $response = $this->actingAs($this->syndic)
             ->postJson(route('financial.ai-advisor.analyze'), ['question' => 'where_spending']);

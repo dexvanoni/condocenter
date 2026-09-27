@@ -86,9 +86,7 @@
                 // Anexar event listeners aos botões de emergência quando o modal for aberto
                 setTimeout(function() {
                     const emergencyButtons = document.querySelectorAll('.emergency-btn');
-                    console.log('Anexando listeners a', emergencyButtons.length, 'botões de emergência');
-                    console.log('window.selectEmergencyType disponível?', typeof window.selectEmergencyType);
-                    
+
                     emergencyButtons.forEach(button => {
                         // Remover listeners anteriores para evitar duplicação
                         const newButton = button.cloneNode(true);
@@ -99,15 +97,11 @@
                             e.preventDefault();
                             e.stopPropagation();
                             const type = this.getAttribute('data-type');
-                            console.log('Botão clicado no resetModal, tipo:', type);
-                            console.log('window.selectEmergencyType:', typeof window.selectEmergencyType);
-                            
+
                             if (type) {
                                 if (typeof window.selectEmergencyType === 'function') {
-                                    console.log('Chamando window.selectEmergencyType');
                                     window.selectEmergencyType(type);
                                 } else if (typeof selectEmergencyType === 'function') {
-                                    console.log('Chamando selectEmergencyType (sem window)');
                                     selectEmergencyType(type);
                                 } else {
                                     console.error('Função selectEmergencyType não encontrada');
@@ -178,8 +172,6 @@
                 console.error('Tipo de emergência não fornecido');
                 return;
             }
-            
-            console.log('selectEmergencyType chamado com tipo:', type);
             
             // Atualizar variável global
             window.selectedEmergencyType = type;
@@ -338,7 +330,6 @@
                 codeContainer.style.opacity = '1';
             }
             
-            console.log('Código de confirmação de pânico gerado:', window.panicConfirmationCode);
         };
         
         // Função para validar código e enviar alerta de pânico
@@ -418,10 +409,7 @@
         
         // Função para confirmar e enviar alerta de pânico - Definida no <head> para disponibilidade global
         window.confirmPanicAlert = function() {
-            console.log('window.confirmPanicAlert chamada');
-            // Verificar se já está enviando um alerta
             if (window.isSendingPanicAlert) {
-                console.log('Alerta de pânico já está sendo enviado, ignorando...');
                 return;
             }
 
@@ -492,26 +480,27 @@
             });
         };
         
-        // Debug: Verificar se a função está disponível
-        console.log('window.confirmPanicAlert definida?', typeof window.confirmPanicAlert);
-        
         // Função para verificar alertas ativos - Definida no <head> para disponibilidade global
         window.checkForActiveAlerts = function() {
-            // Não verificar se já estamos na página de alerta ativo
             const currentPath = window.location.pathname;
-            const activeAlertPath = '{{ route("panic.active") }}';
-            
-            if (currentPath === activeAlertPath || currentPath.includes('/panic/active')) {
-                console.log('Já está na página de alerta ativo, não verificar');
+
+            if (currentPath.includes('/panic/active')) {
                 return;
             }
 
-            console.log('Verificando alertas ativos...', {
-                'current_path': currentPath,
-                'active_alert_path': activeAlertPath,
-                'timestamp': new Date().toISOString()
-            });
-            
+            const now = Date.now();
+            const minIntervalMs = 3000;
+
+            if (window.__panicAlertCheckInFlight) {
+                return;
+            }
+            if (window.__panicAlertLastCheckAt && (now - window.__panicAlertLastCheckAt) < minIntervalMs) {
+                return;
+            }
+
+            window.__panicAlertCheckInFlight = true;
+            window.__panicAlertLastCheckAt = now;
+
             fetch('{{ route("panic.check") }}', {
                 method: 'GET',
                 headers: {
@@ -522,38 +511,23 @@
                 credentials: 'same-origin'
             })
             .then(response => {
-                console.log('Resposta recebida da rota check:', response.status, response.statusText);
                 if (!response.ok) {
                     throw new Error('Erro na resposta do servidor: ' + response.status);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Resposta da verificação de alertas:', data);
                 if (data.has_active_alerts) {
-                    console.log('Alerta ativo detectado! Redirecionando para:', '{{ route("panic.active") }}');
-                    // Redirecionar para a tela de alerta ativo ao invés de mostrar modal
                     window.location.href = '{{ route("panic.active") }}';
-                } else {
-                    // Não há alertas ativos, não fazer nada
-                    console.log('Nenhum alerta ativo encontrado');
                 }
             })
             .catch(error => {
-                console.error('Erro ao verificar alertas:', error);
-                console.error('Stack trace:', error.stack);
+                console.error('Erro ao verificar alertas de pânico:', error);
+            })
+            .finally(() => {
+                window.__panicAlertCheckInFlight = false;
             });
         };
-        
-        // Executar verificação imediatamente após definir a função (se já estiver no dashboard)
-        if (window.location.pathname === '/dashboard' || window.location.pathname.includes('/dashboard')) {
-            console.log('Página do dashboard detectada, executando verificação imediata...');
-            setTimeout(function() {
-                if (typeof window.checkForActiveAlerts === 'function') {
-                    window.checkForActiveAlerts();
-                }
-            }, 100);
-        }
         
         // Função wrapper para compatibilidade
         function generatePanicConfirmationCode() {
@@ -578,10 +552,6 @@
             }
         }
         
-        console.log('openPanicModal definido:', typeof window.openPanicModal, typeof openPanicModal);
-        console.log('selectEmergencyType definido:', typeof window.selectEmergencyType, typeof selectEmergencyType);
-        console.log('generatePanicConfirmationCode definido:', typeof window.generatePanicConfirmationCode);
-
         // Troca de perfil — URL relativa para funcionar em qualquer host/porta local
         window.switchProfile = function(roleName) {
             if (!roleName) {
@@ -3183,7 +3153,6 @@
                     
                     // Inserir no início do modal-body
                     modalBody.insertBefore(alertContainer, modalBody.firstChild);
-                    console.log('Elemento alertType criado dinamicamente');
                 } else {
                     console.warn('Modal body não encontrado');
                 }
@@ -3535,7 +3504,6 @@
                 codeContainer.style.opacity = '1';
             }
             
-            console.log('Código de confirmação gerado:', confirmationCode);
         }
         
         function validateAndConfirmAction() {
@@ -3777,8 +3745,6 @@
             // Função para anexar listeners aos botões de emergência
             function attachEmergencyButtonListeners() {
                 const emergencyButtons = document.querySelectorAll('.emergency-btn');
-                console.log('Encontrados', emergencyButtons.length, 'botões de emergência');
-                
                 emergencyButtons.forEach(button => {
                     // Remover listeners anteriores
                     const newButton = button.cloneNode(true);
@@ -3789,16 +3755,11 @@
                         e.preventDefault();
                         e.stopPropagation();
                         const type = this.getAttribute('data-type');
-                        console.log('Botão de emergência clicado, tipo:', type);
-                        console.log('window.selectEmergencyType disponível?', typeof window.selectEmergencyType);
-                        
+
                         if (type) {
-                            // Tentar usar window.selectEmergencyType primeiro
                             if (typeof window.selectEmergencyType === 'function') {
-                                console.log('Chamando window.selectEmergencyType com tipo:', type);
                                 window.selectEmergencyType(type);
                             } else if (typeof selectEmergencyType === 'function') {
-                                console.log('Chamando selectEmergencyType (sem window) com tipo:', type);
                                 selectEmergencyType(type);
                             } else {
                                 console.error('Função selectEmergencyType não encontrada');
@@ -3820,118 +3781,44 @@
             const panicModal = document.getElementById('panicModal');
             if (panicModal) {
                 panicModal.addEventListener('shown.bs.modal', function() {
-                    console.log('Modal de pânico aberto, anexando listeners');
                     setTimeout(attachEmergencyButtonListeners, 100);
                 });
             }
         });
         
-        // Função para iniciar verificação de alertas ativos
         function startPanicAlertCheck() {
-            const currentPath = window.location.pathname;
-            const activeAlertPath = '{{ route("panic.active") }}';
-            
-            // Não verificar se já estamos na página de alerta ativo
-            if (currentPath === activeAlertPath || currentPath.includes('/panic/active')) {
-                console.log('Já está na página de alerta ativo, não verificar');
+            if (window.__panicAlertPollingInitialized) {
                 return;
             }
-            
-            // Verificar imediatamente usando a função global
-            if (typeof window.checkForActiveAlerts === 'function') {
-                console.log('Iniciando verificação de alertas ativos...');
-                window.checkForActiveAlerts();
-            } else {
-                console.error('window.checkForActiveAlerts não está disponível');
+            window.__panicAlertPollingInitialized = true;
+
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/panic/active')) {
+                return;
             }
-            
-            // Verificar a cada 30 segundos
-            if (typeof window.panicCheckInterval === 'undefined' || !window.panicCheckInterval) {
+
+            if (typeof window.checkForActiveAlerts === 'function') {
+                window.checkForActiveAlerts();
+            }
+
+            if (!window.panicCheckInterval) {
                 window.panicCheckInterval = setInterval(function() {
-                    const currentPath = window.location.pathname;
-                    if (currentPath !== activeAlertPath && !currentPath.includes('/panic/active')) {
-                        if (typeof window.checkForActiveAlerts === 'function') {
-                            window.checkForActiveAlerts();
-                        }
+                    if (!window.location.pathname.includes('/panic/active') && typeof window.checkForActiveAlerts === 'function') {
+                        window.checkForActiveAlerts();
                     }
                 }, 30000);
-                console.log('Intervalo de verificação de alertas iniciado (30s)');
             }
         }
-        
-        // Verificar alertas imediatamente quando o script carregar (antes do DOMContentLoaded)
-        // Isso garante que a verificação seja feita mesmo após redirecionamentos de login
-        (function() {
-            console.log('Script de verificação de alertas carregado, estado do documento:', document.readyState);
-            
-            function executeCheck() {
-                console.log('Executando verificação de alertas ativos...');
-                if (typeof window.checkForActiveAlerts === 'function') {
-                    window.checkForActiveAlerts();
-                } else {
-                    console.error('window.checkForActiveAlerts não está disponível ainda, tentando novamente...');
-                    setTimeout(executeCheck, 100);
-                }
-            }
-            
-            // Executar imediatamente se o script já carregou
-            if (document.readyState === 'loading') {
-                // DOM ainda não carregou, aguardar
-                document.addEventListener('DOMContentLoaded', function() {
-                    console.log('DOMContentLoaded - executando verificação');
-                    executeCheck();
-                    startPanicAlertCheck();
-                });
-            } else {
-                // DOM já carregou, executar imediatamente
-                console.log('DOM já carregado - executando verificação imediatamente');
-                executeCheck();
-                startPanicAlertCheck();
-            }
-            
-            // Também verificar quando a página estiver totalmente carregada (após login, etc)
-            window.addEventListener('load', function() {
-                console.log('Evento load disparado - verificando alertas...');
-                setTimeout(function() {
-                    executeCheck();
-                    startPanicAlertCheck();
-                }, 300); // Pequeno delay para garantir que tudo está pronto
-            });
-            
-            // Verificação adicional após um pequeno delay (para casos de redirecionamento rápido)
-            setTimeout(function() {
-                console.log('Verificação de segurança após delay inicial');
-                if (typeof window.checkForActiveAlerts === 'function') {
-                    window.checkForActiveAlerts();
-                }
-            }, 1000);
-        })();
-        
-        // Verificação especial para quando a página é carregada após redirecionamento (login)
-        // Isso garante que a verificação seja feita mesmo se o script já estava carregado
-        if (window.performance && window.performance.navigation) {
-            const navigationType = window.performance.navigation.type;
-            // type 1 = reload, type 2 = back/forward, type 0 = normal navigation (incluindo redirect)
-            if (navigationType === 0 || navigationType === 1) {
-                console.log('Navegação detectada (possível redirecionamento de login), verificando alertas...');
-                setTimeout(function() {
-                    if (typeof window.checkForActiveAlerts === 'function') {
-                        window.checkForActiveAlerts();
-                    }
-                }, 200);
-            }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startPanicAlertCheck, { once: true });
+        } else {
+            startPanicAlertCheck();
         }
-        
-        // Verificação adicional usando pageshow (funciona mesmo com cache do navegador)
+
         window.addEventListener('pageshow', function(event) {
-            console.log('Evento pageshow disparado, persisted:', event.persisted);
-            if (event.persisted || window.location.pathname === '/dashboard' || window.location.pathname.includes('/dashboard')) {
-                console.log('Página mostrada (possível cache ou redirecionamento), verificando alertas...');
-                setTimeout(function() {
-                    if (typeof window.checkForActiveAlerts === 'function') {
-                        window.checkForActiveAlerts();
-                    }
-                }, 300);
+            if (event.persisted && typeof window.checkForActiveAlerts === 'function') {
+                window.checkForActiveAlerts();
             }
         });
         

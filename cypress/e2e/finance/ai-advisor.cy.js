@@ -1,6 +1,7 @@
 describe('Consultor Financeiro', () => {
   beforeEach(() => {
     cy.intercept('POST', '**/financial/consultor/analisar', {
+      delay: 600,
       statusCode: 200,
       body: {
         ok: true,
@@ -32,8 +33,11 @@ describe('Consultor Financeiro', () => {
     cy.visit('/financial/consultor');
     cy.contains('Consultor Financeiro SindCON').should('be.visible');
     cy.contains('Como está nossa saúde financeira?').click();
+    cy.get('#financeAiThinking').should('be.visible');
+    cy.contains('A inteligência artificial está pensando').should('be.visible');
     cy.contains('Analisando os indicadores financeiros').should('be.visible');
     cy.wait('@analyze');
+    cy.get('#financeAiThinking').should('not.be.visible');
     cy.contains('Análise financeira do condomínio').should('be.visible');
     cy.contains('Revisar energia').should('be.visible');
   });
