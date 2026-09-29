@@ -272,10 +272,12 @@ class CondominiumAccountController extends Controller
             'payment_method' => ['nullable', Rule::in(['cash', 'pix', 'bank_transfer', 'credit_card', 'debit_card', 'boleto', 'other'])],
             'notes' => ['nullable', 'string'],
             'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:8192'],
+            'captured_image' => ['nullable', 'file', 'image', 'max:8192'],
             'bank_account_id' => ['nullable', 'integer', 'exists:bank_accounts,id'],
         ]);
 
         $documentPath = $this->storeFile($request->file('document'));
+        $capturedImagePath = $this->storeFile($request->file('captured_image'));
 
         $condominiumId = $this->activeCondominiumId($user);
         $bankAccountId = $validated['bank_account_id']
@@ -292,6 +294,7 @@ class CondominiumAccountController extends Controller
             'payment_method' => $validated['payment_method'] ?? null,
             'notes' => $validated['notes'] ?? null,
             'document_path' => $documentPath,
+            'captured_image_path' => $capturedImagePath,
             'created_by' => $user->id,
         ]);
 

@@ -137,7 +137,7 @@ final class LearningCatalog
                     ],
                     [
                         'title' => 'Perfil e troca de papel',
-                        'body' => 'No canto do seu nome você abre **Meu Perfil**, **Alterar Senha** e, se tiver mais de um papel, troca o perfil ativo (ex.: Síndico ↔ Morador). As permissões seguem o perfil ativo.',
+                        'body' => 'No canto do seu nome você abre **Meu Perfil**, **Alterar Senha** e, se tiver mais de um papel, troca o perfil ativo (ex.: Síndico ↔ Morador). As permissões seguem o perfil ativo. No celular, em **Meu Perfil**, use **Tirar foto** para registrar a identificação com a câmera; no computador, use **Enviar foto**. Se você é **síndico e mora no condomínio**, em **Meu Perfil** marque “Também sou morador”, informe a unidade e salve; depois alterne para o perfil **Morador** para reservas, cobranças e demais funções de morador.',
                     ],
                     [
                         'title' => 'Central de Aprendizagem',
@@ -375,7 +375,7 @@ final class LearningCatalog
                     ],
                     [
                         'title' => 'Registrar despesa',
-                        'body' => 'Use **Registrar pagamento**: descrição, valor, data, **categoria** (obrigatória), forma e conta bancária. A categoria alimenta o gráfico **Despesas por categoria** e os alertas do dashboard. Anexe NF/comprovante se possível.',
+                        'body' => 'Use **Registrar pagamento**: descrição, valor, data, **categoria** (obrigatória), forma e conta bancária. A categoria alimenta o gráfico **Despesas por categoria** e os alertas do dashboard. No comprovante, **Escolher Arquivo** abre a galeria ou o explorador (celular e computador). **Câmera** abre a câmera do celular ou a webcam do computador.',
                     ],
                     [
                         'title' => 'Registrar receita avulsa',

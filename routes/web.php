@@ -643,6 +643,12 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
         ->name('condominiums.toggle-active');
     Route::post('/condominiums/{condominium}/regenerate-code', [\App\Http\Controllers\CondominiumController::class, 'regenerateRegistrationCode'])
         ->name('condominiums.regenerate-code');
+    Route::post('/condominiums/{condominium}/syndics', [\App\Http\Controllers\Platform\CondominiumSyndicController::class, 'store'])
+        ->name('condominiums.syndics.store');
+    Route::put('/condominiums/{condominium}/syndics/{user}', [\App\Http\Controllers\Platform\CondominiumSyndicController::class, 'update'])
+        ->name('condominiums.syndics.update');
+    Route::delete('/condominiums/{condominium}/syndics/{user}', [\App\Http\Controllers\Platform\CondominiumSyndicController::class, 'destroy'])
+        ->name('condominiums.syndics.destroy');
     Route::get('/condominiums/{condominium}/settings/whatsapp', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'index'])
         ->name('condominiums.settings.whatsapp');
     Route::put('/condominiums/{condominium}/settings/whatsapp', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'update'])

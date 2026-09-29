@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.36 |
-| **Data** | 27/09/2026 |
+| **Versão do documento** | 2.40 |
+| **Data** | 29/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria), OpenAI + Google Gemini (Consultor Financeiro) |
@@ -202,7 +202,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - Middleware `CheckActiveProfile`: usa `hasProfileSwitcher()` (inclui perfil virtual **Administradora**); valida `active_role`; permite pânico e fluxos de senha antes da seleção
 - **Ordem na tela de seleção:** Administrador → Administradora → Síndico → demais (`User::PROFILE_SELECTION_ORDER`)
 - Redirecionamento pós-seleção via `ProfileHomeRoute` (Administrador → `platform.dashboard`; Administradora → `organization.dashboard`; demais → `dashboard`)
-- **Escopo de gestão de usuários** (`UserScopeService` / `UserPolicy`): Administrador (plataforma) no escopo global/condomínio ativo; **Administradora** só usuários dos condomínios da sua organização; **Síndico** só no(s) condomínio(s) em que atua; **todos** editam dados pessoais próprios em `/meu-perfil` (`profile.edit` / `profile.update`, view `users.profile-edit`), sem exigir condomínio ativo; binding de rota `user` ignora escopo de tenant para o próprio usuário autenticado
+- **Síndico morador:** em **Meu Perfil** (`profile.edit`), síndico com `condominium_id` pode marcar “Também sou morador”, vincular unidade e receber o papel **Morador** (`SyndicResidentProfileService`); funções de morador exigem **perfil ativo Morador** (alternância no menu do usuário)
 - **Senhas:** nenhum perfil define ou visualiza senha de terceiros; gestores enviam **link por e-mail** (`resetPassword`); usuário usa “Esqueci minha senha” ou link recebido (`AdminPasswordResetLinkMail`)
 - Sidebar e dashboard renderizados conforme perfil ativo + módulos habilitados
 
@@ -433,6 +433,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-16 | Ambiente da administradora: proprietário entra no painel sem condomínio, cria condomínios dentro de `max_condominiums`/`max_units` e opera unidades e usuários com o papel Síndico | Must | `OrganizationDashboardController`, `OrganizationCondominiumController`, `OrganizationQuotaService` |
 | PLT-17 | A administradora acompanha o contrato SaaS, valores, cobranças e faturas Asaas | Must | `OrganizationContractController`, `/organizacao/contrato` |
 | PLT-18 | Painel da administradora com um card por condomínio: usuários vinculados, multas aplicadas (quantidade e valor) e saúde financeira (adimplência) | Must | `OrganizationCondominiumInsightsService`, `organization/dashboard` |
+| PLT-19 | Card de síndico na edição do condomínio e na edição da organização (modelo direto): exibe nome/contato, WhatsApp, incluir, editar dados e desvincular | Must | `CondominiumSyndicService`, `CondominiumSyndicController`, `condominiums/partials/syndic-management-card`, rotas `condominiums.syndics.*` |
 
 ### 8.2 Gestão de unidades e usuários
 
@@ -446,7 +447,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-06 | Permissões granulares agregados (`view`/`crud` por módulo) | Must | `AgregadoPermission` |
 | USR-07 | Apenas Admin atribui/remove perfil Administrador | Must | `UserController` + policies |
 | USR-08 | Síndico atribui Síndico e Conselho Fiscal | Must | Idem |
-| USR-09 | Seleção de perfil ativo para multi-papel | Must | `ProfileSelectorController`, `CheckActiveProfile` |
+| USR-09 | Seleção de perfil ativo para multi-papel (ex.: Síndico ↔ Morador); síndico autoatribui Morador em Meu Perfil | Must | `ProfileSelectorController`, `CheckActiveProfile`, `SyndicResidentProfileService` |
 | USR-10 | Exportação de unidades (PDF/Excel/CSV) | Should | `UnitController@export` |
 | USR-11 | Reset de senha por link de e-mail (síndico/admin) | Must | `UserController@resetPassword`, `AdminPasswordResetLinkMail` |
 | USR-12 | Troca de senha obrigatória (senha temporária) | Must | `PasswordChangeController`, `CheckPasswordChange` |
@@ -457,6 +458,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-17 | Visualização aluguel: contato síndico → proprietário/inquilino | Should | `units/partials/rental-occupants`, `SyndicConversationService::findConversationForResidentOnUnit` |
 | USR-18 | Papel **Proprietário** (Spatie) sincronizado com `owner_user_id` | Must | `RolesAndPermissionsSeeder`, `UnitOccupancyService::syncOwnerRole` |
 | USR-19 | Importação em lote de unidades via planilha modelo (.xlsx/.csv): download do template, validação de colunas obrigatórias, duplicatas e cota; cadastro transacional | Must | `UnitImportService`, `UnitController@importForm`, `units/import`, rotas `units.import.*` |
+| USR-20 | Em **Meu Perfil**, no celular, botão **Tirar foto** abre a câmera frontal e grava a foto de identificação (limite 2 MB; a imagem é reduzida no aparelho quando necessário) | Must | `users/profile-edit` |
 
 #### 8.2.1 Regimes de ocupação e perfil Proprietário (detalhamento)
 
@@ -581,6 +583,7 @@ Taxonomia fixa em `App\Support\ExpenseCategories` (pessoal, encargos, energia, �
 | Capacidade | Comportamento |
 |------------|---------------|
 | **Registrar pagamento** | Campo **Categoria** obrigatório; grava em `condominium_accounts.category` |
+| **Comprovante (caixa)** | **Escolher Arquivo** abre o seletor de arquivos no celular e no computador (JPG, PNG ou PDF, até 8 MB). **Câmera** abre a câmera nativa no celular e a webcam no computador. A foto fica em `captured_image_path` |
 | **Folha** | `EmployeeService` classifica `pessoal` ou `encargos` automaticamente |
 | **Gráfico anual** | Soma despesas ativas do caixa por categoria no ano corrente |
 | **Alertas** | MoM e vs média 3 meses; níveis critical / attention / watch / positive / stable |
@@ -2186,4 +2189,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.36 — atualizado em 27/09/2026. **FIN-37 / FIN-RN-09** overlay de pensamento do Consultor Financeiro. Mantém a v2.35 (USR-19).*
+*Documento v2.40 — atualizado em 29/09/2026. **Caixa**: comprovante com **Escolher Arquivo** (seletor no celular e no computador) e **Câmera** (câmera nativa no celular, webcam no computador). Mantém a v2.39.*

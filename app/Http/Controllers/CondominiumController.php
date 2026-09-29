@@ -121,8 +121,9 @@ class CondominiumController extends Controller
         $this->authorize('update', $condominium);
 
         $condominium->loadCount('units');
+        $syndics = app(\App\Services\CondominiumSyndicService::class)->syndicsFor($condominium);
 
-        return view('condominiums.edit', compact('condominium'));
+        return view('condominiums.edit', compact('condominium', 'syndics'));
     }
 
     public function update(UpdateCondominiumRequest $request, Condominium $condominium)

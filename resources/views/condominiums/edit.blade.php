@@ -29,4 +29,11 @@
         </form>
     </div>
 </div>
+
+@if(auth()->user()?->isAdmin())
+    @include('condominiums.partials.syndic-management-card', [
+        'condominium' => $condominium,
+        'syndics' => $syndics ?? collect(),
+    ])
+@endif
 @endsection

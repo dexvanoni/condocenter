@@ -70,23 +70,10 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold">Comprovante</label>
-                            <div class="d-flex flex-column flex-md-row gap-2">
-                                <div class="flex-fill">
-                                    <input type="file" name="document" id="documentRecebimento" class="form-control form-control-lg" accept="image/*,.pdf" style="display: none;">
-                                    <button type="button" class="btn btn-outline-primary w-100 btn-lg" onclick="document.getElementById('documentRecebimento').click()">
-                                        <i class="bi bi-upload"></i> Escolher Arquivo
-                                    </button>
-                                    <small class="text-muted d-block mt-1">JPG, PNG, PDF (máx. 8MB)</small>
-                                    <div id="documentRecebimentoPreview" class="mt-2"></div>
-                                </div>
-                                <div class="flex-fill flex-md-grow-0">
-                                    <button type="button" class="btn btn-success w-100 btn-lg" onclick="captureCamera('cameraRecebimento')">
-                                        <i class="bi bi-camera"></i> <span class="d-none d-md-inline">Câmera</span>
-                                    </button>
-                                    <input type="file" name="captured_image" id="cameraRecebimento" class="form-control" accept="image/*" capture="environment" style="display: none;" onchange="previewCapturedImage(this, 'cameraRecebimentoPreview')">
-                                    <div id="cameraRecebimentoPreview" class="mt-2"></div>
-                                </div>
-                            </div>
+                            @include('finance.accounts.partials.voucher-picker', [
+                                'fileInputId' => 'documentRecebimento',
+                                'captureInputId' => 'cameraRecebimento',
+                            ])
                         </div>
                     </div>
                 </div>
@@ -182,24 +169,10 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold mb-3">Comprovante</label>
-                            <div class="d-flex flex-column flex-md-row gap-2">
-                                <div class="flex-fill">
-                                    <input type="file" name="document" id="documentPagamento" class="form-control form-control-lg" accept="image/*,.pdf" style="display: none;" onchange="previewFile(this, 'documentPagamentoPreview')">
-                                    <button type="button" class="btn btn-outline-primary w-100 btn-lg" onclick="document.getElementById('documentPagamento').click()">
-                                        <i class="bi bi-upload"></i> Escolher Arquivo
-                                    </button>
-                                    <small class="text-muted d-block mt-1">JPG, PNG, PDF (máx. 8MB)</small>
-                                    <div id="documentPagamentoPreview" class="mt-2"></div>
-                                </div>
-                                <div class="flex-fill flex-md-grow-0">
-                                    <button type="button" class="btn btn-success w-100 btn-lg" onclick="captureCamera('cameraPagamento')">
-                                        <i class="bi bi-camera"></i> <span class="d-none d-md-inline">Câmera</span>
-                                    </button>
-                                    <input type="file" name="captured_image" id="cameraPagamento" class="form-control" accept="image/*" capture="environment" style="display: none;" onchange="previewCapturedImage(this, 'cameraPagamentoPreview')">
-                                    <small class="text-muted d-block mt-1">Tirar foto</small>
-                                    <div id="cameraPagamentoPreview" class="mt-2"></div>
-                                </div>
-                            </div>
+                            @include('finance.accounts.partials.voucher-picker', [
+                                'fileInputId' => 'documentPagamento',
+                                'captureInputId' => 'cameraPagamento',
+                            ])
                         </div>
                     </div>
                 </div>
@@ -266,77 +239,223 @@
 </div>
 
 <script>
-// Função para capturar foto com câmera
-function captureCamera(inputId) {
-    const input = document.getElementById(inputId);
-    if (input) {
-        input.click();
-    }
-}
+(function () {
+    const cameraStreams = new Map();
 
-// Função para preview de arquivo selecionado
-function previewFile(input, previewId) {
-    const preview = document.getElementById(previewId);
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.innerHTML = `
-                    <div class="position-relative">
-                        <img src="${e.target.result}" class="img-thumbnail" style="max-width: 100%; max-height: 200px;">
-                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onclick="clearPreview('${input.id}', '${previewId}')">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                `;
-            };
-            reader.readAsDataURL(file);
-        } else {
-            preview.innerHTML = `
-                <div class="alert alert-info p-2 mb-0">
-                    <i class="bi bi-file-earmark-pdf"></i> ${file.name}
-                    <button type="button" class="btn btn-sm btn-danger float-end" onclick="clearPreview('${input.id}', '${previewId}')">
-                        <i class="bi bi-x"></i>
-                    </button>
-                </div>
-            `;
+    function usesNativeCamera() {
+        const ua = navigator.userAgent || '';
+        if (/Android|iPhone|iPad|iPod/i.test(ua)) {
+            return true;
         }
-    }
-}
+        if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) {
+            return true;
+        }
 
-// Função para preview de foto capturada
-function previewCapturedImage(input, previewId) {
-    const preview = document.getElementById(previewId);
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `
-                <div class="position-relative">
-                    <img src="${e.target.result}" class="img-thumbnail" style="max-width: 100%; max-height: 200px;">
-                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1" onclick="clearPreview('${input.id}', '${previewId}')">
-                        <i class="bi bi-x"></i>
-                    </button>
-                </div>
-            `;
-        };
-        reader.readAsDataURL(input.files[0]);
+        return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
     }
-}
 
-// Função para limpar preview
-function clearPreview(inputId, previewId) {
-    const input = document.getElementById(inputId);
-    const preview = document.getElementById(previewId);
-    if (input) {
-        input.value = '';
-    }
-    if (preview) {
-        preview.innerHTML = '';
-    }
-}
+    function renderPreview(container, input) {
+        container.replaceChildren();
+        const file = input.files && input.files[0];
+        if (!file) {
+            return;
+        }
 
-// Máscara de dinheiro para inputs
+        const box = document.createElement('div');
+        box.className = 'd-flex align-items-start gap-2';
+
+        if (file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.className = 'img-thumbnail';
+            img.alt = 'Pré-visualização do comprovante';
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '200px';
+            const url = URL.createObjectURL(file);
+            img.src = url;
+            img.onload = function () {
+                URL.revokeObjectURL(url);
+            };
+            box.appendChild(img);
+        } else {
+            const name = document.createElement('div');
+            name.className = 'alert alert-info p-2 mb-0 flex-fill';
+            name.textContent = file.name;
+            box.appendChild(name);
+        }
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-sm btn-danger';
+        remove.setAttribute('aria-label', 'Remover comprovante');
+        remove.innerHTML = '<i class="bi bi-x"></i>';
+        remove.addEventListener('click', function () {
+            input.value = '';
+            container.replaceChildren();
+        });
+        box.appendChild(remove);
+        container.appendChild(box);
+    }
+
+    function stopCamera(key) {
+        const stream = cameraStreams.get(key);
+        if (!stream) {
+            return;
+        }
+        stream.getTracks().forEach(function (track) {
+            track.stop();
+        });
+        cameraStreams.delete(key);
+    }
+
+    function bindVoucherPicker(root) {
+        const fileInput = root.querySelector('[data-voucher-file]');
+        const captureInput = root.querySelector('[data-voucher-capture]');
+        const fileBtn = root.querySelector('[data-voucher-file-btn]');
+        const cameraBtn = root.querySelector('[data-voucher-camera]');
+        const filePreview = root.querySelector('[data-voucher-file-preview]');
+        const cameraPreview = root.querySelector('[data-voucher-camera-preview]');
+        const panel = root.querySelector('[data-voucher-camera-panel]');
+        const video = root.querySelector('[data-voucher-video]');
+        const canvas = root.querySelector('[data-voucher-canvas]');
+        const errorBox = root.querySelector('[data-voucher-camera-error]');
+        const shootBtn = root.querySelector('[data-voucher-shoot]');
+        const closeBtn = root.querySelector('[data-voucher-camera-close]');
+        const key = captureInput ? captureInput.id : 'voucher-camera';
+        let cameraToken = 0;
+
+        function showCameraError(message) {
+            if (!errorBox) {
+                return;
+            }
+            errorBox.textContent = message;
+            errorBox.classList.remove('d-none');
+        }
+
+        function closeDesktopCamera() {
+            cameraToken += 1;
+            stopCamera(key);
+            if (video) {
+                video.srcObject = null;
+            }
+            if (shootBtn) {
+                shootBtn.disabled = true;
+            }
+            errorBox?.classList.add('d-none');
+            panel?.classList.add('d-none');
+        }
+
+        async function openDesktopCamera() {
+            if (!panel || !video) {
+                return;
+            }
+
+            const token = ++cameraToken;
+            panel.classList.remove('d-none');
+            errorBox?.classList.add('d-none');
+            if (shootBtn) {
+                shootBtn.disabled = true;
+            }
+            panel.scrollIntoView({ block: 'nearest' });
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showCameraError('Este navegador não abriu a webcam. Use Escolher Arquivo para anexar o comprovante.');
+                return;
+            }
+
+            try {
+                stopCamera(key);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' } },
+                    audio: false,
+                });
+                if (token !== cameraToken) {
+                    stream.getTracks().forEach(function (track) {
+                        track.stop();
+                    });
+                    return;
+                }
+                cameraStreams.set(key, stream);
+                video.srcObject = stream;
+
+                const enableShoot = function () {
+                    if (token !== cameraToken || !shootBtn || !video.videoWidth) {
+                        return;
+                    }
+                    shootBtn.disabled = false;
+                };
+                video.addEventListener('loadedmetadata', enableShoot, { once: true });
+                await video.play();
+                enableShoot();
+            } catch (error) {
+                if (token !== cameraToken) {
+                    return;
+                }
+                const denied = error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
+                const missing = error && (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError');
+                if (denied) {
+                    showCameraError('Permissão da câmera negada. Libere a câmera no navegador ou use Escolher Arquivo.');
+                } else if (missing) {
+                    showCameraError('Nenhuma câmera encontrada neste computador. Use Escolher Arquivo.');
+                } else {
+                    showCameraError('Não foi possível abrir a câmera. Use Escolher Arquivo.');
+                }
+            }
+        }
+
+        fileInput?.addEventListener('change', function () {
+            renderPreview(filePreview, fileInput);
+        });
+        captureInput?.addEventListener('change', function () {
+            renderPreview(cameraPreview, captureInput);
+        });
+
+        fileBtn?.addEventListener('click', function () {
+            fileInput?.click();
+        });
+
+        cameraBtn?.addEventListener('click', function () {
+            if (usesNativeCamera()) {
+                closeDesktopCamera();
+                captureInput?.click();
+                return;
+            }
+            openDesktopCamera();
+        });
+
+        shootBtn?.addEventListener('click', function () {
+            if (!video || !video.videoWidth || !canvas || !captureInput) {
+                return;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            if (!context) {
+                return;
+            }
+            context.drawImage(video, 0, 0);
+
+            canvas.toBlob(function (blob) {
+                if (!blob) {
+                    return;
+                }
+                const file = new File([blob], 'comprovante-' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                captureInput.files = transfer.files;
+                renderPreview(cameraPreview, captureInput);
+                closeDesktopCamera();
+            }, 'image/jpeg', 0.92);
+        });
+
+        closeBtn?.addEventListener('click', closeDesktopCamera);
+        root.closest('.modal')?.addEventListener('hidden.bs.modal', closeDesktopCamera);
+        root.closest('form')?.addEventListener('submit', closeDesktopCamera);
+    }
+
+    document.querySelectorAll('[data-voucher-picker]').forEach(bindVoucherPicker);
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     const cancelModal = document.getElementById('modalCancelarPagamento');
     if (cancelModal) {
@@ -397,6 +516,18 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+.voucher-file-input {
+    display: none;
+}
+
+.voucher-camera-panel video {
+    width: 100%;
+    max-height: 280px;
+    background: #111;
+    border-radius: 0.5rem;
+    object-fit: cover;
+}
+
 /* Estilos mobile para modais */
 @media (max-width: 768px) {
     .modal {

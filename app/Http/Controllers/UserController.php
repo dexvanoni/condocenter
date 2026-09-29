@@ -14,6 +14,7 @@ use App\Services\DefaulterAccessOverrideService;
 use App\Services\DefaulterRestrictionService;
 use App\Services\FileUploadService;
 use App\Services\SyndicCondominiumLinkageService;
+use App\Services\SyndicResidentProfileService;
 use App\Services\UserRoleLinkageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -36,6 +37,7 @@ class UserController extends Controller
         private DefaulterRestrictionService $defaulterRestrictionService,
         private DefaulterAccessOverrideService $defaulterAccessOverrideService,
         private SyndicCondominiumLinkageService $syndicCondominiumLinkage,
+        private SyndicResidentProfileService $syndicResidentProfile,
     ) {
         $this->fileUploadService = $fileUploadService;
     }
@@ -275,7 +277,15 @@ class UserController extends Controller
         $isEditingSelf = Auth::user()->id === $user->id;
 
         if ($isEditingSelf) {
-            return view('users.profile-edit', compact('user'));
+            $syndicSelfMorador = $this->syndicResidentProfile->canManageOwnMoradorProfile($user);
+            $units = $syndicSelfMorador
+                ? Unit::active()
+                    ->byCondominium((int) $user->condominium_id)
+                    ->orderBy('number')
+                    ->get()
+                : collect();
+
+            return view('users.profile-edit', compact('user', 'units', 'syndicSelfMorador'));
         }
 
         // Admin/Síndico editando outro usuário — view completa
@@ -330,6 +340,8 @@ class UserController extends Controller
                 'contato_comercial' => ['nullable', 'string', 'max:20'],
                 'photo' => ['nullable', 'image', 'max:2048'],
                 'agregado_can_authorize_access' => ['nullable', 'boolean'],
+                'syndic_also_morador' => ['nullable', 'boolean'],
+                'unit_id' => ['nullable', 'integer', 'exists:units,id'],
             ]);
             
             // Upload de nova foto se fornecida
@@ -345,11 +357,32 @@ class UserController extends Controller
                 );
             }
             
-            if ($user->isMorador()) {
+            if ($user->hasAssignedRole('Morador')) {
                 $validatedData['agregado_can_authorize_access'] = $request->boolean('agregado_can_authorize_access');
             }
 
+            unset($validatedData['syndic_also_morador'], $validatedData['unit_id']);
+
+            $hadMoradorBeforeSync = $user->hasAssignedRole('Morador');
+
             $user->update($validatedData);
+
+            $profileMessage = 'Perfil atualizado com sucesso!';
+
+            if ($this->syndicResidentProfile->canManageOwnMoradorProfile($user)) {
+                $asMorador = $request->boolean('syndic_also_morador');
+                $unitId = $request->input('unit_id');
+
+                $this->syndicResidentProfile->syncOwnMoradorProfile(
+                    $user,
+                    $asMorador,
+                    $unitId !== null && $unitId !== '' ? (int) $unitId : null,
+                );
+
+                if ($asMorador && !$hadMoradorBeforeSync) {
+                    $profileMessage = 'Perfil de morador ativado. Use o menu do seu nome para alternar entre Síndico e Morador quando precisar das funções de morador.';
+                }
+            }
             
             // Log da atividade
             $this->authUser()->logActivity(
@@ -360,7 +393,7 @@ class UserController extends Controller
             );
             
             return redirect()->route('profile.edit')
-                ->with('success', 'Perfil atualizado com sucesso!');
+                ->with('success', $profileMessage);
                 
         } else {
             $this->ensureSameActiveCondominium($user);

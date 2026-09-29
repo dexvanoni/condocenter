@@ -332,10 +332,17 @@
                                     </td>
                                     <td>{{ $expense['created_by'] ?? '—' }}</td>
                                     <td>
-                                        @if($expense['document_path'])
-                                            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($expense['document_path']) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                                <i class="bi bi-paperclip"></i>
-                                            </a>
+                                        @if($expense['document_path'] || $expense['captured_image_path'])
+                                            @if($expense['document_path'])
+                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($expense['document_path']) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Arquivo">
+                                                    <i class="bi bi-paperclip"></i>
+                                                </a>
+                                            @endif
+                                            @if($expense['captured_image_path'])
+                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($expense['captured_image_path']) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Foto">
+                                                    <i class="bi bi-camera"></i>
+                                                </a>
+                                            @endif
                                         @else
                                             —
                                         @endif

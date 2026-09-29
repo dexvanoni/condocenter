@@ -69,9 +69,6 @@ class CheckActiveProfile
                 return redirect()->route('profile.select')
                     ->with('error', 'O perfil selecionado não está mais disponível.');
             }
-
-            // Disponibiliza o perfil ativo para policies, sidebar e helpers
-            $user->current_role = $roleName;
         }
 
         return $next($request);

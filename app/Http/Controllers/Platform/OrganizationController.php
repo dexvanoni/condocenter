@@ -75,7 +75,17 @@ class OrganizationController extends Controller
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        return view('platform.organizations.edit', compact('organization'));
+        $condominium = null;
+        $syndics = collect();
+
+        if ($organization->isDirectCondominium()) {
+            $condominium = $organization->condominiums()->first();
+            if ($condominium) {
+                $syndics = app(\App\Services\CondominiumSyndicService::class)->syndicsFor($condominium);
+            }
+        }
+
+        return view('platform.organizations.edit', compact('organization', 'condominium', 'syndics'));
     }
 
     public function update(Request $request, Organization $organization): RedirectResponse

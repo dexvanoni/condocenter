@@ -10,6 +10,7 @@ use App\Services\ReportGeneratorService;
 use App\Exports\UnitsImportTemplateExport;
 use App\Exports\UnitsImportDataSheetExport;
 use App\Http\Requests\ImportUnitsRequest;
+use App\Http\Requests\StoreUnitRequest;
 use App\Http\Requests\UpdateUnitRequest;
 use App\Services\LeaseContractService;
 use App\Services\UnitImportService;

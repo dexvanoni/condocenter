@@ -3,19 +3,14 @@
 namespace App\Http\Controllers\Organization;
 
 use App\Http\Controllers\Controller;
-use App\Mail\ClientWelcomeMail;
 use App\Models\Condominium;
 use App\Models\Organization;
-use App\Models\User;
 use App\Services\ActiveCondominiumService;
+use App\Services\CondominiumSyndicService;
 use App\Services\OrganizationQuotaService;
 use App\Support\CondominiumModules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -25,6 +20,7 @@ class OrganizationCondominiumController extends Controller
     public function __construct(
         private ActiveCondominiumService $activeCondominium,
         private OrganizationQuotaService $quota,
+        private CondominiumSyndicService $syndicService,
     ) {}
 
     public function create(Request $request): View
@@ -86,7 +82,12 @@ class OrganizationCondominiumController extends Controller
             'enabled_modules' => CondominiumModules::keys(),
         ]);
 
-        $this->createSyndic($condominium, $data['syndic_name'], $data['syndic_email'], $data['syndic_phone'] ?? null);
+        $this->syndicService->attachSyndic(
+            $condominium,
+            $data['syndic_name'],
+            $data['syndic_email'],
+            $data['syndic_phone'] ?? null,
+        );
 
         return redirect()
             ->route('organization.dashboard')
@@ -99,7 +100,7 @@ class OrganizationCondominiumController extends Controller
         $this->authorize('manageCondominiums', $organization);
         abort_unless((int) $condominium->organization_id === (int) $organization->id, 404);
 
-        if ($this->syndicOf($condominium)) {
+        if ($this->syndicService->primarySyndic($condominium)) {
             return back()->with('error', 'Este condomínio já tem um síndico vinculado.');
         }
 
@@ -109,7 +110,16 @@ class OrganizationCondominiumController extends Controller
             'syndic_phone' => ['nullable', 'string', 'max:30'],
         ]);
 
-        $syndic = $this->createSyndic($condominium, $data['syndic_name'], $data['syndic_email'], $data['syndic_phone'] ?? null);
+        try {
+            $syndic = $this->syndicService->attachSyndic(
+                $condominium,
+                $data['syndic_name'],
+                $data['syndic_email'],
+                $data['syndic_phone'] ?? null,
+            );
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        }
 
         $message = $syndic->wasRecentlyCreated
             ? 'Síndico vinculado. O acesso foi enviado por e-mail.'
@@ -118,56 +128,6 @@ class OrganizationCondominiumController extends Controller
         return redirect()
             ->route('organization.dashboard')
             ->with('success', $message);
-    }
-
-    protected function createSyndic(Condominium $condominium, string $name, string $email, ?string $phone): User
-    {
-        $syndic = User::query()->where('email', $email)->first();
-
-        if ($syndic) {
-            if ($syndic->isManagementCompanyMember()) {
-                throw ValidationException::withMessages([
-                    'syndic_email' => 'Este e-mail é da administradora. Informe outra pessoa para ser o síndico.',
-                ]);
-            }
-
-            if (!$syndic->hasAssignedRole('Síndico')) {
-                $syndic->assignRole('Síndico');
-            }
-
-            $condominium->syndics()->syncWithoutDetaching([$syndic->id]);
-
-            return $syndic;
-        }
-
-        $syndic = User::query()->create([
-            'name' => $name,
-            'email' => $email,
-            'phone' => $phone,
-            'condominium_id' => null,
-            'password' => Hash::make(Str::password(32)),
-            'senha_temporaria' => true,
-            'is_active' => true,
-            'registration_status' => 'approved',
-        ]);
-        $syndic->assignRole('Síndico');
-        $condominium->syndics()->syncWithoutDetaching([$syndic->id]);
-
-        $token = Password::createToken($syndic);
-        Mail::to($syndic->email)->send(new ClientWelcomeMail(
-            $syndic,
-            route('password.reset', ['token' => $token, 'email' => $syndic->email]),
-            $condominium->name,
-            ClientWelcomeMail::AUDIENCE_SINDICO,
-            (int) config('auth.passwords.users.expire', 60),
-        ));
-
-        return $syndic;
-    }
-
-    protected function syndicOf(Condominium $condominium): ?User
-    {
-        return $condominium->syndics()->whereHas('roles', fn ($query) => $query->where('name', 'Síndico'))->first();
     }
 
     protected function organization(Request $request): Organization

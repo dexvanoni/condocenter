@@ -13,14 +13,14 @@
         </p>
     </div>
 
-    <form method="POST" action="{{ route('platform.organizations.update', $organization) }}" class="row g-4">
-        @csrf
-        @method('PUT')
-
+    <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light"><h5 class="mb-0">Dados cadastrais</h5></div>
-                <div class="card-body row g-3">
+            <form method="POST" action="{{ route('platform.organizations.update', $organization) }}">
+                @csrf
+                @method('PUT')
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light"><h5 class="mb-0">Dados cadastrais</h5></div>
+                    <div class="card-body row g-3">
                     <div class="col-12">
                         <label class="form-label" for="legal_name">Razão social *</label>
                         <input type="text" id="legal_name" name="legal_name" class="form-control @error('legal_name') is-invalid @enderror" value="{{ old('legal_name', $organization->legal_name) }}" required>
@@ -66,15 +66,32 @@
                         <textarea id="notes" name="notes" class="form-control" rows="3">{{ old('notes', $organization->notes) }}</textarea>
                     </div>
                 </div>
-            </div>
+                <div class="mt-4 d-flex gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check2-circle"></i> Salvar alterações
+                    </button>
+                    <a href="{{ route('platform.organizations.show', $organization) }}" class="btn btn-outline-secondary">Cancelar</a>
+                </div>
+            </form>
         </div>
 
-        <div class="col-12">
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-check2-circle"></i> Salvar alterações
-            </button>
-            <a href="{{ route('platform.organizations.show', $organization) }}" class="btn btn-outline-secondary">Cancelar</a>
-        </div>
-    </form>
+        @if($organization->isManagementCompany())
+            <div class="col-lg-8">
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Organizações do tipo administradora possuem vários condomínios. Gerencie o síndico de cada um na
+                    <a href="{{ route('platform.organizations.show', $organization) }}">ficha da organização</a>
+                    ou em <strong>Condomínios → Editar</strong>.
+                </div>
+            </div>
+        @elseif($condominium ?? null)
+            <div class="col-lg-8">
+                @include('condominiums.partials.syndic-management-card', [
+                    'condominium' => $condominium,
+                    'syndics' => $syndics,
+                ])
+            </div>
+        @endif
+    </div>
 </div>
 @endsection
