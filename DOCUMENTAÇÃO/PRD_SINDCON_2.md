@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.43 |
-| **Data** | 29/09/2026 |
+| **Versão do documento** | 2.44 |
+| **Data** | 30/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria), OpenAI + Google Gemini (Consultor Financeiro) |
@@ -1654,11 +1654,14 @@ Referência canônica: `DOCUMENTAÇÃO/INSTALACAO_VPS.md`
 | `storage:link` | Sim | Arquivos públicos (`/storage`) |
 | SSL | Sim | HTTPS produção |
 
+**Ambiente alvo:** VPS Hostinger compartilhada (Ubuntu 22.04 ou 24.04), com outros sites no mesmo servidor. A instalação cria vhost, banco, cron e worker só do SindCON. Não troca o sistema operacional (isso apaga o disco) e não remove os sites existentes. Sequência completa: `DOCUMENTAÇÃO/INSTALACAO_VPS.md`, aberta em `/dev/docs/{token}`.
+
 ### 15.2 Scheduler (`routes/console.php`)
 
 | Horário | Comando | Função |
 |---------|---------|--------|
 | Diário 05:00 | `fees:generate-upcoming` | Gera cobranças de taxas |
+| Diário 06:00 | `leases:process-contracts` | Suspende inquilino com contrato vencido |
 | Diário 06:15 | `subscriptions:auto-renew` | Renova contratos SaaS com autorrenovação e envia e-mail |
 | Diário 06:30 | `charges:settle-payroll` | Liquida cobranças folha |
 | Diário 07:00 | `charges:mark-overdue` | Marca vencidas |
@@ -1666,6 +1669,7 @@ Referência canônica: `DOCUMENTAÇÃO/INSTALACAO_VPS.md`
 | Diário 09:00 | `charges:check-overdue` | Inadimplência + notificações |
 | Mensal dia 1, 08:00 | `reports:generate-monthly` | Relatórios mensais |
 | Hourly | `reservations:cancel-expired-prereservations` | Cancela pré-reservas |
+| A cada 15 min | `announcements:close-expired` | Encerra avisos após `expires_at` |
 | Semanal | Closure | Limpa notificações lidas > 30 dias |
 
 ### 15.3 Jobs assíncronos relevantes
@@ -2197,4 +2201,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.43 — atualizado em 29/09/2026. WhatsApp/Evolution: timeout de envio com sessão `open` aponta Redis da stack (WA-RN-02). Mantém a v2.42 (WA-RN-01, estado da sessão na tela).*
+*Documento v2.44 — atualizado em 30/09/2026. Operação: instalação em VPS Hostinger compartilhada (sem trocar o SO e sem remover os outros sites). Mantém a v2.43 (WhatsApp/Evolution: timeout com sessão `open` aponta Redis da stack).*

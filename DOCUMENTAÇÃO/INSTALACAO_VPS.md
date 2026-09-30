@@ -1,23 +1,36 @@
-# SindCON na VPS — tutorial em ordem
+# SindCON na VPS Hostinger compartilhada — tutorial em ordem
 
-Siga **de cima para baixo**. Cada passo assume que o anterior já foi feito.
+Siga **de cima para baixo**. Cada passo assume que o anterior já foi feito. No fim da Parte 1 o site abre em HTTPS, o cron gera as rotinas do dia e a fila processa e-mail, WhatsApp e cobranças.
+
+Esta VPS **já hospeda outros sites**. O SindCON entra como mais um aplicativo: pasta própria, banco próprio, vhost próprio, cron e worker próprios. Nada abaixo apaga o disco, reinstala o sistema ou remove o site de outra pessoa.
+
+Fontes usadas nesta sequência:
+
+- Painel Hostinger: VPS → Overview (SSH e Browser terminal), Security → Firewall, Snapshots/Backups. Trocar o sistema em OS & Panel apaga o servidor inteiro — **não faça isso**.
+- [How to Deploy Laravel on a VPS](https://www.hostinger.com/tutorials/how-to-deploy-laravel/) — preparar o Ubuntu, clonar o Git, `.env`, permissão `www-data`, raiz do site em `public`. O tutorial da Hostinger mostra Apache; o SindCON usa **Nginx**, no mesmo espírito de vhost separado.
+- [How to install PHP on Ubuntu](https://www.hostinger.com/tutorials/how-to-install-php-ubuntu) — PHP-FPM e socket do Nginx.
+- [Getting started with VPS](https://www.hostinger.com/in/tutorials/getting-started-with-vps-hosting/) — SSH, firewall do painel e DNS.
 
 Substitua em todos os comandos:
 
 | Placeholder | Exemplo |
 |-------------|---------|
+| `IP_DA_VPS` | IP que aparece em VPS → Overview → SSH access |
+| `PORTA_SSH` | porta SSH do painel (muitas vezes `22`) |
 | `SEU_DOMINIO` | `app.sindcon.com.br` |
-| `SENHA_MYSQL` | senha forte só do banco |
-| URL do Git | repositório real do projeto |
+| `SENHA_MYSQL` | senha forte só deste banco |
+| `ORG` | organização do Git (`git@github-condocenter:ORG/condocenter.git`) |
 
 Constantes desta instalação:
 
-- Servidor: Ubuntu 22.04 ou 24.04 LTS
+- Servidor: Ubuntu 22.04 ou 24.04 já existente na VPS Hostinger
 - Pasta do projeto: `/var/www/condocenter`
 - Site público (Nginx): `/var/www/condocenter/public`
-- PHP 8.3, MySQL 8, Node 20
-- Fuso: `America/Fortaleza`
-- **Última revisão:** 29/09/2026 (WhatsApp/Evolution: Redis da stack precisa estar no ar)
+- PHP 8.3 (FPM próprio; outras versões dos outros sites ficam no lugar)
+- MySQL ou MariaDB do próprio servidor; o banco novo se chama `condocenter` (o serviço só é instalado se ainda não existir)
+- Node.js 20, só para compilar os assets
+- Fuso do SindCON: `America/Fortaleza` **no `.env`**. Não mude o fuso do sistema operacional — isso alteraria os outros sites. O agendador do Laravel usa `APP_TIMEZONE`.
+- **Última revisão:** 30/09/2026 (sequência para VPS Hostinger compartilhada)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -25,26 +38,103 @@ Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
 # PARTE 1 — Primeira instalação
 
-Faça esta parte **uma vez**, em um servidor vazio.
+Faça esta parte **uma vez** nesta VPS.
+
+Antes de começar, anote o que você **não** vai fazer:
+
+- Não use o template “Laravel” nem “Change OS” no painel. A Hostinger avisa que isso apaga todos os dados do servidor.
+- Não apague `/etc/nginx/sites-enabled/default` nem o vhost de outro domínio.
+- Não reinstale o MySQL se ele já estiver no ar.
+- Não rode `ufw --force enable` se o firewall do painel Hostinger já controla as portas. Dois firewalls escondem o bloqueio.
+- Não altere `timedatectl set-timezone`.
+- Não rode `DemoDataSeeder` nem `db:wipe`.
 
 ---
 
-## Passo 1 — Configurar a VPS
+## Passo 1 — Painel Hostinger: acesso, cópia de segurança, firewall e DNS
 
-Entre no servidor:
+1. Entre em [hPanel](https://hpanel.hostinger.com/) → **VPS** → **Manage** neste servidor.
+2. Em **Backups** ou **Snapshots**, crie um snapshot. Se um comando afetar outro site, este é o retorno.
+3. Em **Overview → SSH access**, anote IP, porta, usuário `root` e a senha (ou a chave). Não anote isso neste arquivo.
+4. Em **Security → Firewall**, libere o que o SindCON precisa **sem fechar** o que os outros sites já usam:
+   - SSH (porta anotada, em geral 22)
+   - HTTP `80`
+   - HTTPS `443`
+5. No DNS do domínio (hPanel → Domínios → DNS, ou no registrador), crie ou ajuste:
+
+| Tipo | Nome | Valor |
+|------|------|--------|
+| A | `@` ou o subdomínio (`app`) | `IP_DA_VPS` |
+| A | `www` (se for usar) | `IP_DA_VPS` |
+
+O certificado do Passo 10 só funciona depois que esse registro responder o IP da VPS. A propagação pode levar alguns minutos.
+
+Quando terminar: vá para o **Passo 2**.
+
+---
+
+## Passo 2 — Entrar no servidor e ver o que já existe
+
+Pelo **Browser terminal** (Overview → Browser terminal) ou pelo seu computador:
 
 ```bash
-ssh root@IP_DA_VPS
+ssh -p PORTA_SSH root@IP_DA_VPS
 ```
 
-Atualize o sistema e instale o básico:
+Confira o sistema e o que já está instalado. Não instale nada ainda.
 
 ```bash
-apt update && apt upgrade -y
-apt install -y software-properties-common curl git unzip ufw nginx mysql-server supervisor
+lsb_release -ds
+whoami
+systemctl is-active nginx || true
+systemctl is-active mysql || systemctl is-active mariadb || true
+php -v || true
+node -v || true
+composer -V || true
+git --version || true
+ufw status || true
+ls /etc/nginx/sites-enabled
 ```
 
-Instale o PHP 8.3 e as extensões do Laravel:
+Anote três coisas:
+
+- Se o Nginx já está `active`.
+- Se o MySQL ou o MariaDB já está `active`.
+- Se o UFW está `inactive` (o normal quando o firewall é o do painel) ou `active`.
+
+Quando terminar: vá para o **Passo 3**.
+
+---
+
+## Passo 3 — Completar só os pacotes que faltam
+
+Atualize a lista de pacotes. O `upgrade` do sistema inteiro mexe em bibliotecas dos outros sites: só rode se o snapshot do Passo 1 existir e você aceitar esse efeito.
+
+```bash
+apt update
+```
+
+Ferramentas básicas (seguem o manual da Hostinger: Git, unzip, curl):
+
+```bash
+apt install -y curl git unzip ca-certificates software-properties-common
+```
+
+Nginx, só se o Passo 2 mostrou que ele não está ativo:
+
+```bash
+apt install -y nginx
+systemctl enable --now nginx
+```
+
+MySQL, só se nem `mysql` nem `mariadb` estavam ativos. Se o banco já existe, **pule** este bloco.
+
+```bash
+apt install -y mysql-server
+systemctl enable --now mysql
+```
+
+PHP 8.3 ao lado das outras versões. No Ubuntu 22.04 o PHP 8.3 vem do PPA; no 24.04 ele já está nos repositórios e o PPA também serve.
 
 ```bash
 add-apt-repository -y ppa:ondrej/php
@@ -52,24 +142,28 @@ apt update
 apt install -y \
   php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl \
   php8.3-zip php8.3-gd php8.3-bcmath php8.3-intl php8.3-tokenizer
-
-# OCR de etiquetas — Tesseract (obrigatório no servidor) + Python (opcional, só se usar Paddle no PHP)
-apt install -y tesseract-ocr tesseract-ocr-por python3 python3-venv python3-pip
-tesseract --version
-python3 --version
+systemctl enable --now php8.3-fpm
+php8.3 -v
 ```
 
-O **Tesseract** atende o padrão do sistema e o fallback no servidor. O **Python 3** só é necessário se algum condomínio escolher o motor **PaddleOCR (Python)** em Meu Condomínio. A portaria (`/packages/intake`) usa **PaddleOCR.js no navegador** do celular (assets do `npm run build`); isso **não** depende do Python na VPS.
+Não desinstale `php8.1-fpm` nem outra versão. Os vhosts antigos continuam no socket antigo. O SindCON usa só `/run/php/php8.3-fpm.sock`.
 
-Instale o Composer:
+OCR de etiquetas. O Tesseract atende o padrão do sistema. O Python só é necessário se algum condomínio escolher PaddleOCR (Python) em Meu Condomínio. A portaria (`/packages/intake`) usa PaddleOCR.js no navegador e **não** depende do Python da VPS.
 
 ```bash
-curl -sS https://getcomposer.org/installer | php
+apt install -y tesseract-ocr tesseract-ocr-por python3 python3-venv python3-pip
+tesseract --version
+```
+
+Composer 2. Se `composer -V` já mostrar Composer 2, pule. O pacote `apt install composer` da Hostinger às vezes fica antigo demais para o Laravel 12; o instalador oficial evita isso.
+
+```bash
+curl -sS https://getcomposer.org/installer | php8.3
 mv composer.phar /usr/local/bin/composer
 composer -V
 ```
 
-Instale o Node.js 20 (necessário para `npm run build`):
+Node.js 20, necessário para `npm run build`. Se `node -v` já for v20 ou maior, pule. Se outro site depender de um Node mais antigo no comando `node` global, pare aqui e instale o Node 20 só para este build (nvm ou binário separado) antes de seguir — o script da NodeSource troca o `node` padrão do servidor.
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -77,27 +171,40 @@ apt install -y nodejs
 node -v && npm -v
 ```
 
-Libere SSH, HTTP e HTTPS no firewall:
+Supervisor, para o worker da fila:
+
+```bash
+apt install -y supervisor
+systemctl enable --now supervisor
+```
+
+Firewall local, só se o Passo 2 mostrou UFW **active**. Não ative um UFW que estava desligado.
 
 ```bash
 ufw allow OpenSSH
 ufw allow 'Nginx Full'
-ufw --force enable
+ufw status
 ```
 
-Aponte o DNS do domínio (registro A) para o IP desta VPS **antes** do passo do certificado HTTPS.
-
-Quando terminar: vá para o **Passo 2**.
+Quando terminar: vá para o **Passo 4**.
 
 ---
 
-## Passo 2 — Criar o banco de dados
+## Passo 4 — Criar o banco só do SindCON
+
+Entre no MySQL que já está no servidor. No Ubuntu o root do banco entra sem senha pelo socket:
 
 ```bash
 mysql
 ```
 
-Dentro do MySQL:
+Se pedir senha:
+
+```bash
+mysql -u root -p
+```
+
+Dentro do MySQL (não apague outro banco):
 
 ```sql
 CREATE DATABASE condocenter CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -107,72 +214,102 @@ FLUSH PRIVILEGES;
 EXIT;
 ```
 
-Guarde `SENHA_MYSQL`. Você vai colar no `.env` no Passo 5.
-
-Quando terminar: vá para o **Passo 3**.
-
----
-
-## Passo 3 — Clonar o projeto (Git)
-
-Crie a pasta e baixe o código:
-
-```bash
-mkdir -p /var/www
-git clone git@SEU_GIT:SEU_ORG/condocenter.git /var/www/condocenter
-```
-
-Se o repositório for HTTPS:
-
-```bash
-git clone https://github.com/SEU_ORG/condocenter.git /var/www/condocenter
-```
-
-Entre na pasta e confira o branch:
-
-```bash
-cd /var/www/condocenter
-git checkout main
-git status
-```
-
-Dê a pasta ao usuário do Nginx/PHP:
-
-```bash
-chown -R www-data:www-data /var/www/condocenter
-```
-
-Se o `git clone` precisar da sua chave SSH, clone com o seu usuário e só depois rode o `chown`.
-
-Quando terminar: vá para o **Passo 4**.
-
----
-
-## Passo 4 — Instalar dependências do projeto
-
-Ainda em `/var/www/condocenter`:
-
-```bash
-cd /var/www/condocenter
-sudo -u www-data composer install --no-dev --optimize-autoloader
-sudo -u www-data npm ci
-sudo -u www-data npm run build
-```
+O usuário `condocenter` só alcança o banco `condocenter`, e só a partir do próprio servidor (`localhost`). Guarde `SENHA_MYSQL` para o Passo 7.
 
 Quando terminar: vá para o **Passo 5**.
 
 ---
 
-## Passo 5 — Configurar o `.env`
+## Passo 5 — Clonar o projeto (Git)
+
+A Hostinger recomenda publicar pelo Git, não pelo upload solto do painel. A pasta fica fora de `/var/www/html`, para não misturar com o site padrão.
+
+Repositório privado: crie uma deploy key **deste** servidor e cole a chave pública no Git (read-only).
+
+```bash
+ssh-keygen -t ed25519 -C "vps-condocenter" -f /root/.ssh/id_ed25519_condocenter -N ""
+cat /root/.ssh/id_ed25519_condocenter.pub
+```
+
+Não use `Host github.com` no SSH config: isso trocaria a chave dos outros repositórios desta VPS. Crie um apelido só do SindCON:
+
+```bash
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+cat >> /root/.ssh/config << 'EOF'
+Host github-condocenter
+  HostName github.com
+  IdentityFile /root/.ssh/id_ed25519_condocenter
+  IdentitiesOnly yes
+EOF
+chmod 600 /root/.ssh/config
+```
+
+Clone com esse apelido (troque `ORG`):
+
+```bash
+mkdir -p /var/www
+git clone git@github-condocenter:ORG/condocenter.git /var/www/condocenter
+```
+
+HTTPS, se não for usar chave:
+
+```bash
+git clone https://github.com/SEU_ORG/condocenter.git /var/www/condocenter
+```
+
+Confira o branch e marque o diretório como seguro para o Git (a pasta vai ficar com dono `www-data` e o `git pull` roda como `root`):
+
+```bash
+cd /var/www/condocenter
+git checkout main
+git status
+git config --global --add safe.directory /var/www/condocenter
+```
+
+Dono só desta pasta. Não rode `chown` em `/var/www` inteiro.
+
+```bash
+chown -R www-data:www-data /var/www/condocenter
+```
+
+Quando terminar: vá para o **Passo 6**.
+
+---
+
+## Passo 6 — Instalar dependências do projeto
+
+Ainda em `/var/www/condocenter`. `HOME` e `COMPOSER_HOME` ficam dentro do projeto para o usuário `www-data` não escrever em `/root`.
+
+```bash
+cd /var/www/condocenter
+sudo -u www-data env HOME=/var/www/condocenter COMPOSER_HOME=/var/www/condocenter/.composer \
+  composer install --no-dev --optimize-autoloader
+sudo -u www-data env HOME=/var/www/condocenter \
+  npm ci
+sudo -u www-data env HOME=/var/www/condocenter \
+  npm run build
+chown -R www-data:www-data /var/www/condocenter
+```
+
+O `npm run build` gera o CSS, o JS e o worker da leitura de etiqueta no celular.
+
+Quando terminar: vá para o **Passo 7**.
+
+---
+
+## Passo 7 — Configurar o `.env`
+
+Não copie o `.env` do computador local.
 
 ```bash
 cd /var/www/condocenter
 sudo -u www-data cp .env.example .env
-sudo -u www-data php artisan key:generate
+sudo -u www-data php8.3 artisan key:generate
 nano .env
 ```
 
-Preencha **produção** assim (ajuste domínio, senha e e-mail):
+Produção (ajuste domínio, senha e e-mail):
 
 ```env
 APP_NAME=SindCON
@@ -204,33 +341,28 @@ MAIL_PASSWORD=xsmtpsib_SUA_CHAVE_SMTP_BREVO
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@SEU_DOMINIO
 MAIL_FROM_NAME="${APP_NAME}"
-# O remetente (MAIL_FROM_ADDRESS) deve estar verificado no painel Brevo > Remetentes.
 
 ASAAS_API_KEY=
 ASAAS_SANDBOX=false
 ASAAS_WEBHOOK_TOKEN=
 
 WHATSAPP_ENABLED=false
+EVOLUTION_API_URL=http://127.0.0.1:8080
+EVOLUTION_API_KEY=
+EVOLUTION_INSTANCE=
+WHATSAPP_DEFAULT_COUNTRY_CODE=55
+
 SAAS_ENFORCE_SUBSCRIPTION=true
+SAAS_GRACE_DAYS=0
+SAAS_WEBHOOK_BASE_URL="${APP_URL}"
 SAAS_DEVELOPER_CONTACT=seu-email@exemplo.com
 
-# --- OCR de etiquetas (Encomenda Inteligente) — ver também Passo 6 (ambiente Python) ---
 OCR_ENABLED=true
 OCR_LANG=por
 OCR_TIMEOUT=30
 OCR_PREPROCESS_ENABLED=true
 OCR_MAX_DIMENSION=2400
-# Ubuntu: deixe vazio (usa PATH). Só preencha se o binário estiver fora do PATH.
 TESSERACT_PATH=
-
-# PaddleOCR via Python (opcional). Padrão no Linux: python3 do sistema ou venv do Passo 6.
-# PADDLE_OCR_PYTHON=/var/www/condocenter/storage/app/ocr/venv/bin/python
-# PADDLE_OCR_SCRIPT=/var/www/condocenter/scripts/ocr/paddle_label.py
-# PADDLE_OCR_TIMEOUT=120
-# PADDLE_OCR_PROBE_TIMEOUT=45
-# Só no Windows/Laragon se pip instalou no perfil do usuário (veja php artisan ocr:diagnose):
-# PADDLE_OCR_PYTHONPATH=
-# Preview legado no servidor (captura manual / APIs antigas): Tesseract rápido e limite do Paddle
 OCR_PREVIEW_TESSERACT_FAST_PATH=true
 PADDLE_OCR_PREVIEW_TIMEOUT=75
 
@@ -238,21 +370,49 @@ DEV_DOCS_TOKEN=
 DEV_DOCS_URL="${APP_URL}/dev/docs/"
 ```
 
+Opcionais, só se for usar na hora (também estão no `.env.example`):
+
+```env
+# Consultor financeiro
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.6-luna
+OPENAI_TIMEOUT=30
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_TIMEOUT=30
+FINANCE_AI_RATE_LIMIT=10
+FINANCE_AI_CACHE_TTL=3600
+
+# Leads da landing (menu do administrador)
+SUPABASE_URL=
+SUPABASE_KEY=
+SUPABASE_LEADS_ADMIN_TOKEN=
+
+# PaddleOCR em Python — descomente no Passo 8 se instalar o venv
+# PADDLE_OCR_PYTHON=/var/www/condocenter/storage/app/ocr/venv/bin/python
+# PADDLE_OCR_SCRIPT=/var/www/condocenter/scripts/ocr/paddle_label.py
+# PADDLE_OCR_TIMEOUT=120
+
+# API mobile: minutos até o token expirar (padrão 43200 = 30 dias)
+# SANCTUM_TOKEN_EXPIRATION=43200
+```
+
 Regras:
 
-- Não copie o `.env` do computador local.
-- `DEV_DOCS_TOKEN` vazio em produção (a página interna fica 404).
-- `QUEUE_CONNECTION=database` (a fila entra no Passo 9).
-- A câmera do porteiro no navegador exige **HTTPS** em produção (`APP_URL=https://...`).
-- **Portaria com câmera:** exige HTTPS (`APP_URL=https://...`). O primeiro acesso à intake baixa modelos WASM no celular (pode demorar); não é o Python da VPS.
-- **Motor por condomínio:** em **Meu Condomínio → Leitura de etiquetas (OCR)** o síndico escolhe Tesseract ou Paddle (Python). Se o motor escolhido falhar, o sistema tenta o outro quando possível; o registro manual sempre funciona.
-- Sem Tesseract no servidor: use `OCR_ENABLED=false` ou instale o pacote do Passo 1 — o registro manual de encomendas continua.
+- `DEV_DOCS_TOKEN` fica vazio em produção (a página interna responde 404).
+- `QUEUE_CONNECTION=database`. A fila sobe no Passo 12. O Redis do Laravel não é obrigatório.
+- O remetente (`MAIL_FROM_ADDRESS`) precisa estar verificado no painel Brevo.
+- Câmera do porteiro exige `APP_URL=https://...`.
+- Credenciais Asaas e WhatsApp de cada condomínio ficam no painel, não só neste arquivo.
+- Sem Tesseract: `OCR_ENABLED=false`. O registro manual de encomendas continua.
 
-Quando terminar: vá para o **Passo 6**.
+Quando terminar: vá para o **Passo 8**.
 
 ---
 
-## Passo 6 — Primeira carga do Laravel
+## Passo 8 — Primeira carga do Laravel
+
+Use `php8.3` de propósito, para não cair no PHP padrão de outro site.
 
 ```bash
 cd /var/www/condocenter
@@ -260,54 +420,48 @@ mkdir -p storage/logs bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 
-sudo -u www-data php artisan migrate --force
-sudo -u www-data php artisan db:seed --class=RolesAndPermissionsSeeder --force
-sudo -u www-data php artisan storage:link
-sudo -u www-data php artisan config:cache
-sudo -u www-data php artisan route:cache
-sudo -u www-data php artisan view:cache
+sudo -u www-data php8.3 artisan migrate --force
+sudo -u www-data php8.3 artisan db:seed --class=RolesAndPermissionsSeeder --force
+sudo -u www-data php8.3 artisan storage:link
+sudo -u www-data php8.3 artisan config:cache
+sudo -u www-data php8.3 artisan route:cache
+sudo -u www-data php8.3 artisan view:cache
 ```
 
 **Não rode** `DemoDataSeeder` nem `db:wipe`.
 
-### Encomenda Inteligente — ambiente OCR no servidor
+### Encomenda Inteligente — OCR neste servidor
 
-| Camada | Onde roda | Quando precisa na VPS |
-|--------|-----------|------------------------|
-| **PaddleOCR.js (PP-OCRv6)** | Navegador do porteiro (`/packages/intake`) | Só `npm run build` (Passo 4) + HTTPS |
-| **Tesseract** | PHP (`www-data`) | `apt install tesseract-ocr tesseract-ocr-por` (Passo 1) |
-| **PaddleOCR (Python)** | Subprocesso PHP → `scripts/ocr/paddle_label.py` | Passo abaixo + variáveis `PADDLE_OCR_*` no `.env` |
+| Camada | Onde roda | O que a VPS precisa |
+|--------|-----------|---------------------|
+| PaddleOCR.js | Navegador do porteiro (`/packages/intake`) | `npm run build` (Passo 6) e HTTPS (Passo 10) |
+| Tesseract | PHP (`www-data`) | Pacote do Passo 3 |
+| PaddleOCR (Python) | PHP chama `scripts/ocr/paddle_label.py` | Bloco abaixo, só se o condomínio for usar esse motor |
 
-**1) Conferir Tesseract (sempre):**
+Conferir o Tesseract:
 
 ```bash
 cd /var/www/condocenter
 tesseract --version
-sudo -u www-data php artisan ocr:diagnose
+sudo -u www-data php8.3 artisan ocr:diagnose
 ```
 
-Saída esperada: `Tesseract: disponível`. O comando também limpa o cache de detecção do Paddle e, se o Python estiver OK, pode pré-carregar modelos (`warm-up`).
+Saída esperada: `Tesseract: disponível`.
 
-**2) Instalar PaddleOCR em Python (opcional)** — faça **como `www-data`**, para o PHP-FPM enxergar os mesmos pacotes:
+PaddleOCR em Python é opcional. Instale **como `www-data`**, senão o PHP-FPM não vê os pacotes. CPU, sem GPU. O primeiro `pip` pode levar vários minutos.
 
 ```bash
 cd /var/www/condocenter
 mkdir -p storage/app/ocr
 chown -R www-data:www-data storage/app/ocr
-
-# Ambiente virtual dedicado (recomendado; não misture com pip do root)
 sudo -u www-data python3 -m venv storage/app/ocr/venv
 sudo -u www-data storage/app/ocr/venv/bin/pip install --upgrade pip wheel
-
-# CPU (VPS sem GPU). Na primeira instalação o download pode levar vários minutos.
 sudo -u www-data storage/app/ocr/venv/bin/pip install paddlepaddle -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
 sudo -u www-data storage/app/ocr/venv/bin/pip install paddleocr
-
-# Teste rápido de import (deve imprimir caminho site-packages sem erro)
 sudo -u www-data storage/app/ocr/venv/bin/python -c "import paddleocr; print('paddleocr OK')"
 ```
 
-No `.env` (Passo 5), descomente e ajuste:
+No `.env`, aponte o interpretador e rode de novo:
 
 ```env
 PADDLE_OCR_PYTHON=/var/www/condocenter/storage/app/ocr/venv/bin/python
@@ -315,50 +469,33 @@ PADDLE_OCR_SCRIPT=/var/www/condocenter/scripts/ocr/paddle_label.py
 PADDLE_OCR_TIMEOUT=120
 ```
 
-Depois:
-
 ```bash
-sudo -u www-data php artisan config:clear
-sudo -u www-data php artisan ocr:diagnose
+sudo -u www-data php8.3 artisan config:clear
+sudo -u www-data php8.3 artisan config:cache
+sudo -u www-data php8.3 artisan ocr:diagnose
 ```
 
-- Modelos e cache do Paddle no servidor ficam em `storage/app/ocr/paddle-runtime/` (criado automaticamente; precisa de escrita em `storage/`).
-- O script `paddle_label.py` desativa oneDNN/PIR por padrão (compatibilidade PaddlePaddle 3.3+ em CPU). A **primeira** leitura com Paddle Python pode baixar modelos — respeite `PADDLE_OCR_TIMEOUT` (padrão 120 s).
-- Se `ocr:diagnose` mostrar `paddleocr_not_installed` mas o `pip` funcionou no terminal, confira que instalou no **mesmo** Python do `.env` e, se necessário, copie o `site-packages` sugerido pelo comando para `PADDLE_OCR_PYTHONPATH=` (caso típico no Windows; raro na VPS com venv).
+Modelos ficam em `storage/app/ocr/paddle-runtime/` (a pasta precisa de escrita). A primeira leitura baixa modelos. Se o diagnóstico disser `paddleocr_not_installed`, o `pip` foi feito em outro Python: o caminho de `PADDLE_OCR_PYTHON` tem de ser o do venv acima.
 
-**3) Variáveis OCR (referência):**
-
-| Variável | Padrão / uso |
-|----------|----------------|
-| `OCR_ENABLED` | `true` — desligue só se não houver Tesseract e não quiser OCR no servidor |
+| Variável | Uso |
+|----------|-----|
+| `OCR_ENABLED` | `true`. Desligue só se não houver Tesseract e não quiser OCR no servidor |
 | `OCR_LANG` | `por` |
-| `OCR_TIMEOUT` | Segundos por chamada Tesseract (30) |
-| `OCR_PREPROCESS_ENABLED` | Pré-processamento da imagem antes do OCR |
-| `OCR_MAX_DIMENSION` | Redimensiona imagem grande antes do OCR (2400 px) |
-| `TESSERACT_PATH` | Vazio no Ubuntu; caminho completo se necessário |
-| `PADDLE_OCR_PYTHON` | Linux: `python3` ou venv acima; Windows: caminho do `python.exe` |
-| `PADDLE_OCR_PYTHONPATH` | Pasta `site-packages` se o PHP não encontrar o pacote |
-| `PADDLE_OCR_SCRIPT` | Padrão: `scripts/ocr/paddle_label.py` no projeto |
-| `PADDLE_OCR_TIMEOUT` | Timeout do subprocesso Paddle (120 s) |
-| `PADDLE_OCR_PROBE_TIMEOUT` | Timeout do teste de disponibilidade (45 s) |
-| `OCR_PREVIEW_TESSERACT_FAST_PATH` | No preview no servidor, Tesseract rápido antes do Paddle |
-| `PADDLE_OCR_PREVIEW_TIMEOUT` | Limite do Paddle no preview (75 s; evita HTTP 524 em proxy ~100 s) |
+| `OCR_TIMEOUT` | Segundos do Tesseract (30) |
+| `OCR_PREPROCESS_ENABLED` | Trata a imagem antes do OCR |
+| `OCR_MAX_DIMENSION` | Reduz imagem grande (2400 px) |
+| `TESSERACT_PATH` | Vazio no Ubuntu |
+| `PADDLE_OCR_TIMEOUT` | Subprocesso Paddle (120 s) |
+| `PADDLE_OCR_PREVIEW_TIMEOUT` | Limite no preview (75 s) |
+| `OCR_PREVIEW_TESSERACT_FAST_PATH` | No preview, tenta Tesseract antes do Paddle |
 
-**4) Comando de operação:**
-
-```bash
-sudo -u www-data php artisan ocr:diagnose
-```
-
-Use após deploy, mudança de `.env`, instalação de pacotes Python ou quando **Meu Condomínio** mostrar Paddle indisponível.
-
-Quando terminar: vá para o **Passo 7**.
+Quando terminar: vá para o **Passo 9**.
 
 ---
 
-## Passo 7 — Nginx e HTTPS
+## Passo 9 — Nginx: um site novo, os outros intactos
 
-Crie o site:
+Crie só o arquivo do SindCON:
 
 ```bash
 nano /etc/nginx/sites-available/condocenter
@@ -394,6 +531,7 @@ server {
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
         fastcgi_hide_header X-Powered-By;
+        fastcgi_read_timeout 180;
     }
 
     location ~ /\.(?!well-known).* {
@@ -402,54 +540,79 @@ server {
 }
 ```
 
-Ative e recarregue:
+Ative **este** site. Não apague os outros arquivos de `sites-enabled`.
 
 ```bash
-ln -sf /etc/nginx/sites-available/condocenter /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/condocenter /etc/nginx/sites-enabled/condocenter
 nginx -t
 systemctl reload nginx
 ```
 
-Instale o certificado (o DNS já deve apontar para esta VPS):
+`nginx -t` precisa terminar com `syntax is ok`. Se falhar, não recarregue: o erro está no arquivo novo ou num conflito de `server_name` com outro vhost. Ajuste o domínio e teste de novo.
+
+Limite de upload de foto, só no PHP 8.3 (não edite o `php.ini` de outra versão):
+
+```bash
+nano /etc/php/8.3/fpm/php.ini
+```
+
+```ini
+upload_max_filesize = 32M
+post_max_size = 32M
+```
+
+```bash
+systemctl reload php8.3-fpm
+```
+
+Quando terminar: vá para o **Passo 10**.
+
+---
+
+## Passo 10 — HTTPS deste domínio
+
+O DNS do Passo 1 já precisa apontar para esta VPS. O Certbot altera só o vhost do domínio informado.
 
 ```bash
 apt install -y certbot python3-certbot-nginx
 certbot --nginx -d SEU_DOMINIO -d www.SEU_DOMINIO
 ```
 
-Abra `https://SEU_DOMINIO` no navegador. Deve aparecer o login.
+Se não existir `www`, use apenas `-d SEU_DOMINIO`.
 
-Quando terminar: vá para o **Passo 8**.
+Abra `https://SEU_DOMINIO`. Deve aparecer o login do SindCON. Os outros domínios da VPS continuam nos vhosts deles.
+
+Quando terminar: vá para o **Passo 11**.
 
 ---
 
-## Passo 8 — Ligar o agendador (cron)
+## Passo 11 — Ligar o agendador (cron)
 
-Sem este passo o sistema **não** gera taxas no mês seguinte, **não** liquida folha e **não** marca atraso.
+Sem esta linha o sistema não gera a taxa do mês seguinte, não liquida folha e não marca atraso.
+
+Edite o crontab **do www-data**. Se já houver linhas de outro projeto, acrescente a linha no final. Não apague as que já existem.
 
 ```bash
 crontab -u www-data -e
 ```
 
-Uma linha só:
-
 ```
-* * * * * cd /var/www/condocenter && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /var/www/condocenter && php8.3 artisan schedule:run >> /dev/null 2>&1
 ```
 
 Confira:
 
 ```bash
-sudo -u www-data php artisan schedule:list
+sudo -u www-data php8.3 artisan schedule:list
 ```
 
-O Laravel dispara sozinho, no fuso `America/Fortaleza`:
+O Laravel dispara no fuso `America/Fortaleza` por causa do `APP_TIMEZONE`. O relógio do sistema pode continuar em UTC.
 
 | Quando | O que faz |
 |--------|-----------|
 | Todo dia 05:00 | Gera a próxima cobrança das taxas automáticas (`fees:generate-upcoming`) |
-| Todo dia 06:15 | Renova contratos SaaS vencidos com autorrenovação e avisa o cliente (`subscriptions:auto-renew`) |
+| Todo dia 06:00 | Suspende inquilino com contrato vencido (`leases:process-contracts`) |
+| Todo dia 06:15 | Renova contratos SaaS vencidos com autorrenovação (`subscriptions:auto-renew`) |
 | Todo dia 06:30 | Liquida desconto em folha no vencimento (`charges:settle-payroll`) |
 | Todo dia 07:00 | Marca cobrança vencida como atraso, exceto folha (`charges:mark-overdue`) |
 | Todo dia 08:00 | Lembretes de vencimento (`charges:send-reminders`) |
@@ -459,15 +622,15 @@ O Laravel dispara sozinho, no fuso `America/Fortaleza`:
 | A cada 15 min | Encerra avisos do condomínio após `expires_at` (`announcements:close-expired`) |
 | Semanal | Apaga notificações lidas com mais de 30 dias |
 
-Você **não** precisa rodar esses comandos na instalação. O cron cuida.
+Você não precisa rodar esses comandos na instalação. O cron cuida.
 
-Quando terminar: vá para o **Passo 9**.
+Quando terminar: vá para o **Passo 12**.
 
 ---
 
-## Passo 9 — Ligar a fila (Supervisor)
+## Passo 12 — Ligar a fila (Supervisor)
 
-Necessário porque o `.env` usa `QUEUE_CONNECTION=database`.
+O `.env` usa `QUEUE_CONNECTION=database`. O programa abaixo é só do SindCON. Não dê `restart all`.
 
 ```bash
 nano /etc/supervisor/conf.d/condocenter-worker.conf
@@ -476,7 +639,7 @@ nano /etc/supervisor/conf.d/condocenter-worker.conf
 ```ini
 [program:condocenter-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/condocenter/artisan queue:work database --sleep=3 --tries=3 --timeout=120 --max-time=3600
+command=php8.3 /var/www/condocenter/artisan queue:work database --sleep=3 --tries=3 --timeout=120 --max-time=3600
 autostart=true
 autorestart=true
 stopasgroup=true
@@ -492,14 +655,18 @@ stopwaitsecs=3600
 supervisorctl reread
 supervisorctl update
 supervisorctl start condocenter-worker:*
-supervisorctl status
+supervisorctl status condocenter-worker:*
 ```
 
-Quando terminar: vá para o **Passo 10**.
+O status esperado é `RUNNING`.
+
+Quando terminar: vá para o **Passo 13**.
 
 ---
 
-## Passo 10 — Backup diário do banco
+## Passo 13 — Backup diário só deste banco
+
+O dump não inclui os outros bancos da VPS.
 
 ```bash
 mkdir -p /var/backups/condocenter
@@ -515,50 +682,55 @@ find /var/backups/condocenter -name "condocenter_*.sql.gz" -mtime +7 -delete
 ```
 
 ```bash
-chmod +x /usr/local/bin/backup-condocenter.sh
+chmod 700 /usr/local/bin/backup-condocenter.sh
 crontab -e
 ```
 
-Adicione (além do cron do Laravel, este é do `root`):
+No crontab do **root**, acrescente uma linha. Não apague as outras.
 
 ```
 0 2 * * * /usr/local/bin/backup-condocenter.sh
 ```
 
-Quando terminar: vá para o **Passo 11**.
+Quando terminar: vá para o **Passo 14**.
 
 ---
 
-## Passo 11 — Integrações (depois que o site já abre)
+## Passo 14 — Integrações (o site já abre)
 
-1. No Asaas, webhook: `https://SEU_DOMINIO/webhooks/asaas`
-2. WhatsApp: só se for usar — `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`, depois `php artisan config:cache`. Se a Evolution roda em Docker com `CACHE_REDIS_ENABLED=true`, o container **redis** precisa estar `Up`. Sem Redis, a instância pode aparecer `open` e o `sendText` estoura timeout.
-3. Se upload de foto falhar: em `/etc/php/8.3/fpm/php.ini` aumente `upload_max_filesize` e `post_max_size`, depois `systemctl reload php8.3-fpm`
-4. Encomenda Inteligente (OCR): `sudo -u www-data php artisan ocr:diagnose`. Tesseract obrigatório para o padrão; Paddle Python só se o condomínio usar esse motor (Passo 6). Intake com câmera usa OCR no navegador — confira `npm run build` e HTTPS.
-5. Câmera no celular: o site precisa estar em HTTPS (já previsto no Passo 7). Proxy (Cloudflare): a intake evita OCR pesado no PHP; previews antigos com Paddle no servidor devem respeitar `PADDLE_OCR_PREVIEW_TIMEOUT`.
+1. No Asaas, webhook da plataforma: `https://SEU_DOMINIO/webhooks/asaas`. Cobrança de condomínio usa a URL que o painel mostra (`/webhooks/asaas/condominium/{id}` e `/webhooks/asaas/platform`).
+2. WhatsApp fica desligado até `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`. Cada condomínio também configura a instância em Configurações → WhatsApp. Se a Evolution roda em Docker nesta mesma VPS, deixe a API em `127.0.0.1` (não publique a porta 8080 na internet) e mantenha o container Redis no ar quando `CACHE_REDIS_ENABLED=true`. Instância `open` com timeout no envio costuma ser Redis parado.
+3. Consultor financeiro: sem `OPENAI_API_KEY` ou `GEMINI_API_KEY` a tela abre e a análise devolve aviso amigável. O limite mensal é definido no painel da organização.
+4. Leads da landing: `SUPABASE_URL`, `SUPABASE_KEY` e `SUPABASE_LEADS_ADMIN_TOKEN` só se o administrador for usar Configurações globais → Leads.
+5. OCR: `sudo -u www-data php8.3 artisan ocr:diagnose`. Intake com câmera depende do build do Passo 6 e do HTTPS do Passo 10.
+6. Depois de mudar o `.env`: `sudo -u www-data php8.3 artisan config:cache`.
 
-Quando terminar: vá para o **Passo 12**.
+Quando terminar: vá para o **Passo 15**.
 
 ---
 
-## Passo 12 — Conferir a instalação
+## Passo 15 — Conferir a instalação
 
 ```bash
 cd /var/www/condocenter
-sudo -u www-data php artisan about
-sudo -u www-data php artisan schedule:list
-supervisorctl status
+sudo -u www-data php8.3 artisan about
+sudo -u www-data php8.3 artisan schedule:list
+supervisorctl status condocenter-worker:*
+nginx -t
 tail -n 50 storage/logs/laravel.log
 ```
 
 Checklist:
 
+- [ ] Snapshot do Passo 1 existe, se você precisou atualizar pacotes
 - [ ] `https://SEU_DOMINIO` abre o login
-- [ ] Login com usuário criado no sistema funciona
-- [ ] `schedule:list` mostra os jobs da tabela do Passo 8
-- [ ] Supervisor `condocenter-worker` está `RUNNING`
-- [ ] `php artisan ocr:diagnose` — Tesseract disponível; Paddle conforme necessidade do condomínio
+- [ ] Outro domínio que já estava nesta VPS continua abrindo
+- [ ] Login com um usuário criado no sistema funciona
+- [ ] `schedule:list` mostra os jobs da tabela do Passo 11
+- [ ] `condocenter-worker` está `RUNNING`
+- [ ] `php8.3 artisan ocr:diagnose` — Tesseract disponível
 - [ ] `/packages/intake` abre a câmera em HTTPS (teste no celular)
+- [ ] Crontab do `www-data` tem a linha do SindCON e as linhas antigas de outros projetos continuam lá
 
 **Primeira instalação concluída.** No dia a dia use só a **Parte 2**.
 
@@ -573,35 +745,37 @@ Faça nesta ordem, sem pular:
 ```bash
 cd /var/www/condocenter
 
-# 1) Backup
+# 1) Backup (só o banco condocenter)
 mysqldump -u condocenter -p condocenter | gzip > /var/backups/condocenter/pre_deploy_$(date +%Y%m%d_%H%M%S).sql.gz
 
 # 2) Manutenção
-sudo -u www-data php artisan down
+sudo -u www-data php8.3 artisan down
 
 # 3) Código
 git pull origin main
 
 # 4) Dependências e assets
-sudo -u www-data composer install --no-dev --optimize-autoloader
-sudo -u www-data npm ci
-sudo -u www-data npm run build
+sudo -u www-data env HOME=/var/www/condocenter COMPOSER_HOME=/var/www/condocenter/.composer \
+  composer install --no-dev --optimize-autoloader
+sudo -u www-data env HOME=/var/www/condocenter npm ci
+sudo -u www-data env HOME=/var/www/condocenter npm run build
+chown -R www-data:www-data /var/www/condocenter
 
 # 5) Banco e arquivos públicos
-sudo -u www-data php artisan migrate --force
-sudo -u www-data php artisan storage:link
+sudo -u www-data php8.3 artisan migrate --force
+sudo -u www-data php8.3 artisan storage:link
 
 # 6) Cache
-sudo -u www-data php artisan optimize:clear
-sudo -u www-data php artisan config:cache
-sudo -u www-data php artisan route:cache
-sudo -u www-data php artisan view:cache
+sudo -u www-data php8.3 artisan optimize:clear
+sudo -u www-data php8.3 artisan config:cache
+sudo -u www-data php8.3 artisan route:cache
+sudo -u www-data php8.3 artisan view:cache
 
-# 7) Fila
+# 7) Fila (só o worker do SindCON)
 supervisorctl restart condocenter-worker:*
 
 # 8) Site no ar
-sudo -u www-data php artisan up
+sudo -u www-data php8.3 artisan up
 ```
 
 Se o `.env` ganhou variável nova (veja o changelog abaixo), edite o `.env` **antes** do `config:cache`.
@@ -609,20 +783,20 @@ Se o `.env` ganhou variável nova (veja o changelog abaixo), edite o `.env` **an
 Se o deploy alterou OCR, Python ou `scripts/ocr/`, rode após o `config:cache`:
 
 ```bash
-sudo -u www-data php artisan ocr:diagnose
+sudo -u www-data php8.3 artisan ocr:diagnose
 ```
 
 Não reexecute migrations antigas à mão. Só `php artisan migrate --force`.
 
 ### Depois do deploy (só se o changelog pedir)
 
-O cron do Passo 8 já roda os jobs financeiros. Só execute na mão se o changelog disser “rodar uma vez agora”:
+O cron do Passo 11 já roda os jobs financeiros. Só execute na mão se o changelog disser “rodar uma vez agora”:
 
 ```bash
 cd /var/www/condocenter
-sudo -u www-data php artisan fees:generate-upcoming
-sudo -u www-data php artisan charges:settle-payroll
-sudo -u www-data php artisan charges:mark-overdue
+sudo -u www-data php8.3 artisan fees:generate-upcoming
+sudo -u www-data php8.3 artisan charges:settle-payroll
+sudo -u www-data php8.3 artisan charges:mark-overdue
 ```
 
 ---
@@ -642,6 +816,9 @@ sudo -u www-data php artisan charges:mark-overdue
 | `paddleocr_not_installed` | `sudo -u www-data storage/app/ocr/venv/bin/pip install paddleocr`; `config:clear`; `ocr:diagnose` |
 | Leitura na portaria trava no “Preparando…” | Celular precisa HTTPS; primeira vez baixa WASM/modelos; rede lenta — aguardar ou usar fallback Capturar (se Paddle.js falhar) |
 | HTTP 524 / timeout na leitura | Intake usa OCR no navegador; em APIs com imagem no servidor, reduza Paddle ou use Tesseract no condomínio; `PADDLE_OCR_PREVIEW_TIMEOUT` |
+| Outro site da VPS parou | Não troque o SO no painel. Confira se o vhost antigo continua em `sites-enabled`, se o UFW não foi ligado por cima do firewall da Hostinger e se o PHP desse site não foi desinstalado |
+| Certbot não emite | DNS do Passo 1 ainda não aponta para `IP_DA_VPS`; `dig SEU_DOMINIO` |
+| `php` roda a versão errada | Use `php8.3` nos comandos. O `php` solto pode ser o de outro site |
 
 ```bash
 tail -f /var/www/condocenter/storage/logs/laravel.log
@@ -653,6 +830,14 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+A Parte 1 foi renumerada em 30/09/2026. Nas entradas antigas, “Passo 8” do cron é o **Passo 11** atual; Nginx/HTTPS são os **Passos 9 e 10**; `.env` é o **Passo 7**; primeira carga e OCR são o **Passo 8**.
+
+### 2026-09-30 — VPS Hostinger compartilhada
+
+- Instalação nova: seguir a Parte 1 inteira (painel, snapshot, pacotes que faltam, clone, Nginx sem apagar os outros vhosts, cron do `www-data`, worker `condocenter-worker`).
+- Não há migrate nem variável nova por causa desta revisão.
+- Servidor que já rodava o tutorial anterior: não reinstale. Confira apenas se o crontab e o Supervisor continuam os da Parte 2 e se o `php` do cron é o 8.3 (`php8.3 artisan schedule:run`).
 
 ### 2026-09-29 — WhatsApp / Evolution (Redis)
 
