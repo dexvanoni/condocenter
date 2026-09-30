@@ -17,7 +17,7 @@ Constantes desta instalação:
 - Site público (Nginx): `/var/www/condocenter/public`
 - PHP 8.3, MySQL 8, Node 20
 - Fuso: `America/Fortaleza`
-- **Última revisão:** 26/09/2026 (LLM OpenAI + Gemini por condomínio)
+- **Última revisão:** 29/09/2026 (WhatsApp/Evolution: Redis da stack precisa estar no ar)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -532,7 +532,7 @@ Quando terminar: vá para o **Passo 11**.
 ## Passo 11 — Integrações (depois que o site já abre)
 
 1. No Asaas, webhook: `https://SEU_DOMINIO/webhooks/asaas`
-2. WhatsApp: só se for usar — `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`, depois `php artisan config:cache`
+2. WhatsApp: só se for usar — `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`, depois `php artisan config:cache`. Se a Evolution roda em Docker com `CACHE_REDIS_ENABLED=true`, o container **redis** precisa estar `Up`. Sem Redis, a instância pode aparecer `open` e o `sendText` estoura timeout.
 3. Se upload de foto falhar: em `/etc/php/8.3/fpm/php.ini` aumente `upload_max_filesize` e `post_max_size`, depois `systemctl reload php8.3-fpm`
 4. Encomenda Inteligente (OCR): `sudo -u www-data php artisan ocr:diagnose`. Tesseract obrigatório para o padrão; Paddle Python só se o condomínio usar esse motor (Passo 6). Intake com câmera usa OCR no navegador — confira `npm run build` e HTTPS.
 5. Câmera no celular: o site precisa estar em HTTPS (já previsto no Passo 7). Proxy (Cloudflare): a intake evita OCR pesado no PHP; previews antigos com Paddle no servidor devem respeitar `PADDLE_OCR_PREVIEW_TIMEOUT`.
@@ -653,6 +653,12 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 # PARTE 4 — Changelog (o que cada versão exige na VPS)
 
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
+
+### 2026-09-29 — WhatsApp / Evolution (Redis)
+
+- Sem migrate, sem variável nova no `.env` do SindCON e sem worker novo.
+- Se a Evolution API (Docker) usa Redis (`CACHE_REDIS_ENABLED=true`), o container `redis` precisa estar no ar. Instância `open` com timeout no envio costuma ser Redis parado — `docker start redis` (ou o compose da Evolution) e repetir o teste.
+- Passo 11 atualizado com esse requisito operacional.
 
 ### 2026-09-26 — Provider LLM por condomínio (OpenAI + Gemini)
 

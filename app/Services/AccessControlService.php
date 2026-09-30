@@ -419,7 +419,7 @@ class AccessControlService
             ], $scheduleMetadata)
         );
 
-        SendAccessNotification::dispatchSync($movement);
+        SendAccessNotification::dispatch($movement)->afterCommit();
 
         return $movement;
     }
@@ -845,7 +845,7 @@ class AccessControlService
             ], $scheduleMetadata)
         );
 
-        SendAccessNotification::dispatchSync($movement);
+        SendAccessNotification::dispatch($movement)->afterCommit();
 
         return $movement;
     }
@@ -911,7 +911,7 @@ class AccessControlService
             ], $scheduleMetadata)
         );
 
-        SendAccessNotification::dispatchSync($movement);
+        SendAccessNotification::dispatch($movement)->afterCommit();
 
         return $movement;
     }
@@ -954,7 +954,7 @@ class AccessControlService
             ]
         );
 
-        SendAccessNotification::dispatchSync($movement);
+        SendAccessNotification::dispatch($movement)->afterCommit();
 
         return $movement;
     }

@@ -25,6 +25,7 @@
                     </button>
                 </div>
                 <div class="card-body">
+                    @include('partials.whatsapp-connection-status', ['config' => $config, 'connection' => $connection ?? null])
                     <form method="POST" action="{{ route('condominiums.settings.whatsapp.update', $condominium) }}" id="whatsappSettingsForm">
                         @csrf
                         @method('PUT')
@@ -169,8 +170,10 @@
             </div>
 
             <div class="alert alert-info small mt-4 mb-0">
-                <strong>Importante:</strong> escaneie o QR Code na instância Evolution com o número do condomínio.
-                Cobranças da assinatura SaaS continuam sendo enviadas pela instância global da plataforma.
+                <strong>Importante:</strong> salvar URL, instância e API Key não envia mensagem.
+                O número precisa aparecer como <strong>open</strong> no manager da Evolution.
+                Se o WhatsApp desvinculou o aparelho, escaneie o QR de novo.
+                Cobranças da assinatura SaaS usam a instância global da plataforma.
             </div>
         </div>
     </div>

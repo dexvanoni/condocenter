@@ -284,8 +284,9 @@ class UserController extends Controller
                     ->orderBy('number')
                     ->get()
                 : collect();
+            $residentCadastroEdit = $user->hasAssignedRole('Morador') || $syndicSelfMorador;
 
-            return view('users.profile-edit', compact('user', 'units', 'syndicSelfMorador'));
+            return view('users.profile-edit', compact('user', 'units', 'syndicSelfMorador', 'residentCadastroEdit'));
         }
 
         // Admin/Síndico editando outro usuário — view completa
@@ -327,8 +328,10 @@ class UserController extends Controller
         $isEditingSelf = Auth::user()->id === $user->id;
 
         if ($isEditingSelf) {
-            // Usuário comum editando a si mesmo - usar request simplificado
-            $validatedData = $request->validate([
+            $requiresResidentCadastro = $user->hasAssignedRole('Morador')
+                || ($this->syndicResidentProfile->canManageOwnMoradorProfile($user) && $request->boolean('syndic_also_morador'));
+
+            $selfProfileRules = [
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
                 'phone' => ['nullable', 'string', 'max:20'],
@@ -342,7 +345,22 @@ class UserController extends Controller
                 'agregado_can_authorize_access' => ['nullable', 'boolean'],
                 'syndic_also_morador' => ['nullable', 'boolean'],
                 'unit_id' => ['nullable', 'integer', 'exists:units,id'],
-            ]);
+            ];
+
+            if ($requiresResidentCadastro) {
+                $selfProfileRules['cpf'] = [
+                    'required',
+                    'string',
+                    'size:14',
+                    Rule::unique('users')->ignore($user->id),
+                    'regex:/^\d{3}\.\d{3}\.\d{3}-\d{2}$/',
+                ];
+                $selfProfileRules['cnh'] = ['nullable', 'string', 'max:20'];
+                $selfProfileRules['necessita_cuidados_especiais'] = ['nullable', 'boolean'];
+                $selfProfileRules['descricao_cuidados_especiais'] = ['nullable', 'string', 'required_if:necessita_cuidados_especiais,true'];
+            }
+
+            $validatedData = $request->validate($selfProfileRules);
             
             // Upload de nova foto se fornecida
             if ($request->hasFile('photo')) {
@@ -359,6 +377,13 @@ class UserController extends Controller
             
             if ($user->hasAssignedRole('Morador')) {
                 $validatedData['agregado_can_authorize_access'] = $request->boolean('agregado_can_authorize_access');
+            }
+
+            if ($requiresResidentCadastro) {
+                $validatedData['necessita_cuidados_especiais'] = $request->boolean('necessita_cuidados_especiais');
+                if (!$validatedData['necessita_cuidados_especiais']) {
+                    $validatedData['descricao_cuidados_especiais'] = null;
+                }
             }
 
             unset($validatedData['syndic_also_morador'], $validatedData['unit_id']);

@@ -22,6 +22,7 @@
                     </button>
                 </div>
                 <div class="card-body">
+                    @include('partials.whatsapp-connection-status', ['config' => $config, 'connection' => $connection ?? null])
                     <form method="POST" action="{{ route('platform.settings.whatsapp.update') }}" id="whatsappSettingsForm">
                         @csrf
                         @method('PUT')

@@ -58,7 +58,7 @@ final class LearningCatalog
             ],
             'communication' => [
                 'label' => 'Comunicação',
-                'description' => 'Mensagens, ocorrências, landing e avisos.',
+                'description' => 'Mensagens, WhatsApp, ocorrências, landing e avisos.',
                 'icon' => 'bi-chat-dots',
                 'order' => 8,
             ],
@@ -137,7 +137,7 @@ final class LearningCatalog
                     ],
                     [
                         'title' => 'Perfil e troca de papel',
-                        'body' => 'No canto do seu nome você abre **Meu Perfil**, **Alterar Senha** e, se tiver mais de um papel, troca o perfil ativo (ex.: Síndico ↔ Morador). As permissões seguem o perfil ativo. No celular, em **Meu Perfil**, use **Tirar foto** para registrar a identificação com a câmera; no computador, use **Enviar foto**. Se você é **síndico e mora no condomínio**, em **Meu Perfil** marque “Também sou morador”, informe a unidade e salve; depois alterne para o perfil **Morador** para reservas, cobranças e demais funções de morador.',
+                        'body' => 'No canto do seu nome você abre **Meu Perfil**, **Alterar Senha** e, se tiver mais de um papel, troca o perfil ativo (ex.: Síndico ↔ Morador). As permissões seguem o perfil ativo. No celular, em **Meu Perfil**, use **Tirar foto** para registrar a identificação com a câmera; no computador, use **Enviar foto**. Como **morador**, complete **CPF**, **CNH** (opcional) e **cuidados especiais** na mesma tela. Se você é **síndico e mora no condomínio**, marque “Também sou morador”, informe a unidade e salve; depois alterne para o perfil **Morador** para reservas, cobranças e demais funções de morador.',
                     ],
                     [
                         'title' => 'Central de Aprendizagem',
@@ -827,6 +827,52 @@ final class LearningCatalog
                     ['title' => 'Landing', 'body' => 'Em Comunicação → Landing, escolha template, publique conteúdos e baixe o QR da página pública.'],
                 ],
                 'checklist' => ['Abriu a área de comunicação'],
+            ],
+            [
+                'slug' => 'whatsapp-do-condominio',
+                'module' => 'communication',
+                'title' => 'WhatsApp do condomínio',
+                'summary' => 'Ativar avisos no WhatsApp e reconectar a Evolution quando as mensagens pararem de sair.',
+                'audience' => 'sindico',
+                'level' => 'intermediario',
+                'minutes' => 6,
+                'critical' => true,
+                'tags' => ['whatsapp', 'evolution', 'notificações', 'qr'],
+                'route_hint' => 'condominiums.settings.whatsapp',
+                'video' => null,
+                'video_url' => null,
+                'objectives' => [
+                    'Confirmar que a instância Evolution está open, não só configurada',
+                    'Reconectar pelo QR se o WhatsApp desvinculou o aparelho',
+                    'Saber quais tipos de aviso precisam estar marcados',
+                ],
+                'steps' => [
+                    [
+                        'title' => 'Abrir a tela',
+                        'body' => 'No menu **Gestão → WhatsApp**, confira URL, instância, API Key e o interruptor de envio. Salvar esses dados **não envia** mensagem sozinho.',
+                    ],
+                    [
+                        'title' => 'Ver o estado da sessão',
+                        'body' => 'O aviso no topo da tela mostra o estado real da Evolution. Só envia se estiver **open**. Estado **connecting** ou **close** significa que o WhatsApp não está com a sessão ativa.',
+                    ],
+                    [
+                        'title' => 'Reconectar o QR',
+                        'body' => 'Se o aparelho foi desvinculado em **Aparelhos conectados** no WhatsApp, abra o **Evolution Manager**, gere o QR da instância do condomínio e escaneie de novo. Depois use **Testar conexão** com um telefone real.',
+                    ],
+                    [
+                        'title' => 'Tipos de aviso',
+                        'body' => 'Marque os grupos que devem notificar (encomendas, acesso, conversas, etc.). Tipo desmarcado não gera WhatsApp, mesmo com a Evolution conectada.',
+                    ],
+                    [
+                        'title' => 'Conectou, mas o teste estoura tempo',
+                        'body' => 'Se o estado está **open** e o envio dá timeout, a Evolution está sem Redis (ou outro serviço da stack). Peça ao administrador para subir o container `redis` da Evolution e testar de novo. Não é preciso salvar a API Key outra vez.',
+                    ],
+                ],
+                'checklist' => [
+                    'Estado da instância aparece como open',
+                    'Teste de mensagem chegou em um número real',
+                    'Grupos de notificação desejados estão marcados',
+                ],
             ],
             [
                 'slug' => 'ordens-de-servico',

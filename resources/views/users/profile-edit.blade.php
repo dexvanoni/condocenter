@@ -192,6 +192,10 @@
                                     </div>
                                 </div>
 
+                                @if($residentCadastroEdit ?? false)
+                                    @include('users.partials.profile-edit-resident-cadastro')
+                                @endif
+
                                 <div class="form-section">
                                     <h5 class="section-title">
                                         <i class="bi bi-telephone-fill"></i> Contatos Adicionais
@@ -558,7 +562,37 @@ const syndicUnitField = document.getElementById('syndicUnitField');
 if (syndicAlsoMorador && syndicUnitField) {
     syndicAlsoMorador.addEventListener('change', function () {
         syndicUnitField.style.display = this.checked ? '' : 'none';
+        const cpfInput = document.getElementById('profile_cpf');
+        if (cpfInput) {
+            cpfInput.required = this.checked;
+        }
     });
+    const cpfInput = document.getElementById('profile_cpf');
+    if (cpfInput && syndicAlsoMorador.checked) {
+        cpfInput.required = true;
+    }
 }
+
+(function () {
+    const cpfInput = document.getElementById('profile_cpf');
+    if (cpfInput) {
+        cpfInput.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            e.target.value = value;
+        });
+    }
+
+    const cuidadosCheckbox = document.getElementById('necessita_cuidados_especiais');
+    const cuidadosContainer = document.getElementById('profile_cuidados_container');
+    if (cuidadosCheckbox && cuidadosContainer) {
+        cuidadosCheckbox.addEventListener('change', function () {
+            cuidadosContainer.style.display = this.checked ? '' : 'none';
+        });
+    }
+})();
 </script>
 @endpush

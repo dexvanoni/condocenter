@@ -6,7 +6,7 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.40 |
+| **Versão do documento** | 2.43 |
 | **Data** | 29/09/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
@@ -202,7 +202,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 - Middleware `CheckActiveProfile`: usa `hasProfileSwitcher()` (inclui perfil virtual **Administradora**); valida `active_role`; permite pânico e fluxos de senha antes da seleção
 - **Ordem na tela de seleção:** Administrador → Administradora → Síndico → demais (`User::PROFILE_SELECTION_ORDER`)
 - Redirecionamento pós-seleção via `ProfileHomeRoute` (Administrador → `platform.dashboard`; Administradora → `organization.dashboard`; demais → `dashboard`)
-- **Síndico morador:** em **Meu Perfil** (`profile.edit`), síndico com `condominium_id` pode marcar “Também sou morador”, vincular unidade e receber o papel **Morador** (`SyndicResidentProfileService`); funções de morador exigem **perfil ativo Morador** (alternância no menu do usuário)
+- **Síndico morador:** em **Meu Perfil** (`profile.edit`), síndico com `condominium_id` pode marcar “Também sou morador”, vincular unidade e receber o papel **Morador** (`SyndicResidentProfileService`); funções de morador exigem **perfil ativo Morador** (alternância no menu do usuário). Moradores (incl. síndico morador) editam em Meu Perfil **CPF**, **CNH** e **cuidados especiais**, como no cadastro completo gestão
 - **Senhas:** nenhum perfil define ou visualiza senha de terceiros; gestores enviam **link por e-mail** (`resetPassword`); usuário usa “Esqueci minha senha” ou link recebido (`AdminPasswordResetLinkMail`)
 - Sidebar e dashboard renderizados conforme perfil ativo + módulos habilitados
 
@@ -459,6 +459,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-18 | Papel **Proprietário** (Spatie) sincronizado com `owner_user_id` | Must | `RolesAndPermissionsSeeder`, `UnitOccupancyService::syncOwnerRole` |
 | USR-19 | Importação em lote de unidades via planilha modelo (.xlsx/.csv): download do template, validação de colunas obrigatórias, duplicatas e cota; cadastro transacional | Must | `UnitImportService`, `UnitController@importForm`, `units/import`, rotas `units.import.*` |
 | USR-20 | Em **Meu Perfil**, no celular, botão **Tirar foto** abre a câmera frontal e grava a foto de identificação (limite 2 MB; a imagem é reduzida no aparelho quando necessário) | Must | `users/profile-edit` |
+| USR-21 | Em **Meu Perfil**, morador (e síndico com moradia no condomínio) edita **CPF**, **CNH** e **cuidados especiais**; validação alinhada ao cadastro de usuários | Must | `UserController@update`, `profile-edit-resident-cadastro` |
 
 #### 8.2.1 Regimes de ocupação e perfil Proprietário (detalhamento)
 
@@ -1474,6 +1475,12 @@ Jobs: `SendVisitorAccessCredentialNotification` (criação), `SendAccessNotifica
 
 **Env fallback:** `WHATSAPP_ENABLED`, `EVOLUTION_*`, `WHATSAPP_DEFAULT_COUNTRY_CODE`
 
+**WA-RN-01 — sessão precisa estar `open`:** credenciais Evolution salvas (URL, instância, API Key) não bastam para enviar. `EvolutionApiService` consulta `GET /instance/connectionState/{instance}` e **só chama** `POST /message/sendText/{instance}` se o estado for `open` ou `connected`. Estado `connecting`/`close` (sessão desvinculada ou QR pendente) falha na hora, sem esperar timeout da Evolution. A tela **Gestão → WhatsApp** exibe esse estado e o link do manager.
+
+**WA-RN-02 — Redis da Evolution:** `connectionState = open` não garante envio. Se `CACHE_REDIS_ENABLED=true` na Evolution e o container Redis estiver parado, `POST /message/sendText` pode ficar sem resposta até o timeout HTTP (cURL 28). O SindCON traduz esse erro para orientar a subir o Redis.
+
+**Elegibilidade:** mensagem individual só para usuário ativo e não excluído, com telefone em `phone` / `telefone_celular` / `telefone_residencial` / `telefone_comercial`. Números que a Evolution responde `exists: false` não estão no WhatsApp.
+
 ### 12.3 Outras integrações
 
 | Integração | Finalidade |
@@ -2175,6 +2182,7 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | Dashboard financeiro | `resources/views/dashboard/partials/sindico-financial.blade.php` |
 | Painel da administradora | `OrganizationDashboardController`, `OrganizationCondominiumInsightsService`, `organization/partials/condominium-insight-cards.blade.php` |
 | VPS / deploy | Changelog em `DOCUMENTAÇÃO/INSTALACAO_VPS.md` (migrate + `RolesAndPermissionsSeeder` para papel Proprietário) |
+| WhatsApp / Evolution | `EvolutionApiService`, `WhatsAppNotificationService`, telas `settings/whatsapp` |
 
 ### Ambiente demo
 
@@ -2189,4 +2197,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.40 — atualizado em 29/09/2026. **Caixa**: comprovante com **Escolher Arquivo** (seletor no celular e no computador) e **Câmera** (câmera nativa no celular, webcam no computador). Mantém a v2.39.*
+*Documento v2.43 — atualizado em 29/09/2026. WhatsApp/Evolution: timeout de envio com sessão `open` aponta Redis da stack (WA-RN-02). Mantém a v2.42 (WA-RN-01, estado da sessão na tela).*

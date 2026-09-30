@@ -46,6 +46,7 @@ class CondominiumWhatsAppSettingsController extends Controller
             'config' => $config,
             'maskedKey' => $maskedKey,
             'groups' => $this->settings->groupsForUi($condominium),
+            'connection' => $this->evolution->connectionState($condominium->id),
         ]);
     }
 

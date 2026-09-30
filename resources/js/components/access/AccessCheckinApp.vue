@@ -1,5 +1,12 @@
 <template>
   <section class="access-checkin">
+    <div v-if="loading" class="access-checkin__progress mb-3" role="status" aria-live="polite">
+      <div class="progress access-checkin__progress-track">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 100%"></div>
+      </div>
+      <p class="small text-success fw-semibold text-center mb-0 mt-2">{{ loadingMessage }}</p>
+    </div>
+
     <div v-if="step === 'menu'" class="access-checkin__menu">
       <button type="button" class="access-checkin__btn access-checkin__btn--scan" @click="openScanner">
         <i class="bi bi-qr-code-scan"></i>
@@ -71,6 +78,7 @@ export default {
       step: 'menu',
       pin: '',
       loading: false,
+      loadingMessage: 'Liberando entrada…',
       error: null,
       status: '',
       stream: null,
@@ -114,6 +122,7 @@ export default {
     async submitPin() {
       if (this.pin.length !== 4) return;
       this.loading = true;
+      this.loadingMessage = 'Validando senha e registrando entrada…';
       this.error = null;
       try {
         const data = await this.postJson('/api/access-control/check-in/pin', { access_pin: this.pin });
@@ -164,6 +173,7 @@ export default {
     },
     async handleQr(qrData) {
       this.loading = true;
+      this.loadingMessage = 'Validando QR Code e registrando entrada…';
       this.error = null;
       this.status = 'Validando...';
       try {
@@ -210,6 +220,9 @@ export default {
 </script>
 
 <style scoped>
+.access-checkin__progress-track {
+  height: 5px;
+}
 .access-checkin__menu {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -70,6 +70,7 @@ class PlatformSettingsController extends Controller
             'config' => $config,
             'maskedKey' => $maskedKey,
             'groups' => $this->whatsapp->platformGroupsForUi(),
+            'connection' => $this->evolution->connectionState(),
         ]);
     }
 

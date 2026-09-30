@@ -40,6 +40,7 @@ class EvolutionApiService
             return [
                 'ok' => false,
                 'state' => null,
+                'needs_reconnect' => false,
                 'message' => 'Evolution API não configurada.',
             ];
         }
@@ -48,12 +49,13 @@ class EvolutionApiService
         $url = $this->buildEndpoint($config, "/instance/connectionState/{$config['instance']}");
 
         try {
-            $response = $this->client($config)->get($url);
+            $response = $this->client($config, 5)->get($url);
 
             if (!$response->successful()) {
                 return [
                     'ok' => false,
                     'state' => null,
+                    'needs_reconnect' => true,
                     'message' => 'HTTP ' . $response->status() . ': ' . ($response->json('message') ?? $response->body()),
                 ];
             }
@@ -62,14 +64,13 @@ class EvolutionApiService
                 ?? $response->json('state')
                 ?? $response->json('status');
 
-            $connected = in_array(strtolower((string) $state), ['open', 'connected'], true);
+            $connected = $this->isOpenState($state);
 
             return [
                 'ok' => $connected,
                 'state' => $state,
-                'message' => $connected
-                    ? 'Instância conectada ao WhatsApp.'
-                    : 'Instância não conectada (estado: ' . ($state ?: 'desconhecido') . ').',
+                'needs_reconnect' => !$connected,
+                'message' => $this->describeConnectionState($state),
             ];
         } catch (\Throwable $e) {
             Log::warning('Evolution API connectionState failed: ' . $e->getMessage(), [
@@ -79,6 +80,7 @@ class EvolutionApiService
             return [
                 'ok' => false,
                 'state' => null,
+                'needs_reconnect' => true,
                 'message' => 'Falha ao consultar instância: ' . $e->getMessage(),
             ];
         }
@@ -241,15 +243,41 @@ class EvolutionApiService
 
     protected function postTextMessage(array $config, string $number, string $text, ?int $condominiumId): array
     {
+        $connection = $this->connectionState($condominiumId);
+
+        if (!$connection['ok']) {
+            Log::warning('Evolution API send skipped: instance not connected', [
+                'number' => $number,
+                'condominium_id' => $condominiumId,
+                'instance' => $config['instance'] ?? null,
+                'state' => $connection['state'] ?? null,
+                'message' => $connection['message'] ?? null,
+            ]);
+
+            return [
+                'ok' => false,
+                'state' => $connection['state'] ?? null,
+                'message' => $connection['message'] ?? 'Instância Evolution não conectada ao WhatsApp.',
+            ];
+        }
+
         $url = $this->buildEndpoint($config, "/message/sendText/{$config['instance']}");
 
         try {
+            $startedAt = microtime(true);
             $response = $this->client($config)->post($url, [
                 'number' => $number,
                 'text' => $text,
             ]);
+            $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
 
             if ($response->successful()) {
+                Log::info('Evolution API sendText ok', [
+                    'condominium_id' => $condominiumId,
+                    'instance' => $config['instance'] ?? null,
+                    'elapsed_ms' => $elapsedMs,
+                ]);
+
                 return [
                     'ok' => true,
                     'message' => 'Mensagem enviada.',
@@ -257,21 +285,61 @@ class EvolutionApiService
                 ];
             }
 
+            $errorBody = $response->json('message') ?? $response->body();
+
+            Log::warning('Evolution API sendText rejected', [
+                'number' => $number,
+                'condominium_id' => $condominiumId,
+                'instance' => $config['instance'] ?? null,
+                'http_status' => $response->status(),
+                'elapsed_ms' => $elapsedMs,
+                'body' => is_string($errorBody) ? substr($errorBody, 0, 500) : $errorBody,
+            ]);
+
             return [
                 'ok' => false,
-                'message' => 'HTTP ' . $response->status() . ': ' . ($response->json('message') ?? $response->body()),
+                'message' => 'HTTP ' . $response->status() . ': ' . (is_string($errorBody) ? $errorBody : json_encode($errorBody)),
             ];
         } catch (\Throwable $e) {
             Log::warning('Evolution API sendText failed: ' . $e->getMessage(), [
                 'number' => $number,
                 'condominium_id' => $condominiumId,
+                'instance' => $config['instance'] ?? null,
             ]);
 
             return [
                 'ok' => false,
-                'message' => 'Falha ao enviar: ' . $e->getMessage(),
+                'message' => $this->describeSendFailure($e),
             ];
         }
+    }
+
+    public function isOpenState(mixed $state): bool
+    {
+        return in_array(strtolower((string) $state), ['open', 'connected'], true);
+    }
+
+    protected function describeConnectionState(mixed $state): string
+    {
+        $normalized = strtolower(trim((string) $state));
+
+        return match ($normalized) {
+            'open', 'connected' => 'Instância conectada ao WhatsApp.',
+            'connecting' => 'A instância está tentando conectar, mas o WhatsApp ainda não confirmou a sessão. Se o aparelho foi desvinculado em Aparelhos conectados, abra o manager da Evolution e escaneie o QR Code novamente.',
+            'close', 'closed' => 'Instância desconectada. Escaneie o QR Code no manager da Evolution para reconectar.',
+            default => 'Instância não conectada (estado: ' . ($state ?: 'desconhecido') . ').',
+        };
+    }
+
+    protected function describeSendFailure(\Throwable $e): string
+    {
+        $raw = $e->getMessage();
+
+        if (str_contains($raw, 'cURL error 28') || str_contains(strtolower($raw), 'timed out')) {
+            return 'A Evolution está conectada, mas o envio não respondeu a tempo. Confira se o Redis da Evolution está no ar (container `redis`) e tente novamente.';
+        }
+
+        return 'Falha ao enviar: ' . $raw;
     }
 
     public function normalizePhone(?string $phone, ?string $countryCode = null): ?string
@@ -306,11 +374,11 @@ class EvolutionApiService
         return $base . $path;
     }
 
-    protected function client(array $config)
+    protected function client(array $config, ?int $timeout = null)
     {
         return Http::withHeaders([
             'apikey' => $config['api_key'],
             'Content-Type' => 'application/json',
-        ])->timeout((int) ($config['timeout'] ?? 15));
+        ])->timeout($timeout ?? (int) ($config['timeout'] ?? 15));
     }
 }

@@ -71,6 +71,13 @@
 
     <div id="alertBox" class="porteiro-alerts"></div>
 
+    <div id="actionProcessingBar" class="porteiro-processing d-none" role="status" aria-live="polite" aria-busy="false">
+        <div class="progress porteiro-processing__track">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 100%"></div>
+        </div>
+        <p class="porteiro-processing__label mb-0" id="actionProcessingLabel">Registrando entrada…</p>
+    </div>
+
     <div id="loadingPanel" class="porteiro-state">
         <div class="spinner-border text-primary spinner-border-sm"></div>
         <span>Carregando liberações…</span>
@@ -396,6 +403,24 @@ body.porteiro-panorama .porteiro-icon-btn#btnPanorama {
 .porteiro-alerts { margin-bottom: 0.5rem; }
 .porteiro-alerts:empty { display: none; }
 
+.porteiro-processing {
+    margin-bottom: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+}
+.porteiro-processing__track { height: 5px; margin-bottom: 0.45rem; }
+.porteiro-processing__label {
+    font-size: 0.875rem;
+    color: #1e40af;
+    font-weight: 500;
+}
+.access-porteiro-panel.is-processing .access-card {
+    pointer-events: none;
+    opacity: 0.65;
+}
+
 .porteiro-state {
     display: flex;
     flex-direction: column;
@@ -612,6 +637,60 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeFilter = 'all';
     let searchQuery = '';
     let pollTimer = null;
+    let actionProcessingCount = 0;
+    const actionProcessingBar = document.getElementById('actionProcessingBar');
+    const actionProcessingLabel = document.getElementById('actionProcessingLabel');
+    const accessPorteiroPanel = document.querySelector('.access-porteiro-panel');
+
+    function setActionProcessing(active, message) {
+        if (!actionProcessingBar) return;
+        if (active) {
+            actionProcessingCount += 1;
+            if (message && actionProcessingLabel) actionProcessingLabel.textContent = message;
+            actionProcessingBar.classList.remove('d-none');
+            actionProcessingBar.setAttribute('aria-busy', 'true');
+            accessPorteiroPanel?.classList.add('is-processing');
+            document.getElementById('btnEntered')?.setAttribute('disabled', 'disabled');
+            document.getElementById('btnDenied')?.setAttribute('disabled', 'disabled');
+            document.getElementById('btnConfirmEarlyEntry')?.setAttribute('disabled', 'disabled');
+            document.querySelectorAll('.btn-list-enter, .btn-list-deny').forEach(btn => { btn.disabled = true; });
+            const btnEnteredEl = document.getElementById('btnEntered');
+            const btnDeniedEl = document.getElementById('btnDenied');
+            if (btnEnteredEl && !btnEnteredEl.dataset.defaultHtml) {
+                btnEnteredEl.dataset.defaultHtml = btnEnteredEl.innerHTML;
+            }
+            if (btnDeniedEl && !btnDeniedEl.dataset.defaultHtml) {
+                btnDeniedEl.dataset.defaultHtml = btnDeniedEl.innerHTML;
+            }
+            if (btnEnteredEl) {
+                btnEnteredEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processando…';
+            }
+            if (btnDeniedEl) {
+                btnDeniedEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processando…';
+            }
+        } else {
+            actionProcessingCount = Math.max(0, actionProcessingCount - 1);
+            if (actionProcessingCount > 0) return;
+            actionProcessingBar.classList.add('d-none');
+            actionProcessingBar.setAttribute('aria-busy', 'false');
+            accessPorteiroPanel?.classList.remove('is-processing');
+            document.getElementById('btnEntered')?.removeAttribute('disabled');
+            document.getElementById('btnDenied')?.removeAttribute('disabled');
+            const earlyCheck = document.getElementById('earlyEntryConfirmCheck');
+            if (earlyCheck?.checked) {
+                document.getElementById('btnConfirmEarlyEntry')?.removeAttribute('disabled');
+            }
+            document.querySelectorAll('.btn-list-enter, .btn-list-deny').forEach(btn => { btn.disabled = false; });
+            const btnEnteredEl = document.getElementById('btnEntered');
+            const btnDeniedEl = document.getElementById('btnDenied');
+            if (btnEnteredEl?.dataset.defaultHtml) btnEnteredEl.innerHTML = btnEnteredEl.dataset.defaultHtml;
+            if (btnDeniedEl?.dataset.defaultHtml) btnDeniedEl.innerHTML = btnDeniedEl.dataset.defaultHtml;
+        }
+    }
+
+    function actionProcessingMessage(message) {
+        if (actionProcessingLabel && message) actionProcessingLabel.textContent = message;
+    }
 
     document.querySelectorAll('#panelTabs .porteiro-tab').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -767,14 +846,19 @@ document.addEventListener('DOMContentLoaded', () => {
         earlyEntryConfirmCheck.checked = false;
         btnConfirmEarlyEntry.disabled = true;
 
-        if (payload.type === 'authorization') {
-            await postProcessAuthorization(payload.id, payload.action, true);
-        } else if (payload.type === 'list_item') {
-            await postProcessListItem(payload.id, payload.action, true);
+        setActionProcessing(true, 'Registrando entrada antecipada…');
+        try {
+            if (payload.type === 'authorization') {
+                await postProcessAuthorization(payload.id, payload.action, true, { manageProcessing: false });
+            } else if (payload.type === 'list_item') {
+                await postProcessListItem(payload.id, payload.action, true, { manageProcessing: false });
+            }
+        } finally {
+            setActionProcessing(false);
         }
     });
 
-    async function loadPanel(manual = false) {
+    async function loadPanel(manual = false, options = {}) {
         if (!manual) loadingPanel.classList.remove('d-none');
         try {
             const res = await fetch('/api/access-control/porteiro/panel', {
@@ -1287,7 +1371,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function postProcessAuthorization(id, action, earlyEntryConfirmed) {
+    async function postProcessAuthorization(id, action, earlyEntryConfirmed, options = {}) {
+        const manageProcessing = options.manageProcessing !== false;
+        const entered = action === 'entered';
+        if (manageProcessing) {
+            setActionProcessing(true, entered ? 'Registrando entrada…' : 'Registrando negação de acesso…');
+        }
         try {
             const res = await fetch(`/api/access-control/authorizations/${id}/process`, {
                 method: 'POST',
@@ -1304,11 +1393,21 @@ document.addEventListener('DOMContentLoaded', () => {
             showAlert('success', earlyEntryConfirmed
                 ? 'Entrada antecipada registrada com confirmação do morador.'
                 : (data.message || 'Registrado.'));
-            loadPanel(true);
-        } catch (e) { showAlert('danger', e.message); }
+            actionProcessingMessage('Atualizando painel…');
+            await loadPanel(true, { skipProcessing: true });
+        } catch (e) {
+            showAlert('danger', e.message);
+        } finally {
+            if (manageProcessing) setActionProcessing(false);
+        }
     }
 
-    async function postProcessListItem(id, action, earlyEntryConfirmed) {
+    async function postProcessListItem(id, action, earlyEntryConfirmed, options = {}) {
+        const manageProcessing = options.manageProcessing !== false;
+        const entered = action === 'entered';
+        if (manageProcessing) {
+            setActionProcessing(true, entered ? 'Registrando entrada…' : 'Registrando negação de acesso…');
+        }
         try {
             const res = await fetch(`/api/access-control/list-items/${id}/process`, {
                 method: 'POST',
@@ -1325,12 +1424,18 @@ document.addEventListener('DOMContentLoaded', () => {
             showAlert('success', earlyEntryConfirmed
                 ? 'Entrada antecipada registrada com confirmação do morador.'
                 : (data.message || 'Registrado.'));
-            loadPanel(true);
-        } catch (e) { showAlert('danger', e.message); }
+            actionProcessingMessage('Atualizando painel…');
+            await loadPanel(true, { skipProcessing: true });
+        } catch (e) {
+            showAlert('danger', e.message);
+        } finally {
+            if (manageProcessing) setActionProcessing(false);
+        }
     }
 
     async function submitProvider() {
         if (!currentAction || currentAction.type !== 'provider') return;
+        setActionProcessing(true, 'Registrando entrada do prestador…');
         try {
             const res = await fetch(`/api/access-control/providers/${currentAction.data.id}/enter`, {
                 method: 'POST',
@@ -1342,8 +1447,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error(data.error || 'Erro.');
             actionModal.hide();
             showAlert('success', 'Entrada do prestador registrada.');
-            loadPanel(true);
-        } catch (e) { showAlert('danger', e.message); }
+            actionProcessingMessage('Atualizando painel…');
+            await loadPanel(true, { skipProcessing: true });
+        } catch (e) {
+            showAlert('danger', e.message);
+        } finally {
+            setActionProcessing(false);
+        }
     }
 
     function showAlert(type, msg) {
