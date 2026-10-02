@@ -31,7 +31,7 @@ class NotificationRedirectService
         }
 
         if (str_starts_with($type, 'package_')) {
-            return $this->routeIf('packages.index');
+            return $this->packageUrl($user);
         }
 
         if (str_starts_with($type, 'saas_')) {
@@ -71,6 +71,15 @@ class NotificationRedirectService
             'panic_alert', 'panic_resolved' => $this->panicUrl($data, $user),
             default => $this->routeIf('notifications.index'),
         };
+    }
+
+    private function packageUrl(User $user): string
+    {
+        if ($user->can('register_packages') || $user->can('view_packages')) {
+            return $this->routeIf('packages.index');
+        }
+
+        return $this->routeIf('dashboard').'#encomendas-pendentes';
     }
 
     private function chargeUrl(array $data, User $user): string

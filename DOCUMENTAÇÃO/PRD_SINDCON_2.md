@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.44 |
-| **Data** | 30/09/2026 |
+| **Versão do documento** | 2.46 |
+| **Data** | 02/10/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria), OpenAI + Google Gemini (Consultor Financeiro) |
@@ -447,7 +447,8 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-06 | Permissões granulares agregados (`view`/`crud` por módulo) | Must | `AgregadoPermission` |
 | USR-07 | Apenas Admin atribui/remove perfil Administrador | Must | `UserController` + policies |
 | USR-08 | Síndico atribui Síndico e Conselho Fiscal | Must | Idem |
-| USR-09 | Seleção de perfil ativo para multi-papel (ex.: Síndico ↔ Morador); síndico autoatribui Morador em Meu Perfil | Must | `ProfileSelectorController`, `CheckActiveProfile`, `SyndicResidentProfileService` |
+| USR-09 | Seleção de perfil ativo para multi-papel (ex.: Síndico ↔ Morador); síndico autoatribui Morador em Meu Perfil, inclusive quando o vínculo é só a pivot do condomínio | Must | `ProfileSelectorController`, `CheckActiveProfile`, `SyndicResidentProfileService` |
+| USR-21 | Administrador da plataforma lista, edita e define papéis de todos os usuários do condomínio ativo, inclusive o próprio (Administrador + Síndico + Morador e unidade) | Must | `UserController`, `UserScopeService`, `users.edit` |
 | USR-10 | Exportação de unidades (PDF/Excel/CSV) | Should | `UnitController@export` |
 | USR-11 | Reset de senha por link de e-mail (síndico/admin) | Must | `UserController@resetPassword`, `AdminPasswordResetLinkMail` |
 | USR-12 | Troca de senha obrigatória (senha temporária) | Must | `PasswordChangeController`, `CheckPasswordChange` |
@@ -1052,6 +1053,7 @@ A encomenda está disponível para retirada na portaria.
 | PKG-RN-10 | Encomendas legadas sem senha: retirada direta permitida |
 | PKG-RN-11 | Síndico visualiza movimentações; porteiro opera chegadas/retiradas |
 | PKG-RN-12 | Operação de registro executada em transação DB; WhatsApp após commit |
+| PKG-RN-13 | Notificação de encomenda do morador abre o dashboard (`#encomendas-pendentes`); painel `/packages` segue só para quem tem `view_packages` ou `register_packages` |
 
 #### 8.10.9 Permissões do módulo
 
@@ -2201,4 +2203,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.44 — atualizado em 30/09/2026. Operação: instalação em VPS Hostinger compartilhada (sem trocar o SO e sem remover os outros sites). Mantém a v2.43 (WhatsApp/Evolution: timeout com sessão `open` aponta Redis da stack).*
+*Documento v2.46 — atualizado em 02/10/2026. Notificação de encomenda do morador abre o dashboard, não o painel da portaria (PKG-RN-13). Mantém a v2.45 (USR-21).*

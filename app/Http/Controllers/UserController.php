@@ -55,7 +55,11 @@ class UserController extends Controller
 
     private function ensureSameActiveCondominium(User $model): void
     {
-        if ((int) $model->condominium_id !== $this->activeCondominiumId()) {
+        if (app(\App\Services\UserScopeService::class)->isActingAsPlatformAdmin($this->authUser())) {
+            return;
+        }
+
+        if (!$model->belongsToCondominium($this->activeCondominiumId())) {
             abort(403, 'Usuário não pertence ao condomínio selecionado.');
         }
     }
@@ -84,7 +88,7 @@ class UserController extends Controller
         $activeCondominium = $this->activeCondominiumService->getActiveCondominium($authUser);
 
         $query = User::with(['unit', 'roles', 'condominium'])
-            ->byCondominium($condominiumId);
+            ->visibleInCondominium($condominiumId);
 
         // Filtros
         if ($request->filled('search')) {
@@ -275,12 +279,14 @@ class UserController extends Controller
         $this->authorize('update', $user);
         
         $isEditingSelf = Auth::user()->id === $user->id;
+        $actingAsPlatformAdmin = app(\App\Services\UserScopeService::class)->isActingAsPlatformAdmin($this->authUser());
 
-        if ($isEditingSelf) {
+        if ($isEditingSelf && !$actingAsPlatformAdmin) {
             $syndicSelfMorador = $this->syndicResidentProfile->canManageOwnMoradorProfile($user);
-            $units = $syndicSelfMorador
+            $residentCondominiumId = $this->syndicResidentProfile->residentCondominiumId($user);
+            $units = $syndicSelfMorador && $residentCondominiumId
                 ? Unit::active()
-                    ->byCondominium((int) $user->condominium_id)
+                    ->byCondominium($residentCondominiumId)
                     ->orderBy('number')
                     ->get()
                 : collect();
@@ -326,8 +332,9 @@ class UserController extends Controller
         $this->authorize('update', $user);
         
         $isEditingSelf = Auth::user()->id === $user->id;
+        $actingAsPlatformAdmin = app(\App\Services\UserScopeService::class)->isActingAsPlatformAdmin($this->authUser());
 
-        if ($isEditingSelf) {
+        if ($isEditingSelf && !$actingAsPlatformAdmin) {
             $requiresResidentCadastro = $user->hasAssignedRole('Morador')
                 || ($this->syndicResidentProfile->canManageOwnMoradorProfile($user) && $request->boolean('syndic_also_morador'));
 
@@ -463,9 +470,10 @@ class UserController extends Controller
                     return redirect()->back()->withErrors(['morador_vinculado_id' => 'Agregados devem estar vinculados a um morador.'])->withInput();
                 }
                 
-                // Validar que não-admin e não-porteiro devem ter unidade
+                // Morador exige unidade mesmo quando o usuário também é administrador ou síndico.
                 $rolesWithoutUnit = ['Administrador', 'Porteiro'];
-                $needsUnit = !array_intersect($rolesWithoutUnit, $requestedRoles);
+                $needsUnit = in_array('Morador', $requestedRoles, true)
+                    || !array_intersect($rolesWithoutUnit, $requestedRoles);
                 if ($needsUnit && !$request->input('unit_id')) {
                     return redirect()->back()->withErrors(['unit_id' => 'Este perfil requer que uma unidade seja vinculada.'])->withInput();
                 }
@@ -486,7 +494,10 @@ class UserController extends Controller
 
             unset($data['password'], $data['password_confirmation']);
 
-            $data['condominium_id'] = $this->activeCondominiumId();
+            $activeCondominiumId = $this->activeCondominiumId();
+            if ($user->condominium_id === null || $user->belongsToCondominium($activeCondominiumId)) {
+                $data['condominium_id'] = $activeCondominiumId;
+            }
 
             // Extrai roles antes de atualizar
             $roles = $data['roles'] ?? null;
@@ -719,7 +730,7 @@ class UserController extends Controller
         $authUser = $request->user();
 
         $query = User::active()
-            ->byCondominium($this->activeCondominiumId())
+            ->visibleInCondominium($this->activeCondominiumId())
             ->where(function($q) use ($term) {
                 $q->where('name', 'like', "%{$term}%")
                   ->orWhere('cpf', 'like', "%{$term}%")

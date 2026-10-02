@@ -14,7 +14,34 @@ class SyndicResidentProfileService
 
     public function canManageOwnMoradorProfile(User $user): bool
     {
-        return $user->hasAssignedRole('Síndico') && $user->condominium_id !== null;
+        return $user->hasAssignedRole('Síndico') && $this->residentCondominiumId($user) !== null;
+    }
+
+    /**
+     * Condomínio da moradia: cadastro da conta, condomínio ativo que ele administra, ou o único vínculo.
+     */
+    public function residentCondominiumId(User $user): ?int
+    {
+        if ($user->condominium_id) {
+            return (int) $user->condominium_id;
+        }
+
+        if (!$user->hasAssignedRole('Síndico')) {
+            return null;
+        }
+
+        $managed = $this->syndicLinkage->managedCondominiumIds($user);
+        $activeId = session(ActiveCondominiumService::SESSION_KEY);
+
+        if ($activeId !== null && in_array((int) $activeId, $managed, true)) {
+            return (int) $activeId;
+        }
+
+        if (count($managed) === 1) {
+            return $managed[0];
+        }
+
+        return null;
     }
 
     /**
@@ -28,7 +55,12 @@ class SyndicResidentProfileService
             ]);
         }
 
-        $condominiumId = (int) $syndic->condominium_id;
+        $condominiumId = $this->residentCondominiumId($syndic);
+        if ($condominiumId === null) {
+            throw ValidationException::withMessages([
+                'syndic_also_morador' => 'Selecione o condomínio antes de vincular a unidade.',
+            ]);
+        }
         $roleNames = $syndic->roles->pluck('name')->all();
 
         if ($asMorador) {
@@ -53,7 +85,10 @@ class SyndicResidentProfileService
                 $roleNames[] = 'Morador';
             }
 
-            $syndic->update(['unit_id' => $unitId]);
+            $syndic->update([
+                'unit_id' => $unitId,
+                'condominium_id' => $condominiumId,
+            ]);
         } else {
             $roleNames = array_values(array_filter(
                 $roleNames,

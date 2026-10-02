@@ -534,7 +534,7 @@
         <!-- Encomendas e Notificações -->
         <div class="col-xl-6">
             <!-- Encomendas -->
-            <div class="dashboard-card mb-4">
+            <div class="dashboard-card mb-4" id="encomendas-pendentes">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
                         <i class="bi bi-box-seam text-brand"></i> 

@@ -1929,20 +1929,10 @@
                         </button>
                         @endif
                         
-                        <!-- Quick Actions -->
-                        @if($showCondominiumMenus)
-                        <div class="btn-group me-3">
-                            @if(Route::has('marketplace.create') && SidebarHelper::canCreateMarketplace($user) && !$defaulterMenuLocked)
-                            <a href="{{ route('marketplace.create') }}" class="btn btn-sm btn-outline-success" title="Novo Anúncio">
-                                <i class="bi bi-plus-circle"></i>
-                            </a>
-                            @endif
-                            @if(Route::has('messages.create') && SidebarHelper::canSendMessages($user) && !$defaulterMenuLocked)
-                            <a href="{{ route('messages.create') }}" class="btn btn-sm btn-outline-info" title="Nova Mensagem">
-                                <i class="bi bi-send"></i>
-                            </a>
-                            @endif
-                        </div>
+                        @if($showCondominiumMenus && Route::has('messages.create') && SidebarHelper::canSendMessages($user) && !$defaulterMenuLocked)
+                        <a href="{{ route('messages.create') }}" class="btn btn-sm btn-outline-info me-3" title="Nova Mensagem">
+                            <i class="bi bi-send"></i>
+                        </a>
                         @endif
 
                         <!-- Notifications Bell -->
@@ -1991,6 +1981,13 @@
                         <span class="text-dark me-2 d-none d-md-inline">
                             Olá, <strong>{{ explode(' ', $user->name)[0] }}</strong>
                         </span>
+                        <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Sair">
+                                <i class="bi bi-box-arrow-right"></i>
+                                <span class="d-none d-sm-inline ms-1">Sair</span>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </nav>

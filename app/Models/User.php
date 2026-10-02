@@ -480,6 +480,30 @@ class User extends Authenticatable implements Auditable, CanResetPasswordContrac
         return $query->where('condominium_id', $condominiumId);
     }
 
+    /**
+     * Moradores do cadastro e síndicos ligados só pela pivot do condomínio.
+     */
+    public function scopeVisibleInCondominium($query, $condominiumId)
+    {
+        return $query->where(function ($inner) use ($condominiumId) {
+            $inner->where('condominium_id', $condominiumId)
+                ->orWhereHas('managedCondominiums', function ($pivot) use ($condominiumId) {
+                    $pivot->where('condominiums.id', $condominiumId);
+                });
+        });
+    }
+
+    public function belongsToCondominium(int $condominiumId): bool
+    {
+        if ((int) $this->condominium_id === $condominiumId) {
+            return true;
+        }
+
+        return $this->managedCondominiums()
+            ->where('condominiums.id', $condominiumId)
+            ->exists();
+    }
+
     public function scopeWithDebts($query)
     {
         return $query->where('possui_dividas', true);

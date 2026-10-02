@@ -171,7 +171,7 @@
     <div class="row g-4 mb-4">
         <!-- Encomendas -->
         <div class="col-xl-6">
-            <div class="dashboard-card">
+            <div class="dashboard-card" id="encomendas-pendentes">
                 <div class="card-header bg-white border-0 pt-4 px-4">
                     <h5 class="section-title mb-0">
                         <i class="bi bi-box-seam text-brand"></i> 

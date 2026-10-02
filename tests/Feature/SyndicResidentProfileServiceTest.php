@@ -41,6 +41,27 @@ class SyndicResidentProfileServiceTest extends TestCase
         $this->assertTrue($syndic->hasProfileSwitcher());
     }
 
+    public function test_pivot_syndic_can_add_morador_on_the_active_condominium(): void
+    {
+        $condominium = Condominium::factory()->create();
+        $unit = Unit::factory()->create(['condominium_id' => $condominium->id]);
+        $syndic = User::factory()->create(['condominium_id' => null]);
+        $syndic->assignRole('Síndico');
+        $condominium->syndics()->attach($syndic->id);
+
+        session(['active_condominium_id' => $condominium->id]);
+
+        $service = app(SyndicResidentProfileService::class);
+        $this->assertTrue($service->canManageOwnMoradorProfile($syndic));
+
+        $service->syncOwnMoradorProfile($syndic, true, $unit->id);
+
+        $syndic->refresh();
+        $this->assertTrue($syndic->hasAssignedRole('Morador'));
+        $this->assertSame((int) $condominium->id, (int) $syndic->condominium_id);
+        $this->assertSame((int) $unit->id, (int) $syndic->unit_id);
+    }
+
     public function test_syndic_can_remove_morador_role(): void
     {
         $condominium = Condominium::factory()->create();

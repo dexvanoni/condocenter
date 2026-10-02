@@ -133,6 +133,36 @@ class UserScopePolicyTest extends TestCase
             ->assertSee('Particular Alpha', false);
     }
 
+    public function test_platform_admin_sees_himself_in_condominium_users_and_edits_own_roles(): void
+    {
+        $condominium = Condominium::factory()->create(['saas_complimentary' => true]);
+        \App\Models\Unit::factory()->create(['condominium_id' => $condominium->id]);
+        $admin = User::factory()->create([
+            'name' => 'Denis Plataforma',
+            'condominium_id' => null,
+            'senha_temporaria' => false,
+            'email_verified_at' => now(),
+        ]);
+        $admin->assignRole(['Administrador', 'Síndico']);
+        $viewUsers = Permission::firstOrCreate(['name' => 'view_users', 'guard_name' => 'web']);
+        $manageUsers = Permission::firstOrCreate(['name' => 'manage_users', 'guard_name' => 'web']);
+        Role::findByName('Administrador', 'web')->givePermissionTo([$viewUsers, $manageUsers]);
+        $condominium->syndics()->attach($admin->id);
+
+        session(['active_role' => 'Administrador', 'active_condominium_id' => $condominium->id]);
+
+        $this->actingAs($admin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('Denis Plataforma', false);
+
+        $this->actingAs($admin)
+            ->get(route('users.edit', $admin))
+            ->assertOk()
+            ->assertViewIs('users.edit')
+            ->assertSee('value="Morador"', false);
+    }
+
     public function test_professional_syndic_can_open_profile_without_active_condominium(): void
     {
         $condominium = Condominium::factory()->create(['saas_complimentary' => true]);

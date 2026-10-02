@@ -86,6 +86,55 @@ class NotificationRedirectTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_morador_package_notification_opens_dashboard_not_porter_panel(): void
+    {
+        $condominium = Condominium::factory()->create();
+        $morador = User::factory()->for($condominium)->create();
+        $morador->assignRole(['Administrador', 'Morador']);
+
+        $notification = Notification::create([
+            'condominium_id' => $condominium->id,
+            'user_id' => $morador->id,
+            'type' => 'package_arrived',
+            'title' => 'Nova Encomenda Chegou!',
+            'message' => 'Uma encomenda chegou.',
+            'data' => ['package_id' => 1],
+            'channel' => 'database',
+            'sent' => true,
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAs($morador);
+        session(['active_role' => 'Morador']);
+
+        $url = app(NotificationRedirectService::class)->resolve($notification, $morador->fresh());
+
+        $this->assertSame(route('dashboard').'#encomendas-pendentes', $url);
+    }
+
+    public function test_porteiro_package_notification_opens_packages_panel(): void
+    {
+        $condominium = Condominium::factory()->create();
+        $porteiro = User::factory()->for($condominium)->create();
+        $porteiro->assignRole('Porteiro');
+
+        $notification = Notification::create([
+            'condominium_id' => $condominium->id,
+            'user_id' => $porteiro->id,
+            'type' => 'package_arrived',
+            'title' => 'Nova Encomenda Chegou!',
+            'message' => 'Uma encomenda chegou.',
+            'data' => ['package_id' => 1],
+            'channel' => 'database',
+            'sent' => true,
+            'sent_at' => now(),
+        ]);
+
+        $url = app(NotificationRedirectService::class)->resolve($notification, $porteiro);
+
+        $this->assertSame(route('packages.index'), $url);
+    }
+
     public function test_redirect_service_uses_explicit_url_from_data(): void
     {
         $condominium = Condominium::factory()->create();

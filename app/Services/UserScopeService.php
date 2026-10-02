@@ -99,12 +99,6 @@ class UserScopeService
 
     protected function targetVisibleToPlatformAdmin(User $actor, User $target): bool
     {
-        $activeId = $this->activeCondominium->getActiveCondominiumId($actor);
-
-        if ($activeId !== null) {
-            return (int) $target->condominium_id === (int) $activeId;
-        }
-
         return true;
     }
 
@@ -130,16 +124,16 @@ class UserScopeService
 
     protected function targetInSyndicCondominiumScope(User $actor, User $target): bool
     {
+        $activeId = $this->activeCondominium->getActiveCondominiumId($actor);
+        if ($activeId !== null && $target->belongsToCondominium((int) $activeId)) {
+            return true;
+        }
+
         if (!$target->condominium_id) {
             return false;
         }
 
         $targetCondoId = (int) $target->condominium_id;
-
-        $activeId = $this->activeCondominium->getActiveCondominiumId($actor);
-        if ($activeId !== null && $targetCondoId === (int) $activeId) {
-            return true;
-        }
 
         if ($this->activeCondominium->isProfessionalSyndic($actor)) {
             return $this->activeCondominium->accessibleCondominiumIds($actor)->contains($targetCondoId);
