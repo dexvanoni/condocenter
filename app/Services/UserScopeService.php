@@ -80,15 +80,41 @@ class UserScopeService
             return true;
         }
 
-        if ($this->isActingAsManagementCompany($actor)) {
-            return !in_array($roleName, ['Administrador'], true);
-        }
-
-        if ($this->isActingAsSyndic($actor)) {
-            return !in_array($roleName, ['Administrador'], true);
+        if ($this->canAssignCondominiumRoles($actor)) {
+            return true;
         }
 
         return false;
+    }
+
+    /**
+     * Síndico (ou administradora) que pode atribuir papéis no condomínio.
+     *
+     * Alinhado a {@see canManageUser}: quem edita usuários com manage_users e papel
+     * Síndico atribuído deve poder marcar Síndico/Conselho, não só quando
+     * session('active_role') === 'Síndico'.
+     */
+    public function canAssignCondominiumRoles(User $actor): bool
+    {
+        if ($this->isActingAsManagementCompany($actor)) {
+            return true;
+        }
+
+        if ($this->isActingAsSyndic($actor)) {
+            return true;
+        }
+
+        if (!$actor->hasAssignedRole('Síndico')) {
+            return false;
+        }
+
+        if (!$actor->can('manage_users')) {
+            return false;
+        }
+
+        return $this->activeCondominium->hasActiveCondominium($actor)
+            || $this->activeCondominium->isProfessionalSyndic($actor)
+            || $actor->condominium_id !== null;
     }
 
     /**
@@ -104,6 +130,37 @@ class UserScopeService
             ->get()
             ->filter(fn (Role $role) => $this->canAssignRole($actor, $role->name))
             ->values();
+    }
+
+    /**
+     * Papéis exibidos no formulário (atribuíveis + já vinculados ao usuário editado).
+     *
+     * @return Collection<int, Role>
+     */
+    public function rolesForUserForm(User $actor, ?User $subject = null): Collection
+    {
+        $roles = $this->assignableRoles($actor);
+
+        if ($subject === null) {
+            return $roles;
+        }
+
+        $subject->loadMissing('roles');
+        $missingNames = $subject->roles
+            ->pluck('name')
+            ->filter(fn (string $name) => $roles->doesntContain('name', $name));
+
+        if ($missingNames->isEmpty()) {
+            return $roles;
+        }
+
+        $extra = Role::query()
+            ->where('guard_name', 'web')
+            ->whereIn('name', $missingNames->all())
+            ->orderBy('name')
+            ->get();
+
+        return $roles->merge($extra)->sortBy('name')->values();
     }
 
     /**

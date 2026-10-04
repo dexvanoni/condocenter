@@ -287,4 +287,26 @@ class UserScopePolicyTest extends TestCase
         $this->assertTrue($policy->view($syndic, $condominium));
         $this->assertTrue($policy->update($syndic, $condominium));
     }
+
+    public function test_roles_for_user_form_includes_assignable_sindico_for_syndic_actor(): void
+    {
+        $scope = app(UserScopeService::class);
+        $condominium = Condominium::factory()->create(['saas_complimentary' => true]);
+        $manageUsers = Permission::firstOrCreate(['name' => 'manage_users', 'guard_name' => 'web']);
+        Role::findByName('Síndico', 'web')->givePermissionTo($manageUsers);
+
+        $syndic = User::factory()->create([
+            'condominium_id' => $condominium->id,
+            'senha_temporaria' => false,
+            'email_verified_at' => now(),
+        ]);
+        $syndic->assignRole('Síndico');
+        session(['active_role' => 'Síndico', 'active_condominium_id' => $condominium->id]);
+
+        $names = $scope->rolesForUserForm($syndic)->pluck('name')->all();
+
+        $this->assertContains('Síndico', $names);
+        $this->assertContains('Conselho Fiscal', $names);
+        $this->assertNotContains('Administrador', $names);
+    }
 }

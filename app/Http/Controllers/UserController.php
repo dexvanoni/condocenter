@@ -156,7 +156,8 @@ class UserController extends Controller
             ->byCondominium($condominiumId)
             ->orderBy('number')
             ->get();
-        $roles = app(\App\Services\UserScopeService::class)->assignableRoles($authUser);
+        $scope = app(\App\Services\UserScopeService::class);
+        $roles = $scope->rolesForUserForm($authUser);
         
         // Moradores para vincular agregados
         $moradores = User::active()
@@ -302,7 +303,8 @@ class UserController extends Controller
                 ->byCondominium($condominiumId)
                 ->orderBy('number')
                 ->get();
-            $roles = app(\App\Services\UserScopeService::class)->assignableRoles($this->authUser());
+            $scope = app(\App\Services\UserScopeService::class);
+            $roles = $scope->rolesForUserForm($this->authUser(), $user);
             
             // Moradores para vincular agregados
             $moradores = User::active()
