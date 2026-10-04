@@ -20,6 +20,8 @@
         </div>
     </div>
 
+    @include('platform.partials.admins-card')
+
     <div class="row g-3 mb-4">
         <div class="col-md-2 col-6">
             <div class="card shadow-sm h-100"><div class="card-body">

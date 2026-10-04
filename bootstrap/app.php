@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/asaas',
             'webhooks/asaas/platform',
             'webhooks/asaas/condominium/*',
+            'convite-administrador',
         ]);
 
         if (env('AMBIENTE') === 'ngrok') {

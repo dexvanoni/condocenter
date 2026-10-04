@@ -6,7 +6,7 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.48 |
+| **Versão do documento** | 2.50 |
 | **Data** | 05/10/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
@@ -132,7 +132,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 
 #### P1 — Administrador da plataforma
 - **Quem:** equipe SindCON / operadora do SaaS
-- **Necessidades:** gerenciar condomínios, planos, assinaturas, Asaas/WhatsApp globais, novidades da plataforma, condomínios em uso gratuito
+- **Necessidades:** gerenciar condomínios, planos, assinaturas, Asaas/WhatsApp globais, novidades da plataforma, condomínios em uso gratuito, convites de outros Administradores da plataforma
 - **Acesso:** painel `platform.*` (sem condomínio ativo obrigatório)
 - **Home após login/seleção de perfil:** `platform.dashboard` (`ProfileHomeRoute`) — não o dashboard operacional do síndico
 - **Dashboard:** `platform/dashboard.blade.php`
@@ -437,6 +437,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-18 | Painel da administradora com um card por condomínio: usuários vinculados, multas aplicadas (quantidade e valor) e saúde financeira (adimplência) | Must | `OrganizationCondominiumInsightsService`, `organization/dashboard` |
 | PLT-19 | Card de síndico na edição do condomínio e na edição da organização (modelo direto): exibe nome/contato, WhatsApp, incluir, editar dados e desvincular | Must | `CondominiumSyndicService`, `CondominiumSyndicController`, `condominiums/partials/syndic-management-card`, rotas `condominiums.syndics.*` |
 | PLT-20 | Autoatendimento WhatsApp por condomínio: criar instância Evolution, gravar credenciais e exibir QR Code na tela do cliente (síndico); credenciais manuais só para admin (modo avançado) | Must | `CondominiumWhatsAppProvisioningService`, `EvolutionInstanceService`, `CondominiumWhatsAppSettingsController`, `settings/whatsapp` |
+| PLT-21 | Card em `/platform` lista Administradores da plataforma; convite por e-mail (cadastro de novo admin) e busca AJAX por nome/CPF/e-mail em todos os condomínios para convidar usuário existente; link assinado válido por 7 dias | Must | `PlatformAdminInvitationController`, `PlatformAdminInvitationService`, `platform/partials/admins-card` |
 
 ### 8.2 Gestão de unidades e usuários
 
@@ -1390,6 +1391,7 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-47 | Diferença entre saldo do OFX e saldo projetado exige ciência explícita do síndico antes de confirmar |
 | RN-48 | Extrato CSV/OFX exige modo financeiro completo e permissão `manage_bank_statements` (upload/vínculos) |
 | RN-49 | Card “Despesas por categoria” e alertas usam `condominium_accounts` (caixa), não `transactions` legadas |
+| RN-50 | Somente Administrador da plataforma envia convite de Administrador; o perfil só é atribuído após o convidado concluir o cadastro ou aceitar o link; usuário existente mantém os demais papéis; o POST do convite é autenticado pela URL assinada (sem CSRF de sessão, para funcionar a partir do e-mail) |
 
 ---
 
@@ -1622,7 +1624,7 @@ Multas, taxas (FeeController), fechamento mensal, contas bancárias/conciliaçã
 | Configuração | Plataforma → Assinatura do condomínio (`platform/subscriptions/edit`) |
 | Efeito | `EnsureActiveSaasSubscription` e `CondominiumSubscription::isAccessAllowed()` liberam acesso sem assinatura paga |
 | Portal do síndico | `/minha-assinatura` mostra alerta “Uso gratuito da plataforma”, badge **Gratuito** e oculta pagamento/cobranças SaaS |
-| Dashboard | Lista de condomínios em uso gratuito em `platform/dashboard` |
+| Dashboard | Lista de condomínios em uso gratuito e card de Administradores da plataforma em `platform/dashboard` |
 | Casos de uso | Parcerias, pilotos, períodos promocionais |
 
 ### 14.6 Organizações e administradoras (SaaS B2B2C)
@@ -2215,4 +2217,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.48 — atualizado em 05/10/2026. USR-08/RN-07: síndico atribui Síndico (gestão total) e Conselho Fiscal a qualquer usuário do condomínio. Mantém a v2.47 (PLT-20/COM-10).*
+*Documento v2.50 — atualizado em 05/10/2026. PLT-21: aceite do convite de Administrador sem 419 (CSRF) ao abrir o link do e-mail. Mantém a v2.49 (PLT-21/RN-50).*

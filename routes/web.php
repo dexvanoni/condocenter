@@ -57,6 +57,13 @@ Route::middleware('throttle:webhooks')->group(function () {
 // QR Code público de pets (sem autenticação)
 Route::get('/pets/qr/{qrCode}', [\App\Http\Controllers\PetController::class, 'showQrCode'])->name('pets.show-qr');
 
+Route::middleware(['signed', 'throttle:20,1'])->group(function () {
+    Route::get('/convite-administrador', [\App\Http\Controllers\Platform\PlatformAdminInvitationController::class, 'show'])
+        ->name('platform.admins.invite.show');
+    Route::post('/convite-administrador', [\App\Http\Controllers\Platform\PlatformAdminInvitationController::class, 'complete'])
+        ->name('platform.admins.invite.complete');
+});
+
 // Rotas de impressão de tag (com autenticação básica)
 Route::middleware(['auth'])->group(function () {
     Route::get('/pets/{pet}/download-qr', [\App\Http\Controllers\PetController::class, 'downloadQrCode'])->name('pets.download-qr');
@@ -673,6 +680,13 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
     Route::prefix('platform')->name('platform.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Platform\PlatformDashboardController::class, 'index'])
             ->name('dashboard');
+
+        Route::get('/admins/search', [\App\Http\Controllers\Platform\PlatformAdminInvitationController::class, 'search'])
+            ->middleware('throttle:30,1')
+            ->name('admins.search');
+        Route::post('/admins/invite', [\App\Http\Controllers\Platform\PlatformAdminInvitationController::class, 'invite'])
+            ->middleware('throttle:6,1')
+            ->name('admins.invite');
 
         Route::get('/billing', [\App\Http\Controllers\Platform\PlatformSaasBillingController::class, 'index'])
             ->name('billing.index');
