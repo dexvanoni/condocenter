@@ -840,6 +840,7 @@ A Parte 1 foi renumerada em 30/09/2026. Nas entradas antigas, “Passo 8” do c
 - Sem `php artisan migrate`.
 - Opcional no `.env`: `EVOLUTION_GLOBAL_API_KEY` (chave global da Evolution) e `EVOLUTION_INSTANCE_PREFIX` (padrão `sindcon`). Também pode ser salva em **Plataforma → WhatsApp → API Key global (provisionamento)**.
 - Após deploy: confirme `EVOLUTION_API_URL` acessível pelo PHP da aplicação; síndicos conectam o celular em **Gestão → WhatsApp → Gerar QR Code**.
+- **Obrigatório na atualização:** subir `routes/web.php` e `routes/condominium_whatsapp_settings.php` e rodar `php artisan route:clear` antes de `route:cache` (rotas `condominiums.settings.whatsapp.instance.*`). Sem isso a tela do síndico pode retornar erro 500 ou o QR não responde.
 
 ### 2026-09-30 — VPS Hostinger compartilhada
 

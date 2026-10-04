@@ -9,6 +9,7 @@ use App\Services\CondominiumWhatsAppSettingsService;
 use App\Services\EvolutionApiService;
 use App\Services\WhatsAppNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 class CondominiumWhatsAppSettingsController extends Controller
 {
@@ -49,7 +50,35 @@ class CondominiumWhatsAppSettingsController extends Controller
             'maskedKey' => $maskedKey,
             'groups' => $this->settings->groupsForUi($condominium),
             'connection' => $this->evolution->connectionState($condominium->id),
+            'instanceRoutes' => self::instanceRouteUrls($condominium),
         ]);
+    }
+
+    /**
+     * URLs da instância Evolution (QR). Usa rotas nomeadas quando existirem;
+     * fallback por path evita 500 se o cache de rotas em produção estiver desatualizado.
+     *
+     * @return array{connect: string, status: string, disconnect: string}
+     */
+    public static function instanceRouteUrls(Condominium $condominium): array
+    {
+        $key = $condominium->getRouteKey();
+        $base = '/condominiums/'.$key.'/settings/whatsapp/instance';
+
+        $map = [
+            'connect' => ['name' => 'condominiums.settings.whatsapp.instance.connect', 'path' => $base.'/connect'],
+            'status' => ['name' => 'condominiums.settings.whatsapp.instance.status', 'path' => $base.'/status'],
+            'disconnect' => ['name' => 'condominiums.settings.whatsapp.instance.disconnect', 'path' => $base.'/disconnect'],
+        ];
+
+        $urls = [];
+        foreach ($map as $slot => $def) {
+            $urls[$slot] = Route::has($def['name'])
+                ? route($def['name'], ['condominium' => $condominium])
+                : url($def['path']);
+        }
+
+        return $urls;
     }
 
     public function update(UpdateCondominiumWhatsAppSettingsRequest $request, Condominium $condominium)

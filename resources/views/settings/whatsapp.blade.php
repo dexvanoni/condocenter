@@ -18,9 +18,9 @@
     @include('partials.whatsapp-qr-connect', [
         'config' => $config,
         'connection' => $connection ?? null,
-        'connectRoute' => route('condominiums.settings.whatsapp.instance.connect', $condominium),
-        'statusRoute' => route('condominiums.settings.whatsapp.instance.status', $condominium),
-        'disconnectRoute' => route('condominiums.settings.whatsapp.instance.disconnect', $condominium),
+        'connectRoute' => $instanceRoutes['connect'] ?? null,
+        'statusRoute' => $instanceRoutes['status'] ?? null,
+        'disconnectRoute' => $instanceRoutes['disconnect'] ?? null,
     ])
 
     <div class="row g-4">
