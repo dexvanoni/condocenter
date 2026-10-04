@@ -25,6 +25,8 @@ class UserScopePolicyTest extends TestCase
         Role::firstOrCreate(['name' => 'Síndico', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'Morador', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'Porteiro', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'Conselho Fiscal', 'guard_name' => 'web']);
+        Role::firstOrCreate(['name' => 'Agregado', 'guard_name' => 'web']);
     }
 
     public function test_syndic_can_assign_porteiro_but_not_administrador(): void
@@ -35,8 +37,10 @@ class UserScopePolicyTest extends TestCase
         session(['active_role' => 'Síndico']);
 
         $this->assertTrue($scope->canAssignRole($syndic, 'Porteiro'));
+        $this->assertTrue($scope->canAssignRole($syndic, 'Síndico'));
+        $this->assertTrue($scope->canAssignRole($syndic, 'Conselho Fiscal'));
+        $this->assertTrue($scope->canAssignRole($syndic, 'Agregado'));
         $this->assertFalse($scope->canAssignRole($syndic, 'Administrador'));
-        $this->assertFalse($scope->canAssignRole($syndic, 'Síndico'));
     }
 
     public function test_management_company_profile_can_assign_syndic_not_platform_admin(): void
@@ -179,5 +183,108 @@ class UserScopePolicyTest extends TestCase
         $this->actingAs($syndic)
             ->get(route('profile.edit'))
             ->assertOk();
+    }
+
+    public function test_syndic_can_assign_sindico_role_to_resident(): void
+    {
+        $condominium = Condominium::factory()->create(['saas_complimentary' => true]);
+        $unit = \App\Models\Unit::factory()->create(['condominium_id' => $condominium->id]);
+
+        $manageUsers = Permission::firstOrCreate(['name' => 'manage_users', 'guard_name' => 'web']);
+        $viewUsers = Permission::firstOrCreate(['name' => 'view_users', 'guard_name' => 'web']);
+        $sindicoRole = Role::findByName('Síndico', 'web');
+        $sindicoRole->givePermissionTo([$manageUsers, $viewUsers]);
+
+        $syndic = User::factory()->create([
+            'condominium_id' => $condominium->id,
+            'senha_temporaria' => false,
+            'email_verified_at' => now(),
+        ]);
+        $syndic->assignRole('Síndico');
+
+        $resident = User::factory()->create([
+            'condominium_id' => $condominium->id,
+            'unit_id' => $unit->id,
+            'senha_temporaria' => false,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $resident->assignRole('Morador');
+
+        session(['active_role' => 'Síndico', 'active_condominium_id' => $condominium->id]);
+
+        $this->actingAs($syndic)
+            ->get(route('users.edit', $resident))
+            ->assertOk()
+            ->assertSee('value="Síndico"', false);
+
+        $this->actingAs($syndic)
+            ->put(route('users.update', $resident), [
+                'name' => $resident->name,
+                'email' => $resident->email,
+                'unit_id' => $unit->id,
+                'roles' => ['Morador', 'Síndico'],
+                'is_active' => 1,
+            ])
+            ->assertRedirect(route('users.show', $resident));
+
+        $resident->refresh();
+        $this->assertTrue($resident->hasAssignedRole('Síndico'));
+        $this->assertTrue($resident->hasAssignedRole('Morador'));
+        $this->assertTrue($resident->managedCondominiums()->whereKey($condominium->id)->exists());
+    }
+
+    public function test_syndic_create_form_lists_sindico_role(): void
+    {
+        $condominium = Condominium::factory()->create(['saas_complimentary' => true]);
+        $manageUsers = Permission::firstOrCreate(['name' => 'manage_users', 'guard_name' => 'web']);
+        $viewUsers = Permission::firstOrCreate(['name' => 'view_users', 'guard_name' => 'web']);
+        Role::findByName('Síndico', 'web')->givePermissionTo([$manageUsers, $viewUsers]);
+
+        $syndic = User::factory()->create([
+            'condominium_id' => $condominium->id,
+            'senha_temporaria' => false,
+            'email_verified_at' => now(),
+        ]);
+        $syndic->assignRole('Síndico');
+
+        session(['active_role' => 'Síndico', 'active_condominium_id' => $condominium->id]);
+
+        $this->actingAs($syndic)
+            ->get(route('users.create'))
+            ->assertOk()
+            ->assertSee('value="Síndico"', false)
+            ->assertDontSee('value="Administrador"', false);
+    }
+
+    public function test_syndic_cannot_strip_administrador_when_editing_user(): void
+    {
+        $scope = app(UserScopeService::class);
+        $condominium = Condominium::factory()->create();
+        $syndic = User::factory()->create(['condominium_id' => $condominium->id]);
+        $syndic->assignRole('Síndico');
+        session(['active_role' => 'Síndico']);
+
+        $target = User::factory()->create(['condominium_id' => $condominium->id]);
+        $target->assignRole(['Administrador', 'Morador']);
+
+        $merged = $scope->mergeUnassignableExistingRoles($syndic, $target, ['Morador', 'Síndico']);
+
+        $this->assertContains('Administrador', $merged);
+        $this->assertContains('Síndico', $merged);
+        $this->assertContains('Morador', $merged);
+    }
+
+    public function test_pivot_syndic_can_manage_condominium(): void
+    {
+        $condominium = Condominium::factory()->create();
+        $syndic = User::factory()->create(['condominium_id' => null]);
+        $syndic->assignRole('Síndico');
+        $condominium->syndics()->attach($syndic->id);
+        session(['active_role' => 'Síndico']);
+
+        $policy = app(\App\Policies\CondominiumPolicy::class);
+        $this->assertTrue($policy->view($syndic, $condominium));
+        $this->assertTrue($policy->update($syndic, $condominium));
     }
 }

@@ -19,7 +19,7 @@ class CondominiumPolicy
         }
 
         return $user->isSindico()
-            && (int) $user->condominium_id === (int) $condominium->id;
+            && $user->belongsToCondominium((int) $condominium->id);
     }
 
     public function create(User $user): bool
@@ -34,7 +34,7 @@ class CondominiumPolicy
         }
 
         return $user->isSindico()
-            && (int) $user->condominium_id === (int) $condominium->id;
+            && $user->belongsToCondominium((int) $condominium->id);
     }
 
     public function delete(User $user, Condominium $condominium): bool

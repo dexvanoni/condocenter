@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\Condominium;
 use App\Models\User;
+use Illuminate\Support\Collection;
+use Spatie\Permission\Models\Role;
+
 class UserScopeService
 {
     public function __construct(
@@ -82,10 +85,41 @@ class UserScopeService
         }
 
         if ($this->isActingAsSyndic($actor)) {
-            return !in_array($roleName, ['Administrador', 'Síndico', 'Conselho Fiscal'], true);
+            return !in_array($roleName, ['Administrador'], true);
         }
 
         return false;
+    }
+
+    /**
+     * Papéis Spatie que o ator pode marcar na ficha de usuário.
+     *
+     * @return Collection<int, Role>
+     */
+    public function assignableRoles(User $actor): Collection
+    {
+        return Role::query()
+            ->where('guard_name', 'web')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (Role $role) => $this->canAssignRole($actor, $role->name))
+            ->values();
+    }
+
+    /**
+     * Mantém papéis que o alvo já tem e o ator não pode atribuir/remover (ex.: Administrador).
+     *
+     * @param  list<string>  $requestedRoles
+     * @return list<string>
+     */
+    public function mergeUnassignableExistingRoles(User $actor, User $target, array $requestedRoles): array
+    {
+        $preserved = $target->roles
+            ->pluck('name')
+            ->filter(fn (string $name) => !$this->canAssignRole($actor, $name))
+            ->all();
+
+        return array_values(array_unique(array_merge($requestedRoles, $preserved)));
     }
 
     public function canSendPasswordResetLink(User $actor, User $target): bool

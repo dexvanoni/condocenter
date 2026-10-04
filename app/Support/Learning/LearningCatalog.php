@@ -676,7 +676,7 @@ final class LearningCatalog
                     ],
                     [
                         'title' => 'Usuários',
-                        'body' => '**Gestão → Usuários**: crie morador, porteiro, conselho etc. Morador exige unidade. Agregado vincula-se ao morador responsável.',
+                        'body' => '**Gestão → Usuários**: crie ou edite morador, agregado, porteiro, conselho ou qualquer usuário do condomínio. Marque o perfil **Síndico** para dar **gestão total** (finanças, unidades, usuários, módulos). O indicado deve **alternar o perfil ativo** para Síndico no menu do nome. Morador exige unidade. Agregado vincula-se ao morador responsável. Apenas o administrador da plataforma atribui o perfil Administrador.',
                     ],
                     [
                         'title' => 'Aluguel',
@@ -717,6 +717,43 @@ final class LearningCatalog
                 ],
                 'checklist' => [
                     'Sabe filtrar usuários pendentes',
+                ],
+            ],
+            [
+                'slug' => 'atribuir-sindico',
+                'module' => 'gestao',
+                'title' => 'Atribuir outro síndico',
+                'summary' => 'Indicar morador, agregado ou qualquer usuário do condomínio como síndico, com gestão total.',
+                'audience' => 'sindico',
+                'level' => 'intermediario',
+                'minutes' => 4,
+                'critical' => false,
+                'tags' => ['usuários', 'síndico', 'perfis'],
+                'route_hint' => 'users.index',
+                'video' => null,
+                'video_url' => null,
+                'objectives' => [
+                    'Encontrar o usuário no condomínio',
+                    'Marcar o perfil Síndico na ficha',
+                    'Orientar a troca do perfil ativo',
+                ],
+                'steps' => [
+                    [
+                        'title' => 'Abrir a ficha',
+                        'body' => 'Em **Gestão → Usuários**, abra o morador, agregado ou outro usuário que deve passar a gerir o condomínio. Você também pode criar um usuário novo já com o perfil Síndico.',
+                    ],
+                    [
+                        'title' => 'Marcar Síndico',
+                        'body' => 'Em **Perfil(s) do Usuário**, marque **Síndico** (pode coexistir com Morador, Agregado ou outro papel). Salve. A pessoa passa a ter **gestão total** do condomínio: unidades, usuários, financeiro, módulos e configurações.',
+                    ],
+                    [
+                        'title' => 'Perfil ativo',
+                        'body' => 'Quem recebeu o papel precisa **alternar para Síndico** no menu do nome. Enquanto o perfil ativo for Morador ou Agregado, as permissões de gestão não aparecem. Apenas o administrador da plataforma atribui o perfil Administrador.',
+                    ],
+                ],
+                'checklist' => [
+                    'Marcou Síndico na ficha de um usuário',
+                    'Sabe que a gestão exige o perfil ativo Síndico',
                 ],
             ],
         ];

@@ -94,7 +94,7 @@ class MultiTenantOrganizationTest extends TestCase
         $this->assertTrue($service->userCanAccessCondominium($admin, (int) $condoB->id));
     }
 
-    public function test_non_admin_cannot_assign_administrador_or_sindico(): void
+    public function test_sindico_cannot_assign_administrador_but_can_assign_sindico(): void
     {
         $condo = Condominium::factory()->create();
         $sindico = User::factory()->create(['condominium_id' => $condo->id]);
@@ -103,7 +103,7 @@ class MultiTenantOrganizationTest extends TestCase
         $policy = app(\App\Policies\UserPolicy::class);
 
         $this->assertFalse($policy->assignRole($sindico, 'Administrador'));
-        $this->assertFalse($policy->assignRole($sindico, 'Síndico'));
+        $this->assertTrue($policy->assignRole($sindico, 'Síndico'));
         $this->assertTrue($policy->assignRole($sindico, 'Morador'));
     }
 

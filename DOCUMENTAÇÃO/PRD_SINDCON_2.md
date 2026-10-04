@@ -6,7 +6,7 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.47 |
+| **Versão do documento** | 2.48 |
 | **Data** | 05/10/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
@@ -140,6 +140,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 #### P2 — Síndico
 - **Quem:** gestor eleito ou profissional do condomínio
 - **Necessidades:** finanças, usuários, reservas, comunicação, moderação, relatórios, landing page, fechamento mensal
+- **Pode indicar outros síndicos** (morador, agregado ou qualquer usuário do condomínio) com gestão total; o indicado usa o perfil ativo **Síndico**
 - **Pode atuar em múltiplos condomínios** via pivot `condominium_user` (administradora e cadastro no condomínio) + `users.condominium_id` quando o síndico também está vinculado como morador/cadastro “casa” + seletor `condominium.switch` / tela **Meus condomínios**
 - **Dashboard:** `dashboard/sindico.blade.php`
 
@@ -221,6 +222,7 @@ Digitalizar o ciclo completo da vida condominial — do cadastro de moradores ao
 
 #### Gestão de pessoas
 - CRUD de unidades e usuários, histórico exportável (PDF/Excel)
+- Síndico atribui o papel **Síndico** (gestão total do condomínio) e **Conselho Fiscal** a morador, agregado ou qualquer usuário do condomínio; apenas Administrador da plataforma atribui Administrador
 - **Regimes de ocupação** por unidade: **Particular**, **Aluguel** (diária/mensalista + proprietário + inquilino + contrato), **Imóvel público** (subtipos administrativos: militar, funcional público/privado — cadastro, sem mudança de permissões)
 - Ficha da unidade (aluguel): bloco **Aluguel — ocupação** com proprietário, inquilino e atalhos de contato (WhatsApp, e-mail, mensagem SindCON) para síndico/secretaria
 - Auto-cadastro com código do condomínio + aprovação do síndico (com rate limit)
@@ -447,7 +449,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | USR-05 | Histórico completo do usuário (PDF/Excel) | Should | `UserHistoryController` |
 | USR-06 | Permissões granulares agregados (`view`/`crud` por módulo) | Must | `AgregadoPermission` |
 | USR-07 | Apenas Admin atribui/remove perfil Administrador | Must | `UserController` + policies |
-| USR-08 | Síndico atribui Síndico e Conselho Fiscal | Must | Idem |
+| USR-08 | Síndico atribui Síndico (a morador, agregado ou qualquer usuário do condomínio) e Conselho Fiscal; o papel Síndico dá gestão total do condomínio | Must | `UserController`, `UserScopeService`, `SyndicCondominiumLinkageService` |
 | USR-09 | Seleção de perfil ativo para multi-papel (ex.: Síndico ↔ Morador); síndico autoatribui Morador em Meu Perfil, inclusive quando o vínculo é só a pivot do condomínio | Must | `ProfileSelectorController`, `CheckActiveProfile`, `SyndicResidentProfileService` |
 | USR-21 | Administrador da plataforma lista, edita e define papéis de todos os usuários do condomínio ativo, inclusive o próprio (Administrador + Síndico + Morador e unidade) | Must | `UserController`, `UserScopeService`, `users.edit` |
 | USR-10 | Exportação de unidades (PDF/Excel/CSV) | Should | `UnitController@export` |
@@ -1345,7 +1347,7 @@ Cada condomínio pode publicar uma **landing page** acessível sem login, servin
 | RN-04 | Administrador e Porteiro **não exigem** unidade |
 | RN-05 | Demais perfis **exigem** unidade vinculada |
 | RN-06 | Apenas **Administrador** atribui/remove perfil Administrador |
-| RN-07 | **Síndico** atribui Síndico e Conselho Fiscal |
+| RN-07 | **Síndico** atribui Síndico (gestão total do condomínio) e Conselho Fiscal a qualquer usuário do condomínio; papéis que o ator não pode gerir (ex.: Administrador) são preservados na edição |
 | RN-08 | Assinatura SaaS **ativa** obrigatória para módulos do condomínio |
 | RN-09 | `restrict_defaulters` bloqueia marketplace, reservas, OS, caronas e voto em assembleias; com menu restrito, morador inadimplente acessa apenas dashboard, cobranças, síndico e pânico |
 | RN-10 | Moradores e Conselho Fiscal têm **transparência financeira total** |
@@ -2012,6 +2014,14 @@ Plataforma
 4. **Fale com o síndico** em thread `morador` (segregada do proprietário)
 5. Se contrato vencer sem renovação: acesso suspenso até síndico atualizar `lease_contract_ends_at`
 
+### 18.21 Síndico atribui outro síndico
+
+1. Em **Gestão → Usuários**, abre (ou cadastra) morador, agregado ou qualquer usuário do condomínio
+2. Marca o perfil **Síndico** (pode coexistir com Morador/Agregado/outros, exceto Administrador)
+3. Ao salvar, o papel Spatie é atribuído e o vínculo `condominium_user` é criado (`SyndicCondominiumLinkageService`)
+4. O indicado passa a ter **gestão total** do condomínio no perfil ativo **Síndico** (unidades, usuários, financeiro, módulos, ficha do condomínio)
+5. Se tiver mais de um papel, alterna Síndico ↔ Morador (ou outro) no menu do nome
+
 ---
 
 ## 19. Cobertura de testes e qualidade
@@ -2033,7 +2043,7 @@ Plataforma
 | `TextNormalizerTest.php` | Normalização OCR |
 | `MarketplaceModuleTest.php` | Agregados marketplace |
 | `TransactionTest.php` | Transações + isolamento tenant |
-| `AuthenticationTest.php` | Login/logout |
+| `UserScopePolicyTest.php` | Escopo de usuários, atribuição de Síndico pelo síndico, preservação de Administrador |
 | `NotificationRedirectTest.php` | Deep links |
 | `VisitorAccessCredentialTest.php` | Visitante "Outro": criação, validade, check-in PIN/QR reutilizável, expiração, PDF, painel porteiro |
 | `BankStatementParserTest.php` | Parser OFX, CSV com `;`/débito-crédito, mapeamento |
@@ -2205,4 +2215,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.47 — atualizado em 05/10/2026. PLT-20/COM-10: síndico provisiona instância Evolution e conecta WhatsApp pelo QR na tela do condomínio; API Key global em Plataforma → WhatsApp. Mantém a v2.46 (PKG-RN-13).*
+*Documento v2.48 — atualizado em 05/10/2026. USR-08/RN-07: síndico atribui Síndico (gestão total) e Conselho Fiscal a qualquer usuário do condomínio. Mantém a v2.47 (PLT-20/COM-10).*

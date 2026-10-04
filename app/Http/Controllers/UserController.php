@@ -156,7 +156,7 @@ class UserController extends Controller
             ->byCondominium($condominiumId)
             ->orderBy('number')
             ->get();
-        $roles = Role::all();
+        $roles = app(\App\Services\UserScopeService::class)->assignableRoles($authUser);
         
         // Moradores para vincular agregados
         $moradores = User::active()
@@ -302,13 +302,7 @@ class UserController extends Controller
                 ->byCondominium($condominiumId)
                 ->orderBy('number')
                 ->get();
-            $scope = app(\App\Services\UserScopeService::class);
-            $roles = Role::query()
-                ->where('guard_name', 'web')
-                ->orderBy('name')
-                ->get()
-                ->filter(fn (Role $role) => $scope->canAssignRole($this->authUser(), $role->name))
-                ->values();
+            $roles = app(\App\Services\UserScopeService::class)->assignableRoles($this->authUser());
             
             // Moradores para vincular agregados
             $moradores = User::active()
@@ -504,13 +498,15 @@ class UserController extends Controller
             unset($data['roles']);
 
             if ($roles !== null) {
+                $scope = app(\App\Services\UserScopeService::class);
                 foreach ($roles as $roleName) {
                     abort_unless(
-                        app(\App\Policies\UserPolicy::class)->assignRole($this->authUser(), (string) $roleName),
+                        $scope->canAssignRole($this->authUser(), (string) $roleName),
                         403,
                         'Você não pode atribuir o perfil: '.$roleName
                     );
                 }
+                $roles = $scope->mergeUnassignableExistingRoles($this->authUser(), $user, $roles);
                 $this->userRoleLinkageService->applyLinkageRules($user, $roles, $data);
             }
 

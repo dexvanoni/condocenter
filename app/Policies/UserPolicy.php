@@ -56,7 +56,8 @@ class UserPolicy
     public function manageSindico(User $user): bool
     {
         return $this->scope->isActingAsPlatformAdmin($user)
-            || $this->scope->isActingAsManagementCompany($user);
+            || $this->scope->isActingAsManagementCompany($user)
+            || $this->scope->isActingAsSyndic($user);
     }
 
     public function manageConselhoFiscal(User $user): bool

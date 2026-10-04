@@ -100,8 +100,11 @@ class StoreUserRequest extends FormRequest
             if ($this->has('roles')) {
                 $requestedRoles = $this->input('roles', []);
 
-                if (in_array('Administrador', $requestedRoles, true) && !$this->user()->hasRole('Administrador')) {
-                    $validator->errors()->add('roles', 'Apenas administradores podem atribuir o perfil de Administrador.');
+                $policy = app(\App\Policies\UserPolicy::class);
+                foreach ($requestedRoles as $roleName) {
+                    if (!$policy->assignRole($this->user(), (string) $roleName)) {
+                        $validator->errors()->add('roles', 'Você não pode atribuir o perfil: '.$roleName);
+                    }
                 }
             }
 

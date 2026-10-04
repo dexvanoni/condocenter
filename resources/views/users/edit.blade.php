@@ -410,8 +410,9 @@
                                 <i class="bi bi-shield-check"></i> Perfil(s) do Usuário 
                                 <span class="text-danger">*</span>
                                 <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
-                                   title="Selecione um ou mais perfis. Apenas Admin pode criar Síndico e Conselho Fiscal"></i>
+                                   title="Selecione um ou mais perfis. O síndico pode atribuir Síndico (gestão total do condomínio) e Conselho Fiscal. Apenas o administrador da plataforma atribui Administrador."></i>
                             </label>
+                            <p class="text-muted small mb-3">Marque <strong>Síndico</strong> para dar gestão total do condomínio. Quem receber o papel deve alternar o perfil ativo para Síndico no menu do nome.</p>
                             
                             <div class="role-grid">
                                 @foreach($roles as $role)
