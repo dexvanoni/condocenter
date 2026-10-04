@@ -62,13 +62,19 @@ class PlatformSettingsController extends Controller
         abort_unless(auth()->user()?->isAdmin(), 403);
 
         $config = $this->settings->getWhatsAppConfig();
+        $provisioning = $this->settings->getEvolutionProvisioningConfig();
         $maskedKey = $config['api_key']
             ? str_repeat('•', max(strlen($config['api_key']) - 4, 8)) . substr($config['api_key'], -4)
+            : null;
+        $maskedGlobalKey = filled($provisioning['global_api_key'])
+            ? str_repeat('•', max(strlen($provisioning['global_api_key']) - 4, 8)) . substr($provisioning['global_api_key'], -4)
             : null;
 
         return view('platform.settings.whatsapp', [
             'config' => $config,
+            'provisioning' => $provisioning,
             'maskedKey' => $maskedKey,
+            'maskedGlobalKey' => $maskedGlobalKey,
             'groups' => $this->whatsapp->platformGroupsForUi(),
             'connection' => $this->evolution->connectionState(),
         ]);
@@ -80,6 +86,7 @@ class PlatformSettingsController extends Controller
             'enabled' => $request->boolean('enabled'),
             'api_url' => $request->input('api_url'),
             'api_key' => $request->input('api_key'),
+            'global_api_key' => $request->input('global_api_key'),
             'instance' => $request->input('instance'),
             'notify_groups' => $request->input('notify_groups', []),
         ]);

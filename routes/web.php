@@ -657,6 +657,13 @@ Route::middleware(['auth', 'verified', 'check.password', 'check.profile', 'ensur
         ->name('condominiums.settings.whatsapp.test');
     Route::post('/condominiums/{condominium}/settings/whatsapp/groups', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'listGroups'])
         ->name('condominiums.settings.whatsapp.groups');
+    Route::post('/condominiums/{condominium}/settings/whatsapp/instance/connect', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'connectInstance'])
+        ->middleware('throttle:10,1')
+        ->name('condominiums.settings.whatsapp.instance.connect');
+    Route::get('/condominiums/{condominium}/settings/whatsapp/instance/status', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'instanceStatus'])
+        ->name('condominiums.settings.whatsapp.instance.status');
+    Route::post('/condominiums/{condominium}/settings/whatsapp/instance/disconnect', [\App\Http\Controllers\CondominiumWhatsAppSettingsController::class, 'disconnectInstance'])
+        ->name('condominiums.settings.whatsapp.instance.disconnect');
     Route::get('/condominiums/{condominium}/settings/receiving', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'index'])
         ->name('condominiums.settings.receiving');
     Route::put('/condominiums/{condominium}/settings/receiving/mode', [\App\Http\Controllers\CondominiumReceivingSettingsController::class, 'updateMode'])

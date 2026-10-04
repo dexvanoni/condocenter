@@ -20,10 +20,10 @@
         @if(!empty($connection['state']))
             <span class="badge text-bg-warning mt-2">estado: {{ $connection['state'] }}</span>
         @endif
-        @if($managerUrl)
+        @if($managerUrl && empty($hideManagerLink))
             <div class="mt-2">
-                <a href="{{ $managerUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-success">
-                    <i class="bi bi-box-arrow-up-right"></i> Abrir Evolution Manager e escanear o QR
+                <a href="{{ $managerUrl }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success">
+                    <i class="bi bi-box-arrow-up-right"></i> Abrir Evolution Manager (opcional)
                 </a>
             </div>
         @endif

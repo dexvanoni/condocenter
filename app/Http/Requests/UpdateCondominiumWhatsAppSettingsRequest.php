@@ -26,11 +26,13 @@ class UpdateCondominiumWhatsAppSettingsRequest extends FormRequest
 
     public function rules(): array
     {
+        $admin = $this->user()?->isAdmin() ?? false;
+
         return [
             'enabled' => ['nullable', 'boolean'],
-            'api_url' => ['required', 'url', 'max:500'],
+            'api_url' => [$admin ? 'required' : 'nullable', 'url', 'max:500'],
             'api_key' => ['nullable', 'string', 'max:500'],
-            'instance' => ['required', 'string', 'max:120'],
+            'instance' => [$admin ? 'required' : 'nullable', 'string', 'max:120'],
             'notify_groups' => ['nullable', 'array'],
             'notify_groups.*' => ['nullable', 'boolean'],
             'announcements_group' => ['nullable', 'string', 'max:120'],

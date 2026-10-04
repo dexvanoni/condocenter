@@ -7,6 +7,13 @@ return [
     'api_key' => env('EVOLUTION_API_KEY'),
     'instance' => env('EVOLUTION_INSTANCE'),
 
+    /*
+    | Chave global (AUTHENTICATION_API_KEY) para criar instâncias por condomínio via API.
+    | Pode ser definida em Plataforma > WhatsApp ou em EVOLUTION_GLOBAL_API_KEY.
+    */
+    'global_api_key' => env('EVOLUTION_GLOBAL_API_KEY'),
+    'instance_prefix' => env('EVOLUTION_INSTANCE_PREFIX', 'sindcon'),
+
     'timeout' => (int) env('EVOLUTION_TIMEOUT', 15),
     'default_country_code' => env('WHATSAPP_DEFAULT_COUNTRY_CODE', '55'),
 

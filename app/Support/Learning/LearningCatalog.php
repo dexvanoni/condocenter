@@ -832,7 +832,7 @@ final class LearningCatalog
                 'slug' => 'whatsapp-do-condominio',
                 'module' => 'communication',
                 'title' => 'WhatsApp do condomínio',
-                'summary' => 'Ativar avisos no WhatsApp e reconectar a Evolution quando as mensagens pararem de sair.',
+                'summary' => 'Conectar o WhatsApp pelo QR Code no SindCON, ativar avisos e reconectar quando as mensagens pararem de sair.',
                 'audience' => 'sindico',
                 'level' => 'intermediario',
                 'minutes' => 6,
@@ -842,22 +842,26 @@ final class LearningCatalog
                 'video' => null,
                 'video_url' => null,
                 'objectives' => [
+                    'Gerar o QR Code e vincular o celular do condomínio sem depender do administrador da plataforma',
                     'Confirmar que a instância Evolution está open, não só configurada',
-                    'Reconectar pelo QR se o WhatsApp desvinculou o aparelho',
                     'Saber quais tipos de aviso precisam estar marcados',
                 ],
                 'steps' => [
                     [
                         'title' => 'Abrir a tela',
-                        'body' => 'No menu **Gestão → WhatsApp**, confira URL, instância, API Key e o interruptor de envio. Salvar esses dados **não envia** mensagem sozinho.',
+                        'body' => 'No menu **Gestão → WhatsApp**, use o card **Conectar WhatsApp** no topo. Na primeira vez o SindCON cria a instância na Evolution automaticamente.',
+                    ],
+                    [
+                        'title' => 'Escanear o QR Code',
+                        'body' => 'Clique em **Gerar QR Code**, abra no celular **WhatsApp → Aparelhos conectados → Conectar um aparelho** e escaneie antes do QR expirar (cerca de 40 segundos). Se expirar, gere de novo.',
                     ],
                     [
                         'title' => 'Ver o estado da sessão',
-                        'body' => 'O aviso no topo da tela mostra o estado real da Evolution. Só envia se estiver **open**. Estado **connecting** ou **close** significa que o WhatsApp não está com a sessão ativa.',
+                        'body' => 'O aviso na tela mostra o estado real da Evolution. Só envia mensagens se estiver **open**. Estado **connecting** ou **close** significa que o WhatsApp não está com a sessão ativa — use **Gerar QR Code** de novo.',
                     ],
                     [
-                        'title' => 'Reconectar o QR',
-                        'body' => 'Se o aparelho foi desvinculado em **Aparelhos conectados** no WhatsApp, abra o **Evolution Manager**, gere o QR da instância do condomínio e escaneie de novo. Depois use **Testar conexão** com um telefone real.',
+                        'title' => 'Ativar envio e testar',
+                        'body' => 'Marque **Ativar envio de notificações por WhatsApp**, salve e use **Testar conexão** com um telefone real. Ativar e conectar **não envia** avisos sozinhos: os tipos de aviso também precisam estar marcados.',
                     ],
                     [
                         'title' => 'Tipos de aviso',

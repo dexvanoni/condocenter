@@ -17,6 +17,7 @@ class UpdatePlatformWhatsAppSettingsRequest extends FormRequest
             'enabled' => ['nullable', 'boolean'],
             'api_url' => ['required', 'url', 'max:500'],
             'api_key' => ['nullable', 'string', 'max:500'],
+            'global_api_key' => ['nullable', 'string', 'max:500'],
             'instance' => ['required', 'string', 'max:120'],
             'notify_groups' => ['nullable', 'array'],
             'notify_groups.*' => ['nullable', 'boolean'],

@@ -6,8 +6,8 @@
 |-------|-------|
 | **Produto** | SindCON — Plataforma SaaS de Gestão Condominial |
 | **Repositório** | CondoCenter |
-| **Versão do documento** | 2.46 |
-| **Data** | 02/10/2026 |
+| **Versão do documento** | 2.47 |
+| **Data** | 05/10/2026 |
 | **Status** | Em produção / evolução contínua |
 | **Stack** | Laravel 12, PHP 8.3+, MySQL, Bootstrap 5, Vue 3, Vite, Sanctum, Spatie Permission |
 | **Integrações** | Asaas (pagamentos), Evolution API (WhatsApp), Firebase (push mobile), Tesseract OCR (encomendas), BaconQrCode + GD (QR visitante), @zxing/library (scan portaria), OpenAI + Google Gemini (Consultor Financeiro) |
@@ -419,7 +419,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-02 | Gestão de planos de assinatura (lista resumida, criação em modal e edição em painel lateral) | Must | `SubscriptionPlanController`, `platform/plans/index` |
 | PLT-03 | Gestão de assinaturas por condomínio (ativar, suspender, cancelar, sync Asaas) | Must | `CondominiumSubscriptionController` |
 | PLT-04 | Sincronização de cobranças SaaS com Asaas | Must | `PlatformAsaasService`, webhooks |
-| PLT-05 | Configuração global Asaas e WhatsApp (Evolution API) | Must | `PlatformSettingsController` |
+| PLT-05 | Configuração global Asaas e WhatsApp (Evolution API), incluindo **API Key global** para provisionar instâncias por condomínio | Must | `PlatformSettingsController`, `PlatformSettingsService::getEvolutionProvisioningConfig` |
 | PLT-06 | Novidades/comunicados globais da plataforma | Should | `PlatformAnnouncement` → feed landing |
 | PLT-07 | Dashboard consolidado da operação SaaS | Should | `platform/dashboard` |
 | PLT-08 | Documentação VPS servida por token | Should | `/dev/docs/{token}` |
@@ -434,6 +434,7 @@ Fonte: `app/Support/CondominiumModules.php` — coluna `condominiums.enabled_mod
 | PLT-17 | A administradora acompanha o contrato SaaS, valores, cobranças e faturas Asaas | Must | `OrganizationContractController`, `/organizacao/contrato` |
 | PLT-18 | Painel da administradora com um card por condomínio: usuários vinculados, multas aplicadas (quantidade e valor) e saúde financeira (adimplência) | Must | `OrganizationCondominiumInsightsService`, `organization/dashboard` |
 | PLT-19 | Card de síndico na edição do condomínio e na edição da organização (modelo direto): exibe nome/contato, WhatsApp, incluir, editar dados e desvincular | Must | `CondominiumSyndicService`, `CondominiumSyndicController`, `condominiums/partials/syndic-management-card`, rotas `condominiums.syndics.*` |
+| PLT-20 | Autoatendimento WhatsApp por condomínio: criar instância Evolution, gravar credenciais e exibir QR Code na tela do cliente (síndico); credenciais manuais só para admin (modo avançado) | Must | `CondominiumWhatsAppProvisioningService`, `EvolutionInstanceService`, `CondominiumWhatsAppSettingsController`, `settings/whatsapp` |
 
 ### 8.2 Gestão de unidades e usuários
 
@@ -1148,6 +1149,7 @@ A encomenda está disponível para retirada na portaria.
 | COM-06 | Export CSV/PDF de conversas | Should | API |
 | COM-07 | Deep links de notificações | Should | `NotificationRedirectService` |
 | COM-08 | Landing page admin (ver seção 9) | Should | `CondominiumLandingAdminController` |
+| COM-10 | Conectar WhatsApp do condomínio via QR Code (sem Evolution Manager manual); reconexão e desconexão do aparelho na mesma tela | Must | `partials/whatsapp-qr-connect`, rotas `condominiums.settings.whatsapp.instance.*` |
 
 ### 8.13 Livro de Ocorrências
 
@@ -2188,7 +2190,7 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 | Dashboard financeiro | `resources/views/dashboard/partials/sindico-financial.blade.php` |
 | Painel da administradora | `OrganizationDashboardController`, `OrganizationCondominiumInsightsService`, `organization/partials/condominium-insight-cards.blade.php` |
 | VPS / deploy | Changelog em `DOCUMENTAÇÃO/INSTALACAO_VPS.md` (migrate + `RolesAndPermissionsSeeder` para papel Proprietário) |
-| WhatsApp / Evolution | `EvolutionApiService`, `WhatsAppNotificationService`, telas `settings/whatsapp` |
+| WhatsApp / Evolution | `EvolutionApiService`, `EvolutionInstanceService`, `CondominiumWhatsAppProvisioningService`, `WhatsAppNotificationService`, telas `settings/whatsapp` |
 
 ### Ambiente demo
 
@@ -2203,4 +2205,4 @@ Sem testes automatizados dedicados para: WhatsApp/Evolution (incl. `access_visit
 
 ---
 
-*Documento v2.46 — atualizado em 02/10/2026. Notificação de encomenda do morador abre o dashboard, não o painel da portaria (PKG-RN-13). Mantém a v2.45 (USR-21).*
+*Documento v2.47 — atualizado em 05/10/2026. PLT-20/COM-10: síndico provisiona instância Evolution e conecta WhatsApp pelo QR na tela do condomínio; API Key global em Plataforma → WhatsApp. Mantém a v2.46 (PKG-RN-13).*

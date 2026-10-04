@@ -325,8 +325,8 @@ class EvolutionApiService
 
         return match ($normalized) {
             'open', 'connected' => 'Instância conectada ao WhatsApp.',
-            'connecting' => 'A instância está tentando conectar, mas o WhatsApp ainda não confirmou a sessão. Se o aparelho foi desvinculado em Aparelhos conectados, abra o manager da Evolution e escaneie o QR Code novamente.',
-            'close', 'closed' => 'Instância desconectada. Escaneie o QR Code no manager da Evolution para reconectar.',
+            'connecting' => 'A instância está tentando conectar, mas o WhatsApp ainda não confirmou a sessão. Se o aparelho foi desvinculado em Aparelhos conectados, gere o QR Code nesta tela e escaneie novamente.',
+            'close', 'closed' => 'Instância desconectada. Gere o QR Code nesta tela para reconectar o WhatsApp.',
             default => 'Instância não conectada (estado: ' . ($state ?: 'desconhecido') . ').',
         };
     }

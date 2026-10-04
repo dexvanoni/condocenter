@@ -9,23 +9,35 @@
             <a href="{{ route('condominiums.index') }}" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Condomínios</a>
             <h1 class="mt-2 mb-1"><i class="bi bi-whatsapp text-success"></i> WhatsApp do Condomínio</h1>
             <p class="text-muted mb-0">
-                Configure a instância Evolution e o número usados para avisos de <strong>{{ $condominium->name }}</strong>.
-                Somente administradores e síndicos podem alterar estas configurações.
+                Conecte o WhatsApp e escolha os avisos de <strong>{{ $condominium->name }}</strong>.
+                O síndico vincula o aparelho pelo QR Code; o administrador da plataforma pode ajustar credenciais em modo avançado.
             </p>
         </div>
     </div>
+
+    @include('partials.whatsapp-qr-connect', [
+        'config' => $config,
+        'connection' => $connection ?? null,
+        'connectRoute' => route('condominiums.settings.whatsapp.instance.connect', $condominium),
+        'statusRoute' => route('condominiums.settings.whatsapp.instance.status', $condominium),
+        'disconnectRoute' => route('condominiums.settings.whatsapp.instance.disconnect', $condominium),
+    ])
 
     <div class="row g-4">
         <div class="col-lg-7">
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Evolution API — {{ $condominium->name }}</h5>
+                    <h5 class="mb-0">Notificações — {{ $condominium->name }}</h5>
                     <button type="button" class="btn btn-sm btn-outline-success" id="btnTestWhatsApp">
                         <i class="bi bi-lightning-charge"></i> Testar conexão
                     </button>
                 </div>
                 <div class="card-body">
-                    @include('partials.whatsapp-connection-status', ['config' => $config, 'connection' => $connection ?? null])
+                    @include('partials.whatsapp-connection-status', [
+                        'config' => $config,
+                        'connection' => $connection ?? null,
+                        'hideManagerLink' => true,
+                    ])
                     <form method="POST" action="{{ route('condominiums.settings.whatsapp.update', $condominium) }}" id="whatsappSettingsForm">
                         @csrf
                         @method('PUT')
@@ -37,32 +49,35 @@
                             <div class="form-text">Quando desligado, nenhuma mensagem será enviada neste condomínio.</div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">URL da Evolution API</label>
-                            <input type="url" name="api_url" class="form-control @error('api_url') is-invalid @enderror"
-                                   value="{{ old('api_url', $config['api_url']) }}"
-                                   placeholder="http://localhost:8080" required>
-                            @error('api_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Nome da instância</label>
-                            <input type="text" name="instance" class="form-control @error('instance') is-invalid @enderror"
-                                   value="{{ old('instance', $config['instance']) }}"
-                                   placeholder="condominio-exemplo" required>
-                            @error('instance')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            <div class="form-text">Use um nome único por condomínio no servidor Evolution.</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">API Key</label>
-                            @if($maskedKey)
-                                <div class="small text-muted mb-1">Atual: {{ $maskedKey }}</div>
-                            @endif
-                            <input type="password" name="api_key" class="form-control @error('api_key') is-invalid @enderror"
-                                   placeholder="Informe para substituir a chave atual" autocomplete="new-password">
-                            @error('api_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                        </div>
+                        @if(auth()->user()?->isAdmin())
+                            <details class="mb-4 border rounded p-3 bg-light">
+                                <summary class="fw-semibold cursor-pointer">Modo avançado — credenciais Evolution</summary>
+                                <p class="small text-muted mt-2 mb-3">Somente administrador da plataforma. O síndico usa o QR Code acima.</p>
+                                <div class="mb-3">
+                                    <label class="form-label">URL da Evolution API</label>
+                                    <input type="url" name="api_url" class="form-control @error('api_url') is-invalid @enderror"
+                                           value="{{ old('api_url', $config['api_url']) }}"
+                                           placeholder="http://localhost:8080">
+                                    @error('api_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Nome da instância</label>
+                                    <input type="text" name="instance" class="form-control @error('instance') is-invalid @enderror"
+                                           value="{{ old('instance', $config['instance']) }}"
+                                           placeholder="sindcon-production-condo-1">
+                                    @error('instance')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="mb-0">
+                                    <label class="form-label">API Key da instância</label>
+                                    @if($maskedKey)
+                                        <div class="small text-muted mb-1">Atual: {{ $maskedKey }}</div>
+                                    @endif
+                                    <input type="password" name="api_key" class="form-control @error('api_key') is-invalid @enderror"
+                                           placeholder="Informe para substituir a chave atual" autocomplete="new-password">
+                                    @error('api_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </details>
+                        @endif
 
                         <div class="mb-4">
                             <label class="form-label">Telefone para teste (opcional)</label>
@@ -170,9 +185,9 @@
             </div>
 
             <div class="alert alert-info small mt-4 mb-0">
-                <strong>Importante:</strong> salvar URL, instância e API Key não envia mensagem.
-                O número precisa aparecer como <strong>open</strong> no manager da Evolution.
-                Se o WhatsApp desvinculou o aparelho, escaneie o QR de novo.
+                <strong>Importante:</strong> ativar os tipos de aviso e conectar o WhatsApp pelo QR Code não envia mensagem sozinho.
+                O status precisa ficar <strong>conectado (open)</strong> antes dos avisos saírem.
+                Se o WhatsApp desvinculou o aparelho, use <strong>Gerar QR Code</strong> de novo.
                 Cobranças da assinatura SaaS usam a instância global da plataforma.
             </div>
         </div>

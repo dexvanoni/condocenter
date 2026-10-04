@@ -15,6 +15,7 @@ class PlatformSettingsService
     public const KEY_EVOLUTION_API_URL = 'evolution_api_url';
     public const KEY_EVOLUTION_API_KEY = 'evolution_api_key';
     public const KEY_EVOLUTION_INSTANCE = 'evolution_instance';
+    public const KEY_EVOLUTION_GLOBAL_API_KEY = 'evolution_global_api_key';
     public const KEY_WHATSAPP_NOTIFY_GROUPS = 'whatsapp_notify_groups';
 
     public function getAsaasConfig(): array
@@ -148,6 +149,29 @@ class PlatformSettingsService
             && filled($config['instance']);
     }
 
+    /**
+     * URL e API Key global para provisionar instâncias Evolution por condomínio.
+     *
+     * @return array{api_url: string|null, global_api_key: string|null, instance_prefix: string, timeout: int}
+     */
+    public function getEvolutionProvisioningConfig(): array
+    {
+        $wa = $this->getWhatsAppConfig();
+        $dbGlobal = PlatformSetting::getValue(self::KEY_EVOLUTION_GLOBAL_API_KEY);
+
+        return [
+            'api_url' => $wa['api_url'] ?: config('whatsapp.api_url'),
+            'global_api_key' => $dbGlobal ?: config('whatsapp.global_api_key'),
+            'instance_prefix' => (string) config('whatsapp.instance_prefix', 'sindcon'),
+            'timeout' => (int) ($wa['timeout'] ?? config('whatsapp.timeout', 15)),
+        ];
+    }
+
+    public function hasEvolutionGlobalApiKey(): bool
+    {
+        return filled($this->getEvolutionProvisioningConfig()['global_api_key']);
+    }
+
     public function updateWhatsAppSettings(array $data): void
     {
         if (array_key_exists('enabled', $data)) {
@@ -167,6 +191,10 @@ class PlatformSettingsService
 
         if (array_key_exists('instance', $data)) {
             PlatformSetting::setValue(self::KEY_EVOLUTION_INSTANCE, $data['instance']);
+        }
+
+        if (array_key_exists('global_api_key', $data) && filled($data['global_api_key'])) {
+            PlatformSetting::setValue(self::KEY_EVOLUTION_GLOBAL_API_KEY, $data['global_api_key'], encrypt: true);
         }
 
         if (array_key_exists('notify_groups', $data) && is_array($data['notify_groups'])) {

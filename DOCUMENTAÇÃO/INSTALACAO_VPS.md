@@ -30,7 +30,7 @@ Constantes desta instalação:
 - MySQL ou MariaDB do próprio servidor; o banco novo se chama `condocenter` (o serviço só é instalado se ainda não existir)
 - Node.js 20, só para compilar os assets
 - Fuso do SindCON: `America/Fortaleza` **no `.env`**. Não mude o fuso do sistema operacional — isso alteraria os outros sites. O agendador do Laravel usa `APP_TIMEZONE`.
-- **Última revisão:** 30/09/2026 (sequência para VPS Hostinger compartilhada)
+- **Última revisão:** 05/10/2026 (API Key global Evolution para QR por condomínio)
 
 Leitura no navegador (somente quem tiver o link): `DEV_DOCS_URL` no `.env`.
 
@@ -350,6 +350,8 @@ WHATSAPP_ENABLED=false
 EVOLUTION_API_URL=http://127.0.0.1:8080
 EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE=
+EVOLUTION_GLOBAL_API_KEY=
+EVOLUTION_INSTANCE_PREFIX=sindcon
 WHATSAPP_DEFAULT_COUNTRY_CODE=55
 
 SAAS_ENFORCE_SUBSCRIPTION=true
@@ -699,7 +701,7 @@ Quando terminar: vá para o **Passo 14**.
 ## Passo 14 — Integrações (o site já abre)
 
 1. No Asaas, webhook da plataforma: `https://SEU_DOMINIO/webhooks/asaas`. Cobrança de condomínio usa a URL que o painel mostra (`/webhooks/asaas/condominium/{id}` e `/webhooks/asaas/platform`).
-2. WhatsApp fica desligado até `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`. Cada condomínio também configura a instância em Configurações → WhatsApp. Se a Evolution roda em Docker nesta mesma VPS, deixe a API em `127.0.0.1` (não publique a porta 8080 na internet) e mantenha o container Redis no ar quando `CACHE_REDIS_ENABLED=true`. Instância `open` com timeout no envio costuma ser Redis parado.
+2. WhatsApp fica desligado até `WHATSAPP_ENABLED=true` e as variáveis `EVOLUTION_*`. A instância **SaaS** usa `EVOLUTION_API_KEY` + `EVOLUTION_INSTANCE`. Para cada condomínio criar a própria instância pelo QR no painel, informe também `EVOLUTION_GLOBAL_API_KEY` (mesma chave `AUTHENTICATION_API_KEY` do servidor Evolution) em **Plataforma → WhatsApp** ou no `.env`. Cada condomínio conecta em Configurações → WhatsApp (sem criar instância manual no manager). Se a Evolution roda em Docker nesta mesma VPS, deixe a API em `127.0.0.1` (não publique a porta 8080 na internet) e mantenha o container Redis no ar quando `CACHE_REDIS_ENABLED=true`. Instância `open` com timeout no envio costuma ser Redis parado.
 3. Consultor financeiro: sem `OPENAI_API_KEY` ou `GEMINI_API_KEY` a tela abre e a análise devolve aviso amigável. O limite mensal é definido no painel da organização.
 4. Leads da landing: `SUPABASE_URL`, `SUPABASE_KEY` e `SUPABASE_LEADS_ADMIN_TOKEN` só se o administrador for usar Configurações globais → Leads.
 5. OCR: `sudo -u www-data php8.3 artisan ocr:diagnose`. Intake com câmera depende do build do Passo 6 e do HTTPS do Passo 10.
@@ -832,6 +834,12 @@ tail -f /var/www/condocenter/storage/logs/worker.log
 Ao implementar feature nova: coloque o passo na **Parte 1** se for instalação, ou na **Parte 2** se for só atualização. Depois registre aqui. Não solte comando fora da ordem.
 
 A Parte 1 foi renumerada em 30/09/2026. Nas entradas antigas, “Passo 8” do cron é o **Passo 11** atual; Nginx/HTTPS são os **Passos 9 e 10**; `.env` é o **Passo 7**; primeira carga e OCR são o **Passo 8**.
+
+### 2026-10-05 — WhatsApp: QR Code por condomínio (provisionamento)
+
+- Sem `php artisan migrate`.
+- Opcional no `.env`: `EVOLUTION_GLOBAL_API_KEY` (chave global da Evolution) e `EVOLUTION_INSTANCE_PREFIX` (padrão `sindcon`). Também pode ser salva em **Plataforma → WhatsApp → API Key global (provisionamento)**.
+- Após deploy: confirme `EVOLUTION_API_URL` acessível pelo PHP da aplicação; síndicos conectam o celular em **Gestão → WhatsApp → Gerar QR Code**.
 
 ### 2026-09-30 — VPS Hostinger compartilhada
 

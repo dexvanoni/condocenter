@@ -52,7 +52,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">API Key</label>
+                            <label class="form-label">API Key da instância SaaS</label>
                             @if($maskedKey)
                                 <div class="small text-muted mb-1">Atual: {{ $maskedKey }}</div>
                             @endif
@@ -60,6 +60,20 @@
                                    placeholder="Informe para substituir a chave atual" autocomplete="new-password">
                             @error('api_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             <div class="form-text">Prioridade: banco de dados → `.env` (`EVOLUTION_API_KEY`).</div>
+                        </div>
+
+                        <div class="mb-3 border rounded p-3 bg-light">
+                            <label class="form-label fw-semibold">API Key global (provisionamento)</label>
+                            @if($maskedGlobalKey ?? null)
+                                <div class="small text-muted mb-1">Atual: {{ $maskedGlobalKey }}</div>
+                            @endif
+                            <input type="password" name="global_api_key" class="form-control @error('global_api_key') is-invalid @enderror"
+                                   placeholder="AUTHENTICATION_API_KEY do servidor Evolution" autocomplete="new-password">
+                            @error('global_api_key')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="form-text">
+                                Usada pelo SindCON para criar automaticamente a instância de cada condomínio (QR Code na tela do cliente).
+                                Fallback: <code>EVOLUTION_GLOBAL_API_KEY</code> no <code>.env</code>.
+                            </div>
                         </div>
 
                         <div class="mb-4">

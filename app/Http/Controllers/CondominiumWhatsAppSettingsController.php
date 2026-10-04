@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateCondominiumWhatsAppSettingsRequest;
 use App\Models\Condominium;
+use App\Services\CondominiumWhatsAppProvisioningService;
 use App\Services\CondominiumWhatsAppSettingsService;
 use App\Services\EvolutionApiService;
 use App\Services\WhatsAppNotificationService;
@@ -13,6 +14,7 @@ class CondominiumWhatsAppSettingsController extends Controller
 {
     public function __construct(
         private CondominiumWhatsAppSettingsService $settings,
+        private CondominiumWhatsAppProvisioningService $provisioning,
         private EvolutionApiService $evolution,
         private WhatsAppNotificationService $whatsapp,
     ) {
@@ -52,14 +54,19 @@ class CondominiumWhatsAppSettingsController extends Controller
 
     public function update(UpdateCondominiumWhatsAppSettingsRequest $request, Condominium $condominium)
     {
-        $this->settings->updateSettings($condominium, [
+        $payload = [
             'enabled' => $request->boolean('enabled'),
-            'api_url' => $request->input('api_url'),
-            'api_key' => $request->input('api_key'),
-            'instance' => $request->input('instance'),
             'notify_groups' => $request->input('notify_groups', []),
             'announcements_group' => $request->input('announcements_group'),
-        ]);
+        ];
+
+        if ($request->user()?->isAdmin()) {
+            $payload['api_url'] = $request->input('api_url');
+            $payload['api_key'] = $request->input('api_key');
+            $payload['instance'] = $request->input('instance');
+        }
+
+        $this->settings->updateSettings($condominium, $payload);
 
         return redirect()
             ->route('condominiums.settings.whatsapp', $condominium)
@@ -147,5 +154,24 @@ class CondominiumWhatsAppSettingsController extends Controller
         $result = $this->evolution->fetchAllGroups($condominium->id, $override);
 
         return response()->json($result);
+    }
+
+    public function connectInstance(Condominium $condominium)
+    {
+        return response()->json($this->provisioning->connect($condominium));
+    }
+
+    public function instanceStatus(Condominium $condominium)
+    {
+        return response()->json([
+            'connection' => $this->evolution->connectionState($condominium->id),
+            'configured' => $this->settings->isConfigured($condominium),
+            'instance' => $condominium->evolution_instance,
+        ]);
+    }
+
+    public function disconnectInstance(Condominium $condominium)
+    {
+        return response()->json($this->provisioning->disconnect($condominium));
     }
 }
